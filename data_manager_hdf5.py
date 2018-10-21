@@ -14,7 +14,462 @@ import datetime as dt
 import sqlite3
 import scipy.io as sio
 import pickle
-from DataManager import extractFromSeparators_v20
+import re
+
+class Data:
+    
+    AllAssets = {"0":"[USDX]",
+             "1":'AUDCAD',
+             "2":'EURAUD',
+             "3":'EURCAD',
+             "4":'EURCHF',
+             "5":'EURCZK',
+             "6":'EURDKK',
+             "7":'EURGBP',
+             "8":'EURNZD',
+             "9":'EURPLN',
+             "10":'EURUSD',
+             "11":'GBPAUD',
+             "12":'GBPCAD',
+             "13":'GBPCHF',
+             "14":'GBPUSD',
+             "15":'GOLD',
+             "16":'USDCAD',
+             "17":'USDCHF',
+             "18":'USDHKD',
+             "19":'USDJPY',
+             "20":'USDMXN',
+             "21":'USDNOK',
+             "22":'USDPLN',
+             "23":'USDRUB',
+             "24":'USDSGD',
+             "25":'XAGUSD',
+             "26":'XAUUSD',
+             "27":"CADJPY",
+             "28":"EURJPY",
+             "29":"AUDJPY",
+             "30":"CHFJPY",
+             "31":"GBPJPY",
+             "32":"NZDUSD"}
+
+    AllFeatures = {"0":"bids",
+                "1":"EMA01",
+                "2":"EMA05",
+                "3":"EMA1",
+                "4":"EMA5",
+                "5":"EMA10",
+                "6":"EMA50",
+                "7":"EMA100",
+                "8":"variance",
+                "9":"timeInterval",
+                "10":"parSARhigh",
+                "11":"parSARlow",
+                "12": "time",
+                "13":"parSARhigh2",
+                "14":"parSARlow2",
+                "15":"difVariance",
+                "16":"difTimeInterval",
+                "17":"maxValue",
+                "18":"minValue",
+                "19":"difMaxValue",
+                "20":"difMinValue",
+                "21":"minOmax",
+                "22":"difMinOmax",
+                "23":"bidOema01",
+                "24":"bidOema05",
+                "25":"bidOema1",
+                "26":"bidOema5",
+                "27":"bidOema10",
+                "28":"bidOema50",
+                "29":"bidOema100",
+                "30":"difBidOema01",
+                "31":"difBidOema05",
+                "32":"difBidOema1",
+                "33":"difBidOema5",
+                "34":"difBidOema10",
+                "35":"difBidOema50",
+                "36":"difBidOema100"}
+    
+    
+    average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
+    #average_over = np.array([0.11,0.2,0.3,.4,.5,.6,.7,.8,.9,1,1.5,2,2.5,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100])
+    
+    train = "Train"
+    test = "Test"
+    
+    def __init__(self, movingWindow=40,nEventsPerStat=40,lB=400,std_var=0.1,nFeaturesAuto=0,channels=[0],
+                 lookAhead=1,comments='',save_data_every=1,save_IO=1,divideLookAhead=1,lookAheadIndex=3,
+                 features=[i for i in range(37)],BDeval='../DB/EVAL.sqlite',lookAheadVector=[.1,.2,.5,1,2,5,10],
+                 dateStart='2017.08.14',dateEnd='2017.09.19',dateTest=['2017.09.15','2017.11.06','2017.11.07'],
+                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], IDweights=None,FCNID=None):
+        
+        if IDweights==None:
+            
+            
+            self.movingWindow = movingWindow
+            self.nEventsPerStat = nEventsPerStat
+            self.nFeatures = len(features)
+            
+            self.lB = lB
+            self.lookBack = int(lB/movingWindow) # lookback 500 events
+            
+            self.lookAhead = lookAhead
+            self.maxTimeDif = dt.timedelta(minutes=7) # maximum time allowed between files to be concatenated
+            self.divideLookAhead = divideLookAhead
+            
+            assert(max(channels)<nEventsPerStat/movingWindow)
+            self.channels = channels
+            
+            
+        else:
+            IDstr = "{0:06d}".format(int(IDweights))
+            conn = sqlite3.connect(BDeval)
+            parameters = pd.read_sql_query("SELECT * FROM IDw WHERE `index`=="+"'"+IDstr+"'", conn)
+            #self.dateEnd = parameters["dateEnd"].iloc[0]
+            #self.dateStart = parameters["dateStart"].iloc[0]
+            self.lookAhead = parameters["lookAhead"].iloc[0]
+            self.movingWindow = parameters["movingWindow"].iloc[0]
+            if "lookBack" in parameters.columns:
+                self.lookBack = parameters["lookBack"].iloc[0]
+                self.lB = self.lookBack*self.movingWindow
+            else:
+                self.lB = parameters["lB"].iloc[0]
+                self.lookBack = int(self.lB/self.movingWindow)
+                
+            self.nEventsPerStat = parameters["nEventsPerStat"].iloc[0]
+            self.nFeatures = parameters["nFeatures"].iloc[0]
+            self.divideLookAhead = parameters["divideLookAhead"].iloc[0]
+            
+            p = re.compile("1")
+            '''
+            self.assets = []
+            for m in p.finditer(parameters["assets"].iloc[0]):
+                #print(m.start())
+                self.assets.append(m.start())
+            '''
+            testDaysIndex =[]
+            testDates = []
+            dateDT = dt.datetime.strptime(dateStart,"%Y.%m.%d")
+            for m in p.finditer(parameters["dateTest"].iloc[0]):
+                #print(m.start())
+                testDaysIndex.append(m.start())
+                testDate = dt.datetime.strftime(dateDT+dt.timedelta(days=m.start()),"%Y.%m.%d")
+                if testDate not in dateTest:
+                    print("Warning! Test Dates don't match!")
+                testDates.append(testDate)
+            #print(testDates)
+            conn.close()
+        
+        self.lbd=1-1/(self.nEventsPerStat*self.average_over)
+        self.features=features
+        self.std_var = std_var
+        self.std_time = std_var
+        self.comments = comments
+        self.save_data_every = save_data_every
+        self.save_IO = save_IO
+        self.dateTest = dateTest
+        self.dateStart = dateStart
+        self.dateEnd = dateEnd
+        self.assets = assets
+        self.noVarFeats = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+        self.lookAheadVector = lookAheadVector
+        self.lookAheadIndex = lookAheadIndex
+        self.FCNID = FCNID
+        self.nFeaturesAuto = nFeaturesAuto
+
+def initFeaturesLive(data,tradeInfoLive):
+    """
+    <DocString>
+    """
+    class parSarInit:
+        # old parsar=> 20
+        #periodSAR = data.nEventsPerStat
+        HP20 = 0
+        HP2 = 0
+        LP20 = 100000
+        LP2 = 100000
+        stepAF = 0.02
+        AFH20 = stepAF
+        AFH2 = stepAF
+        AFL20 = stepAF
+        AFL2 = stepAF
+        maxAF20 = 20*stepAF    
+        maxAF2 = 2*stepAF
+    
+    parSarStruct = parSarInit
+    
+    featuresLive = np.zeros((data.nFeatures,1))
+    
+    initRange = int(data.nEventsPerStat/data.movingWindow)
+    em = np.zeros((data.lbd.shape))+tradeInfoLive.SymbolBid.loc[0+tradeInfoLive.SymbolBid.index[0]]
+    for i in range(initRange*data.movingWindow-data.movingWindow):
+        em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i+tradeInfoLive.SymbolBid.index[0]]
+    
+    
+    if 1 in data.features:
+        featuresLive[1:1+data.lbd.shape[0],0] = tradeInfoLive.SymbolBid.iloc[0]
+        for i in range(int(data.nEventsPerStat*(1-data.movingWindow/data.nEventsPerStat))):
+            featuresLive[1:1+data.lbd.shape[0],0] = data.lbd*featuresLive[1:1+data.lbd.shape[0],0]+(
+                    1-data.lbd)*tradeInfoLive.SymbolBid.iloc[i]
+    #print(em-featuresLive[1:1+data.lbd.shape[0],0])
+    if 10 in data.features:
+        featuresLive[10,0] = tradeInfoLive.SymbolBid.iloc[0]
+        featuresLive[11,0] = tradeInfoLive.SymbolBid.iloc[0]
+    
+    if 13 in data.features:
+        featuresLive[13,0] = tradeInfoLive.SymbolBid.iloc[0]
+        featuresLive[14,0] = tradeInfoLive.SymbolBid.iloc[0]
+    
+    return featuresLive,parSarStruct,em
+
+def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
+    """
+    <DocString>
+    """
+    nEvents = data.nEventsPerStat
+    
+    
+    initRange = int(data.nEventsPerStat/data.movingWindow)
+    endIndex = initRange*data.movingWindow+tradeInfoLive.SymbolBid.index[0]
+    newBidsIndex = range(endIndex-data.movingWindow,endIndex)
+    for i in newBidsIndex:
+        #print(tradeInfoLive.SymbolBid.loc[i])
+        em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i]
+    
+    
+    if 1 in data.features:
+        newEventsRange = range(int(nEvents*(1-data.movingWindow/data.nEventsPerStat)),nEvents)
+        #print(newEventsRange)
+        eml = featuresLive[1:1+data.lbd.shape[0],0]
+        for il in newEventsRange:
+            #print(tradeInfoLive.SymbolBid.iloc[il])
+            eml = data.lbd*eml+(
+                    1-data.lbd)*tradeInfoLive.SymbolBid.iloc[il]
+        
+        featuresLive[1:1+data.lbd.shape[0],0] = eml
+        
+    if 10 in data.features:
+        parSarStruct.HP20 = np.max([np.max(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.HP20])
+        parSarStruct.LP20 = np.min([np.min(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.LP20])
+        featuresLive[10,0] = featuresLive[10,0]+parSarStruct.AFH20*(parSarStruct.HP20-featuresLive[10,0]) #parSar high
+        featuresLive[11,0] = featuresLive[11,0]-parSarStruct.AFL20*(featuresLive[11,0]-parSarStruct.LP20) # parSar low
+        if featuresLive[10,0]<parSarStruct.HP20:
+            parSarStruct.AFH20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
+            parSarStruct.LP20 = np.min(tradeInfoLive.SymbolBid.iloc[:])
+        if featuresLive[11,0]>parSarStruct.LP20:
+            parSarStruct.AFL20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
+            parSarStruct.HP20 = np.max(tradeInfoLive.SymbolBid.iloc[:])
+        
+    if 13 in data.features:
+        parSarStruct.HP2 = np.max([np.max(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.HP2])
+        parSarStruct.LP2 = np.min([np.min(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.LP2])
+        featuresLive[13,0] = featuresLive[13,0]+parSarStruct.AFH2*(parSarStruct.HP2-featuresLive[13,0]) #parSar high
+        featuresLive[14,0] = featuresLive[14,0]-parSarStruct.AFL2*(featuresLive[14,0]-parSarStruct.LP2) # parSar low
+        if featuresLive[13,0]<parSarStruct.HP2:
+            parSarStruct.AFH2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
+            parSarStruct.LP2 = np.min(tradeInfoLive.SymbolBid.iloc[:])
+        if featuresLive[14,0]>parSarStruct.LP2:
+            parSarStruct.AFL2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
+            parSarStruct.HP2 = np.max(tradeInfoLive.SymbolBid.iloc[:])
+
+    if 0 in data.features:
+        featuresLive[0,0] = tradeInfoLive.SymbolBid.iloc[-1]
+    
+    
+    if 8 in data.features:
+            featuresLive[8,0] = 10*np.log10(np.var(tradeInfoLive.SymbolBid.iloc[:])/data.std_var+1e-10)
+        
+    if 9 in data.features:
+        te = pd.to_datetime(tradeInfoLive.iloc[-1].DateTime)
+        t0 = pd.to_datetime(tradeInfoLive.iloc[0].DateTime)
+        timeInterval = (te-t0).seconds/nEvents
+        featuresLive[9,0] = 10*np.log10(timeInterval/data.std_time+0.01)
+
+    if 12 in data.features:
+        secsInDay = 86400.0
+        if 9 not in data.features:
+            # calculate te if not yet calculated
+            te = pd.to_datetime(tradeInfoLive.iloc[-1].DateTime)
+        timeSec = (te.hour*60*60+te.minute*60+te.second)/secsInDay
+        featuresLive[12,0] = timeSec
+    
+    # Repeat non-variation features to inclue variation betwen first and second input
+    if 15 in data.features:
+        featuresLive[15,0] = featuresLive[8,0]
+    
+    if 16 in data.features:
+        featuresLive[16,0] = featuresLive[9,0]
+        
+    if 17 in data.features:
+        featuresLive[17,0] = np.max(tradeInfoLive.SymbolBid.iloc[:])-featuresLive[0,0]
+    
+    if 18 in data.features:
+        featuresLive[18,0] = featuresLive[0,0]-np.min(tradeInfoLive.SymbolBid.iloc[:])
+    
+    if 19 in data.features:
+        featuresLive[19,0] = np.max(tradeInfoLive.SymbolBid.iloc[:])-featuresLive[0,0]
+        
+    if 20 in data.features:
+        featuresLive[20,0] = featuresLive[0,0]-np.min(tradeInfoLive.SymbolBid.iloc[:])
+    
+    if 21 in data.features:
+        featuresLive[21,0] = np.min(tradeInfoLive.SymbolBid.iloc[:])/np.max(tradeInfoLive.SymbolBid.iloc[:])
+    
+    if 22 in data.features:
+        featuresLive[22,0] = np.min(tradeInfoLive.SymbolBid.iloc[:])/np.max(tradeInfoLive.SymbolBid.iloc[:])
+    
+    for i in range(data.lbd.shape[0]):
+        #nF = nF+1
+        if 23+i in data.features:                 
+            featuresLive[23+i,0] = featuresLive[0,0]/eml[i]
+    
+    for i in range(data.lbd.shape[0]):
+        #nF = nF+1
+        if 30+i in data.features:                 
+            featuresLive[30+i,0] = featuresLive[0,0]/eml[i]
+    
+    return featuresLive,parSarStruct,em
+
+def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNight,dateTest, tOt="tr"):
+    """
+    <DocString>
+    """
+    belong2tOt = pd.Series(tradeInfo.DateTime.str.contains('%&§&&§')) # initialize to all false
+    for d in dateTest:
+        belong2tOt = belong2tOt | tradeInfo.DateTime.str.contains('^'+d)
+    
+    if tOt=="te":
+        belong2tOt = ~belong2tOt
+    
+    separators = pd.DataFrame(data=[],columns=['DateTime','SymbolBid','SymbolAsk'])
+    #separators.index.name = "real_index"
+    # append first and last entry already if not all zeros
+    if belong2tOt.min()==0:
+        separators = separators.append(tradeInfo.loc[(~belong2tOt).argmax()]).append(tradeInfo.loc[(~belong2tOt)[::-1].argmax()])
+    
+    dTs = pd.to_datetime(tradeInfo["DateTime"],format='%Y.%m.%d %H:%M:%S').to_frame()
+    dTs1 = dTs[:-1]
+    dTs2 = dTs[1:].set_index(dTs1.index)
+    dayIndex = (dTs1.DateTime.dt.hour<22) & (dTs1.DateTime.dt.hour>5)
+
+    tID1 = belong2tOt[:-1]
+    tID2 = belong2tOt[1:]
+    tID2.index = tID1.index
+    #print(belong2tOt)
+    tOtTransition = np.logical_xor(belong2tOt.iloc[:-1],belong2tOt.iloc[1:])
+    #print(tOtTransition.index[tOtTransition])
+    
+    indexesTrans = np.union1d(tOtTransition.index[tOtTransition],tOtTransition.index[tOtTransition]+1)
+    #print(indexesTrans)
+    tOtTransition.loc[indexesTrans] = True
+    tOtTransition = tOtTransition & (~belong2tOt).iloc[:-1]
+    #print(tradeInfo.loc[tID1[tOtTransition].index])
+    separators = separators.append(tradeInfo.loc[tID1[tOtTransition].index])
+    separators = separators[~separators.index.duplicated(keep='first')]
+
+    bids1 = tradeInfo.SymbolBid[:-1]
+    bids2 = tradeInfo.SymbolBid[1:]
+    bidsIndex = bids1.index
+    bids2.index = bidsIndex
+
+    deltaBids = ((bids1-bids2).abs())*np.mean(bids1)
+    warningsBid = (((deltaBids>=bidThresDay) & (~tID1)) & dayIndex) | (((deltaBids>=bidThresNight) & (~tID1)) & ~dayIndex)
+    deltasInsSecs = (dTs2-dTs1).astype('timedelta64[s]')
+    # Find days transition indexes
+    dayChange = (dTs1.DateTime.dt.day!=dTs2.DateTime.dt.day)
+    deltasInsSecs.DateTime = deltasInsSecs.DateTime-60*6*dayChange
+
+    # Find weekend transition indexes
+    weekChange = (dTs1.DateTime.dt.dayofweek==4) & (dTs2.DateTime.dt.dayofweek==0)
+
+    # Update seconds difference
+    deltasInsSecs.DateTime = deltasInsSecs.DateTime-(2*24*60*60)*weekChange
+
+    # Find deltas of more than 5 minutes
+    warningTime = ((deltasInsSecs.DateTime>60*minThresDay) & (~tID1) & dayIndex) | ((deltasInsSecs.DateTime>60*minThresNight) & (~tID1) & ~dayIndex)
+    allWarnings = warningTime & warningsBid & (~tOtTransition)
+    endChunckIndex = deltaBids[allWarnings].index
+    beginningChunckIndex = []
+    for i in range(endChunckIndex.shape[0]):
+        beginningChunckIndex.append(tradeInfo.index.get_loc(endChunckIndex[i])+1)
+
+    separators = separators.append(tradeInfo.loc[endChunckIndex]).append(tradeInfo.iloc[beginningChunckIndex]).sort_index()
+
+    #delete all those that have same index as beginning and end, i.g., chunk length is zero
+    separators = separators[~separators.index.duplicated(False)]
+
+    return separators
+
+def build_output(model, Output, batch_size):
+    """
+    Function that builds output binary Y based on real-valued returns Output vector.
+    Args:
+        - model: object containing model parameters
+        - Output: real-valued returns vector
+        - batch_size: scalar representing the batch size 
+    Returns:
+        - output binary matrix y_bin
+    """
+    # init y
+    y = np.zeros((Output.shape))
+    # quantize output to get y
+    out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*model.outputGain),-
+        (model.size_output_layer-1)/2),(model.size_output_layer-1)/2)
+    
+    y = out_quantized+int((model.size_output_layer-1)/2)
+    # conver y as integer
+    y_dec=y.astype(int)
+    # one hot output
+    y_one_hot = convert_to_one_hot(y_dec, model.size_output_layer).T.reshape(
+        batch_size,model.seq_len,model.size_output_layer)
+    #print("y_one_hot.shape")
+    #print(y_one_hot.shape)
+
+    # add y_c bits if proceed
+    y_c = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],0))
+    
+    if model.commonY == 1 or model.commonY == 3:
+        y_c0 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
+        # find up/down outputs (=> those with a zero in the middle bit of one-hot vector)
+        nonZeroYs = y_one_hot[:,:,int((model.size_output_layer-1)/2)]!=1
+        # set 1s in y_c0 vector at non-zero entries
+        y_c0[nonZeroYs,0] = 1
+        y_c = np.append(y_c,y_c0,axis=2)
+    if model.commonY == 2 or model.commonY == 3:
+        # build y_c1 and y_c2 vectors. y_c1 indicates all down outputs. y_c2
+        # indicates all up outputs.
+#        print("y_one_hot.shape")
+#        print(y_one_hot.shape)
+        y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
+        y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
+        # find negative (positive) returns
+        negativeYs = out_quantized<0
+        positiveYs = out_quantized>0
+#        print("negativeYs.shape")
+#        print(negativeYs.shape)
+        # set to 1 the corresponding entries
+        y_c1[np.squeeze(negativeYs),0] = 1
+        y_c2[np.squeeze(positiveYs),0] = 1
+#        print("y_c1")
+#        print(y_c1)
+        # append to y_c
+#        print("y_c.shape")
+#        print(y_c.shape)
+#        print("y_c1.shape")
+#        print(y_c1.shape)
+        y_c = np.append(y_c,y_c1,axis=2)
+        y_c = np.append(y_c,y_c2,axis=2)
+#        print(y_c)
+#        print("y_c.shape")
+#        print(y_c.shape)
+    # build output vector
+    #print(y_c)
+
+    y_bin = np.append(y_c,y_one_hot,axis=2)
+#    print("y_bin.shape")
+#    print(y_bin.shape)
+
+    return y_bin, y_dec
 
 def save_as_matfile(filename,varname,var):
     
@@ -775,13 +1230,8 @@ def load_separators(data, thisAsset, separators_directory, tOt='tr', from_txt=1)
         # load separators
         separators = pd.read_csv(separators_directory+separators_filename, index_col='Pointer')
     else:
-        DBDD = '../DB/DATEDISP_v30.sqlite'
-        connDD = sqlite3.connect(DBDD)
-        separators = pd.read_sql_query("SELECT * FROM "+thisAsset+tOt+"DISP",connDD).set_index("real_index")
-        connDD.close()
-        DBforex = '../DB/forex_v22.sqlite'
-        separators = extractFromSeparators_v20(separators, data.dateStart, data.dateEnd, thisAsset, DBforex)
-    
+        print("Depricated load separators from DB. Use text instead")
+        error()
     return separators
 
 def build_DTA(data, I, ass_IO_ass, hdf5_directory):

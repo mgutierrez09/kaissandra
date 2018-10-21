@@ -10,9 +10,8 @@ import h5py
 import pickle
 import numpy as np
 import tensorflow as tf
-from DataManager import Data
 from RNN import modelRNN
-from data_manager_hdf5 import load_separators, load_stats, load_features_results, build_IO_from_hdf5, get_outputGain
+from data_manager_hdf5 import Data, load_separators, load_stats, load_features_results, build_IO_from_hdf5, get_outputGain
 
 
 ticTotal = time.time()

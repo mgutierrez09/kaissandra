@@ -12,7 +12,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import datetime as dt
-from DataManager import extractSeparators_v21, Data
+from data_manager_hdf5 import Data, extractSeparators
 
 def check_consecutive_trading_days(directory,prev_day, post_day):
     """
@@ -402,7 +402,7 @@ for ass in data.assets:
         if tradeInfo.shape[0]>0:
             if not trusted_source:
                 # extract separators
-                this_separators = extractSeparators_v21(tradeInfo,minThresNight,minThresNight,
+                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                        bidThresDay,bidThresNight,[])
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
@@ -530,7 +530,7 @@ for ass in data.assets:
                 # update index
                 file_newer_index += 1
                 # get eparators from latest info
-                this_separators = extractSeparators_v21(tradeInfo,minThresNight,minThresNight,
+                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                        bidThresDay,bidThresNight,[])
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep

@@ -11,14 +11,12 @@ import time
 import os
 import numpy as np
 import pandas as pd
-from DataManager import Data, initFeaturesLive_11, extractFeaturesLive_11
-import re
 import datetime as dt
 import pickle
 import h5py
 import tensorflow as tf
 from simulate_trader_eventbased_v20 import load_in_memory
-from data_manager_hdf5 import load_stats
+from data_manager_hdf5 import Data, load_stats, initFeaturesLive, extractFeaturesLive
 from RNN import modelRNN
 import shutil
 
@@ -833,10 +831,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     if init[sc]==False:
         if verbose_RNN:
             print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Features inited")
-        listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = initFeaturesLive_11(data,tradeInfoLive)
+        listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = initFeaturesLive(data,tradeInfoLive)
         init[sc] = True
 
-    listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive_11(tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
+    listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive(tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
     # check if variations can be calculated or have to wait
     #allFeats = np.append(allFeats,features,axis=1)
     listAllFeatsLive[sc] = np.append(listAllFeatsLive[sc],listFeaturesLive[sc],axis=1)
