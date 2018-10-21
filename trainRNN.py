@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # index asset
     ass_idx = 0
     # array containing bids means
-    bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
+    #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
     for ass in data.assets:
         thisAsset = data.AllAssets[str(ass)]
@@ -138,7 +138,7 @@ if __name__ == "__main__":
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
                     # check if the separator chuck belongs to the training/test set
-                    if (tOt=='train' and day_s not in data.dateTest) or (tOt=='test' and day_s in data.dateTest):
+                    if day_s not in data.dateTest:
                         
                         try:
                             #print("\tBuilding IO")
