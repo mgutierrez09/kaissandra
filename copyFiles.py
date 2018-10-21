@@ -9,7 +9,7 @@ import re
 import os
 import pandas as pd
 import datetime as dt
-from data_manager_hdf5 import Data
+from inputs import Data
 
 #
 destiny = 'D:/SDC/py/Data_test/'

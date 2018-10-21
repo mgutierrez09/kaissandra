@@ -15,7 +15,7 @@ import time
 import pandas as pd
 import datetime as dt
 import numpy as np
-from data_manager_hdf5 import Data
+from inputs import Data
 import pickle
 
 #from TradingManager_v10 import write_log

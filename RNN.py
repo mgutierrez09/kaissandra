@@ -16,7 +16,7 @@ import datetime as dt
 import os
 import pandas as pd
 #import matplotlib.pyplot as plt
-from ResultsManager import getResults,printResults,loadTR,getSummary,evaluate_RNN,save_best_results
+from results import getResults,printResults,loadTR,getSummary,evaluate_RNN,save_best_results
 
 class trainData:
     def __init__(self,X,Y):

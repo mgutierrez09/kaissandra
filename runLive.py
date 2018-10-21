@@ -15,8 +15,8 @@ import datetime as dt
 import pickle
 import h5py
 import tensorflow as tf
-from simulate_trader_eventbased_v30 import load_in_memory
-from data_manager_hdf5 import Data, load_stats, initFeaturesLive, extractFeaturesLive
+from simulateTrader import load_in_memory
+from inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
 from RNN import modelRNN
 import shutil
 

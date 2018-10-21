@@ -11,7 +11,7 @@ import pickle
 import tensorflow as tf
 import h5py
 from RNN import modelRNN
-from data_manager_hdf5 import Data, load_separators, load_stats, load_features_results, build_DTA_v10, build_IO_from_hdf5, get_outputGain
+from inputs import Data, load_separators, load_stats, load_features_results, build_DTA_v10, build_IO, get_outputGain
 
 
 ticTotal = time.time()
@@ -49,7 +49,7 @@ data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,dateStart='2016.01.01',
 # init structures
 runRNN = True
 
-build_IO = True
+if_build_IO = True
 buildDTA = True
 startFrom = 13
 endAt = 13
@@ -83,7 +83,7 @@ if runRNN:
                    lR0=0.0001,
                    version="1.0")
 
-    if build_IO:
+    if if_build_IO:
         
         # open IO file for writting
         f_IO = h5py.File(filename_IO,'w')
@@ -154,7 +154,7 @@ for ass in data.assets:
                     try:
                         #print("\tBuilding IO")
                         file_temp = h5py.File('../RNN/IO/temp_test_build.hdf5','w')
-                        IO, totalSampsPerLevel = build_IO_from_hdf5(file_temp, data, model, IO_prep, stats, 
+                        IO, totalSampsPerLevel = build_IO(file_temp, data, model, IO_prep, stats, 
                                                                     IO, totalSampsPerLevel, s, nE, thisAsset)
                         # close temp file
                         file_temp.close()

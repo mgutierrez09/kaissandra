@@ -1054,7 +1054,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
     
     return IO_prep, stats
 
-def build_IO_from_hdf5(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, thisAsset):
+def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, thisAsset):
     """
     Function that builds X and Y from data contained in a HDF5 file.
     """

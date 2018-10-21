@@ -8,7 +8,7 @@ Created on Mon Apr 16 12:41:50 2018
 import numpy as np
 import time
 import h5py
-from data_manager_hdf5 import Data, load_separators, get_features_results_stats_from_raw
+from inputs import Data, load_separators, get_features_results_stats_from_raw
 
 
 ticTotal = time.time()

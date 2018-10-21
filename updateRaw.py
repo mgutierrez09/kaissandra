@@ -12,7 +12,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import datetime as dt
-from data_manager_hdf5 import Data, extractSeparators
+from inputs import Data, extractSeparators
 
 def check_consecutive_trading_days(directory,prev_day, post_day):
     """
