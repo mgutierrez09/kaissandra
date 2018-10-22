@@ -48,6 +48,12 @@ def configuration():
     outputGain=.6
     commonY=3
     lR0=0.0001
+    # test-specific parameters
+    IDresults = '100266'
+    buildDTA = True
+    startFrom = 13
+    endAt = 13
+    save_journal = True
     # add parameters to config dictionary
     config = {'dateTest':dateTest,
             'movingWindow':movingWindow,
@@ -66,7 +72,13 @@ def configuration():
            'if_build_IO':if_build_IO,
            'IDweights':IDweights,
            'hdf5_directory':hdf5_directory,
-           'IO_directory':IO_directory}
+           'IO_directory':IO_directory,
+           
+           'IDresults':IDresults,
+           'buildDTA':buildDTA,
+           'startFrom':startFrom,
+           'endAt':endAt,
+           'save_journal':save_journal}
     
     
     return config
