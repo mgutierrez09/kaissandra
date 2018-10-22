@@ -5,16 +5,12 @@ Created on Sun Oct 21 17:03:11 2018
 @author: mgutierrez
 """
 
-from inputs import Data
-
-def config():
+def configuration():
     """
     <DocString>
     """
-    # config dictionary initialization
-    config = {}
-    # Common parameters
-    test_dates = [                                                    '2018.03.09',
+    # data parameters
+    dateTest = [                                                      '2018.03.09',
                   '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
                   '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
                   '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -35,26 +31,42 @@ def config():
                   '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
                   '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
                   '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']
-    data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,dateStart='2016.01.01',
-              dateEnd='2018.08.10',dateTest = test_dates)
+    movingWindow = 100
+    nEventsPerStat = 1000
+    lB = 1200
+    # general parameters
     if_build_IO = True
-    IDweights = '000270'
+    IDweights = '000271'
     hdf5_directory = 'D:/SDC/py/HDF5/'
     IO_directory = '../RNN/IO/'
-    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
-    separators_directory = hdf5_directory+'separators/'
-    filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
-    
+    # model parameters
+    size_hidden_layer=100
+    L=3
+    size_output_layer=5
+    keep_prob_dropout=1
+    miniBatchSize=32
+    outputGain=.6
+    commonY=3
+    lR0=0.0001
     # add parameters to config dictionary
-    config['data':data,
+    config = {'dateTest':dateTest,
+            'movingWindow':movingWindow,
+           'nEventsPerStat':nEventsPerStat,
+           'lB':lB,
+           
+           'size_hidden_layer':size_hidden_layer,
+           'L':L,
+           'size_output_layer':size_output_layer,
+           'keep_prob_dropout':keep_prob_dropout,
+           'miniBatchSize':miniBatchSize,
+           'outputGain':outputGain,
+           'commonY':commonY,
+           'lR0':lR0,
+           
            'if_build_IO':if_build_IO,
            'IDweights':IDweights,
            'hdf5_directory':hdf5_directory,
-           'IO_directory':IO_directory,
-           'filename_prep_IO':filename_prep_IO,
-           'separators_directory':separators_directory,
-           'filename_IO':filename_IO]
+           'IO_directory':IO_directory}
     
     
     return config

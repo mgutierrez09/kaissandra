@@ -499,9 +499,11 @@ class Trader:
         
         out =( date_time+partial_string+" close "+ass+" Ratio {0:.2f}".format(lot_ratio)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
-                      100*ROI_live,100*spread,100*GROI_live)+" TGROI {1:.3f}% TROI = {0:.3f}%".format(
-                      100*self.tROI_live,100*self.tGROI_live)+" Earnings {0:.2f}".format(earnings)
-              +". Remeining open "+str(len(self.list_opened_positions)))
+                      100*ROI_live,100*spread,100*GROI_live)+
+                      " TGROI {1:.3f}% TROI = {0:.3f}%".format(
+                      100*self.tROI_live,100*self.tGROI_live)+
+                      " Earnings {0:.2f}".format(earnings)+
+                      ". Remeining open "+str(len(self.list_opened_positions)))
         self.write_log(out)
         print("\r"+out)
         
@@ -521,7 +523,9 @@ class Trader:
             
         out = (DateTime+" Open "+self.list_opened_positions[-1].asset+
               " Lots {0:.1f}".format(lots)+" "+str(self.list_opened_positions[-1].bet)+
-              " p_mc={0:.2f}".format(self.list_opened_positions[-1].p_mc)+" p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+ " spread={0:.3f}".format(e_spread))
+              " p_mc={0:.2f}".format(self.list_opened_positions[-1].p_mc)+
+              " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
+              " spread={0:.3f}".format(e_spread))
         print("\r"+out)
         self.write_log(out)
         
@@ -663,7 +667,8 @@ class Trader:
                     self.update_position(ass_id)
                     self.n_pos_extended += 1
                     out = (new_entry[entry_time_column]+" Extended "+thisAsset+
-                       " Lots {0:.1f}".format(self.list_lots_per_pos[self.map_ass_idx2pos_idx[ass_id]])+
+                       " Lots {0:.1f}".format(self.list_lots_per_pos[
+                               self.map_ass_idx2pos_idx[ass_id]])+
                        " "+str(new_entry['Bet'])+" p_mc={0:.2f}".format(new_entry['P_mc'])+
                        " p_md={0:.2f}".format(new_entry['P_md'])+ 
                        " spread={0:.3f}".format(new_entry['E_spread']))
@@ -671,22 +676,11 @@ class Trader:
                     print("\r"+out)
                     self.write_log(out)
                 else: # if candidate for extension does not meet requirements
-                    # TODO: link it with the stratetgy
                     pass
-    #                               change_dir += 1
-    #                               print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Exit position due to direction change "+Assets[event_idx].decode("utf-8"))
-    #                                # get lots in case a new one is directly opened
-    #                                lots = trader.list_lots_per_pos[trader.map_ass_idx2pos_idx[ass_idx]]
-    #                                trader.close_position(DateTimes[event_idx], Assets[event_idx].decode("utf-8"), ass_idx)
-    #                                # reset approched
-    #                                if len(trader.list_opened_positions)==0:
-    #                                    approached = 0
-    #                                
-    #                                if trader.chech_ground_condition_for_opening() and trader.check_primary_condition_for_opening() and trader.check_secondary_contition_for_opening():
-    #                                    approached, n_entries, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, approached, n_entries, n_pos_opened, lots=lots)
             else: # if direction is different
                 # if new position has higher GRE, close
-                if self.next_candidate.profitability>=self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
+                if self.next_candidate.profitability>=self.list_opened_positions[
+                        self.map_ass_idx2pos_idx[ass_id]].profitability:
                     if not run_back_test:
                         self.send_close_command(directory_MT5_ass)
                         # TODO: study the option of not only closing postiion but also changing direction
@@ -926,8 +920,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                           tradeInfoLive.SymbolBid.iloc[-1], tradeInfoLive.SymbolAsk.iloc[-1], data.nEventsPerStat]
                 
                 if verbose_RNN:
-                    print(thisAsset+netName+" Sent DateTime "+tradeInfoLive.DateTime.iloc[-1]+
-                                              " P_mc "+str(list_list_soft_tildes[sc][0][0])+" P_md "+str(np.max(list_list_soft_tildes[sc][0][1:3])))
+                    print(thisAsset+netName+" Sent DateTime "+
+                          tradeInfoLive.DateTime.iloc[-1]+
+                          " P_mc "+str(list_list_soft_tildes[sc][0][0])+
+                          " P_md "+str(np.max(list_list_soft_tildes[sc][0][1:3])))
                 
                 list_time_to_entry[sc] = list_time_to_entry[sc][1:]
                 list_list_soft_tildes[sc] = list_list_soft_tildes[sc][1:]
@@ -1019,14 +1015,19 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                     newEntry['Bo'] = tradeInfoLive.SymbolBid.iloc[-2]
                     newEntry['Ao'] = tradeInfoLive.SymbolAsk.iloc[-2]
                     
-                    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff","Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md","P_mg"]
+                    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet",
+                                         "Outcome","Diff","Bi","Ai","Bo","Ao",
+                                         "GROI","Spread","ROI","P_mc","P_md","P_mg"]
                     #resultInfo = pd.DataFrame(columns = columnsResultInfo)
-                    resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(columns = columnsResultInfo).columns.tolist()]
+                    resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
+                                 columns = columnsResultInfo).columns.tolist()]
                     #if not test:
-                    resultInfo.to_csv(results_dir+results_file,mode="a",header=False,index=False,sep='\t',float_format='%.5f')
+                    resultInfo.to_csv(results_dir+results_file,mode="a",
+                                      header=False,index=False,sep='\t',
+                                      float_format='%.5f')
                     # print entry
                     if verbose_RNN:
-                        print("\r"+netName+resultInfo.to_string(index=False,header=False))#thisAsset+netName+" "+str(counterFeats)+":\n"+
+                        print("\r"+netName+resultInfo.to_string(index=False,header=False))
 
         countIndex+=1
     # end of else if fillingX:
@@ -1249,7 +1250,8 @@ def fetch(budget):
                 trader.close_position(DateTime, thisAsset, ass_id)
                 
                 trader.stoplosses += 1
-                out = "Exit position due to stop loss "+" sl="+str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]])
+                out = ("Exit position due to stop loss "+" sl="+
+                       str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]]))
                 print("\r"+out)
                 trader.write_log(out)
                 
@@ -1279,8 +1281,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
     init_row = ['d',0.0,0.0]
     #init_df = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],columns=['DateTime','SymbolBid','SymbolAsk'])
     fileIDs = [0 for ass in range(nAssets)]
-    buffers = [pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
-                                  columns=['DateTime','SymbolBid','SymbolAsk']) for ass in range(nAssets)]
+    buffers = [pd.DataFrame(data=[init_row for i in range(n_samps_buffer)], 
+                columns=['DateTime','SymbolBid','SymbolAsk']) for ass in range(nAssets)]
     
     buffersCounter = [0 for ass in range(nAssets)]
     
@@ -1318,7 +1320,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
                 ####### Update counters and buffers ##########
                 fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
                 # reset buffer
-                buffers[ass_idx] = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],columns=['DateTime','SymbolBid','SymbolAsk'])
+                buffers[ass_idx] = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
+                       columns=['DateTime','SymbolBid','SymbolAsk'])
         
         
         ################# Trader ##################
@@ -1336,7 +1339,9 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
             if exit_pos:
                 # save original exit time for skipping positions
                 trader.close_position(DateTime, thisAsset, ass_id)
-            elif trader.list_count_events[trader.map_ass_idx2pos_idx[ass_id]]==trader.list_deadlines[trader.map_ass_idx2pos_idx[ass_id]]:# check for closing
+            # check for closing
+            elif (trader.list_count_events[trader.map_ass_idx2pos_idx[ass_id]]==
+                  trader.list_deadlines[trader.map_ass_idx2pos_idx[ass_id]]):
                 # close position
                 trader.close_position(DateTime, thisAsset, ass_id)
         
@@ -1345,7 +1350,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
     
     # get statistics
     #t_entries = trader.n_pos_opened+trader.n_pos_extended
-    perEntries = 0#t_entries/journal_entries
+    perEntries = 0
     if trader.n_entries>0:
         per_net_success = trader.net_successes/trader.n_entries
         average_loss = np.abs(trader.average_loss)/(trader.n_entries-trader.net_successes)
@@ -1364,13 +1369,22 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
     ROI = earnings/trader.init_budget
     budget = trader.budget
     
-    out = ("\nGROI = {0:.3f}% ".format(100*GROI)+"ROI = {0:.3f}%".format(100*ROI)+" Sum GROI = {0:.3f}%".format(100*trader.tGROI_live)+" Sum ROI = {0:.3f}%".format(100*trader.tROI_live)+
-          " Final budget {0:.2f}E".format(trader.budget)+" Earnings {0:.2f}E".format(earnings)+
-          " per earnings {0:.3f}%".format(100*(trader.budget-trader.init_budget)/trader.init_budget)+" ROI per position {0:.3f}%".format(ROI_per_entry))
+    out = ("\nGROI = {0:.3f}% ".format(100*GROI)+"ROI = {0:.3f}%".format(100*ROI)+
+           " Sum GROI = {0:.3f}%".format(100*trader.tGROI_live)+
+           " Sum ROI = {0:.3f}%".format(100*trader.tROI_live)+
+          " Final budget {0:.2f}E".format(trader.budget)+
+          " Earnings {0:.2f}E".format(earnings)+
+          " per earnings {0:.3f}%".format(100*(
+                  trader.budget-trader.init_budget)/trader.init_budget)+
+          " ROI per position {0:.3f}%".format(ROI_per_entry))
     trader.write_log(out)
     print(out)
-    out = ("Number entries "+str(trader.n_entries)+" per entries {0:.2f}%".format(100*perEntries)+" per net success "+"{0:.3f}%".format(100*per_net_success)+
-          " per gross success "+"{0:.3f}%".format(100*per_gross_success)+" av loss {0:.3f}%".format(100*average_loss)+" per sl {0:.3f}%".format(100*perSL))
+    out = ("Number entries "+str(trader.n_entries)+
+           " per entries {0:.2f}%".format(100*perEntries)+
+           " per net success "+"{0:.3f}%".format(100*per_net_success)+
+          " per gross success "+"{0:.3f}%".format(100*per_gross_success)+
+          " av loss {0:.3f}%".format(100*average_loss)+
+          " per sl {0:.3f}%".format(100*perSL))
     trader.write_log(out)
     print(out)
     out = "DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins"
@@ -1381,8 +1395,11 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
     # TODO: update badget
 #    init_budget = trader.budget
         
-    out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+"Total ROI = {0:.3f}% ".format(results.total_ROI)+"Sum GROI = {0:.3f}% ".format(results.sum_GROI)+"Sum ROI = {0:.3f}%".format(results.sum_ROI)+
-      " Accumulated earnings {0:.2f}E\n".format(results.total_earnings))
+    out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+
+           "Total ROI = {0:.3f}% ".format(results.total_ROI)+
+           "Sum GROI = {0:.3f}% ".format(results.sum_GROI)+
+           "Sum ROI = {0:.3f}%".format(results.sum_ROI)+
+           " Accumulated earnings {0:.2f}E\n".format(results.total_earnings))
     print(out)
     trader.write_log(out)
     
@@ -1487,7 +1504,8 @@ if __name__ == '__main__':
         if MRC[i]==True:
             if t_indexs[i]!=2:
                 error()
-            ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+IDepoch[i]+".p", "rb" )))
+            ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+
+                                         IDepoch[i]+".p", "rb" )))
         else:
             ADs.append(None)
 
@@ -1501,14 +1519,21 @@ if __name__ == '__main__':
     numberNetworks = len(nChans)
     
     if run_back_test:
-        resultsDir = ["../RNN/resultsLive/back_test/"+IDresults[nn]+"T"+str(ti_name[nn])+"E"+IDepoch[nn]+"/" for nn in range(numberNetworks)]
+        resultsDir = ["../RNN/resultsLive/back_test/"+IDresults[nn]+"T"+
+                      str(ti_name[nn])+"E"+IDepoch[nn]+"/" 
+                      for nn in range(numberNetworks)]
     else:
-        resultsDir = ["../RNN/resultsLive/live/"+IDresults[nn]+"T"+str(ti_name[nn])+"E"+IDepoch[nn]+"/" for nn in range(numberNetworks)]
+        resultsDir = ["../RNN/resultsLive/live/"+IDresults[nn]+"T"+
+                      str(ti_name[nn])+"E"+IDepoch[nn]+"/" 
+                      for nn in range(numberNetworks)]
     
-    results_files = [IDresults[nn]+"T"+str(ti_name[nn])+"E"+IDepoch[nn]+".txt" for nn in range(numberNetworks)]
+    results_files = [IDresults[nn]+"T"+str(ti_name[nn])+"E"+IDepoch[nn]+".txt" 
+                     for nn in range(numberNetworks)]
     dataOr=Data(assets=assets,dateEnd='2018.01.12')
     nCxAxN = np.zeros((len(running_assets),numberNetworks))
-    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff","Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md","P_mg"]
+    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff",
+                         "Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md",
+                         "P_mg"]
     
     for nn in range(numberNetworks):
         if phase_shifts[nn] != 0:
@@ -1525,7 +1550,8 @@ if __name__ == '__main__':
                 print("Warning. Error when creating directory")
         
         if not os.path.exists(resultsDir[nn]+results_files[nn]):
-            pd.DataFrame(columns = columnsResultInfo).to_csv(resultsDir[nn]+results_files[nn],mode="w",index=False,sep='\t')
+            pd.DataFrame(columns = columnsResultInfo).to_csv(resultsDir[nn]+
+                        results_files[nn],mode="w",index=False,sep='\t')
     
     buffSizes = nExSs+np.zeros((len(running_assets),numberNetworks)).astype(int)
     
@@ -1550,9 +1576,12 @@ if __name__ == '__main__':
     first_nonzero = 0
     
     # load stats
-    list_stats = [[load_stats(data, data.AllAssets[str(running_assets[ass])], h5py.File(hdf5_directory+'IO_mW'+str(mWs[nn])
-                    +'_nE'+str(nExSs[nn])+'_nF'+str(data.nFeatures)+'.hdf5','r')[data.AllAssets[str(running_assets[ass])]], 
-                    0, from_stats_file=True, hdf5_directory=hdf5_directory+'stats/') for nn in range(nNets)] for ass in range(nAssets)]
+    list_stats = [[load_stats(data, data.AllAssets[str(running_assets[ass])], 
+                    h5py.File(hdf5_directory+'IO_mW'+str(mWs[nn])
+                    +'_nE'+str(nExSs[nn])+'_nF'+str(data.nFeatures)+
+                    '.hdf5','r')[data.AllAssets[str(running_assets[ass])]], 
+                    0, from_stats_file=True, hdf5_directory=hdf5_directory+
+                    'stats/') for nn in range(nNets)] for ass in range(nAssets)]
     
     if test:
         gain = .000000001
@@ -1560,9 +1589,12 @@ if __name__ == '__main__':
     else: 
         gain = 1
     
-    list_means_in =  [[list_stats[ass][nn]['means_t_in'] for nn in range(nNets)] for ass in range(nAssets)]
-    list_stds_in =  [[gain*list_stats[ass][nn]['stds_t_in'] for nn in range(nNets)] for ass in range(nAssets)]
-    list_stds_out =  [[gain*list_stats[ass][nn]['stds_t_out'] for nn in range(nNets)] for ass in range(nAssets)]
+    list_means_in =  [[list_stats[ass][nn]['means_t_in'] for nn in range(nNets)] 
+                                                         for ass in range(nAssets)]
+    list_stds_in =  [[gain*list_stats[ass][nn]['stds_t_in'] for nn in range(nNets)] 
+                                                            for ass in range(nAssets)]
+    list_stds_out =  [[gain*list_stats[ass][nn]['stds_t_out'] for nn in range(nNets)] 
+                                                              for ass in range(nAssets)]
     # pre allocate memory size
     
     # init non-variation features
@@ -1589,12 +1621,23 @@ if __name__ == '__main__':
     exit_ask_column = 'Ao'
     exit_bid_column = 'Bo'
     
-    strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], fixed_spread_pips=list_fixed_spread_pips[i], max_lots_per_pos=list_max_lots_per_pos[i], flexible_lot_ratio=list_flexible_lot_ratio[i], 
-                 lb_mc_op=list_lb_mc_op[i], lb_md_op=list_lb_md_op[i], lb_mc_ext=list_lb_mc_ext[i], lb_md_ext=list_lb_md_ext[i], ub_mc_op=list_ub_mc_op[i], ub_md_op=list_ub_md_op[i], ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
-                 if_dir_change_close=list_if_dir_change_close[i], if_dir_change_extend=list_if_dir_change_extend[i], name=list_name[i],t_index=ti_name[i],use_GRE=list_use_GRE[i],IDr=IDresults[i],epoch=IDepoch[i]) for i in range(len(ti_name))]
+    strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
+                          thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
+                          fixed_spread_pips=list_fixed_spread_pips[i], 
+                          max_lots_per_pos=list_max_lots_per_pos[i], 
+                          flexible_lot_ratio=list_flexible_lot_ratio[i], 
+                          lb_mc_op=list_lb_mc_op[i], lb_md_op=list_lb_md_op[i], 
+                          lb_mc_ext=list_lb_mc_ext[i], lb_md_ext=list_lb_md_ext[i],
+                          ub_mc_op=list_ub_mc_op[i], ub_md_op=list_ub_md_op[i], 
+                          ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
+                          if_dir_change_close=list_if_dir_change_close[i], 
+                          if_dir_change_extend=list_if_dir_change_extend[i], 
+                          name=list_name[i],t_index=ti_name[i],use_GRE=list_use_GRE[i],
+                          IDr=IDresults[i],epoch=IDepoch[i]) for i in range(len(ti_name))]
     
     root_dir = 'D:/SDC/py/Data_test/'#'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data/'
-    directory_MT5 = "C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/"
+    directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
+                     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
     results = Results()
     
     tic = time.time()
@@ -1630,7 +1673,9 @@ if __name__ == '__main__':
                 init_list_index = day_index#data.dateTest[day_index]
                 
                 # find sequence of consecutive days in test days
-                while day_index<len(data.dateTest)-1 and dt.datetime.strptime(data.dateTest[day_index],'%Y.%m.%d')+dt.timedelta(1)==dt.datetime.strptime(data.dateTest[day_index+1],'%Y.%m.%d'):
+                while (day_index<len(data.dateTest)-1 and dt.datetime.strptime(
+                        data.dateTest[day_index],'%Y.%m.%d')+dt.timedelta(1)==
+                        dt.datetime.strptime(data.dateTest[day_index+1],'%Y.%m.%d')):
                     day_index += 1
                 
                 end_list_index = day_index+counter_back
