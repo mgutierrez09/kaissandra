@@ -1691,7 +1691,6 @@ if __name__ == '__main__':
                 countOutss = [[np.zeros((int(nChans[nn]*phase_shifts[nn]))).astype(int) for nn in range(nNets)] for ass in range(nAssets)]
                 EOFs = [[pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk'], index=range(int(nChans[nn]*phase_shifts[nn]))) for nn in range(nNets)] for ass in range(nAssets)]
                 list_list_X_i = [[[np.zeros((1, int((lBs[nn]-nExSs[nn])/mWs[nn]+1), data.nFeatures)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                #Xlive = np.zeros((alloc, model.seq_len, model.nFeatures))
                 list_list_Ylive = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 list_list_Pmc_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 list_list_Pmd_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
@@ -1722,7 +1721,6 @@ if __name__ == '__main__':
             countOutss = [[np.zeros((int(nChans[nn]*phase_shifts[nn]))).astype(int) for nn in range(nNets)] for ass in range(nAssets)]
             EOFs = [[pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk'], index=range(int(nChans[nn]*phase_shifts[nn]))) for nn in range(nNets)] for ass in range(nAssets)]
             list_list_X_i = [[[np.zeros((1, int((lBs[nn]-nExSs[nn])/mWs[nn]+1), data.nFeatures)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-            #Xlive = np.zeros((alloc, model.seq_len, model.nFeatures))
             list_list_Ylive = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             list_list_Pmc_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             list_list_Pmd_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
