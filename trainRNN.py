@@ -14,15 +14,19 @@ from inputs import Data, load_separators, load_stats, load_features_results, bui
 from config import configuration
 
 
-def train_RNN():
+def train_RNN(*ins):
     
     ticTotal = time.time()
     # create data structure
-    config = configuration()
+    if len(ins)>0:
+        config = ins[0]
+    else:    
+        config = configuration()
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
               lB=config['lB'], 
-              dateTest=config['dateTest'])
+              dateTest=config['dateTest'],
+              assets=config['assets'])
     # init structures
     if_build_IO = config['if_build_IO']
     IDweights = config['IDweights']
@@ -113,7 +117,7 @@ def train_RNN():
                 # calculate features, returns and stats from raw data
                 IO_prep = load_features_results(data, thisAsset, separators, f_prep_IO, s)
                 # build network input and output
-                if build_IO:
+                if if_build_IO:
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
                     # check if the separator chuck belongs to the training/test set
@@ -149,7 +153,7 @@ def train_RNN():
                         int(s/2),int(len(separators)/2-1)))
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
-        if build_IO:
+        if if_build_IO:
             ass_IO_ass[ass_idx] = IO['pointer']
             #print(ass_IO_ass)
             
@@ -170,19 +174,19 @@ def train_RNN():
     # close files
     f_prep_IO.close()
     
-    if build_IO:
+    if if_build_IO:
         f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
         f_IO.close()
     
     # print percent of samps per level
-    if not build_IO:
+    if not if_build_IO:
         # get ass_IO_ass from disk
         f_IO = h5py.File(filename_IO,'r')
         ass_IO_ass = f_IO.attrs.get("ass_IO_ass")
         f_IO.close()
     # get total number of samps
     m_t = ass_IO_ass[-1]
-    if build_IO:
+    if if_build_IO:
         print("Samples to RNN: "+str(m_t)+".\nPercent per level:"+
               str(totalSampsPerLevel/m_t))
     # reset graph

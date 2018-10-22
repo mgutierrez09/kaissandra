@@ -34,6 +34,7 @@ def configuration():
     movingWindow = 100
     nEventsPerStat = 1000
     lB = 1200
+    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     # general parameters
     if_build_IO = True
     IDweights = '000271'
@@ -55,7 +56,7 @@ def configuration():
     IDresults = '100271'
     startFrom = 0
     endAt = -1
-    save_journal = True
+    save_journal = False
     
     # getFeatures
     save_stats = True
@@ -64,6 +65,7 @@ def configuration():
             'movingWindow':movingWindow,
            'nEventsPerStat':nEventsPerStat,
            'lB':lB,
+           'assets':assets,
            
            'size_hidden_layer':size_hidden_layer,
            'L':L,

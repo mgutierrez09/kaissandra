@@ -260,7 +260,8 @@ class modelRNN(object):
         return softMaxOut
     
     def test(self, sess, data, IDresults, IDweights, nChunks, save_results, 
-             trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], save_journal=False, endAt=-1):
+             trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
+             save_journal=False, endAt=-1, its=0):
         """ 
         Test RNN network with y_c bits
         """
@@ -301,7 +302,7 @@ class modelRNN(object):
         n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
         
         if startFrom == -1:
-            lastSaved = 0
+            lastSaved = lastTrained-its
         else:
             lastSaved = startFrom
         

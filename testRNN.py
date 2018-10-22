@@ -15,17 +15,23 @@ from inputs import Data, load_separators, load_stats, load_features_results, bui
 from config import configuration
 
 
-def test_RNN():
+def test_RNN(*ins):
     """
     <DocString>
     """
     ticTotal = time.time()
-    config = configuration()
+    if len(ins)>0:
+        config = ins[0]
+        its = ins[1]
+    else:    
+        config = configuration()
+        its = 0
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
                   lB=config['lB'], 
-                  dateTest=config['dateTest'])
+                  dateTest=config['dateTest'],
+                  assets=config['assets'])
     
     if_build_IO = config['if_build_IO']
     startFrom = config['startFrom']
@@ -113,7 +119,7 @@ def test_RNN():
                 # load features, returns and stats from file
                 IO_prep = load_features_results(data, thisAsset, separators, f_prep_IO, s)
                 # build network input and output
-                if build_IO:
+                if if_build_IO:
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
                     # check if the separator chuck belongs to the training/test set
@@ -138,12 +144,12 @@ def test_RNN():
                     # end of if (tOt=='train' and day_s not in data.dateTest) ...
                 else:
                     pass
-                # end of if build_IO:
+                # end of if if_build_IO:
             else:
                 print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(int(s/2),int(len(separators)/2-1)))
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
-        if build_IO:
+        if if_build_IO:
             ass_IO_ass[ass_idx] = IO['pointer']
             #print(ass_IO_ass)
             
@@ -161,7 +167,7 @@ def test_RNN():
     
     # close files
     f_prep_IO.close()
-    if build_IO:
+    if if_build_IO:
         print("Building DTA...")
         DTA = build_DTA_v10(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
         pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IDresults+".p", "wb" ))
@@ -176,7 +182,7 @@ def test_RNN():
     # get total number of samps
     m_t = ass_IO_ass[-1]
     # print percent of samps per level
-    if build_IO:
+    if if_build_IO:
         print("Samples to RNN: "+str(m_t)+".\nPercent per level:"+str(totalSampsPerLevel/m_t))
     # reset graph
     tf.reset_default_graph()
@@ -186,7 +192,7 @@ def test_RNN():
         model.test(sess, data, IDresults, IDweights, 
                    int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
                    IDIO=IDresults, data_format='hdf5', DTA=DTA, 
-                   save_journal=save_journal, endAt=endAt)
+                   save_journal=save_journal, endAt=endAt, its=its)
         
 if __name__=='__main__':
     test_RNN()
