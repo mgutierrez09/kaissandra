@@ -43,7 +43,8 @@ def train_RNN():
                        miniBatchSize=config['miniBatchSize'],
                        outputGain=config['outputGain'],
                        commonY=config['commonY'],
-                       lR0=config['lR0'])
+                       lR0=config['lR0'],
+                       num_epochs=config['num_epochs'])
     # if IO structures have to be built 
     if if_build_IO:
         # open IO file for writting

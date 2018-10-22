@@ -9,33 +9,24 @@ import numpy as np
 import time
 import h5py
 from inputs import Data, load_separators, get_features_results_stats_from_raw
+from config import configuration
 
 
+config = configuration()
 ticTotal = time.time()
 # create data structure
-data=Data(movingWindow=100,nEventsPerStat=1000,dateEnd='2018.06.01',comments="",
-             dateTest = ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-                         '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
-                ['2018.03.09','2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16','2018.03.19','2018.03.20',
-                 '2018.03.21','2018.03.22','2018.03.23','2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-                 '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06','2018.04.09','2018.04.10','2018.04.11',
-                 '2018.04.12','2018.04.13','2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-                 '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-                 '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-                 '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-                 '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-                 '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-                 '2018.05.28','2018.05.29','2018.05.30','2018.05.31'])
-
+data=Data(movingWindow=config['movingWindow'],
+          nEventsPerStat=config['nEventsPerStat'],
+          dateTest = config['dateTest'])
 # init booleans
-save_stats = True  
-
+save_stats = config['save_stats']  
 # init file directories
-hdf5_directory = 'D:/SDC/py/HDF5/'#'../HDF5/'#
+hdf5_directory = config['hdf5_directory']#'../HDF5/'#
 # define files and directories names
-filename_prep_IO = hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'_180531.hdf5'#
-filename_raw = hdf5_directory+'tradeinfo_180531.hdf5'
-separators_directory = hdf5_directory+'separators_180531/'
+filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+                    str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+filename_raw = hdf5_directory+'tradeinfo.hdf5'
+separators_directory = hdf5_directory+'separators/'
 
 # reset file
 #reset = False

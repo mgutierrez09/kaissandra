@@ -39,21 +39,26 @@ def configuration():
     IDweights = '000271'
     hdf5_directory = 'D:/SDC/py/HDF5/'
     IO_directory = '../RNN/IO/'
+    
     # model parameters
     size_hidden_layer=100
     L=3
     size_output_layer=5
     keep_prob_dropout=1
     miniBatchSize=32
-    outputGain=.6
+    outputGain=.5
     commonY=3
     lR0=0.0001
+    num_epochs=1000
+    
     # test-specific parameters
-    IDresults = '100266'
-    buildDTA = True
-    startFrom = 13
-    endAt = 13
+    IDresults = '100271'
+    startFrom = 0
+    endAt = -1
     save_journal = True
+    
+    # getFeatures
+    save_stats = True
     # add parameters to config dictionary
     config = {'dateTest':dateTest,
             'movingWindow':movingWindow,
@@ -68,6 +73,7 @@ def configuration():
            'outputGain':outputGain,
            'commonY':commonY,
            'lR0':lR0,
+           'num_epochs':num_epochs,
            
            'if_build_IO':if_build_IO,
            'IDweights':IDweights,
@@ -75,10 +81,11 @@ def configuration():
            'IO_directory':IO_directory,
            
            'IDresults':IDresults,
-           'buildDTA':buildDTA,
            'startFrom':startFrom,
            'endAt':endAt,
-           'save_journal':save_journal}
+           'save_journal':save_journal,
+           
+           'save_stats':save_stats}
     
     
     return config

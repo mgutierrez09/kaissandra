@@ -9,6 +9,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import h5py
+import pickle
 from RNN import modelRNN
 from inputs import Data, load_separators, load_stats, load_features_results, build_DTA_v10, build_IO
 from config import configuration
@@ -27,7 +28,6 @@ def test_RNN():
                   dateTest=config['dateTest'])
     
     if_build_IO = config['if_build_IO']
-    buildDTA = config['buildDTA']
     startFrom = config['startFrom']
     endAt = config['endAt']
     save_journal = config['save_journal']
@@ -162,16 +162,14 @@ def test_RNN():
     # close files
     f_prep_IO.close()
     if build_IO:
-        if buildDTA:
-            print("Building DTA...")
-            #DTA = build_DTA_v(data, I, ass_IO_ass, hdf5_directory)
-            DTA = build_DTA_v10(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
-            #pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IDresults+".p", "wb" ))
+        print("Building DTA...")
+        DTA = build_DTA_v10(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
+        pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IDresults+".p", "wb" ))
         f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
         f_IO.close()
-    # run RNN
-    if not build_IO:
+    else:
         # get ass_IO_ass from disk
+        DTA = pickle.load( open( "../RNN/IO/DTA"+"_"+IDresults+".p", "rb" ))
         f_IO = h5py.File(filename_IO,'r')
         ass_IO_ass = f_IO.attrs.get("ass_IO_ass")
         f_IO.close()
@@ -185,10 +183,10 @@ def test_RNN():
     # start session
     with tf.Session() as sess:
         # run test RNN
-        model.test_v10(sess, data, IDresults, IDweights, 
-                       int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
-                       IDIO=IDresults, data_format='hdf5', DTA=DTA, 
-                       save_journal=save_journal, endAt=endAt)
+        model.test(sess, data, IDresults, IDweights, 
+                   int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
+                   IDIO=IDresults, data_format='hdf5', DTA=DTA, 
+                   save_journal=save_journal, endAt=endAt)
         
 if __name__=='__main__':
     test_RNN()
