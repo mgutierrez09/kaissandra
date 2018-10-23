@@ -1066,12 +1066,29 @@ def dispatch(buffer, ass_id, ass_idx):
                 
                 ### Dispatch buffer to corresponding network ###
                 ## TODO Several models
-                output = runRNNliveFun(buffers[ass_idx][nn][ch],listFillingXs[ass_idx][nn],inits[ass_idx][nn],list_listFeaturesLive[ass_idx][nn],list_listParSarStruct[ass_idx][nn],
-                              list_listEM[ass_idx][nn],list_listAllFeatsLive[ass_idx][nn],list_list_X_i[ass_idx][nn],list_means_in[ass_idx][nn],phase_shifts[nn],
-                              list_stds_in[ass_idx][nn],list_stds_out[ass_idx][nn],ADs[nn], thisAsset,netNames[nn],listCountPoss[ass_idx][nn],list_list_weights_matrix[ass_idx][nn],
-                              list_list_time_to_entry[ass_idx][nn],list_list_list_soft_tildes[ass_idx][nn],list_list_Ylive[ass_idx][nn],list_list_Pmc_live[ass_idx][nn],
-                              list_list_Pmd_live[ass_idx][nn],list_list_Pmg_live[ass_idx][nn],EOFs[ass_idx][nn],countOutss[ass_idx][nn],
-                              t_indexs[nn],ch, resultsDir[nn],results_files[nn], list_models[0])
+                output = runRNNliveFun(buffers[ass_idx][nn][ch],
+                                       listFillingXs[ass_idx][nn],
+                                       inits[ass_idx][nn],
+                                       list_listFeaturesLive[ass_idx][nn],
+                                       list_listParSarStruct[ass_idx][nn],
+                                       list_listEM[ass_idx][nn],
+                                       list_listAllFeatsLive[ass_idx][nn],
+                                       list_list_X_i[ass_idx][nn],
+                                       list_means_in[ass_idx][nn],
+                                       phase_shifts[nn],list_stds_in[ass_idx][nn],
+                                       list_stds_out[ass_idx][nn],ADs[nn],
+                                       thisAsset,netNames[nn],
+                                       listCountPoss[ass_idx][nn],
+                                       list_list_weights_matrix[ass_idx][nn],
+                                       list_list_time_to_entry[ass_idx][nn],
+                                       list_list_list_soft_tildes[ass_idx][nn],
+                                       list_list_Ylive[ass_idx][nn],
+                                       list_list_Pmc_live[ass_idx][nn],
+                                       list_list_Pmd_live[ass_idx][nn],
+                                       list_list_Pmg_live[ass_idx][nn],
+                                       EOFs[ass_idx][nn],countOutss[ass_idx][nn],
+                                       t_indexs[nn],ch, resultsDir[nn],
+                                       results_files[nn], list_models[nn])
                 if len(output)>0:
                     outputs.append(output)
                     new_outputs = 1
@@ -1088,7 +1105,8 @@ def dispatch(buffer, ass_id, ass_idx):
                 error()
                 
     if len(outputs)>1:
-        print("WARNING! Outputs length="+str(len(outputs))+". No support for multiple outputs at the same time yet.") 
+        print("WARNING! Outputs length="+str(len(outputs))+
+              ". No support for multiple outputs at the same time yet.") 
     return outputs, new_outputs
 
 def fetch(budget):
@@ -1157,7 +1175,8 @@ def fetch(budget):
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
-                    trader.check_new_inputs(outputs, thisAsset, directory_MT5_ass=directory_MT5_ass)
+                    trader.check_new_inputs(outputs, thisAsset, 
+                                            directory_MT5_ass=directory_MT5_ass)
             
             # check for closing
             flag_cl = 0
@@ -1274,10 +1293,6 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
     # number of events per file
     n_files = 10
     n_samps_buffer = 10
-    
-
-    
-#    nChannels = int(data.nEventsPerStat/data.movingWindow)
     init_row = ['d',0.0,0.0]
     #init_df = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],columns=['DateTime','SymbolBid','SymbolAsk'])
     fileIDs = [0 for ass in range(nAssets)]
@@ -1444,36 +1459,36 @@ if __name__ == '__main__':
                     
 #    ['2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07','2018.09.10']
 
-    IDepoch = ["13"]
-    IDweights = ["000266"]
-    IDresults = ["100266"]#
-    delays = [0]
-    t_indexs = [2] # time index to use as output. Value between {0,...,model.seq_len-1}
-    MRC = [True]
-    mWs = [100]
-    nExSs = [1000]
-    lBs = [1200]
-    netNames = ["000266"]
-    phase_shifts = [10] # phase shift
+    IDepoch = ["11","13"]
+    IDweights = ["000248","000266"]
+    IDresults = ["100248GREN2","100266"]#
+    delays = [0,5]
+    t_indexs = [2,2] # time index to use as output. Value between {0,...,model.seq_len-1}
+    MRC = [True,True]
+    mWs = [100,100]
+    nExSs = [1000,1000]
+    lBs = [1200,1200]
+    netNames = ["000248","000266"]
+    phase_shifts = [10,10] # phase shift
     
-    list_use_GRE = [True]
-    list_lb_mc_op = [0.5]
-    list_lb_md_op = [0.5]
-    list_lb_mc_ext = [2]
-    list_lb_md_ext = [2]
-    list_ub_mc_op = [1]
-    list_ub_md_op = [1]
-    list_ub_mc_ext = [1]
-    list_ub_md_ext = [1]
-    list_thr_sl = [1000]
-    list_thr_tp = [1000]
-    list_fix_spread = [False]
-    list_fixed_spread_pips = [4]
-    list_max_lots_per_pos = [.1]
-    list_flexible_lot_ratio = [False]
-    list_if_dir_change_close = [False]
-    list_if_dir_change_extend = [False]
-    list_name = ['66']
+    list_use_GRE = [True,True]
+    list_lb_mc_op = [0.5,0.5]
+    list_lb_md_op = [0.5,0.5]
+    list_lb_mc_ext = [2,2]
+    list_lb_md_ext = [2,2]
+    list_ub_mc_op = [1,1]
+    list_ub_md_op = [1,1]
+    list_ub_mc_ext = [1,1]
+    list_ub_md_ext = [1,1]
+    list_thr_sl = [1000,1000]
+    list_thr_tp = [1000,1000]
+    list_fix_spread = [False,False]
+    list_fixed_spread_pips = [4,4]
+    list_max_lots_per_pos = [.1,.1]
+    list_flexible_lot_ratio = [False,False]
+    list_if_dir_change_close = [False,False]
+    list_if_dir_change_extend = [False,False]
+    list_name = ['48','66']
     
 #    IDepoch = ["5"]#
 #    IDweights = ["000233"]#
@@ -1645,7 +1660,7 @@ if __name__ == '__main__':
     ################### RNN ###############################
     
     tf.reset_default_graph()
-    with tf.Session() as sess:
+    if 1:#with tf.Session() as sess:
         
         list_models = [modelRNN(data,
                     size_hidden_layer=100,
@@ -1656,7 +1671,18 @@ if __name__ == '__main__':
                     outputGain=0.6,
                     lR0=0.0001,
                     IDgraph=IDweights[0]+IDepoch[0],
-                    sess=sess)]
+                    sess=None),
+        
+                    modelRNN(data,
+                    size_hidden_layer=100,
+                    L=3,
+                    size_output_layer=5,
+                    keep_prob_dropout=1,
+                    miniBatchSize=32,
+                    outputGain=0.6,
+                    lR0=0.0001,
+                    IDgraph=IDweights[1]+IDepoch[1],
+                    sess=None)]
         
     ##########################################################
         init_budget = 10000.0

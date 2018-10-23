@@ -1038,7 +1038,7 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_outpu
         - rGOIxLevel: real GROI per level.
         - summury: summmary info
     """
-    print("Getting journal...")
+    #print("Getting journal...")
     Journal = DTA
     #print(infoBets)
     #Journal.columns = ['Entry Time         ','Exit Time          ','AssgetJournal_v20et']

@@ -73,6 +73,7 @@ class modelRNN(object):
             self._launch_live_session(sess,IDgraph,lID)
         
     def _model(self):
+        """ <DocString> """
         def __cell():
             # https://github.com/tensorflow/tensorflow/blob/r1.4/tensorflow/  \
             # python/ops/rnn_cell_impl.py
@@ -91,23 +92,15 @@ class modelRNN(object):
         
         # market change prediction
         pred_mc = tf.nn.sigmoid(tf.matmul(out, self._parameters["w_lg"]) + self._parameters["b_lg"])
-        #y_pred_sigmoid = tf.sigmoid(y_pred)
-        #x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(tf.matmul(out, self._parameters["w_lg"]) + self._parameters["b_lg"], y_)# y_ is placeholder 
         # market direction prediction
         pred_md = tf.nn.softmax(tf.matmul(out, self._parameters["w_sm2"]) + self._parameters["b_sm2"])
         # Market gain prediction
         pred_mg = tf.nn.softmax(tf.matmul(out, self._parameters["w"]) + self._parameters["b"])
-        #print(tf.reshape(pred_mc, [-1, self.seq_len, 1]))
-        #print(tf.reshape(pred_md, [-1, self.seq_len, 2]))
-        #print(tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer]))
-        
         # concatenate predictions
-        pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),tf.reshape(pred_md, [-1, self.seq_len, 2]),tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])],2)
-        #pred = tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])
-        #pred = tf.reshape(pred_mc, [-1, self.seq_len, 1])
-        #print(pred)
-        
-        #tf.reshape(pred_mc, [-1, self.seq_len, 1]), tf.reshape(pred_md, [-1, self.seq_len, 2]), tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])
+        pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),
+                          tf.reshape(pred_md, [-1, self.seq_len, 2]),
+                          tf.reshape(pred_mg, [-1, self.seq_len, 
+                                               self.size_output_layer])],2)
         return pred
         
     def _init_parameters(self):
@@ -145,11 +138,12 @@ class modelRNN(object):
         Args:
     
         input: A Tensor. 1-D or higher.
-        repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
+        repeats: A list. Number of repeat for each dimension, 
+        length must be the same as the number of dimensions in input
     
         Returns:
         
-        A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
+        A Tensor. Has the same type as input. Has the shape of tensor.shape*repeats
         """
         repeated_tensor = self._target[:,:,0:1]
         for i in range(repeats-1):
@@ -158,22 +152,23 @@ class modelRNN(object):
         return repeated_tensor
         
     def _compute_loss(self):
-        
+        """ <DocString> """
         # Create model
-        
-        self._target = tf.placeholder("float", [None,self.seq_len, self.size_output_layer+self.commonY], name="target")
+        self._target = tf.placeholder("float", [None,self.seq_len, 
+                                    self.size_output_layer+self.commonY], 
+                                    name="target")
         # Define cross entropy loss.
         # first target bit for mc (market change)
-        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+(1-self._target[:,:,0:1])* -tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
+                                (1-self._target[:,:,0:1])* -
+                                tf.log(1 - self._pred[:,:,0:1]), [1, 2])
         # second and third bits for md (market direction)
-        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * tf.log(self._pred[:,:,1:3])), [1, 2])
+        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
+                                 tf.log(self._pred[:,:,1:3])), [1, 2])
         # last 5 bits for market gain output
-        loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*(self._target[:,:,3:] * tf.log(self._pred[:,:,3:])), [1, 2])
-        #loss = -tf.reduce_sum(self._target * tf.log(self._pred), [1, 2])
-        # total loss=y0*(loss+loss_md)+loss_mc
-        #loss = -tf.reduce_sum((self._target * tf.log(self._pred)), [1, 2])
-        #p * -tf.log(q) + (1 - p) * -tf.log(1 - q)
-        #loss = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred)+(1-self._target[:,:,0:1])* -tf.log(1 - self._pred), [1, 2])
+        loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
+                                 (self._target[:,:,3:] * 
+                                  tf.log(self._pred[:,:,3:])), [1, 2])
         self._loss = tf.reduce_mean(
             loss_mc+loss_md+loss_mg,
             name="loss_nll")
@@ -181,24 +176,10 @@ class modelRNN(object):
             self._loss,
             name="adam_optim")
         
-        #self._optim = tf.train.RMSPropOptimizer(self._lR0).minimize(
-        #    self._loss,
-        #    name="rmsprop_optim"
-        #)
-
-        # Use in evaluating accuracy. Gets the index with largest probability
-        # found along dim=2. Returns the error rate.
-#        neq_mc = tf.not_equal(tf.argmax(self._target[:,:,0:1], 2),tf.argmax(self._pred[:,:,0:1], 2))
-#        neq_md = tf.not_equal(tf.argmax(self._target[:,:,1:3], 2),tf.argmax(self._pred[:,:,1:3], 2))
-#        neq_mg = tf.not_equal(tf.argmax(self._target[:,:,3:], 2),tf.argmax(self._pred[:,:,3:], 2))
-        #neq = tf.not_equal(tf.argmax(self._target, 2),tf.argmax(self._pred, 2))
-        #neq = tf.not_equal(tf.argmax(self._target[:,:,0:1], 2),tf.argmax(self._pred, 2))
         self._error = self._loss
-        #self._error = tf.reduce_mean(tf.cast(neq_mg, tf.float32))+tf.reduce_mean(tf.cast(neq_mc, tf.float32))+tf.reduce_mean(tf.cast(neq_md, tf.float32))
-        
         
     def _load_graph(self,ID,epoch,live=""):
-        
+        """ <DocString> """
         # Create placeholders
         if os.path.exists("../RNN/weights/"+ID+"/"):
             if epoch == -1:# load last
@@ -206,7 +187,8 @@ class modelRNN(object):
                 epoch = int(sorted(os.listdir("../RNN/weights/"+ID+"/"))[-2])
             
             strEpoch = "{0:06d}".format(epoch)
-            self._saver.restore(self._sess, "../RNN/weights/"+ID+"/"+strEpoch+"/"+strEpoch)
+            self._saver.restore(self._sess, "../RNN/weights/"+ID+"/"+
+                                strEpoch+"/"+strEpoch)
             #print("var : %s" % self.var.eval())
             print("Parameters loaded. Epoch "+str(epoch))
             
@@ -221,6 +203,7 @@ class modelRNN(object):
         return epoch+1
     
     def _save_graph(self,ID,epoch_cost,epoch):
+        """ <DocString> """
         cost = {}
         if os.path.exists("../RNN/weights/"+ID+"/")==False:
             os.mkdir("../RNN/weights/"+ID+"/")
@@ -229,28 +212,27 @@ class modelRNN(object):
         cost[ID+str(epoch)] = epoch_cost
         pickle.dump(cost, open( "../RNN/weights/"+ID+"/cost.p", "wb" ))
         strEpoch = "{0:06d}".format(epoch)
-        save_path = self._saver.save(self._sess, "../RNN/weights/"+ID+"/"+strEpoch+"/"+strEpoch)
+        save_path = self._saver.save(self._sess, "../RNN/weights/"+ID+"/"+
+                                     strEpoch+"/"+strEpoch)
         
         print("Parameters saved")
         return save_path
     
     def _launch_live_session(self, sess, IDgraph, lID):
-        
-        
-        self._sess = sess
-        
+        """ <DocString> """
         IDweights = IDgraph[:lID]
-        #print(IDweights)
         epoch = IDgraph[lID:]
-        #print(epoch)
-        self._init_parameters()
-        self._saver = tf.train.Saver(max_to_keep = None)
-        self._load_graph(IDweights,int(epoch),live="y")
+        graph = tf.Graph()
+        with graph.as_default():
+            self._init_parameters()
+            self._saver = tf.train.Saver(max_to_keep = None)
+            self._sess = tf.Session()
+            self._load_graph(IDweights,int(epoch),live="y")
             
         return None
     
     def run_live_session(self, X):
-        
+        """ <DocString> """
         test_data_feed = {
             self._inputs: X,
             self._dropout: 1.0
@@ -326,8 +308,20 @@ class modelRNN(object):
                 softMaxOut = np.append(softMaxOut,smo,axis=0)
                 #print(softMaxOut.shape)
             print("Getting results")
-            new_ROI, tBR_GROI, tBR_ROI, tBR_sharpe = evaluate_RNN(data, self, Y_test, DTA, IDresults, IDweights, J_test, softMaxOut, save_results,
-                 costs, epoch, resultsDir, lastTrained, save_journal=save_journal)
+            new_ROI, tBR_GROI, tBR_ROI, tBR_sharpe = evaluate_RNN(data, 
+                                                                  self, 
+                                                                  Y_test, 
+                                                                  DTA, 
+                                                                  IDresults, 
+                                                                  IDweights, 
+                                                                  J_test, 
+                                                                  softMaxOut, 
+                                                                  save_results,
+                                                                  costs, 
+                                                                  epoch, 
+                                                                  resultsDir, 
+                                                                  lastTrained, 
+                                                                  save_journal=save_journal)
             BR_GROIs = BR_GROIs.append(tBR_GROI)
             BR_ROIs = BR_ROIs.append(tBR_ROI)
             BR_sharpes = BR_sharpes.append(tBR_sharpe)

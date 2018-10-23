@@ -729,7 +729,7 @@ if __name__ == '__main__':
     #['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
     #             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
     # data structure
-    data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,dateStart='2017.01.01',
+    data=Data(movingWindow=100,nEventsPerStat=1000,
      dateTest = [                                                '2018.03.09',
              '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
              '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
@@ -776,50 +776,6 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-    # init net result params
-#    list_t_index = [3,1,3]
-#    list_lb_mc_op = [0.6,.7,.6]
-#    list_lb_md_op = [0.7,.7,.6]
-#    list_lb_mc_ext = [0.6,.6,.6]
-#    list_lb_md_ext = [0.6,.6,.6]
-#    list_ub_mc_op = [1,1,1]
-#    list_ub_md_op = [1,1,1]
-#    list_ub_mc_ext = [1,1,1]
-#    list_ub_md_ext = [1,1,1]
-#    list_epoch = [11,10,15]
-#    list_thr_sl = [1000,1000,1000]
-#    list_thr_tp = [1000,1000,1000]
-#    list_fix_spread = [False,False,False]
-#    list_ixed_spread_pips = [3,3,1]
-#    list_max_lots_per_pos = [.1,.1,.1]
-#    list_flexible_lot_ratio = [False,False,False]
-#    list_if_dir_change_close = [False,False,False]
-#    list_if_dir_change_extend = [False,False,False]
-#    list_name = ['48_67','46_77','51_66']
-#    list_IDresults = ['100248','100246_180810','100251']#'100246_180713_old_stats'#'100246_180531v2'#
-    
-#    list_use_GRE = [True]
-#    list_t_index = [3]
-#    list_lb_mc_op = [0.5]
-#    list_lb_md_op = [0.5]
-#    list_lb_mc_ext = [.5]
-#    list_lb_md_ext = [.5]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_epoch = [13]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
-#    list_name = ['66']
-#    list_IDresults = ['100266']#'100246_180713_old_stats'#'100246_180531v2'#
-    
     list_epoch = [11,13]
     list_use_GRE = [True,True]
     list_t_index = [3,3]
@@ -842,9 +798,20 @@ if __name__ == '__main__':
     list_name = ['48','66']
     list_IDresults = ['100248GREN2','100266']
     
-    strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], fixed_spread_pips=list_fixed_spread_pips[i], max_lots_per_pos=list_max_lots_per_pos[i], flexible_lot_ratio=list_flexible_lot_ratio[i], 
-                 lb_mc_op=list_lb_mc_op[i], lb_md_op=list_lb_md_op[i], lb_mc_ext=list_lb_mc_ext[i], lb_md_ext=list_lb_md_ext[i], ub_mc_op=list_ub_mc_op[i], ub_md_op=list_ub_md_op[i], ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
-                 if_dir_change_close=list_if_dir_change_close[i], if_dir_change_extend=list_if_dir_change_extend[i], name=list_name[i],use_GRE=list_use_GRE[i],t_index=list_t_index[i],IDr=list_IDresults[i],epoch=str(list_epoch[i])) for i in range(len(list_t_index))]
+    strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
+                          thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
+                          fixed_spread_pips=list_fixed_spread_pips[i], 
+                          max_lots_per_pos=list_max_lots_per_pos[i], 
+                          flexible_lot_ratio=list_flexible_lot_ratio[i], 
+                          lb_mc_op=list_lb_mc_op[i], lb_md_op=list_lb_md_op[i], 
+                          lb_mc_ext=list_lb_mc_ext[i], lb_md_ext=list_lb_md_ext[i], 
+                          ub_mc_op=list_ub_mc_op[i], ub_md_op=list_ub_md_op[i], 
+                          ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
+                          if_dir_change_close=list_if_dir_change_close[i], 
+                          if_dir_change_extend=list_if_dir_change_extend[i], 
+                          name=list_name[i],use_GRE=list_use_GRE[i],
+                          t_index=list_t_index[i],IDr=list_IDresults[i],
+                          epoch=str(list_epoch[i])) for i in range(len(list_t_index))]
     
     name2str_map = {}
     for n in range(len(list_name)):
@@ -854,9 +821,15 @@ if __name__ == '__main__':
     if not load_from_live:
         
         resultsDir = "../RNN/results/"
-        list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+str(list_t_index[i])+"/"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
-                            "/"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+"/" for i in range(len(list_t_index))]
-        list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+"e"+str(list_epoch[i])+".txt" for i in range(len(list_t_index))]
+        list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+
+                            str(list_t_index[i])+"/"+list_IDresults[i]+"t"+
+                            str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
+                            "/"+list_IDresults[i]+"t"+str(list_t_index[i])+
+                            "mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
+                            "/" for i in range(len(list_t_index))]
+        list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
+                             str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
+                             "e"+str(list_epoch[i])+".txt" for i in range(len(list_t_index))]
         entry_time_column = 'DT1'#'Entry Time
         exit_time_column = 'DT2'#'Exit Time
         entry_bid_column = 'B1'
