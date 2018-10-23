@@ -618,7 +618,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                 
                                 if save_journal and ub_mc==1 and ub_md==1:
                                     
-                                    print("Saving journal...")
+                                    #print("Saving journal...")
                                     
                                     Journal.index.name = 'index'
                                     journal_dir = resultsDir+IDresults+"/t"+str(t_index)+"/"+IDresults+"t"+str(t_index)+"mc"+str(thr_mc)+"/"

@@ -10,7 +10,7 @@ def configuration():
     <DocString>
     """
     # data parameters
-    dateTest = [                                                      '2018.03.09',
+    dateTest =     [                                                  '2018.03.09',
                   '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
                   '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
                   '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -31,13 +31,17 @@ def configuration():
                   '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
                   '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
                   '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']
-    movingWindow = 100
-    nEventsPerStat = 1000
-    lB = 1200
+
+#['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
+#             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']
+    movingWindow = 200
+    nEventsPerStat = 2000
+    lB = 2400
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
+    
     # general parameters
     if_build_IO = True
-    IDweights = '000272'
+    IDweights = '000269'
     hdf5_directory = 'D:/SDC/py/HDF5/'
     IO_directory = '../RNN/IO/'
     
@@ -47,16 +51,16 @@ def configuration():
     size_output_layer=5
     keep_prob_dropout=1
     miniBatchSize=32
-    outputGain=.5
+    outputGain=1
     commonY=3
-    lR0=0.0001
+    lR0=0.0002
     num_epochs=1000
     
     # test-specific parameters
-    IDresults = '100272'
-    startFrom = -1
-    endAt = -1
-    save_journal = False
+    IDresults = '100269'
+    startFrom = 39
+    endAt = 39
+    save_journal = True
     
     # getFeatures
     save_stats = True
