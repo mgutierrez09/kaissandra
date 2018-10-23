@@ -88,7 +88,7 @@ def train_RNN(*ins):
     # loop over all assets
     for ass in data.assets:
         thisAsset = data.AllAssets[str(ass)]
-        print(str(ass)+". "+thisAsset)
+        
         tic = time.time()
         # load separators
         separators = load_separators(data, 
@@ -104,20 +104,21 @@ def train_RNN(*ins):
                            0, 
                            from_stats_file=True, 
                            hdf5_directory=hdf5_directory+'stats/')
-        # loop over separators
-        for s in range(0,len(separators)-1,2):
-            # number of events within this separator chunk
-            nE = separators.index[s+1]-separators.index[s]+1
-            # check if number of events is not enough to build two features and one return
-            if nE>=2*data.nEventsPerStat:
-                print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
-                      ". From "+separators.DateTime.iloc[s]+" to "+
-                      separators.DateTime.iloc[s+1])
-                #print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
-                # calculate features, returns and stats from raw data
-                IO_prep = load_features_results(data, thisAsset, separators, f_prep_IO, s)
-                # build network input and output
-                if if_build_IO:
+        if if_build_IO:
+            print(str(ass)+". "+thisAsset)
+            # loop over separators
+            for s in range(0,len(separators)-1,2):
+                # number of events within this separator chunk
+                nE = separators.index[s+1]-separators.index[s]+1
+                # check if number of events is not enough to build two features and one return
+                if nE>=2*data.nEventsPerStat:
+                    print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+                          ". From "+separators.DateTime.iloc[s]+" to "+
+                          separators.DateTime.iloc[s+1])
+                    #print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
+                    # calculate features, returns and stats from raw data
+                    IO_prep = load_features_results(data, thisAsset, separators, f_prep_IO, s)
+                    # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
                     # check if the separator chuck belongs to the training/test set
@@ -127,13 +128,13 @@ def train_RNN(*ins):
                             #print("\tBuilding IO")
                             file_temp = h5py.File('../RNN/IO/temp_build.hdf5','w')
                             IO, totalSampsPerLevel = build_IO(file_temp, 
-                                                              data, 
-                                                              model, 
-                                                              IO_prep, 
-                                                              stats, 
-                                                              IO, 
-                                                              totalSampsPerLevel, 
-                                                              s, nE, thisAsset)
+                                                                  data, 
+                                                                  model, 
+                                                                  IO_prep, 
+                                                                  stats, 
+                                                                  IO, 
+                                                                  totalSampsPerLevel, 
+                                                                  s, nE, thisAsset)
                             # close temp file
                             file_temp.close()
                         except (KeyboardInterrupt):
@@ -144,18 +145,17 @@ def train_RNN(*ins):
                             end()
                     else:
                         print("\tNot in the set. Skipped.")
-                    # end of if (tOt=='train' and day_s not in data.dateTest) ...
+                        # end of if (tOt=='train' and day_s not in data.dateTest) ...
+                    
                 else:
-                    pass
-                # end of if build_IO:
-            else:
-                print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
-                        int(s/2),int(len(separators)/2-1)))
+                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
+                            int(s/2),int(len(separators)/2-1)))
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
         if if_build_IO:
             ass_IO_ass[ass_idx] = IO['pointer']
-            #print(ass_IO_ass)
+            print("\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+
+              ". Total time:"+str(np.floor(time.time()-ticTotal))+"s")
             
         # update asset index
         ass_idx += 1
@@ -165,8 +165,7 @@ def train_RNN(*ins):
         # flush content file
         f_prep_IO.flush()
         
-        print("\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+
-              ". Total time:"+str(np.floor(time.time()-ticTotal))+"s")
+        
     
         #print("Total time:"+str(np.floor(time.time()-ticTotal))+"s")
     # end of for ass in data.assets:

@@ -16,7 +16,7 @@ import datetime as dt
 import os
 import pandas as pd
 #import matplotlib.pyplot as plt
-from results import getResults,printResults,loadTR,getSummary,evaluate_RNN,save_best_results
+from results import evaluate_RNN,save_best_results,get_last_saved_epoch
 
 class trainData:
     def __init__(self,X,Y):
@@ -271,11 +271,6 @@ class modelRNN(object):
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
         
-        if trainOrTest==data.train:
-            tot = "tr"
-        else:
-            tot = "te"
-        
         resultsDir = "../RNN/results/"
         
         #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
@@ -284,8 +279,6 @@ class modelRNN(object):
         else:
             lastTrained = endAt
         
-        X_test = np.zeros((0, self.seq_len, self.nFeatures))
-        Y_test = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
         # load train cost function evaluations
         costs = {}
         if os.path.exists("../RNN/weights/"+IDweights+"/cost.p"):
@@ -302,9 +295,7 @@ class modelRNN(object):
         n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
         
         if startFrom == -1:
-            lastSaved = lastTrained-its
-        else:
-            lastSaved = startFrom
+            startFrom = get_last_saved_epoch(resultsDir, IDresults, self.seq_len)+1
         
         best_ROI = 0.0
         best_ROI_profile = pd.DataFrame() # best ROI profile
@@ -316,7 +307,7 @@ class modelRNN(object):
         best_sharpe_profile = pd.DataFrame() # best sharpe profile
         BR_sharpes = pd.DataFrame() # best results per sharpe ratio
         # load models and test them
-        for epoch in range(lastSaved,lastTrained+1):
+        for epoch in range(startFrom,lastTrained+1):
 
             self._load_graph(IDweights,epoch)
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
@@ -385,7 +376,7 @@ class modelRNN(object):
         #dirName = "../RNN/weights/"
         epochStart = self._load_graph(ID,-1)
         #epochStart = 0
-        print("Training from epoch "+str(epochStart)+" till "+str(epochStart+self._num_epochs))
+        print("Training from epoch "+str(epochStart)+" till "+str(epochStart+self._num_epochs-1))
         # check if data format is HDF5
         if data_format=='hdf5':
             # load IO info

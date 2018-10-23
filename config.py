@@ -37,7 +37,7 @@ def configuration():
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     # general parameters
     if_build_IO = True
-    IDweights = '000271'
+    IDweights = '000272'
     hdf5_directory = 'D:/SDC/py/HDF5/'
     IO_directory = '../RNN/IO/'
     
@@ -53,8 +53,8 @@ def configuration():
     num_epochs=1000
     
     # test-specific parameters
-    IDresults = '100271'
-    startFrom = 0
+    IDresults = '100272'
+    startFrom = -1
     endAt = -1
     save_journal = False
     
