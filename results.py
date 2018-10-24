@@ -614,7 +614,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                     get_real = True
                                 
                                 Journal,rROIxLevel, rSampsXlevel, summary, log_journal = getJournal_v20(DTAt.iloc[y_md_tilde], y_dec_mg_tilde[y_md_tilde], y_dec_mg[y_md_tilde],
-                                             diff_y_y_tilde, probs_mc[y_md_tilde], probs_md[y_md_tilde] ,model.size_output_layer, n_days, fixed_spread=1, get_real=get_real)
+                                             diff_y_y_tilde, probs_mc[y_md_tilde], probs_md[y_md_tilde] ,model.size_output_layer, n_days, fixed_spread=1, get_real=get_real, save_journal=save_journal)
                                 
                                 if save_journal and ub_mc==1 and ub_md==1:
                                     
@@ -1022,7 +1022,7 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     
     return rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes
 
-def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_output_layer, n_days, fixed_spread=0, get_real=1):
+def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_output_layer, n_days, fixed_spread=0, get_real=1, save_journal=False):
     """
     Version 2.0 of get journal. Calculates trading journal given predictions.
     Args:
@@ -1064,7 +1064,7 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_outpu
     
     Journal.index = range(Journal.shape[0])
     
-    if get_real:
+    if get_real and not save_journal:
         rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes = get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=fixed_spread)
         
         summary = {'tGROI':Journal['GROI'].sum(),
