@@ -243,7 +243,7 @@ class modelRNN(object):
     
     def test(self, sess, data, IDresults, IDweights, nChunks, save_results, 
              trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
-             save_journal=False, endAt=-1, its=0):
+             save_journal=False, endAt=-1):
         """ 
         Test RNN network with y_c bits
         """

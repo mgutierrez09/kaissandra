@@ -10,6 +10,7 @@ import numpy as np
 import tensorflow as tf
 import h5py
 import pickle
+import os
 from RNN import modelRNN
 from inputs import Data, load_separators, load_stats, load_features_results, build_DTA_v20, build_IO
 from config import configuration
@@ -22,10 +23,8 @@ def test_RNN(*ins):
     ticTotal = time.time()
     if len(ins)>0:
         config = ins[0]
-        its = ins[1]
     else:    
         config = configuration()
-        its = 0
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -33,7 +32,7 @@ def test_RNN(*ins):
                   dateTest=config['dateTest'],
                   assets=config['assets'])
     
-    if_build_IO = config['if_build_IO']
+    #if_build_IO = config['if_build_IO']
     startFrom = config['startFrom']
     endAt = config['endAt']
     save_journal = config['save_journal']
@@ -51,6 +50,10 @@ def test_RNN(*ins):
     filename_IO = IO_directory+'IO_'+IDresults+'.hdf5'
     # init hdf5 files
     f_prep_IO = h5py.File(filename_prep_IO,'r')
+    if os.path.exists(filename_IO) and len(ins)>0:
+        if_build_IO = False
+    else:
+        if_build_IO = config['if_build_IO']
     # create model
     model=modelRNN(data,
                    size_hidden_layer=config['size_hidden_layer'],
@@ -208,7 +211,7 @@ def test_RNN(*ins):
         model.test(sess, data, IDresults, IDweights, 
                    int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
                    IDIO=IDresults, data_format='hdf5', DTA=DTA, 
-                   save_journal=save_journal, endAt=endAt, its=its)
+                   save_journal=save_journal, endAt=endAt)
         
 if __name__=='__main__':
     test_RNN()

@@ -8,6 +8,7 @@ Script to perform the training of the RNN
 import time
 import h5py
 import numpy as np
+import os
 import tensorflow as tf
 from RNN import modelRNN
 from inputs import Data, load_separators, load_stats, load_features_results, build_IO
@@ -28,7 +29,6 @@ def train_RNN(*ins):
               dateTest=config['dateTest'],
               assets=config['assets'])
     # init structures
-    if_build_IO = config['if_build_IO']
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
@@ -38,6 +38,10 @@ def train_RNN(*ins):
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     f_prep_IO = h5py.File(filename_prep_IO,'r')
+    if os.path.exists(filename_IO) and len(ins)>0:
+        if_build_IO = False
+    else:
+        if_build_IO = config['if_build_IO']
     # create model
     model=modelRNN(data,
                        size_hidden_layer=config['size_hidden_layer'],
