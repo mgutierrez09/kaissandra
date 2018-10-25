@@ -143,20 +143,23 @@ def test_RNN(*ins):
                     # check if the separator chuck belongs to the training/test set
                     if day_s in data.dateTest:
                         try:
-                            #print("\tBuilding IO")
-                            file_temp = h5py.File('../RNN/IO/temp_test_build.hdf5','w')
+                            file_temp_name = '../RNN/IO/temp_test_build'+str(np.random.randint(10000))+'.hdf5'
+                            while os.path.exists(file_temp_name):
+                                file_temp_name = '../RNN/IO/temp_test_build'+str(np.random.randint(10000))+'.hdf5'
+                            file_temp = h5py.File(file_temp_name,'w')
                             IO, totalSampsPerLevel = build_IO(file_temp, data, 
                                                               model, IO_prep, stats, 
                                                               IO, totalSampsPerLevel, 
                                                               s, nE, thisAsset)
                             # close temp file
                             file_temp.close()
-                            
+                            os.remove(file_temp_name)
                         except (KeyboardInterrupt,NameError):
                             print("KeyBoardInterrupt. Closing files and exiting program.")
                             f_prep_IO.close()
                             f_IO.close()
                             file_temp.close()
+                            os.remove(file_temp_name)
                             end()
                         
                     else:
@@ -208,6 +211,7 @@ def test_RNN(*ins):
     # start session
     with tf.Session() as sess:
         # run test RNN
+        print("IDresults: "+IDresults)
         model.test(sess, data, IDresults, IDweights, 
                    int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
                    IDIO=IDresults, data_format='hdf5', DTA=DTA, 

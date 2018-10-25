@@ -5,6 +5,7 @@ Created on Mon Oct 22 17:25:12 2018
 @author: mgutierrez
 """
 
+from multiprocessing import Process
 from trainRNN import train_RNN
 from testRNN import test_RNN
 from config import configuration
@@ -13,11 +14,7 @@ def run_train_test(config):
     """
     
     """
-#    config['num_epochs'] = 1
-#    config['assets'] = [2]
-#    config['startFrom'] = -1
-#    config['endAt'] = -1
-    its = 1
+    its = 2
     # loop over iteratuibs
     for it in range(its):
         print("Iteration {0:d} of {1:d}".format(it,its-1))
@@ -37,4 +34,7 @@ if __name__=='__main__':
         configs_list.append(configuration(config_name))
     # run train/test
     for config in configs_list:
-        run_train_test(config)
+        #run_train_test(config)
+        # parallelize
+        disp = Process(target=run_train_test, args=[config])
+        disp.start()

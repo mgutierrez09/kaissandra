@@ -129,8 +129,10 @@ def train_RNN(*ins):
                     if day_s not in data.dateTest:
                         
                         try:
-                            #print("\tBuilding IO")
-                            file_temp = h5py.File('../RNN/IO/temp_build.hdf5','w')
+                            file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                            while os.path.exists(file_temp_name):
+                                file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                            file_temp = h5py.File(file_temp_name,'w')
                             IO, totalSampsPerLevel = build_IO(file_temp, 
                                                                   data, 
                                                                   model, 
@@ -141,11 +143,13 @@ def train_RNN(*ins):
                                                                   s, nE, thisAsset)
                             # close temp file
                             file_temp.close()
+                            os.remove(file_temp_name)
                         except (KeyboardInterrupt):
                             print("KeyBoardInterrupt. Closing files and exiting program.")
                             f_prep_IO.close()
                             f_IO.close()
                             file_temp.close()
+                            os.remove(file_temp_name)
                             end()
                     else:
                         print("\tNot in the set. Skipped.")

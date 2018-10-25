@@ -48,12 +48,13 @@ def configuration(*ins):
         movingWindow = 200
         nEventsPerStat = 2000
         lB = 2400
-        assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 
-                  15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
+        assets = [3]
+#        [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 
+#                  15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
         
         # general parameters
         if_build_IO = True
-        IDweights = '090269'
+        IDweights = '099992'
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
@@ -69,7 +70,7 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '190269'
+        IDresults = '199992'
         startFrom = -1
         endAt = -1
         save_journal = False
@@ -77,7 +78,9 @@ def configuration(*ins):
         # getFeatures
         save_stats = True
         # add parameters to config dictionary
-        config = {'dateTest':dateTest,
+        config = {'config_name':config_name,
+                
+                'dateTest':dateTest,
                 'movingWindow':movingWindow,
                'nEventsPerStat':nEventsPerStat,
                'lB':lB,
@@ -108,6 +111,7 @@ def configuration(*ins):
         # save config file for later use
         if not os.path.exists(config_filename):
             pickle.dump( config, open( config_filename, "wb" ))
+            print("Config file "+config_filename+" saved")
         else:
             print("ERROR config file "+config_name+" already exists. "+
                   "Pass name as an arg if you want to load it")
