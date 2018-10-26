@@ -22,7 +22,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration()
+        config = configuration('C0000')
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
               lB=config['lB'], 

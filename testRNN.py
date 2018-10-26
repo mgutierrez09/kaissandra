@@ -24,7 +24,7 @@ def test_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration()
+        config = configuration('C0003')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -110,7 +110,7 @@ def test_RNN(*ins):
         
         tic = time.time()
         # load separators
-        separators = load_separators(data, thisAsset, separators_directory, 
+        separators = load_separators(data, thisAsset, separators_directory,
                                      tOt='te', from_txt=1)
         # retrive asset group
         ass_group = f_prep_IO[thisAsset]
@@ -120,7 +120,8 @@ def test_RNN(*ins):
                            ass_group, 
                            0, 
                            from_stats_file=True, 
-                           hdf5_directory=hdf5_directory+'stats/')
+                           hdf5_directory=hdf5_directory+'stats/',
+                           save_pickle=False)
         if if_build_IO:
             print(str(ass)+". "+thisAsset)
             # loop over separators
@@ -143,19 +144,25 @@ def test_RNN(*ins):
                     # check if the separator chuck belongs to the training/test set
                     if day_s in data.dateTest:
                         try:
-                            file_temp_name = '../RNN/IO/temp_test_build'+str(np.random.randint(10000))+'.hdf5'
+                            file_temp_name = ('../RNN/IO/temp_test_build'+
+                                              str(np.random.randint(10000))+
+                                              '.hdf5')
                             while os.path.exists(file_temp_name):
-                                file_temp_name = '../RNN/IO/temp_test_build'+str(np.random.randint(10000))+'.hdf5'
+                                file_temp_name = ('../RNN/IO/temp_test_build'+
+                                                  str(np.random.randint(10000))+
+                                                  '.hdf5')
                             file_temp = h5py.File(file_temp_name,'w')
                             IO, totalSampsPerLevel = build_IO(file_temp, data, 
-                                                              model, IO_prep, stats, 
-                                                              IO, totalSampsPerLevel, 
+                                                              model, IO_prep, 
+                                                              stats,IO, 
+                                                              totalSampsPerLevel, 
                                                               s, nE, thisAsset)
                             # close temp file
                             file_temp.close()
                             os.remove(file_temp_name)
                         except (KeyboardInterrupt,NameError):
-                            print("KeyBoardInterrupt. Closing files and exiting program.")
+                            print("KeyBoardInterrupt. Closing files and"+
+                                  " exiting program.")
                             f_prep_IO.close()
                             f_IO.close()
                             file_temp.close()
@@ -166,8 +173,9 @@ def test_RNN(*ins):
                         print("\tNot in the set. Skipped.")
                     # end of if (tOt=='train' and day_s not in data.dateTest) ...
                 else:
-                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
-                            int(s/2),int(len(separators)/2-1)))
+                    print("\ts {0:d} of {1:d}..".format(
+                            int(s/2),int(len(separators)/2-1))+
+                          " Not enough entries. Skipped")
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
         if if_build_IO:

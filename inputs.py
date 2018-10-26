@@ -1385,7 +1385,8 @@ def build_DTA_v20(data, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False, hdf5_directory='', save_pickle=False):
+def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False, 
+               hdf5_directory='', save_pickle=False):
     """
     Function that loads stats
     """
@@ -1407,18 +1408,16 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False, hd
         stats["stds_t_out"] = ass_group.attrs.get("stds_t_out")
         stats["m_t_in"] = ass_group.attrs.get("m_t_in")
         stats["m_t_out"] = ass_group.attrs.get("m_t_out")
-        
-        # save stats individually
-        if save_pickle:
-            pickle.dump( stats, open( hdf5_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+
-                                     '_nE'+str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+".p", "wb" ))
     
     elif from_stats_file:
         try:
-            stats = pickle.load( open( hdf5_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+
-                                     '_nE'+str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+".p", "rb" ))
+            stats = pickle.load( open( hdf5_directory+thisAsset+'_stats_mW'+
+                                      str(data.movingWindow)+
+                                     '_nE'+str(data.nEventsPerStat)+
+                                     '_nF'+str(data.nFeatures)+".p", "rb" ))
         except FileNotFoundError:
-            print("WARNING FileNotFoundError: [Errno 2] No such file or directory. Getting stats from HDF5 file")
+            print("WARNING FileNotFoundError: [Errno 2] No such file or directory."+
+                  " Getting stats from HDF5 file")
             stats["means_t_in"] = ass_group.attrs.get("means_t_in")
             stats["stds_t_in"] = ass_group.attrs.get("stds_t_in")
             stats["means_t_out"] = ass_group.attrs.get("means_t_out")
@@ -1429,5 +1428,10 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False, hd
         print("EROR: Not a possible combination of input parameters")
         error()
         
-    
+    # save stats individually
+    if save_pickle:
+        pickle.dump( stats, open( hdf5_directory+thisAsset+'_stats_mW'+
+                                 str(data.movingWindow)+
+                                 '_nE'+str(data.nEventsPerStat)+
+                                 '_nF'+str(data.nFeatures)+".p", "wb" ))
     return stats

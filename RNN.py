@@ -278,7 +278,6 @@ class modelRNN(object):
         
         if startFrom == -1:
             startFrom = get_last_saved_epoch(resultsDir, IDresults, self.seq_len)+1
-        
         best_ROI = 0.0
         best_ROI_profile = pd.DataFrame() # best ROI profile
         BR_ROIs = pd.DataFrame() # best results per ROI

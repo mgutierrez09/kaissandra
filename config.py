@@ -17,11 +17,11 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0002'
+        config_name = 'C0003'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
-        dateTest = [                                                '2018.03.09',
+        dateTest = ([                                               '2018.03.09',
                 '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
                 '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
                 '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -41,20 +41,25 @@ def configuration(*ins):
                 '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
                 '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
                 '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']
-    
-    #['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-    #             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']
-        movingWindow = 200
-        nEventsPerStat = 2000
-        lB = 2400
-        assets = [3]
-#        [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 
-#                  15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
+                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+                '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
+
+        movingWindow = 100
+        nEventsPerStat = 1000
+        lB = int(nEventsPerStat+movingWindow*2)
+        assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 
+                  15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
+        
         
         # general parameters
         if_build_IO = True
-        IDweights = '099992'
+        IDweights = '000266'
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
@@ -64,15 +69,15 @@ def configuration(*ins):
         size_output_layer=5
         keep_prob_dropout=1
         miniBatchSize=32
-        outputGain=1
+        outputGain=.6
         commonY=3
         lR0=0.0002
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '199992'
-        startFrom = -1
-        endAt = -1
+        IDresults = '100278'
+        startFrom = 13
+        endAt = 13
         save_journal = False
         
         # getFeatures
@@ -133,9 +138,35 @@ def print_config(config_name):
     """
     config_filename = config_directory+config_name+config_extension
     if os.path.exists(config_filename):
-        print(pickle.load( open( config_filename, "rb" )))
+        config = pickle.load( open( config_filename, "rb" ))
+        print(config)
     else:
         print("Config name "+config_name+" does not exist")
+        config = None
+    return config
+
+def delete_config(config_name):
+    """
+    
+    """
+    config_filename = config_directory+config_name+config_extension
+    os.remove(config_filename)
+    print("Config file "+config_name+" deleted")
+    
+def modify_config(config_name,key,value):
+    """
+    
+    """
+    config_filename = config_directory+config_name+config_extension
+    if os.path.exists(config_filename):
+        config = pickle.load( open( config_filename, "rb" ))
+        config[key] = value
+        pickle.dump( config, open( config_filename, "wb" ))
+        print("Config file "+config_filename+" saved")
+    else:
+        print("Config name "+config_name+" does not exist")
+        config = None
+    return config
         
 if __name__=='__main__':
     configuration()
