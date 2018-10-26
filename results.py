@@ -1064,7 +1064,7 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_outpu
     
     Journal.index = range(Journal.shape[0])
     
-    if get_real and not save_journal:
+    if get_real:
         rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes = get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=fixed_spread)
         
         summary = {'tGROI':Journal['GROI'].sum(),

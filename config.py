@@ -169,4 +169,5 @@ def modify_config(config_name,key,value):
     return config
         
 if __name__=='__main__':
-    configuration()
+    pass
+    #configuration()
