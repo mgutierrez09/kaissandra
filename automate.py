@@ -26,6 +26,7 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
             print("IDresults: "+config['IDresults'])
         # launch train
         if if_train:
+            # here we should check if the HDF5 file is used
             train_RNN(config)
         # launch test
         if if_test:
