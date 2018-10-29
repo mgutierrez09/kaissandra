@@ -50,6 +50,16 @@ def test_RNN(*ins):
     
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDresults+'.hdf5'
+    # check if file locked
+    if len(ins)>0:
+        # wait while files are locked
+        while os.path.exists(filename_prep_IO+'.flag'):
+            # sleep random time up to 10 seconds if any file is being used
+            print(filename_prep_IO+' busy. Sleeping up to 10 secs')
+            time.sleep(10*np.random.rand(1)[0])
+        # lock HDF5 file from access
+        fh = open(filename_prep_IO+'.flag',"w")
+        fh.close()
     # init hdf5 files
     f_prep_IO = h5py.File(filename_prep_IO,'r')
     if os.path.exists(filename_IO) and len(ins)>0:
@@ -198,6 +208,10 @@ def test_RNN(*ins):
     
     # close files
     f_prep_IO.close()
+    # release lock
+    if len(ins)>0:
+        os.remove(filename_prep_IO+'.flag')
+    # Build DTA
     if if_build_IO:
         print("Building DTA...")
         DTA = build_DTA_v20(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)

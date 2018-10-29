@@ -8,6 +8,7 @@ Created on Mon Apr 16 12:41:50 2018
 import numpy as np
 import time
 import h5py
+import os
 import pickle
 from inputs import Data, load_separators, get_features_results_stats_from_raw
 from config import configuration
@@ -44,6 +45,18 @@ def get_features(*ins):
     
     # reset only one asset
     reset_asset = ''
+    
+    if len(ins)>0:
+        # wait while files are locked
+        while os.path.exists(filename_raw+'.flag') or os.path.exists(filename_prep_IO+'.flag'):
+            # sleep random time up to 10 seconds if any file is being used
+            print(filename_raw+' or '+filename_prep_IO+' busy. Sleeping up to 10 secs')
+            time.sleep(10*np.random.rand(1)[0])
+        # lock HDF5 files from access
+        fh = open(filename_raw+'.flag',"w")
+        fh.close()
+        fh = open(filename_prep_IO+'.flag',"w")
+        fh.close()
     
     # init hdf5 files
     f_prep_IO = h5py.File(filename_prep_IO,'a')
@@ -159,6 +172,10 @@ def get_features(*ins):
     # close files
     f_prep_IO.close()
     f_raw.close()
+    # release lock
+    if len(ins)>0:
+        os.remove(filename_raw+'.flag')
+        os.remove(filename_prep_IO+'.flag')
     
 if __name__=='__main__':
     get_features()
