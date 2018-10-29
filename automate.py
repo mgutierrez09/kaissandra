@@ -34,7 +34,7 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
 if __name__=='__main__':
     # init config
     if_get_features = False
-    if_train = False
+    if_train = True
     if_test = True
     its = 1
     configs = ['C0002']
