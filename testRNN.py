@@ -25,6 +25,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:    
         config = configuration('C0004')
+
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
