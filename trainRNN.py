@@ -22,12 +22,12 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0000')
+        config = configuration('C0280')
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
               lB=config['lB'], 
               dateTest=config['dateTest'],
-              assets=config['assets'])
+              assets=config['assets'],channels=config['channels'])
     # init structures
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']

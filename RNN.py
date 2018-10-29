@@ -49,7 +49,7 @@ class modelRNN(object):
         self._num_epochs = num_epochs
         self.size_hidden_layer = size_hidden_layer # number of hidden units per layer in RNN
         self.L = L     # number of layers in RNN
-        self.nFeatures = data.nFeatures*len(data.channels)#int(data.nFeatures*data.nEventsPerStat/data.movingWindow+data.nFeaturesAuto) # size of input image, (16x8 flattened to 128)
+        self.nFeatures = data.nFeatures*len(data.channels)
         self.lR0 = lR0 # learning rate
         self.keep_prob_dropout= keep_prob_dropout       # probability of dropout
         self.outputGain = outputGain

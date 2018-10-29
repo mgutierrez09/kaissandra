@@ -161,7 +161,7 @@ class Strategy():
                  lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
-                 name='',use_GRE=False,t_index=3,IDr=None,epoch='11'):
+                 name='',use_GRE=False,t_index=3,IDr=None,IDgre=None,epoch='11'):
         
         self.name = name
         self.dir_origin = direct
@@ -191,6 +191,7 @@ class Strategy():
          # load GRE
         self.use_GRE = use_GRE
         self.IDr = IDr
+        self.IDgre = IDgre
         self.epoch = epoch
         self.t_index = t_index
         self._load_GRE()
@@ -202,7 +203,7 @@ class Strategy():
         # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
         #int((model.size_output_layer-1)/2))
         if self.use_GRE:
-            allGREs = pickle.load( open( self.dir_origin+self.IDr+
+            allGREs = pickle.load( open( self.dir_origin+self.IDgre+
                                         "/GRE_e"+self.epoch+".p", "rb" ))
             self.GRE = allGREs[self.t_index, :, :, :]/self.pip
             print("GRE level 1:")
@@ -271,6 +272,7 @@ class Trader:
         self.available_bugdet_in_lots = self.available_budget/self.LOT
         self.budget_in_lots = self.available_bugdet_in_lots
         self.gross_earnings = 0.0
+        self.flexible_lot_ratio = False
         
         self.tROI_live = 0.0
         self.tGROI_live = 0.0
@@ -818,35 +820,41 @@ def load_in_memory(data, init_list_index, end_list_index,root_dir='D:/SDC/py/Dat
 
 if __name__ == '__main__':
     
+    dateTest = ([                                                   '2018.03.09',
+                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
+                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
+                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
+                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
+                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
+                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
+                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
+                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
+                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
+                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
+                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
+                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
+                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
+                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
+                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
+                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
+                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
+                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
+                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
+                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+                '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
     # data structure
     data=Data(movingWindow=100,nEventsPerStat=1000,
-     dateTest = [                                                '2018.03.09',
-             '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-             '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-             '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-             '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-             '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-             '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-             '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-             '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-             '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-             '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-             '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-             '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-             '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-             '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',                                    
-             '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-             '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-             '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-             '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-             '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-             '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']
-
-                 )
+     dateTest = dateTest)
 
 #    ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
 #                 '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
-
+        
     nExS = data.nEventsPerStat-1
     tic = time.time()
     # init positions vector
@@ -857,49 +865,51 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-    list_epoch = [39,13]
-    list_use_GRE = [True,True]
-    list_t_index = [1,3]
-    list_lb_mc_op = [0.6,0.5]
-    list_lb_md_op = [0.6,0.5]
-    list_lb_mc_ext = [0.6,0.5]
-    list_lb_md_ext = [0.6,0.5]
-    list_ub_mc_op = [1,1]
-    list_ub_md_op = [1,1]
-    list_ub_mc_ext = [1,1]
-    list_ub_md_ext = [1,1]
-    list_thr_sl = [1000,1000]
-    list_thr_tp = [1000,1000]
-    list_fix_spread = [False,False]
-    list_fixed_spread_pips = [4,4]
-    list_max_lots_per_pos = [.1,.1]
-    list_flexible_lot_ratio = [False,False]
-    list_if_dir_change_close = [False,False]
-    list_if_dir_change_extend = [False,False]
-    list_name = ['69','66']
-    list_IDresults = ['100269','100266']
+#    list_epoch = [39,13]
+#    list_use_GRE = [True,True]
+#    list_t_index = [1,3]
+#    list_lb_mc_op = [0.6,0.5]
+#    list_lb_md_op = [0.6,0.5]
+#    list_lb_mc_ext = [0.6,0.5]
+#    list_lb_md_ext = [0.6,0.5]
+#    list_ub_mc_op = [1,1]
+#    list_ub_md_op = [1,1]
+#    list_ub_mc_ext = [1,1]
+#    list_ub_md_ext = [1,1]
+#    list_thr_sl = [1000,1000]
+#    list_thr_tp = [1000,1000]
+#    list_fix_spread = [False,False]
+#    list_fixed_spread_pips = [4,4]
+#    list_max_lots_per_pos = [.1,.1]
+#    list_flexible_lot_ratio = [False,False]
+#    list_if_dir_change_close = [False,False]
+#    list_if_dir_change_extend = [False,False]
+#    list_name = ['69','66']
+#    list_IDresults = ['100269','100266']
     
-#    list_epoch = [39]
-#    list_use_GRE = [True]
-#    list_t_index = [1]
-#    list_lb_mc_op = [0.6]
-#    list_lb_md_op = [0.6]
-#    list_lb_mc_ext = [0.6]
-#    list_lb_md_ext = [0.6]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
-#    list_name = ['69']
-#    list_IDresults = ['100269']
+    list_epoch_journal = [13]
+    list_use_GRE = [True]
+    list_t_index = [3]
+    list_lb_mc_op = [0.6]
+    list_lb_md_op = [0.6]
+    list_lb_mc_ext = [0.6]
+    list_lb_md_ext = [0.6]
+    list_ub_mc_op = [1]
+    list_ub_md_op = [1]
+    list_ub_mc_ext = [1]
+    list_ub_md_ext = [1]
+    list_thr_sl = [1000]
+    list_thr_tp = [1000]
+    list_fix_spread = [False]
+    list_fixed_spread_pips = [4]
+    list_max_lots_per_pos = [10]
+    list_flexible_lot_ratio = [False]
+    list_if_dir_change_close = [False]
+    list_if_dir_change_extend = [False]
+    list_name = ['77']
+    list_IDresults = ['100277']
+    list_IDgre = ['100277']
+    list_epoch_gre = [13]
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -914,7 +924,8 @@ if __name__ == '__main__':
                           if_dir_change_extend=list_if_dir_change_extend[i], 
                           name=list_name[i],use_GRE=list_use_GRE[i],
                           t_index=list_t_index[i],IDr=list_IDresults[i],
-                          epoch=str(list_epoch[i])) for i in range(len(list_t_index))]
+                          IDgre=list_IDgre[i],
+                          epoch=str(list_epoch_gre[i])) for i in range(len(list_t_index))]
     
     name2str_map = {}
     for n in range(len(list_name)):
@@ -932,7 +943,7 @@ if __name__ == '__main__':
                             "/" for i in range(len(list_t_index))]
         list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
                              str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                             "e"+str(list_epoch[i])+".txt" for i in range(len(list_t_index))]
+                             "e"+str(list_epoch_journal[i])+".txt" for i in range(len(list_t_index))]
         entry_time_column = 'DT1'#'Entry Time
         exit_time_column = 'DT2'#'Exit Time
         entry_bid_column = 'B1'
@@ -954,9 +965,9 @@ if __name__ == '__main__':
         IDresults = ["100248GREN2"]
         list_journal_dir = [resultsDir+IDresults[0]+'T'+
                             str(list_t_index[0])+
-                            'E'+str(list_epoch[0])+'/']
+                            'E'+str(list_epoch_journal[0])+'/']
         list_journal_name = [IDresults[0]+'T'+str(list_t_index[0])+
-                             'E'+str(list_epoch[0])+'.txt']
+                             'E'+str(list_epoch_journal[0])+'.txt']
         entry_time_column = 'Entry Time'#'Entry Time
         exit_time_column = 'Exit Time'#'Exit Time
         entry_bid_column = 'Bi'
@@ -1446,11 +1457,10 @@ if __name__ == '__main__':
 #Total entries 144 per entries 5.12 percent gross success 71.53% percent nett success 64.58% average loss 6.12p average win 12.24p RR 1 to 3.65
 #DONE. Total time: 15.75 mins
     
-
 # GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100266 extention margin .5 pips not closing not extending if direction changes 
 #Total GROI = 6.407% Total ROI = 5.029% Sum GROI = 6.540% Sum ROI = 5.127% Accumulated earnings 512.69E +
 # Total GROI = 1.050% Total ROI = 0.156% Sum GROI = 1.049% Sum ROI = 0.153% Accumulated earnings 15.33E
-# Sum ROI = 5.278% 
+# Sum ROI = 5.278%
 
 # GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 100266 extention margin .5 pips only 2018
 #Total GROI = 8.132% Total ROI = 5.234% Sum GROI = 8.350% Sum ROI = 5.352% Accumulated earnings 535.19E
@@ -1466,3 +1476,8 @@ if __name__ == '__main__':
 #Total GROI = 10.562% Total ROI = 6.488% Sum GROI = 10.882% Sum ROI = 6.642% Accumulated earnings 664.23E
 #Total entries 361 per entries 0.56 percent gross success 59.28% percent nett success 52.63% average loss 6.64p average win 9.47p RR 1 to 1.59
 #DONE. Total time: 142.83 mins
+
+# GRE fix invest to .1 vol epoch 13 t_index 3 IDr 100277 extention margin .5 pips from 2018.3.9 to .9.27
+#Total GROI = 7.101% Total ROI = 5.069% Sum GROI = 7.246% Sum ROI = 5.160% Accumulated earnings 515.96E
+#Total entries 172 per entries 10.46 percent gross success 64.53% percent nett success 61.05% average loss 7.58p average win 9.75p RR 1 to 2.02
+#DONE. Total time: 12.19 mins

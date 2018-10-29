@@ -11,10 +11,8 @@ import time
 import pandas as pd
 import h5py
 import datetime as dt
-import sqlite3
-import scipy.io as sio
 import pickle
-import re
+import scipy.io as sio
 
 class Data:
     
@@ -92,90 +90,33 @@ class Data:
     
     
     average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
-    #average_over = np.array([0.11,0.2,0.3,.4,.5,.6,.7,.8,.9,1,1.5,2,2.5,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100])
     
-    train = "Train"
-    test = "Test"
+    lookAheadVector=[.1,.2,.5,1,2,5,10]
     
-    def __init__(self, movingWindow=40,nEventsPerStat=40,lB=400,std_var=0.1,nFeaturesAuto=0,channels=[0],
-                 lookAhead=1,comments='',save_data_every=1,save_IO=1,divideLookAhead=1,lookAheadIndex=3,
-                 features=[i for i in range(37)],BDeval='../DB/EVAL.sqlite',lookAheadVector=[.1,.2,.5,1,2,5,10],
-                 dateStart='2017.08.14',dateEnd='2017.09.19',dateTest=['2017.09.15','2017.11.06','2017.11.07'],
-                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], IDweights=None,FCNID=None):
+    def __init__(self, movingWindow=40,nEventsPerStat=40,lB=400,std_var=0.1,
+                 channels=[0],divideLookAhead=1,lookAheadIndex=3,
+                 features=[i for i in range(37)],
+                 dateTest=['2017.09.15','2017.11.06','2017.11.07'],
+                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]):
         
-        if IDweights==None:
-            
-            
-            self.movingWindow = movingWindow
-            self.nEventsPerStat = nEventsPerStat
-            self.nFeatures = len(features)
-            
-            self.lB = lB
-            self.lookBack = int(lB/movingWindow) # lookback 500 events
-            
-            self.lookAhead = lookAhead
-            self.maxTimeDif = dt.timedelta(minutes=7) # maximum time allowed between files to be concatenated
-            self.divideLookAhead = divideLookAhead
-            
-            assert(max(channels)<nEventsPerStat/movingWindow)
-            self.channels = channels
-            
-            
-        else:
-            IDstr = "{0:06d}".format(int(IDweights))
-            conn = sqlite3.connect(BDeval)
-            parameters = pd.read_sql_query("SELECT * FROM IDw WHERE `index`=="+"'"+IDstr+"'", conn)
-            #self.dateEnd = parameters["dateEnd"].iloc[0]
-            #self.dateStart = parameters["dateStart"].iloc[0]
-            self.lookAhead = parameters["lookAhead"].iloc[0]
-            self.movingWindow = parameters["movingWindow"].iloc[0]
-            if "lookBack" in parameters.columns:
-                self.lookBack = parameters["lookBack"].iloc[0]
-                self.lB = self.lookBack*self.movingWindow
-            else:
-                self.lB = parameters["lB"].iloc[0]
-                self.lookBack = int(self.lB/self.movingWindow)
-                
-            self.nEventsPerStat = parameters["nEventsPerStat"].iloc[0]
-            self.nFeatures = parameters["nFeatures"].iloc[0]
-            self.divideLookAhead = parameters["divideLookAhead"].iloc[0]
-            
-            p = re.compile("1")
-            '''
-            self.assets = []
-            for m in p.finditer(parameters["assets"].iloc[0]):
-                #print(m.start())
-                self.assets.append(m.start())
-            '''
-            testDaysIndex =[]
-            testDates = []
-            dateDT = dt.datetime.strptime(dateStart,"%Y.%m.%d")
-            for m in p.finditer(parameters["dateTest"].iloc[0]):
-                #print(m.start())
-                testDaysIndex.append(m.start())
-                testDate = dt.datetime.strftime(dateDT+dt.timedelta(days=m.start()),"%Y.%m.%d")
-                if testDate not in dateTest:
-                    print("Warning! Test Dates don't match!")
-                testDates.append(testDate)
-            #print(testDates)
-            conn.close()
+        self.movingWindow = movingWindow
+        self.nEventsPerStat = nEventsPerStat
+        self.nFeatures = len(features)
+        
+        self.lB = lB
+        self.divideLookAhead = divideLookAhead
+        
+        assert(max(channels)<nEventsPerStat/movingWindow)
+        self.channels = channels
         
         self.lbd=1-1/(self.nEventsPerStat*self.average_over)
-        self.features=features
+        self.features = features
         self.std_var = std_var
         self.std_time = std_var
-        self.comments = comments
-        self.save_data_every = save_data_every
-        self.save_IO = save_IO
         self.dateTest = dateTest
-        self.dateStart = dateStart
-        self.dateEnd = dateEnd
         self.assets = assets
         self.noVarFeats = [8,9,12,17,18,21,23,24,25,26,27,28,29]
-        self.lookAheadVector = lookAheadVector
         self.lookAheadIndex = lookAheadIndex
-        self.FCNID = FCNID
-        self.nFeaturesAuto = nFeaturesAuto
 
 def initFeaturesLive(data,tradeInfoLive):
     """
@@ -729,10 +670,7 @@ def get_features_from_raw_par(data, features, DateTime, SymbolBid):
         for i in range(data.lbd.shape[0]):
             nF += 1        
             features[init_idx:end_idx,nF] = bids/EMA[:,i]
-        #print(nF)
-    # end of for b in range(par_batches):
-#    save_as_matfile('features','features',features[:])
-#    a=p
+            
     return features
 
 def get_returns_from_raw(data, returns, ret_idx, DT, B, A, idx_init, DateTime, SymbolBid, SymbolAsk):
@@ -1111,11 +1049,25 @@ def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, 
             nv += 1
     # loop over channels
     for r in range(nC):
+#        print("r")
+#        print(r)
+#        print("variations[data.channels[r]+1:,:,r]")
+#        print(variations[data.channels[r]+1:,:,r])
+#        print("features[data.channels[r]+1:,data.features]")
+#        print(features[data.channels[r]+1:,data.features])
+#        print("features[:-(data.channels[r]+1),data.features]")
+#        print(features[:-(data.channels[r]+1),data.features])
         variations[data.channels[r]+1:,:,r] = features[data.channels[r]+1:,data.features]-features[:-(data.channels[r]+1),data.features]
         if nonVarFeats.shape[0]>0:
-            variations[data.channels[r]+1:,nonVarIdx,data.channels[r]] = features[:-(data.channels[r]+1),nonVarFeats]
-        variations_normed[data.channels[r]+1:,:,data.channels[r]] = np.minimum(np.maximum((variations[data.channels[r]+1:,
-                          :,data.channels[r]]-means_in[r,data.features])/stds_in[r,data.features],-10),10)
+#            print("variations.shape")
+#            print(variations.shape)
+#            print("variations[data.channels[r]+1:,nonVarIdx,data.channels[r]]")
+#            print(variations[data.channels[r]+1:,nonVarIdx,data.channels[r]])
+#            print("features[:-(data.channels[r]+1),nonVarFeats]")
+#            print(features[:-(data.channels[r]+1),nonVarFeats])
+            variations[data.channels[r]+1:,nonVarIdx,r] = features[:-(data.channels[r]+1),nonVarFeats]
+        variations_normed[data.channels[r]+1:,:,r] = np.minimum(np.maximum((variations[data.channels[r]+1:,
+                          :,r]-means_in[r,data.features])/stds_in[r,data.features],-10),10)
     # remove the unaltered entries
     nonremoveEntries = range(nChannels,variations_normed.shape[0])#variations_normed[:,0,-1]!=999
     # create new variations 
