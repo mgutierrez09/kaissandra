@@ -5,6 +5,7 @@ Created on Mon Oct 22 17:25:12 2018
 @author: mgutierrez
 """
 
+import time
 from multiprocessing import Process
 from trainRNN import train_RNN
 from testRNN import test_RNN
@@ -38,7 +39,7 @@ if __name__=='__main__':
     if_train = True
     if_test = True
     its = 1
-    configs = ['C0002']
+    configs = ['C0000TT','C0001TT']
     configs_list = []
     # load configuration files
     for config_name in configs:
@@ -49,3 +50,4 @@ if __name__=='__main__':
         # parallelize
         disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
         disp.start()
+        time.sleep(1)

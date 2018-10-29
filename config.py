@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0004'
+        config_name = 'C0001TT'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -55,13 +55,13 @@ def configuration(*ins):
         movingWindow = 100
         nEventsPerStat = 1000
         lB = int(nEventsPerStat+movingWindow*2)
-        assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 
-                  15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
-        
+        assets = [2]
+#        [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 
+#                  15, 16, 17, 19, 27, 28, 29, 30, 31, 32]
         
         # general parameters
         if_build_IO = True
-        IDweights = '000266'
+        IDweights = '000301'
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
@@ -77,7 +77,7 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100279'
+        IDresults = '100301'
         startFrom = -1
         endAt = -1
         save_journal = False
