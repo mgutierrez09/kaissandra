@@ -23,7 +23,8 @@ def test_RNN(*ins):
     ticTotal = time.time()
     if len(ins)>0:
         config = ins[0]
-    else:    
+    else:
+        # test reset git
         config = configuration('C0004')
 
     # create data structure
