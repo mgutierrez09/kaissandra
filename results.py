@@ -588,7 +588,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                             diff_y_y_tilde = np.abs(np.sign(y_dec_md_tilde[y_md_tilde])-np.sign(y_dec_md[y_md_tilde]))
                             probs_md = np.maximum(t_soft_tilde[:,2],t_soft_tilde[:,1])
                             # calculate KPIs
-                            Acc = 1-np.sum(np.abs(y_mc-y_mc_tilde))/m # market change accuracy
+                            Acc = 1-np.sum(np.abs(y_mc^y_mc_tilde))/m # market change accuracy
                             NZA = np.sum(y_md_tilde) # number of non-zeros all
                             NZ = np.sum(nz_indexes) # Number of non-zeros
                             RD =  np.sum(y_md_down_intersect)+np.sum(y_md_up_intersect) # right direction

@@ -36,18 +36,18 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
 if __name__=='__main__':
     # init config
     if_get_features = False
-    if_train = True
+    if_train = False
     if_test = True
-    its = 1
-    configs = ['C0000TT','C0001TT']
+    its = 2
+    configs = ['CTEST1']
     configs_list = []
     # load configuration files
     for config_name in configs:
         configs_list.append(configuration(config_name))
     # run train/test
     for config in configs_list:
-        #run_train_test(config)
+        run_train_test(config, its, if_train, if_test, if_get_features)
         # parallelize
-        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
-        disp.start()
-        time.sleep(1)
+#        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
+#        disp.start()
+#        time.sleep(1)

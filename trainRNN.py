@@ -27,7 +27,9 @@ def train_RNN(*ins):
               nEventsPerStat=config['nEventsPerStat'],
               lB=config['lB'], 
               dateTest=config['dateTest'],
-              assets=config['assets'],channels=config['channels'])
+              assets=config['assets'],
+              channels=config['channels'],
+              max_var=config['max_var'])
     # init structures
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']

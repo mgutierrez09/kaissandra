@@ -120,7 +120,7 @@ def get_features(*ins):
                 #print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
                 # calculate features, returns and stats from raw data
                 IO_prep, stats = get_features_results_stats_from_raw(
-                        data, thisAsset, separators, f_prep_IO, group_raw, 
+                        data, thisAsset, separators, f_prep_IO, group_raw,
                         stats, hdf5_directory, s, save_stats)
                     
             else:

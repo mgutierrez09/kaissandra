@@ -32,7 +32,9 @@ def test_RNN(*ins):
                   nEventsPerStat=config['nEventsPerStat'],
                   lB=config['lB'], 
                   dateTest=config['dateTest'],
-                  assets=config['assets'])
+                  assets=config['assets'],
+                  channels=config['channels'],
+                  max_var=config['max_var'])
     
     #if_build_IO = config['if_build_IO']
     startFrom = config['startFrom']

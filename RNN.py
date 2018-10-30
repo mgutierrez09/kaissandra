@@ -89,7 +89,6 @@ class modelRNN(object):
         # Out is of dimension [batch_size, max_time, cell_state_size]
         out, self._state = tf.nn.dynamic_rnn(cell=cell, inputs=self._inputs, dtype=tf.float32)
         out = tf.reshape(out, [-1, self.size_hidden_layer])
-        
         # market change prediction
         pred_mc = tf.nn.sigmoid(tf.matmul(out, self._parameters["w_lg"]) + self._parameters["b_lg"])
         # market direction prediction
@@ -100,14 +99,13 @@ class modelRNN(object):
         pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),
                           tf.reshape(pred_md, [-1, self.seq_len, 2]),
                           tf.reshape(pred_mg, [-1, self.seq_len, 
-                                               self.size_output_layer])],2)
+                                              self.size_output_layer])],2)
         return pred
         
     def _init_parameters(self):
         """ Define graph to run. """
         
         self._inputs = tf.placeholder(tf.float32, [None, self.seq_len, self.nFeatures], name="input")
-        
         self._dropout = tf.placeholder(tf.float32)
         # Define variables for final fully connected layer.
         self._parameters = {}
@@ -130,7 +128,7 @@ class modelRNN(object):
         self._parameters["b_sm2"] = b_sm2
         #self.var = tf.get_variable("var", [1])
         self._pred = self._model()
-        
+
         return None
     
     def _tf_repeat(self, repeats):

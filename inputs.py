@@ -13,6 +13,7 @@ import h5py
 import datetime as dt
 import pickle
 import scipy.io as sio
+from tsfresh import extract_features
 
 class Data:
     
@@ -97,7 +98,8 @@ class Data:
                  channels=[0],divideLookAhead=1,lookAheadIndex=3,
                  features=[i for i in range(37)],
                  dateTest=['2017.09.15','2017.11.06','2017.11.07'],
-                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]):
+                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
+                 max_var=10):
         
         self.movingWindow = movingWindow
         self.nEventsPerStat = nEventsPerStat
@@ -117,7 +119,8 @@ class Data:
         self.assets = assets
         self.noVarFeats = [8,9,12,17,18,21,23,24,25,26,27,28,29]
         self.lookAheadIndex = lookAheadIndex
-
+        self.max_var = max_var
+        
 def initFeaturesLive(data,tradeInfoLive):
     """
     <DocString>
@@ -363,9 +366,6 @@ def build_output(model, Output, batch_size):
     # one hot output
     y_one_hot = convert_to_one_hot(y_dec, model.size_output_layer).T.reshape(
         batch_size,model.seq_len,model.size_output_layer)
-    #print("y_one_hot.shape")
-    #print(y_one_hot.shape)
-
     # add y_c bits if proceed
     y_c = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],0))
     
@@ -379,25 +379,15 @@ def build_output(model, Output, batch_size):
     if model.commonY == 2 or model.commonY == 3:
         # build y_c1 and y_c2 vectors. y_c1 indicates all down outputs. y_c2
         # indicates all up outputs.
-#        print("y_one_hot.shape")
-#        print(y_one_hot.shape)
         y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
         y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
         # find negative (positive) returns
         negativeYs = out_quantized<0
         positiveYs = out_quantized>0
-#        print("negativeYs.shape")
-#        print(negativeYs.shape)
         # set to 1 the corresponding entries
         y_c1[np.squeeze(negativeYs),0] = 1
         y_c2[np.squeeze(positiveYs),0] = 1
-#        print("y_c1")
-#        print(y_c1)
         # append to y_c
-#        print("y_c.shape")
-#        print(y_c.shape)
-#        print("y_c1.shape")
-#        print(y_c1.shape)
         y_c = np.append(y_c,y_c1,axis=2)
         y_c = np.append(y_c,y_c2,axis=2)
 #        print(y_c)
@@ -673,7 +663,46 @@ def get_features_from_raw_par(data, features, DateTime, SymbolBid):
             
     return features
 
-def get_returns_from_raw(data, returns, ret_idx, DT, B, A, idx_init, DateTime, SymbolBid, SymbolAsk):
+def get_features_from_tsfresh(data, DateTime, SymbolBid):
+    """
+    Funtion that extracts features with the TSFRESH tool
+    """
+    # some important variables
+    nExS = data.nEventsPerStat
+    mW = data.movingWindow
+    secsInDay = 86400.0
+    # return per bid
+    #returnBid = SymbolBid.iloc[nExS:]-SymbolBid.iloc[:-nExS+1]
+    nE = SymbolBid.shape[0]
+    # max number of features
+    m = int(np.floor((nE/nExS-1)*nExS/mW)+1)
+    # format TSFRESH input
+    input_ts = pd.DataFrame(data=0,index=range(m*nExS),columns=['SymbolBid','id','time'])
+    batch_size = 10000000
+    par_batches = int(np.ceil(m/batch_size))
+    l_index = 0
+    # loop over batched
+    for b in range(par_batches):
+        # get m of batch
+        m_i = np.min([batch_size, m-b*batch_size])
+        # loop over this batch
+        for mm in range(m_i):
+            # get indexes
+            startIndex = l_index+mm*mW
+            endIndex = startIndex+nExS
+            # period range
+            thisPeriod = range(startIndex,endIndex)
+            input_ts.SymbolBid.iloc[mm*nExS:(mm+1)*nExS] = SymbolBid.iloc[thisPeriod]
+            input_ts.id.iloc[mm*nExS:(mm+1)*nExS] = mm
+            input_ts.time.iloc[mm*nExS:(mm+1)*nExS] = range(nExS)
+        l_index = startIndex
+    # build feature vector
+    features = extract_features(input_ts, column_id="id", column_sort="time")
+    
+    return features
+
+def get_returns_from_raw(data, returns, ret_idx, DT, B, A, 
+                         idx_init, DateTime, SymbolBid, SymbolAsk):
     """
     Function that obtains the outputs from raw data.
     Args:
@@ -1067,7 +1096,7 @@ def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, 
 #            print(features[:-(data.channels[r]+1),nonVarFeats])
             variations[data.channels[r]+1:,nonVarIdx,r] = features[:-(data.channels[r]+1),nonVarFeats]
         variations_normed[data.channels[r]+1:,:,r] = np.minimum(np.maximum((variations[data.channels[r]+1:,
-                          :,r]-means_in[r,data.features])/stds_in[r,data.features],-10),10)
+                          :,r]-means_in[r,data.features])/stds_in[r,data.features],-data.max_var),data.max_var)
     # remove the unaltered entries
     nonremoveEntries = range(nChannels,variations_normed.shape[0])#variations_normed[:,0,-1]!=999
     # create new variations 
