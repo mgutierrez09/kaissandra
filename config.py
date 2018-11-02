@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'CTEST1'
+        config_name = 'C0277T'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -53,12 +53,12 @@ def configuration(*ins):
         nEventsPerStat = 1000
         lB = int(nEventsPerStat+movingWindow*2)
         assets = [1]
-        channels = [0,9]
+        channels = [0]
         max_var = 10
         
         # general parameters
         if_build_IO = True
-        IDweights = 'WTEST1'#'000280'
+        IDweights = '000266'
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
@@ -74,8 +74,8 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = 'RTEST1'#'100280'
-        startFrom = -1
+        IDresults = '100277fNSRsT'
+        startFrom = 11
         endAt = -1
         save_journal = False
         
@@ -164,10 +164,12 @@ def modify_config(config_name,key,value):
         config[key] = value
         pickle.dump( config, open( config_filename, "wb" ))
         print("Config file "+config_filename+" saved")
+        return True
     else:
         print("Config name "+config_name+" does not exist")
         config = None
-    return config
+        return False
+    
         
 if __name__=='__main__':
 #    pass

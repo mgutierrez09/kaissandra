@@ -595,7 +595,7 @@ def get_features_from_raw_par(data, features, DateTime, SymbolBid):
             oldSARh2 = parSARhigh2[mm]
             oldSARl2 = parSARlow2[mm]
         # end of for mm in range(m_i):
-        l_index = startIndex
+        l_index = startIndex+mW
         #print(l_index)
         toc = time.time()
         print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
@@ -1215,106 +1215,7 @@ def load_separators(data, thisAsset, separators_directory, tOt='tr', from_txt=1)
         error()
     return separators
 
-def build_DTA(data, I, ass_IO_ass, hdf5_directory):
-    """
-    Function that builds structure based on IO to later get Journal and ROIs.
-    Args:
-        - data
-        - I: structure containing indexes
-        - ass_IO_ass: asset to IO assignment
-    """
-    # init columns
-    columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
-    # init DTA
-    DTA = pd.DataFrame()
-    # init hdf5 file with raw data
-    
-    filename_raw = hdf5_directory+'tradeinfo.hdf5'
-    f_raw = h5py.File(filename_raw,'r')
-    ass_index = 0
-    last_ass_IO_ass = 0
-    # loop over assets
-    for ass in data.assets:
-        # get this asset's name
-        thisAsset = data.AllAssets[str(ass)]
-        print(thisAsset)
-        # init DTA for this asset
-        DTA_i = pd.DataFrame(columns = columns)
-        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
-        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
-        last_ass_IO_ass = ass_IO_ass[ass_index]
-        ass_index += 1
-        # get raw data for this asset
-        group_raw = f_raw[thisAsset]
-        # fill DTA_i up
-        DTA_i['DT1'] = group_raw['DateTime'][:][entry_idx]
-        #print(DTA_i['DT1'])
-        DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
-        DTA_i['B1'] = group_raw['SymbolBid'][:][entry_idx]
-        DTA_i['A1'] = group_raw['SymbolAsk'][:][entry_idx]
-        
-        DTA_i['DT2'] = group_raw['DateTime'][:][exit_idx]
-        DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
-        DTA_i['B2'] = group_raw['SymbolBid'][:][exit_idx]
-        DTA_i['A2'] = group_raw['SymbolAsk'][:][exit_idx]
-        DTA_i['Asset'] = thisAsset
-        print(DTA_i['DT1'].iloc[0])
-        print(DTA_i['DT1'].iloc[-1])
-        # append DTA this asset to all DTAs
-        DTA = DTA.append(DTA_i,ignore_index=True)
-    # end of for ass in data.assets:
-    # close raw file
-    f_raw.close()
-    return DTA
-
-def build_DTA_v10(data, D, B, A, ass_IO_ass):
-    """
-    Function that builds structure based on IO to later get Journal and ROIs.
-    Args:
-        - data
-        - I: structure containing indexes
-        - ass_IO_ass: asset to IO assignment
-    """
-    # init columns
-    columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
-    # init DTA
-    DTA = pd.DataFrame()
-    # init hdf5 file with raw data
-    
-
-    ass_index = 0
-    last_ass_IO_ass = 0
-    # loop over assets
-    for ass in data.assets:
-        # get this asset's name
-        thisAsset = data.AllAssets[str(ass)]
-        print(thisAsset)
-        # init DTA for this asset
-        DTA_i = pd.DataFrame(columns = columns)
-#        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
-#        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
-        # fill DTA_i up
-        DTA_i['DT1'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
-        DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
-        #DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
-        DTA_i['B1'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
-        DTA_i['A1'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
-        
-        DTA_i['DT2'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
-        DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
-        DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
-        DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
-        DTA_i['Asset'] = thisAsset
-#        print(DTA_i['DT1'].iloc[0])
-#        print(DTA_i['DT1'].iloc[-1])
-        # append DTA this asset to all DTAs
-        DTA = DTA.append(DTA_i,ignore_index=True)
-        last_ass_IO_ass = ass_IO_ass[ass_index]
-        ass_index += 1
-    # end of for ass in data.assets:
-    return DTA
-
-def build_DTA_v20(data, D, B, A, ass_IO_ass):
+def build_DTA(data, D, B, A, ass_IO_ass):
     """
     Function that builds structure based on IO to later get Journal and ROIs.
     Args:

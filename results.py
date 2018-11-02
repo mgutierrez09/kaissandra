@@ -34,53 +34,7 @@ def plot_cost(IDweights,DBeval):
     #save_as_matfile("J"+IDweights,"J"+IDweights,J)
     return None
 
-def init_TR_v11(resultsDir, ID, t_index, thr_mc, save_results, epoch):
-    """
-    Version 1.1 of initializing table results. This one without loading previously results yet.
-    """
-    # init columns and dtypes
-#    columns=['J_test', 'J_train', 'AccMC',
-#                 '0.5RD','0.5NZ','0.5NZA','0.5AD','0.5ADA','0.5pNZ','0.5pNZA','0.5rROI','0.5GROI',
-#                 '0.6RD','0.6NZ','0.6NZA','0.6AD','0.6ADA','0.6pNZ','0.6pNZA','0.6rROI','0.6GROI',
-#                 '0.7RD','0.7NZ','0.7NZA','0.7AD','0.7ADA','0.7pNZ','0.7pNZA','0.7rROI','0.7GROI',
-#                 '0.8RD','0.8NZ','0.8NZA','0.8AD','0.8ADA','0.8pNZ','0.8pNZA','0.8rROI','0.8GROI',
-#                 '0.9RD','0.9NZ','0.9NZA','0.9AD','0.9ADA','0.9pNZ','0.9pNZA','0.9rROI','0.9GROI']
-    
-    input_dict={'J_test':0.0,'J_train':0.0,'AccMC':0.0,
-            '0.5RD':0,'0.5NZ':0,'0.5NZA':int,'0.5AD':0.0,'0.5ADA':0.0,'0.5pNZ':0.0,'0.5pNZA':0.0,'0.5rROI':0.0,'0.5GROI':0.0,
-            '0.6RD':0,'0.6NZ':0,'0.6NZA':int,'0.6AD':0.0,'0.6ADA':0.0,'0.6pNZ':0.0,'0.6pNZA':0.0,'0.6rROI':0.0,'0.6GROI':0.0,
-            '0.7RD':0,'0.7NZ':0,'0.7NZA':int,'0.7AD':0.0,'0.7ADA':0.0,'0.7pNZ':0.0,'0.7pNZA':0.0,'0.7rROI':0.0,'0.7GROI':0.0,
-            '0.8RD':0,'0.8NZ':0,'0.8NZA':int,'0.8AD':0.0,'0.8ADA':0.0,'0.8pNZ':0.0,'0.8pNZA':0.0,'0.8rROI':0.0,'0.8GROI':0.0,
-            '0.9RD':0,'0.9NZ':0,'0.9NZA':int,'0.9AD':0.0,'0.9ADA':0.0,'0.9pNZ':0.0,'0.9pNZA':0.0,'0.9rROI':0.0,'0.9GROI':0.0}
-        
-#    dtypes={'J_test':float,'J_train':float,'AccMC':float,
-#            '0.5RD':int,'0.5NZ':int,'0.5NZA':int,'0.5AD':float,'0.5ADA':float,'0.5pNZ':float,'0.5pNZA':float,'0.5rROI':float,'0.5GROI':float,
-#            '0.6RD':int,'0.6NZ':int,'0.6NZA':int,'0.6AD':float,'0.6ADA':float,'0.6pNZ':float,'0.6pNZA':float,'0.6rROI':float,'0.6GROI':float,
-#            '0.7RD':int,'0.7NZ':int,'0.7NZA':int,'0.7AD':float,'0.7ADA':float,'0.7pNZ':float,'0.7pNZA':float,'0.7rROI':float,'0.7GROI':float,
-#            '0.8RD':int,'0.8NZ':int,'0.8NZA':int,'0.8AD':float,'0.8ADA':float,'0.8pNZ':float,'0.8pNZA':float,'0.8rROI':float,'0.8GROI':float,
-#            '0.9RD':int,'0.9NZ':int,'0.9NZA':int,'0.9AD':float,'0.9ADA':float,'0.9pNZ':float,'0.9pNZA':float,'0.9rROI':float,'0.9GROI':float}
-    
-    TRdf = pd.DataFrame(input_dict, index=[epoch])
-    TRdf.index.name = 'Epoch'
-    filename = ""
-    
-    if save_results:
-        if os.path.exists(resultsDir+ID+"/")==False:
-            os.mkdir(resultsDir+ID+"/")
-        if os.path.exists(resultsDir+ID+"/t"+str(t_index)+"/")==False:
-            os.mkdir(resultsDir+ID+"/t"+str(t_index)+"/")
-        
-        filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"thrmc"+str(thr_mc)+".txt"
-        
-#        if not os.path.exists(filename):
-#            TRdf = pd.DataFrame(columns=columns)
-#            TRdf.index.name = 'Epoch'
-#        else:
-#            TRdf = pd.read_csv(filename,sep='\t',index_col="Epoch")
-            
-    return TRdf, filename
-
-def init_TR_v20(resultsDir,ID,t_index,thr_mc,save_results):
+def init_TR(resultsDir,ID,t_index,thr_mc,save_results):
     
     #columns=['epoch','thr_mc','thr_md','J_test', 'J_train', 'AccMC','pNZ','pNZA','RD','NZ','NZA','AD','ADA','rROI','rGROI','tROI','tGROI']
         
@@ -100,40 +54,6 @@ def init_TR_v20(resultsDir,ID,t_index,thr_mc,save_results):
             TRdf.index.name = 'index'
         else:
             TRdf = pd.read_csv(filename,sep='\t',index_col='index')
-            
-    return TRdf
-
-def init_TR_v10(resultsDir,ID,t_index,thr_mc,save_results):
-    
-    columns=['J_test', 'J_train', 'AccMC',
-                 '0.5RD','0.5NZ','0.5NZA','0.5AD','0.5ADA','0.5pNZ','0.5pNZA','0.5rROI','0.5GROI',
-                 '0.6RD','0.6NZ','0.6NZA','0.6AD','0.6ADA','0.6pNZ','0.6pNZA','0.6rROI','0.6GROI',
-                 '0.7RD','0.7NZ','0.7NZA','0.7AD','0.7ADA','0.7pNZ','0.7pNZA','0.7rROI','0.7GROI',
-                 '0.8RD','0.8NZ','0.8NZA','0.8AD','0.8ADA','0.8pNZ','0.8pNZA','0.8rROI','0.8GROI',
-                 '0.9RD','0.9NZ','0.9NZA','0.9AD','0.9ADA','0.9pNZ','0.9pNZA','0.9rROI','0.9GROI']
-        
-#        dtypes={'J_test':float,'J_train':float,'AccMC':float,
-#                '0.5RD':int,'0.5NZ':int,'0.5NZA':int,'0.5AD':float,'0.5ADA':float,'0.5pNZ':float,'0.5pNZA':float,'0.5rROI':float,'0.5GROI':float,
-#                '0.6RD':int,'0.6NZ':int,'0.6NZA':int,'0.6AD':float,'0.6ADA':float,'0.6pNZ':float,'0.6pNZA':float,'0.6rROI':float,'0.6GROI':float,
-#                '0.7RD':int,'0.7NZ':int,'0.7NZA':int,'0.7AD':float,'0.7ADA':float,'0.7pNZ':float,'0.7pNZA':float,'0.7rROI':float,'0.7GROI':float,
-#                '0.8RD':int,'0.8NZ':int,'0.8NZA':int,'0.8AD':float,'0.8ADA':float,'0.8pNZ':float,'0.8pNZA':float,'0.8rROI':float,'0.8GROI':float,
-#                '0.9RD':int,'0.9NZ':int,'0.9NZA':int,'0.9AD':float,'0.9ADA':float,'0.9pNZ':float,'0.9pNZA':float,'0.9rROI':float,'0.9GROI':float}
-    
-    TRdf = pd.DataFrame()
-    
-    if save_results:
-        if os.path.exists(resultsDir+ID+"/")==False:
-            os.mkdir(resultsDir+ID+"/")
-        if os.path.exists(resultsDir+ID+"/t"+str(t_index)+"/")==False:
-            os.mkdir(resultsDir+ID+"/t"+str(t_index)+"/")
-        
-        filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"thrmc"+str(thr_mc)+".txt"
-        
-        if not os.path.exists(filename):
-            TRdf = pd.DataFrame(columns=columns)
-            TRdf.index.name = 'Epoch'
-        else:
-            TRdf = pd.read_csv(filename,sep='\t',index_col="Epoch")
             
     return TRdf
 
@@ -208,24 +128,11 @@ def print_results_v20(TRdf, results, epoch, thr_md, thr_mc, t_index, save_result
         for froi in results["fROIs"]:
             new_row['fROI'+fixed_spread_ratios[i]] = results['fROIs'][i]
             i += 1
+        i = 0
+        for froi in results["fNSPs"]:
+            new_row['fNSPs'+fixed_spread_ratios[i]] = results['fNSPs'][i]
+            i += 1
         TRdf = TRdf.append(pd.DataFrame(data=new_row,index=[TRdf.shape[0]]))
-        
-#        TRdf.loc[epoch]["thr_mc"] = thr_mc
-#        TRdf.loc[epoch]["thr_md"] = thr_md
-#        TRdf.loc[epoch]["J_test"] = 100*results["J_test"]
-#        TRdf.loc[epoch]["J_train"] = 100*results["J_train"]
-#        TRdf.loc[epoch]["AccMC"] = results["Acc"]
-#        TRdf["RD"].loc[epoch] = results["RD"]
-#        TRdf["NZ"].loc[epoch] = results["NZ"]
-#        TRdf["AD"].loc[epoch] = results["AccDir"]
-#        TRdf["NZA"].loc[epoch] = results["NZA"]
-#        TRdf["ADA"].loc[epoch] = results["AccDirA"]
-#        TRdf["pNZ"].loc[epoch] = results["perNZ"]
-#        TRdf["pNZA"].loc[epoch] = results["perNZA"]
-#        TRdf["rGROI"].loc[epoch] = results["rGROI"]
-#        TRdf["rROI"].loc[epoch] = results["rROI"]
-#        TRdf["tROI"].loc[epoch] = results["tGROI"]
-#        TRdf["tROI"].loc[epoch] = results["tROI"]
     
     else:
         TRdf = pd.DataFrame()
@@ -284,75 +191,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
     n_days = len(data.dateTest)
     
     # extract y_c vector, if necessary
-    if model.commonY == 0:
-        #pass
-        for t in range(model.seq_len-1,model.seq_len):
-            t_out = model.seq_len-t
-            t_index = model.seq_len-t_out
-            #print(y[:,-t_out,:])
-            #print(soft_tilde[:,-t_out,:])
-            Y_real = np.argmax(y[:,-t_out,:], 1)-(model.size_output_layer-1)/2
-            Y_tilde = np.argmax(soft_tilde[:,-t_out,:], 1)-(model.size_output_layer-1)/2
-            
-            diff = Y_tilde-Y_real
-            
-            zerosYt = Y_tilde==0
-            nonZerosYt = Y_tilde!=0
-            nonZerosYr = Y_real!=0
-            nonZerosYtYr = nonZerosYr*nonZerosYt
-            accuracy = np.sum(diff==0)/Y_tilde.shape[0]
-            accDirectionInd = np.sign(Y_tilde[nonZerosYtYr])-np.sign(Y_real[nonZerosYtYr])
-            accDirectionAllInd = np.abs(np.sign(Y_tilde[nonZerosYt])-np.sign(Y_real[nonZerosYt]))
-            #print(accDirectionAllInd)
-            #print(np.sign(Y_real[nonZerosYt]))
-            Z = np.sum(zerosYt)
-            RD = np.sum(accDirectionInd==0) # right direction
-            NZ = np.sum(nonZerosYtYr) # non zeros
-            accDirection = RD/NZ
-            RDA = np.sum(accDirectionAllInd==0) #right direction All
-            NZA = np.sum(nonZerosYt) #Total all
-            accDirectionAll = RDA/NZA
-            percentNonZeros = np.sum(nonZerosYtYr)/m
-            percentNonZerosAll = np.sum(nonZerosYt)/m
-            
-            print("J_test = "+str(J_test)+", J_train = "+str(costs[IDweights+str(epoch)])+", Accuracy="+str(100*accuracy))
-            print("Epoch "+str(epoch)+" "+"t_index="+str(t_index)+":")
-            print("accDirection "+str(100*accDirection))
-            print("accDirectionAll "+str(100*accDirectionAll))
-            print("percentNonZeros "+str(100*percentNonZeros))
-            print("percentNonZerosAll "+str(100*percentNonZerosAll))
-            print("RD "+str(RD))
-            print("NZ "+str(NZ))
-            #print("RDA "+str(RDA))
-            print("NZA "+str(NZA))
-            print("Z "+str(Z))
-            print("m "+str(Y_tilde.shape[0]))
-        
-    elif model.commonY == 1:
-        # extract non-zeros (y_c0>0.5)
-        for t in range(model.seq_len): 
-            t_out = model.seq_len-t
-            t_index = model.seq_len-t_out
-            
-            y_mc = y[:,-t_out,0]>=.5
-            y_mc_tilde = soft_tilde[:,-t_out,0]>=.5
-            #yc_0_tilde = soft_tilde[:,-t_out,0]>=np.sort(soft_tilde[:,-t_out,0])
-            print(np.max(soft_tilde[:,-t_out,0]))
-            print(np.min(soft_tilde[:,-t_out,0]))
-            
-            #print(y[:,-t_out,:])
-            #print(np.min(soft_tilde[:,-t_out,0]))
-            #print(np.max(yc_0_tilde))
-            
-            Acc = 1-np.sum(np.abs(y_mc-y_mc_tilde))/m
-            print("J_test = "+str(J_test)+", J_train = "+str(costs[IDweights+str(epoch)])+", Accuracy="+str(100*Acc))
-            
-            
-
-    elif model.commonY == 2:
-        # extract down outputs ([y_c1,y_c2]=10)
-        pass
-    elif model.commonY == 3:
+    if model.commonY == 3:
         
         # init thresholds
         
@@ -441,8 +280,6 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         eROIpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2),2))
         NZpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2))).astype(int)
         GRE = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
-        GREw = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
-        
         # generate map of idx to threholds
         map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
         idx = 0
@@ -522,7 +359,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
             i_t_mc = 0
             for thr_mc in thresholds_mc:
                 
-                TRdf = init_TR_v20(resultsDir,IDresults,t_index,thr_mc,save_results)
+                TRdf = init_TR(resultsDir,IDresults,t_index,thr_mc,save_results)
                 
                 if save_journal:
                     # loop over upper bound
@@ -660,7 +497,15 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                 results["varGROI"] = summary['varRet'][1]
                                 results['NO'] = summary['successes'][0]# number opened positions
                                 results['GSP'] = summary['successes'][1] # gross success percentage
-                                results['NSP'] = summary['successes'][2] # net success percentage 
+                                results['NSP'] = summary['successes'][2] # net success percentage
+                                results['fNSPs'] = summary['successes'][3]
+                                results['NSP2p'] = 100*results['fNSPs'][2]
+                                results['SI2p'] = results['NO']*(results['NSP2p']/100-.5)# success indicator spread=2p
+                                results['rSI'] = results['NO']*(results['NSP']/100-.5)# success indicator
+#                                print(results['NSP2p'])
+#                                print(results['SI2p'])
+#                                print(results['NSP'])
+#                                print(results['rSI'])
                                 results["rROIxLevel"] = rROIxLevel
                                 results["rSampsXlevel"] = rSampsXlevel
                                 
@@ -697,6 +542,9 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                                         "varGROI":results["varGROI"],
                                                         "GSP":results["GSP"],
                                                         "NSP":results["NSP"],
+                                                        "NSP2p":results['NSP2p'],
+                                                        "SI2p":results['SI2p'],
+                                                        "RSI":results['rSI'],
                                                         "NO":results['NO'],
                                                         "thr_mc":thr_mc,
                                                         "thr_md":thr_md}
@@ -724,10 +572,15 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                                         "GSP":results["GSP"],
                                                         "NSP":results["NSP"],
                                                         "NO":results['NO'],
+                                                        "NSP2p":results['NSP2p'],
+                                                        "SI2p":results['SI2p'],
+                                                        "RSI":results['rSI'],
                                                         "thr_mc":thr_mc,
                                                         "thr_md":thr_md}
                                 # update best sharpe ratio
-                                if results["sharpe"]>best_sharpe and results["sharpe"] != float('Inf') and results["NZA"]>=20 and ub_mc==1 and ub_md==1:
+                                if (results["sharpe"]>best_sharpe and 
+                                    results["sharpe"] != float('Inf') and 
+                                    results["NZA"]>=20 and ub_mc==1 and ub_md==1):
                                     best_sharpe = results["sharpe"]
                                     best_sharpe_profile = {"epoch":epoch,
                                                         "t_index":t_index,
@@ -749,6 +602,9 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                                         "GSP":results["GSP"],
                                                         "NSP":results["NSP"],
                                                         "NO":results['NO'],
+                                                        "NSP2p":results['NSP2p'],
+                                                        "SI2p":results['SI2p'],
+                                                        "RSI":results['rSI'],
                                                         "thr_mc":thr_mc,
                                                         "thr_md":thr_md}
                                     
@@ -902,18 +758,17 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     rROIxLevel = np.zeros((int(size_output_layer-1),2))
     rSampsXlevel = np.zeros((int(size_output_layer-1)))
     
-    maxExtentions = 10
-    
-#    rROIxLevelxExt = np.zeros((int(size_output_layer-1),maxExtentions,2))
-#    rSampsXlevelXExt = np.zeros((int(size_output_layer-1),maxExtentions))
-    pip = 0.0001
+
     
     fixed_spread_ratios = np.array([0.00005,0.0001,0.0002,0.0003,0.0004,0.0005])
+    fNSP = np.zeros((fixed_spread_ratios.shape[0]))
     fROIs = np.zeros((fixed_spread_ratios.shape))
     ROI_vector = np.array([])
     GROI_vector = np.array([])
     if Journal.shape[0]>0:
-        log=log.append({'DateTime':Journal[DT1].iloc[0],'Message':Journal['Asset'].iloc[0]+" open" },ignore_index=True)
+        log=log.append({'DateTime':Journal[DT1].iloc[0],
+                        'Message':Journal['Asset'].iloc[0]+" open" },
+                        ignore_index=True)
         
     #print(Journal)
     for e in range(1,Journal.shape[0]):
@@ -923,11 +778,11 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
 
         extendExitMarket = (newEntryTime-oldExitTime<=dt.timedelta(0))
         sameAss = Journal['Asset'].iloc[e] == Journal['Asset'].iloc[e-1] 
-        sameDir = Journal['Bet'].iloc[e-1]*Journal['Bet'].iloc[e]>0
-
         if sameAss and extendExitMarket:# and sameDir:
             #print("continue")
-            log=log.append({'DateTime':Journal[DT1].iloc[e],'Message':Journal['Asset'].iloc[e]+" extended" },ignore_index=True)
+            log=log.append({'DateTime':Journal[DT1].iloc[e],
+                            'Message':Journal['Asset'].iloc[e]+
+                            " extended" },ignore_index=True)
             n_pos_extended += 1
             this_pos_extended += 1
             rSampsXlevel[int(np.abs(Journal['Bet'].iloc[eInit])-1)] += 1
@@ -948,9 +803,6 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
             rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),0] += 100*ROI
             rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),1] += 100*GROI
             rSampsXlevel[int(np.abs(Journal['Bet'].iloc[eInit])-1)] += 1
-
-#            rROIxLevelxExt[int(np.abs(Journal['Bet'].iloc[eInit])-1),np.min(maxExtentions,this_pos_extended),:] += [ROI/pip,GROI/pip]
-#            rSampsXlevelXExt[int(np.abs(Journal['Bet'].iloc[eInit])-1),np.min(maxExtentions,this_pos_extended)] += 1
             
             this_pos_extended = 0
             
@@ -958,24 +810,29 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
                 gross_succ_counter += 1
             if ROI>0:
                 net_succ_counter += 1
+            
+            fNSP = fNSP+((GROI-fixed_spread_ratios)>0)*1
                 
-            log=log.append({'DateTime':Journal[DT2].iloc[e-1],'Message':" Close "+Journal['Asset'].iloc[e-1]+
-                            " entry bid {0:.4f}".format(Journal[B1].iloc[eInit])+" exit bid {0:.4f}".format(Journal[B2].iloc[e-1])+
-                            " GROI {0:.4f}% ".format(100*GROI)+" ROI {0:.4f}% ".format(100*ROI)+" tGROI {0:.4f}% ".format(100*rGROI) },ignore_index=True)
-            #if e<Journal.shape[0]-1:
-            log=log.append({'DateTime':Journal[DT1].iloc[e],'Message':Journal['Asset'].iloc[e]+" open" },ignore_index=True)
+            log=log.append({'DateTime':Journal[DT2].iloc[e-1],'Message':" Close "+
+                            Journal['Asset'].iloc[e-1]+
+                            " entry bid {0:.4f}".format(Journal[B1].iloc[eInit])+
+                            " exit bid {0:.4f}".format(Journal[B2].iloc[e-1])+
+                            " GROI {0:.4f}% ".format(100*GROI)+
+                            " ROI {0:.4f}% ".format(100*ROI)+" tGROI {0:.4f}% ".format(100*rGROI)},
+                            ignore_index=True)
+            
+            log=log.append({'DateTime':Journal[DT1].iloc[e],
+                            'Message':Journal['Asset'].iloc[e]+
+                            " open" },ignore_index=True)
             n_pos_opned += 1
 
             eInit = e
         # end of if (sameAss and extendExitMarket):
     # end of for e in range(1,Journal.shape[0]):
     
-    if Journal.shape[0]>0:     
-        #print("last")
-        #print((infoBets["A2"].iloc[e]-infoBets["B2"].iloc[e])/infoBets["B1"].iloc[e])
+    if Journal.shape[0]>0:
         thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
 
-        #print((infoBets["B2"].iloc[e]-infoBets["B1"].iloc[eInit])/infoBets["B1"].iloc[e])
         GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
                     ].iloc[eInit])/Journal[B1].iloc[-1]
 
@@ -988,10 +845,7 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
         fROIs = fROIs+GROI-fixed_spread_ratios
         rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),0] += 100*ROI
         rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),1] += 100*GROI
-        
-        #            rROIxLevelxExt[int(np.abs(Journal['Bet'].iloc[eInit])-1),np.min(maxExtentions,this_pos_extended),:] += [ROI/pip,GROI/pip]
-#            rSampsXlevelXExt[int(np.abs(Journal['Bet'].iloc[eInit])-1),np.min(maxExtentions,this_pos_extended)] += 1
-        
+
         rSampsXlevel[int(np.abs(Journal['Bet'].iloc[eInit])-1)] += 1
         
         if GROI>0:
@@ -999,20 +853,17 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
         if ROI>0:
             net_succ_counter += 1
         
-        log = log.append({'DateTime':Journal[DT2].iloc[eInit],'Message':Journal['Asset'].iloc[eInit]+" close GROI {0:.4f}% ".format(100*GROI)+" ROI {0:.4f}% ".format(100*ROI)+
-                        " tGROI {0:.4f}% ".format(100*rGROI) },ignore_index=True)
-            
-        #thisProbIndex = np.argmax((np.floor(10*prob[eInit])/10==percents))-1
-        #rROIxPercent[thisProbIndex] += 100*(thisGROI-thisSpread)
-#    print("n_pos_opned="+str(n_pos_opned))
-#    print("n_pos_extended="+str(n_pos_extended))
-#    print("journal_entries="+str(Journal.shape[0]))
-#    print(log.to_string())
-#    print(Journal.shape[0])
+        log = log.append({'DateTime':Journal[DT2].iloc[eInit],
+                          'Message':Journal['Asset'].iloc[eInit]+
+                          " close GROI {0:.4f}% ".format(100*GROI)+
+                          " ROI {0:.4f}% ".format(100*ROI)+
+                          " tGROI {0:.4f}% ".format(100*rGROI) },
+                          ignore_index=True)
     
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
-    successes = [n_pos_opned, 100*gross_succ_per, 100*net_succ_per]
+    fNSP = fNSP/n_pos_opned
+    successes = [n_pos_opned, 100*gross_succ_per, 100*net_succ_per, fNSP]
     varRet = [100000*np.var(ROI_vector), 100000*np.var(GROI_vector)]
     
     n_bets = ROI_vector.shape[0]
@@ -1022,7 +873,9 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     
     return rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes
 
-def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_output_layer, n_days, fixed_spread=0, get_real=1, save_journal=False):
+def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, 
+                   size_output_layer, n_days, fixed_spread=0, 
+                   get_real=1, save_journal=False):
     """
     Version 2.0 of get journal. Calculates trading journal given predictions.
     Args:
@@ -1065,7 +918,10 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_outpu
     Journal.index = range(Journal.shape[0])
     
     if get_real:
-        rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes = get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=fixed_spread)
+        [rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, 
+         varRet, successes] = get_real_ROI(size_output_layer, 
+                                           Journal, n_days, 
+                                           fixed_spread=fixed_spread)
         
         summary = {'tGROI':Journal['GROI'].sum(),
                'tROI':Journal['ROI'].sum(),
@@ -1097,7 +953,7 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md, size_outpu
                'fROIs':fROIs,
                'Sharpe':0,
                'varRet':[0,0],
-               'successes':[0,0,0]}
+               'successes':[0,0,0,fROIs]}
     
 #    summary = {'tGROI':Journal['GROI'].sum(),
 #               'tROI':Journal['ROI'].sum(),

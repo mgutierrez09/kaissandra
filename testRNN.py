@@ -12,7 +12,7 @@ import h5py
 import pickle
 import os
 from RNN import modelRNN
-from inputs import Data, load_separators, load_stats, load_features_results, build_DTA_v20, build_IO
+from inputs import Data, load_separators, load_stats, load_features_results, build_DTA, build_IO
 from config import configuration
 
 
@@ -25,7 +25,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C00266')
+        config = configuration('C0277')
 
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
@@ -216,7 +216,7 @@ def test_RNN(*ins):
     # Build DTA
     if if_build_IO:
         print("Building DTA...")
-        DTA = build_DTA_v20(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
+        DTA = build_DTA(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
         pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IDresults+".p", "wb" ))
         f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
         f_IO.close()
