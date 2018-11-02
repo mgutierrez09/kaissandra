@@ -79,8 +79,10 @@ def configuration(*ins):
         endAt = -1
         save_journal = False
         
-        # getFeatures
+        # feature-specific configuration
         save_stats = True
+        load_features_from = 'tsresh' # {manual, tsfresh}
+        
         # add parameters to config dictionary
         config = {'config_name':config_name,
                 
@@ -112,7 +114,8 @@ def configuration(*ins):
                'endAt':endAt,
                'save_journal':save_journal,
                
-               'save_stats':save_stats}
+               'save_stats':save_stats,
+               'load_features_from':load_features_from}
         
         # save config file for later use
         if not os.path.exists(config_filename):

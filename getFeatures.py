@@ -14,7 +14,7 @@ from inputs import Data, load_separators, get_features_results_stats_from_raw
 from config import configuration
 
 
-def get_features(*ins):
+def get_features_manual(*ins):
     """
     
     """
@@ -32,8 +32,17 @@ def get_features(*ins):
     # init file directories
     hdf5_directory = config['hdf5_directory']#'../HDF5/'#
     # define files and directories names
-    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+    load_features_from = config['load_features_from']
+    if load_features_from=='manual':
+        filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+    elif load_features_from=='tsfresh':
+        filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'.hdf5')
+    else:
+        print("ERROR: load_features_from "+load_features_from+" not recognized")
+        error()
+        
     filename_raw = hdf5_directory+'tradeinfo.hdf5'
     separators_directory = hdf5_directory+'separators/'
     
@@ -176,6 +185,13 @@ def get_features(*ins):
     if len(ins)>0:
         os.remove(filename_raw+'.flag')
         os.remove(filename_prep_IO+'.flag')
+
+def get_features_tsfresh():
+    """
+    Extract and save most common features regarding TSFRESH tool
+    """
     
+    return None
+
 if __name__=='__main__':
-    get_features()
+    get_features_manual()
