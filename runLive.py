@@ -1423,12 +1423,11 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
 
 if __name__ == '__main__':
     
-    test = True
-    run_back_test = True
+    test = False
+    run_back_test = False
     
-    data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,dateStart='2017.01.01',
-              dateTest = ['2018.10.18']
-                )
+    data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,
+              dateTest = ['2018.10.18'])
 
 #    ['2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
 #                          '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12']
@@ -1544,7 +1543,6 @@ if __name__ == '__main__':
     
     results_files = [IDresults[nn]+"T"+str(ti_name[nn])+"E"+IDepoch[nn]+".txt" 
                      for nn in range(numberNetworks)]
-    dataOr=Data(assets=assets,dateEnd='2018.01.12')
     nCxAxN = np.zeros((len(running_assets),numberNetworks))
     columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff",
                          "Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md",

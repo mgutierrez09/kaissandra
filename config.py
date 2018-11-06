@@ -144,10 +144,10 @@ def print_config(config_name):
     if os.path.exists(config_filename):
         config = pickle.load( open( config_filename, "rb" ))
         print(config)
+        return True
     else:
         print("Config name "+config_name+" does not exist")
-        config = None
-    return config
+        return False
 
 def delete_config(config_name):
     """
@@ -175,5 +175,5 @@ def modify_config(config_name,key,value):
     
         
 if __name__=='__main__':
-#    pass
-    configuration()
+    #configuration()
+    pass

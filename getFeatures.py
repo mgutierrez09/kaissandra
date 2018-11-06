@@ -14,7 +14,7 @@ from inputs import Data, load_separators, get_features_results_stats_from_raw
 from config import configuration
 
 
-def get_features_manual(*ins):
+def get_features(*ins):
     """
     
     """
@@ -186,12 +186,80 @@ def get_features_manual(*ins):
         os.remove(filename_raw+'.flag')
         os.remove(filename_prep_IO+'.flag')
 
+def get_number_samples(window_size, sprite_length, n_events):
+    """ 
+    Get number of samples given window size, sprite length and number of events 
+    Args:
+        - (int) window size
+        - (int) sprite length
+        - (int) number of events
+    Return:
+        (int) number of samples
+    """
+    
+    return int(np.floor((n_events/window_size-1)*window_size/sprite_length)+1)
+
 def get_features_tsfresh():
     """
-    Extract and save most common features regarding TSFRESH tool
+    Extract and save most common features based on TSFRESH tool
     """
+    # config stuff
+    hdf5_directory = 'D:/SDC/py/HDF5/'
+    # init stuff
+    filename_raw = hdf5_directory+'tradeinfo.hdf5'
+    separators_directory = hdf5_directory+'separators/'
+    f_raw = h5py.File(filename_raw,'r')
+    data=Data(movingWindow=100,
+              nEventsPerStat=1000,
+              dateTest = [                                          '2018.03.09',
+                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
+                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
+                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
+                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
+                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
+                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
+                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
+                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
+                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
+                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
+                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
+                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
+                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
+                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
+                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
+                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
+                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
+                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
+                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
+                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+                '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
+    # run over assets
+    for ass in data.assets:
+        # load separators
+        thisAsset = data.AllAssets[str(ass)]
+        # load separators
+        separators = load_separators(data, thisAsset, 
+                                     separators_directory, 
+                                     from_txt=1)
+        # get raw data
+        raw = f_raw[thisAsset]
+        # run over separators
+        for s in range(0,len(separators)-1,2):
+            # number of events in this chunck
+            n_events = separators.index[s+1]-separators.index[s]+1
+            # number of samples
+            m = get_number_samples(data.nEventsPerStat, data.movingWindow, n_events)
+            # group ts in m chunks
+            
+    # extract features
     
     return None
 
 if __name__=='__main__':
-    get_features_manual()
+    get_features()

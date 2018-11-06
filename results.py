@@ -85,17 +85,23 @@ def save_results_v20(TRdf, t_index, thr_mc, epoch, lastTrained, save_results=0, 
 
 def print_results_v20(TRdf, results, epoch, thr_md, thr_mc, t_index, save_results = 0):
     
-    print("Epoch = "+str(epoch)+". Time index = "+str(t_index)+". Threshold MC = "+str(thr_mc)+". Threshold MD = "+str(thr_md))
+    print("Epoch = "+str(epoch)+". Time index = "+str(t_index)+
+          ". Threshold MC = "+str(thr_mc)+". Threshold MD = "+str(thr_md))
     if thr_md==.5 and thr_mc==.5:
-        print("J_test = "+str(results["J_test"])+", J_train = "+str(results["J_train"])+", Accuracy="+str(results["Acc"]))
+        print("J_test = "+str(results["J_test"])+", J_train = "+
+              str(results["J_train"])+", Accuracy="+str(results["Acc"]))
     #print("".format())
-    print("RD = {0:d} NZ = {1:d} NZA = {2:d} pNZ = {5:.3f}% pNZA = {6:.3f}% AD = {3:.2f}% ADA = {4:.2f}% NO = {9:d} GSP = {7:.2f}% NSP = {8:.2f}%"
-          .format(results["RD"],results["NZ"],results["NZA"],results["AccDir"],results["AccDirA"],
-            results["perNZ"],results["perNZA"],results["GSP"],results["NSP"],results["NO"]))
+    print(("RD = {0:d} NZ = {1:d} NZA = {2:d} pNZ = {5:.3f}% pNZA = {6:.3f}% "+
+           "AD = {3:.2f}% ADA = {4:.2f}% NO = {9:d} GSP = {7:.2f}% NSP = {8:.2f}%")
+          .format(results["RD"],results["NZ"],results["NZA"],results["AccDir"],
+                  results["AccDirA"],results["perNZ"],results["perNZA"],
+                  results["GSP"],results["NSP"],results["NO"]))
     #print(". AccDirA = {2:.2f}%".format(results["NZA"],results["accDirectionAll"]))
-    print("Sharpe = {1:.3f} rRl1 = {2:.4f}% rRl2 = {3:.4f}% rGROI = {4:.4f}% rROI = {0:.4f}% tGROI = {5:.4f}% tROI = {6:.4f}%".format(
-            results["rROI"],results["sharpe"],results["rROIxLevel"][0,0],results["rROIxLevel"][1,0],
-            results["rGROI"],results["tGROI"],results["tROI"]))
+    print(("Sharpe = {1:.3f} rRl1 = {2:.4f}% rRl2 = {3:.4f}% rGROI = {4:.4f}%"+
+           " rROI = {0:.4f}% tGROI = {5:.4f}% tROI = {6:.4f}%").format(
+            results["rROI"],results["sharpe"],results["rROIxLevel"][0,0],
+            results["rROIxLevel"][1,0],results["rGROI"],
+            results["tGROI"],results["tROI"]))
     
     if save_results:
         #if epoch not in TRdf.index:
@@ -280,6 +286,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         eROIpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2),2))
         NZpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2))).astype(int)
         GRE = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
+        GRE_new = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
         # generate map of idx to threholds
         map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
         idx = 0
@@ -618,17 +625,26 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                     AD_resumes[t,map_idx2thr[thr_idx],0] = 2/3*AccDir+1/3*AccDirA
                                     thr_idx += 1
                                 else:
-                                    print("eROIpp for ub_mc="+str(round(ub_mc*10)/10)+" and ub_md="+str(ub_md))
+                                    print("eROIpp for mc between "+
+                                          str(round(thr_mc*10)/10)+
+                                          "-"+str(round(ub_mc*10)/10)+
+                                          " and "+str(round(thr_md*10)/10)+"-"
+                                          +str(round(ub_md*10)/10))
 #                                    print(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde])==0))
                                     for b in range(int((model.size_output_layer-1)/2)):
 #                                        print(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde])==(b+1)))
-                                        NZpp[t,i_t_mc,i_t_md, b] = int(rSampsXlevel[b])#int(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde]).astype(int)==(b+1)))
+                                        NZpp[t,i_t_mc,i_t_md, b] = int(rSampsXlevel[b,0])#int(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde]).astype(int)==(b+1)))
                                         eROIpp[t,i_t_mc,i_t_md, b, 0] = rROIxLevel[b,0]/100
                                         eROIpp[t,i_t_mc,i_t_md, b, 1] = rROIxLevel[b,1]/100
                                         if NZpp[t,i_t_mc,i_t_md, b]>0:
                                             GRE[t,i_t_mc,i_t_md, b] = eROIpp[t,i_t_mc,i_t_md, b, 1]/NZpp[t,i_t_mc,i_t_md, b]
                                         print("GRE level "+str(b)+": "+str(GRE[t,i_t_mc,i_t_md, b]/0.0001)+" pips")
                                         print("Nonzero entries = "+str(NZpp[t,i_t_mc,i_t_md, b]))
+                                        # GRE new
+                                        if rSampsXlevel[b,1]>0:
+                                            GRE_new[t,i_t_mc,i_t_md, b] = rROIxLevel[b,0]/(100*rSampsXlevel[b,1])
+                                        print("GRE new level "+str(b)+": "+str(GRE_new[t,i_t_mc,i_t_md, b]/0.0001)+" pips")
+                                        print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
                                         # weighted GRE
 #                                        rROIxLevelxExt, rSampsXlevelXExt
 #                                        for ex in range(10):
@@ -657,25 +673,27 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         # end of for t in range(model.seq_len): 
         
         if save_journal:
+#            GRE = fill_up_GRE(GRE, model, thresholds_mc, thresholds_md)
+#            GRE_new = fill_up_GRE(GRE_new, model, thresholds_mc, thresholds_md)
             # Fillthe gaps of GRE
-            for t in range(model.seq_len+1):
-                for idx_mc in range(len(thresholds_mc)):
-                    min_md = GRE[t,idx_mc,:,:]
-                    for idx_md in range(len(thresholds_md)):
-                        min_mc = GRE[t,:,idx_md,:]    
-                        for l in range(int((model.size_output_layer-1)/2)):
-                            if GRE[t,idx_mc,idx_md,l]==0:
-                                if idx_md==0:
-                                    if idx_mc==0:
-                                        if l==0:
-                                            # all zeros, nothing to do
-                                            pass
-                                        else:
-                                            GRE[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
-                                    else:
-                                        GRE[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
-                                else:
-                                    GRE[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
+#            for t in range(model.seq_len+1):
+#                for idx_mc in range(len(thresholds_mc)):
+#                    min_md = GRE[t,idx_mc,:,:]
+#                    for idx_md in range(len(thresholds_md)):
+#                        min_mc = GRE[t,:,idx_md,:]    
+#                        for l in range(int((model.size_output_layer-1)/2)):
+#                            if GRE[t,idx_mc,idx_md,l]==0:
+#                                if idx_md==0:
+#                                    if idx_mc==0:
+#                                        if l==0:
+#                                            # all zeros, nothing to do
+#                                            pass
+#                                        else:
+#                                            GRE[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
+#                                    else:
+#                                        GRE[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
+#                                else:
+#                                    GRE[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
                                     
                                     
                                 
@@ -685,8 +703,14 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
             pickle.dump( NZpp, open( resultsDir+IDresults+"/NZpp_e"+str(epoch)+".p", "wb" ))
             pickle.dump( eROIpp, open( resultsDir+IDresults+"/eROIpp_e"+str(epoch)+".p", "wb" ))
             pickle.dump( GRE, open( resultsDir+IDresults+"/GRE_e"+str(epoch)+".p", "wb" ))
-            print("GRE")
-            print(GRE)
+            print("GRE:")
+            for b in range(int((model.size_output_layer-1)/2)):
+                print("Level "+str(b))
+                print(GRE[:,:,:,b]//0.0001)
+            print("GRE new:")
+            for b in range(int((model.size_output_layer-1)/2)):
+                print("Level "+str(b))
+                print(GRE_new[:,:,:,b]//0.0001)
         # add best ROI to best results table
         BR_GROI = pd.DataFrame(best_GROI_profile,index=[0]).set_index("epoch")
         print(BR_GROI.to_string())
@@ -702,6 +726,30 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         pass
     
     return best_ROI, BR_GROI, BR_ROI, BR_sharpe
+
+def fill_up_GRE(GRE, model, thresholds_mc, thresholds_md):
+    """
+    
+    """
+    for t in range(model.seq_len+1):
+        for idx_mc in range(len(thresholds_mc)):
+            min_md = GRE[t,idx_mc,:,:]
+            for idx_md in range(len(thresholds_md)):
+                min_mc = GRE[t,:,idx_md,:]    
+                for l in range(int((model.size_output_layer-1)/2)):
+                    if GRE[t,idx_mc,idx_md,l]==0:
+                        if idx_md==0:
+                            if idx_mc==0:
+                                if l==0:
+                                    # all zeros, nothing to do
+                                    pass
+                                else:
+                                    GRE[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
+                            else:
+                                GRE[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
+                        else:
+                            GRE[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
+    return GRE
 
 def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread_thr=1):
     """
@@ -755,22 +803,21 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     net_succ_counter = 0
     this_pos_extended = 0
 
-    rROIxLevel = np.zeros((int(size_output_layer-1),2))
-    rSampsXlevel = np.zeros((int(size_output_layer-1)))
-    
-
-    
+    rROIxLevel = np.zeros((int(size_output_layer-1),3))
+    rSampsXlevel = np.zeros((int(size_output_layer-1),2))
+        
     fixed_spread_ratios = np.array([0.00005,0.0001,0.0002,0.0003,0.0004,0.0005])
     fNSP = np.zeros((fixed_spread_ratios.shape[0]))
     fROIs = np.zeros((fixed_spread_ratios.shape))
     ROI_vector = np.array([])
     GROI_vector = np.array([])
+    avGROI = 0.0 # average GROI for all trades happening concurrently and for the
+               # same asset
     if Journal.shape[0]>0:
         log=log.append({'DateTime':Journal[DT1].iloc[0],
                         'Message':Journal['Asset'].iloc[0]+" open" },
                         ignore_index=True)
-        
-    #print(Journal)
+    
     for e in range(1,Journal.shape[0]):
 
         oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
@@ -785,25 +832,29 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
                             " extended" },ignore_index=True)
             n_pos_extended += 1
             this_pos_extended += 1
-            rSampsXlevel[int(np.abs(Journal['Bet'].iloc[eInit])-1)] += 1
+            avGROI += Journal['GROI'].iloc[e]
+            level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
+            rSampsXlevel[level,0] += 1
             continue
         else:
             
-            thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]
-                
+            thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]                
             GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[e-1]-Journal[B1].iloc[eInit])/Journal[B1].iloc[eInit]
-
             rGROI += GROI
-            
+            avGROI += Journal['GROI'].iloc[e]
             ROI = GROI-thisSpread
+            
             ROI_vector = np.append(ROI_vector,ROI)
             GROI_vector = np.append(GROI_vector,GROI)
             rROI += ROI
             fROIs = fROIs+GROI-fixed_spread_ratios
-            rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),0] += 100*ROI
-            rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),1] += 100*GROI
-            rSampsXlevel[int(np.abs(Journal['Bet'].iloc[eInit])-1)] += 1
-            
+            level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
+            rROIxLevel[level,0] += 100*ROI
+            rROIxLevel[level,1] += 100*GROI
+            rROIxLevel[level,2] += avGROI/this_pos_extended
+            rSampsXlevel[level,0] += 1
+            rSampsXlevel[level,1] += 1
+            avGROI = 0.0
             this_pos_extended = 0
             
             if GROI>0:
@@ -832,21 +883,22 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     
     if Journal.shape[0]>0:
         thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
-
         GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
                     ].iloc[eInit])/Journal[B1].iloc[-1]
-
         rGROI += GROI
-
+        avGROI += Journal['GROI'].iloc[e]
+        
         ROI = GROI-thisSpread
         ROI_vector = np.append(ROI_vector,ROI)
         GROI_vector = np.append(GROI_vector,GROI)
         rROI += ROI
         fROIs = fROIs+GROI-fixed_spread_ratios
-        rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),0] += 100*ROI
-        rROIxLevel[int(np.abs(Journal['Bet'].iloc[eInit])-1),1] += 100*GROI
-
-        rSampsXlevel[int(np.abs(Journal['Bet'].iloc[eInit])-1)] += 1
+        level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
+        rROIxLevel[level,0] += 100*ROI
+        rROIxLevel[level,1] += 100*GROI
+        rROIxLevel[level,2] += avGROI/this_pos_extended
+        rSampsXlevel[level,0] += 1
+        rSampsXlevel[level,1] += 1
         
         if GROI>0:
             gross_succ_counter += 1
@@ -933,9 +985,9 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md,
                'varRet':varRet,
                'successes':successes}
     else:
-        rROIxLevel = np.zeros((int(size_output_layer-1),2))
+        rROIxLevel = np.zeros((int(size_output_layer-1),3))
         
-        rSampsXlevel = np.zeros((int(size_output_layer-1)))
+        rSampsXlevel = np.zeros((int(size_output_layer-1),2))
         
 #        rROIxLevelxExt = np.zeros((int(size_output_layer-1),10,2))
 #        rSampsXlevelXExt = np.zeros((int(size_output_layer-1),10))

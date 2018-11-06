@@ -25,7 +25,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0277')
+        config = configuration('C0286')
 
     # create data structure
     data=Data(movingWindow=config['movingWindow'],

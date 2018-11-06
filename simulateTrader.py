@@ -241,7 +241,7 @@ class Strategy():
             
             return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
         else:
-            return None
+            return 0.0
 class Trader:
     
     def __init__(self, next_candidate, init_budget=10000,log_file=''):
@@ -887,12 +887,16 @@ if __name__ == '__main__':
 #    list_name = ['69','66']
 #    list_IDresults = ['100269','100266']
     
-    list_epoch_journal = [13]
-    list_use_GRE = [True]
+    list_IDresults = ['100286']
+    list_IDgre = ['100286']
+    list_name = ['77']
+    list_epoch_gre = [6]
+    list_epoch_journal = [6]
+    list_use_GRE = [False]
     list_t_index = [3]
-    list_lb_mc_op = [0.6]
-    list_lb_md_op = [0.6]
-    list_lb_mc_ext = [0.6]
+    list_lb_mc_op = [0.5]
+    list_lb_md_op = [0.8]
+    list_lb_mc_ext = [0.5]
     list_lb_md_ext = [0.6]
     list_ub_mc_op = [1]
     list_ub_md_op = [1]
@@ -902,14 +906,11 @@ if __name__ == '__main__':
     list_thr_tp = [1000]
     list_fix_spread = [False]
     list_fixed_spread_pips = [4]
-    list_max_lots_per_pos = [10]
+    list_max_lots_per_pos = [.1]
     list_flexible_lot_ratio = [False]
     list_if_dir_change_close = [False]
     list_if_dir_change_extend = [False]
-    list_name = ['77']
-    list_IDresults = ['100277']
-    list_IDgre = ['100277']
-    list_epoch_gre = [13]
+    
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -925,7 +926,8 @@ if __name__ == '__main__':
                           name=list_name[i],use_GRE=list_use_GRE[i],
                           t_index=list_t_index[i],IDr=list_IDresults[i],
                           IDgre=list_IDgre[i],
-                          epoch=str(list_epoch_gre[i])) for i in range(len(list_t_index))]
+                          epoch=str(list_epoch_gre[i])) 
+                          for i in range(len(list_t_index))]
     
     name2str_map = {}
     for n in range(len(list_name)):
@@ -943,7 +945,8 @@ if __name__ == '__main__':
                             "/" for i in range(len(list_t_index))]
         list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
                              str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                             "e"+str(list_epoch_journal[i])+".txt" for i in range(len(list_t_index))]
+                             "e"+str(list_epoch_journal[i])+".txt" 
+                             for i in range(len(list_t_index))]
         entry_time_column = 'DT1'#'Entry Time
         exit_time_column = 'DT2'#'Exit Time
         entry_bid_column = 'B1'
@@ -1481,3 +1484,13 @@ if __name__ == '__main__':
 #Total GROI = 7.101% Total ROI = 5.069% Sum GROI = 7.246% Sum ROI = 5.160% Accumulated earnings 515.96E
 #Total entries 172 per entries 10.46 percent gross success 64.53% percent nett success 61.05% average loss 7.58p average win 9.75p RR 1 to 2.02
 #DONE. Total time: 12.19 mins
+
+# .5/.8_.6 real spread<4 pips fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27
+#Total GROI = 9.121% Total ROI = 5.625% Sum GROI = 9.353% Sum ROI = 5.760% Accumulated earnings 576.00E
+#Total entries 197 per entries 1.72 percent gross success 71.07% percent nett success 62.94% average loss 7.67p average win 9.16p RR 1 to 2.03
+#DONE. Total time: 40.46 mins
+    
+# GRE fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27    
+#Total GROI = 4.786% Total ROI = 3.307% Sum GROI = 4.843% Sum ROI = 3.334% Accumulated earnings 333.39E
+#Total entries 172 per entries 1.50 percent gross success 58.72% percent nett success 56.40% average loss 6.74p average win 8.64p RR 1 to 1.66
+#DONE. Total time: 36.09 mins

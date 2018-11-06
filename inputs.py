@@ -50,7 +50,10 @@ class Data:
              "30":"CHFJPY",
              "31":"GBPJPY",
              "32":"NZDUSD"}
-
+    
+    cwt_coeff = [3, 9,2,3,11,12,5,4,8,14,7,6,13,10,13,10,5,11, 5,13,14, 3,1, 4,12, 6,10,4, 7,2, 9, 8,9,1,12, 5, 2, 1, 8,11, 4, 7, 6, 2,14, 3]
+    cwt_weights = [5,10,2,2,10,10,5,5,5,10,5,5,10,10, 5, 5,2, 5,10,20,20,10,5,10, 5,10,20,2,10,5,20,10,5,2,20,20,10,10,20,20,20,20,20,20, 5,20]
+    
     AllFeatures = {"0":"bids",
                 "1":"EMA01",
                 "2":"EMA05",
@@ -87,7 +90,38 @@ class Data:
                 "33":"difBidOema5",
                 "34":"difBidOema10",
                 "35":"difBidOema50",
-                "36":"difBidOema100"}
+                "36":"difBidOema100",
+                "37":["quantile",0.3,1],
+                "38":["quantile",0.4,1],
+                "39":["quantile",0.2,1],
+                "40":["fft_coefficient",0,"real",1],
+                "41":["fft_coefficient",0,"abs",1],
+                "42":["sum_values",1],
+                "43":["median",1],
+                "44":["c3",3,1],
+                "45":["c3",2,1],
+                "46":["c3",1,1],
+                "47":["mean",1],
+                "48":["minimum",1],
+                "49":["median",1],
+                "50":["cwt_coefficients",[2, 5, 10, 20],cwt_coeff,cwt_weights,len(cwt_weights)],
+                "51":["maximum",1],
+                "52":["quantile",0.1,1],
+                "53":["quantile",0.8,1],
+                "54":["quantile",0.9,1],
+                "55":["quantile",0.6,1],
+                "56":["quantile",0.7,1],
+                "57":["abs_energy",1],
+                "58":["linear_trend","intercept",1],
+                "59":["agg_linear_trend","min",50,"intercept",1],
+                "60":["agg_linear_trend","min",5,"intercept",1],
+                "61":["agg_linear_trend","max",10,"intercept",1],
+                "62":["agg_linear_trend","mean",50,"intercept",1],
+                "63":["agg_linear_trend","max",50,"intercept",1],
+                "64":["agg_linear_trend","mean",5,"intercept",1],
+                "65":["agg_linear_trend","min",10,"intercept",1],
+                "66":["agg_linear_trend","mean",10,"intercept",1],
+                "67":["agg_linear_trend","max",5,"intercept",1]}
     
     
     average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
@@ -120,6 +154,9 @@ class Data:
         self.noVarFeats = [8,9,12,17,18,21,23,24,25,26,27,28,29]
         self.lookAheadIndex = lookAheadIndex
         self.max_var = max_var
+        
+        self.features_tsfresh = [i for i in range(37,68)]
+        self.n_feats_tsfresh = 76
         
 def initFeaturesLive(data,tradeInfoLive):
     """
@@ -966,7 +1003,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
                 B = group['B']
                 A = group['A']
                 
-            print("\tgetting IO from raw data...")
+            print("\tgetting features from raw data...")
             # get structures and save them in a hdf5 file
             features = get_features_from_raw_par(data,features,
                                              DateTime[separators.index[s]:separators.index[s+1]+1], 
@@ -1317,406 +1354,3 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False,
                                  '_nE'+str(data.nEventsPerStat)+
                                  '_nF'+str(data.nFeatures)+".p", "wb" ))
     return stats
-
-from scipy.stats import linregress
-from scipy.signal import cwt, find_peaks_cwt, ricker, welch
-
-def complex_agg(x, agg):
-    if agg == "real":
-        return x.real
-    elif agg == "imag":
-        return x.imag
-    elif agg == "abs":
-        return np.abs(x)
-    elif agg == "angle":
-        return np.angle(x, deg=True)
-
-def _aggregate_on_chunks(x, f_agg, chunk_len):
-    """
-    Takes the time series x and constructs a lower sampled version of it by applying the aggregation function f_agg on
-    consecutive chunks of length chunk_len
-
-    :param x: the time series to calculate the aggregation of
-    :type x: pandas.Series
-    :param f_agg: The name of the aggregation function that should be an attribute of the pandas.Series
-    :type f_agg: str
-    :param chunk_len: The size of the chunks where to aggregate the time series
-    :type chunk_len: int
-    :return: A list of the aggregation function over the chunks
-    :return type: list
-    """
-    return [getattr(x[i * chunk_len: (i + 1) * chunk_len], f_agg)() for i in range(int(np.ceil(len(x) / chunk_len)))]    
-
-def fft_coefficient(x, coeff, attr):
-    """
-    Calculates the fourier coefficients of the one-dimensional discrete Fourier Transform for real input by fast
-    fourier transformation algorithm
-
-    .. math::
-        A_k =  \\sum_{m=0}^{n-1} a_m \\exp \\left \\{ -2 \\pi i \\frac{m k}{n} \\right \\}, \\qquad k = 0,
-        \\ldots , n-1.
-
-    The resulting coefficients will be complex, this feature calculator can return the real part (attr=="real"),
-    the imaginary part (attr=="imag), the absolute value (attr=""abs) and the angle in degrees (attr=="angle).
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param param: contains dictionaries {"coeff": x, "attr": s} with x int and x >= 0, s str and in ["real", "imag",
-        "abs", "angle"]
-    :type param: list
-    :return: the different feature values
-    :return type: pandas.Series
-    """
-
-    fft = np.fft.rfft(x)
-
-    res = complex_agg(fft[coeff], attr)
-    return res
-
-def linear_trend(x, attr):
-    """
-    Calculate a linear least-squares regression for the values of the time series versus the sequence from 0 to
-    length of the time series minus one.
-    This feature assumes the signal to be uniformly sampled. It will not use the time stamps to fit the model.
-    The parameters control which of the characteristics are returned.
-
-    Possible extracted attributes are "pvalue", "rvalue", "intercept", "slope", "stderr", see the documentation of
-    linregress for more information.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param param: contains dictionaries {"attr": x} with x an string, the attribute name of the regression model
-    :type param: list
-    :return: the different feature values
-    :return type: pandas.Series
-    """
-    # todo: we could use the index of the DataFrame here
-
-    linReg = linregress(range(len(x)), x)
-
-    return getattr(linReg, attr)
-
-def agg_linear_trend(x, chunk_len, f_agg, attr):
-    """
-    Calculates a linear least-squares regression for values of the time series that were aggregated over chunks versus
-    the sequence from 0 up to the number of chunks minus one.
-
-    This feature assumes the signal to be uniformly sampled. It will not use the time stamps to fit the model.
-
-    The parameters attr controls which of the characteristics are returned. Possible extracted attributes are "pvalue",
-    "rvalue", "intercept", "slope", "stderr", see the documentation of linregress for more information.
-
-    The chunksize is regulated by "chunk_len". It specifies how many time series values are in each chunk.
-
-    Further, the aggregation function is controlled by "f_agg", which can use "max", "min" or , "mean", "median"
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param param: contains dictionaries {"attr": x, "chunk_len": l, "f_agg": f} with x, f an string and l an int
-    :type param: list
-    :return: the different feature values
-    :return type: pandas.Series
-    """
-    # todo: we could use the index of the DataFrame here
-
-    calculated_agg = {}
-
-    aggregate_result = _aggregate_on_chunks(x, f_agg, chunk_len)
-    if f_agg not in calculated_agg or chunk_len not in calculated_agg[f_agg]:
-        if chunk_len >= len(x):
-            calculated_agg[f_agg] = {chunk_len: np.NaN}
-        else:
-            lin_reg_result = linregress(range(len(aggregate_result)), aggregate_result)
-            calculated_agg[f_agg] = {chunk_len: lin_reg_result}
-
-    if chunk_len >= len(x):
-        res_data = np.NaN
-    else:
-        res_data = getattr(calculated_agg[f_agg][chunk_len], attr)
-        
-    return res_data
-
-def first_location_of_minimum(x):
-    """
-    Returns the first location of the minimal value of x.
-    The position is calculated relatively to the length of x.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    if not isinstance(x, (np.ndarray, pd.Series)):
-        x = np.asarray(x)
-    return np.argmin(x) / len(x) if len(x) > 0 else np.NaN
-
-def energy_ratio_by_chunks(x, num_segments, segment_focus):
-    """
-    Calculates the sum of squares of chunk i out of N chunks expressed as a ratio with the sum of squares over the whole
-    series.
-
-    Takes as input parameters the number num_segments of segments to divide the series into and segment_focus
-    which is the segment number (starting at zero) to return a feature on.
-
-    If the length of the time series is not a multiple of the number of segments, the remaining data points are
-    distributed on the bins starting from the first. For example, if your time series consists of 8 entries, the
-    first two bins will contain 3 and the last two values, e.g. `[ 0.,  1.,  2.], [ 3.,  4.,  5.]` and `[ 6.,  7.]`.
-
-    Note that the answer for `num_segments = 1` is a trivial "1" but we handle this scenario
-    in case somebody calls it. Sum of the ratios should be 1.0.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param param: contains dictionaries {"num_segments": N, "segment_focus": i} with N, i both ints
-    :return: the feature values
-    :return type: list of tuples (index, data)
-    """
-    full_series_energy = np.sum(x ** 2)
-
-    assert segment_focus < num_segments
-    assert num_segments > 0
-
-    res_data = np.sum(np.array_split(x, num_segments)[segment_focus] ** 2.0)/full_series_energy
-
-    return res_data
-
-def change_quantiles(x, ql, qh, isabs, f_agg):
-    """
-    First fixes a corridor given by the quantiles ql and qh of the distribution of x.
-    Then calculates the average, absolute value of consecutive changes of the series x inside this corridor.
-
-    Think about selecting a corridor on the
-    y-Axis and only calculating the mean of the absolute change of the time series inside this corridor.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param ql: the lower quantile of the corridor
-    :type ql: float
-    :param qh: the higher quantile of the corridor
-    :type qh: float
-    :param isabs: should the absolute differences be taken?
-    :type isabs: bool
-    :param f_agg: the aggregator function that is applied to the differences in the bin
-    :type f_agg: str, name of a numpy function (e.g. mean, var, std, median)
-
-    :return: the value of this feature
-    :return type: float
-    """
-    if ql >= qh:
-        ValueError("ql={} should be lower than qh={}".format(ql, qh))
-
-    div = np.diff(x)
-    if isabs:
-        div = np.abs(div)
-    # All values that originate from the corridor between the quantiles ql and qh will have the category 0,
-    # other will be np.NaN
-    try:
-        bin_cat = pd.qcut(x, [ql, qh], labels=False)
-        bin_cat_0 = bin_cat == 0
-    except ValueError:  # Occurs when ql are qh effectively equal, e.g. x is not long enough or is too categorical
-        return 0
-    # We only count changes that start and end inside the corridor
-    ind = (bin_cat_0 & np.roll(bin_cat_0, 1))[1:]
-    if sum(ind) == 0:
-        return 0
-    else:
-        ind_inside_corridor = np.where(ind == 1)
-        aggregator = getattr(np, f_agg)
-        return aggregator(div[ind_inside_corridor])
-    
-def index_mass_quantile(x, q):
-    """
-    Those apply features calculate the relative index i where q% of the mass of the time series x lie left of i.
-    For example for q = 50% this feature calculator will return the mass center of the time series
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param param: contains dictionaries {"q": x} with x float
-    :type param: list
-    :return: the different feature values
-    :return type: pandas.Series
-    """
-
-    x = np.asarray(x)
-    abs_x = np.abs(x)
-    s = sum(abs_x)
-
-    if s == 0:
-        # all values in x are zero or it has length 0
-        return np.NaN
-    else:
-        # at least one value is not zero
-        mass_centralized = np.cumsum(abs_x) / s
-        return (np.argmax(mass_centralized >= q)+1)/len(x)
-    
-def number_cwt_peaks(x, n):
-    """
-    This feature calculator searches for different peaks in x. To do so, x is smoothed by a ricker wavelet and for
-    widths ranging from 1 to n. This feature calculator returns the number of peaks that occur at enough width scales
-    and with sufficiently high Signal-to-Noise-Ratio (SNR)
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param n: maximum width to consider
-    :type n: int
-    :return: the value of this feature
-    :return type: int
-    """
-    return len(find_peaks_cwt(vector=x, widths=np.array(list(range(1, n + 1))), wavelet=ricker))
-
-def last_location_of_maximum(x):
-    """
-    Returns the relative last location of the maximum value of x.
-    The position is calculated relatively to the length of x.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    x = np.asarray(x)
-    return 1.0 - np.argmax(x[::-1]) / len(x) if len(x) > 0 else np.NaN
-
-def first_location_of_maximum(x):
-    """
-    Returns the first location of the maximum value of x.
-    The position is calculated relatively to the length of x.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    if not isinstance(x, (np.ndarray, pd.Series)):
-        x = np.asarray(x)
-    return np.argmax(x) / len(x) if len(x) > 0 else np.NaN
-
-def last_location_of_minimum(x):
-    """
-    Returns the last location of the minimal value of x.
-    The position is calculated relatively to the length of x.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    x = np.asarray(x)
-    return 1.0 - np.argmin(x[::-1]) / len(x) if len(x) > 0 else np.NaN
-
-def mean_change(x):
-    """
-    Returns the mean over the absolute differences between subsequent time series values which is
-
-    .. math::
-
-        \\frac{1}{n} \\sum_{i=1,\ldots, n-1}  x_{i+1} - x_{i}
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    return np.mean(np.diff(x))
-
-def abs_energy(x):
-    """
-    Returns the absolute energy of the time series which is the sum over the squared values
-
-    .. math::
-
-        E = \\sum_{i=1,\ldots, n} x_i^2
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    if not isinstance(x, (np.ndarray, pd.Series)):
-        x = np.asarray(x)
-    return np.dot(x, x)
-
-def sum_values(x):
-    """
-    Calculates the sum over the time series values
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: bool
-    """
-    if len(x) == 0:
-        return 0
-
-    return np.sum(x)
-
-def mean(x):
-    """
-    Returns the mean of x
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    return np.mean(x)
-
-def minimum(x):
-    """
-    Calculates the lowest value of the time series x.
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    return np.min(x)
-
-def median(x):
-    """
-    Returns the median of x
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :return: the value of this feature
-    :return type: float
-    """
-    return np.median(x)
-
-def c3(x, lag):
-    """
-    This function calculates the value of
-
-    .. math::
-
-        \\frac{1}{n-2lag} \sum_{i=0}^{n-2lag} x_{i + 2 \cdot lag}^2 \cdot x_{i + lag} \cdot x_{i}
-
-    which is
-
-    .. math::
-
-        \\mathbb{E}[L^2(X)^2 \cdot L(X) \cdot X]
-
-    where :math:`\\mathbb{E}` is the mean and :math:`L` is the lag operator. It was proposed in [1] as a measure of
-    non linearity in the time series.
-
-    .. rubric:: References
-
-    |  [1] Schreiber, T. and Schmitz, A. (1997).
-    |  Discrimination power of measures for nonlinearity in a time series
-    |  PHYSICAL REVIEW E, VOLUME 55, NUMBER 5
-
-    :param x: the time series to calculate the feature of
-    :type x: pandas.Series
-    :param lag: the lag that should be used in the calculation of the feature
-    :type lag: int
-    :return: the value of this feature
-    :return type: float
-    """
-    if not isinstance(x, (np.ndarray, pd.Series)):
-        x = np.asarray(x)
-    n = x.size
-    if 2 * lag >= n:
-        return 0
-    else:
-        return np.mean((np.roll(x, 2 * -lag) * np.roll(x, -lag) * x)[0:(n - 2 * lag)])
