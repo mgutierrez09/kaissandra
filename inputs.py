@@ -13,7 +13,7 @@ import h5py
 import datetime as dt
 import pickle
 import scipy.io as sio
-from tsfresh import extract_features
+import os
 
 class Data:
     
@@ -51,8 +51,10 @@ class Data:
              "31":"GBPJPY",
              "32":"NZDUSD"}
     
-    cwt_coeff = [3, 9,2,3,11,12,5,4,8,14,7,6,13,10,13,10,5,11, 5,13,14, 3,1, 4,12, 6,10,4, 7,2, 9, 8,9,1,12, 5, 2, 1, 8,11, 4, 7, 6, 2,14, 3]
-    cwt_weights = [5,10,2,2,10,10,5,5,5,10,5,5,10,10, 5, 5,2, 5,10,20,20,10,5,10, 5,10,20,2,10,5,20,10,5,2,20,20,10,10,20,20,20,20,20,20, 5,20]
+    cwt_coeff = [3, 9,2,3,11,12,5,4,8,14,7,6,13,10,13,10,5,11, 5,13,14, 3,1, 4,
+                 12, 6,10,4, 7,2, 9, 8,9,1,12, 5, 2, 1, 8,11, 4, 7, 6, 2,14, 3]
+    cwt_weights = [5,10,2,2,10,10,5,5,5,10,5,5,10,10, 5, 5,2, 5,10,20,20,10,5,10,
+                   5,10,20,2,10,5,20,10,5,2,20,20,10,10,20,20,20,20,20,20, 5,20]
     
     AllFeatures = {"0":"bids",
                 "1":"EMA01",
@@ -125,20 +127,24 @@ class Data:
     
     
     average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
-    
+    std_var = 0.1
+    std_time = 0.1
     lookAheadVector=[.1,.2,.5,1,2,5,10]
     
-    def __init__(self, movingWindow=40,nEventsPerStat=40,lB=400,std_var=0.1,
+    def __init__(self, movingWindow=100,nEventsPerStat=1000,lB=1200,
                  channels=[0],divideLookAhead=1,lookAheadIndex=3,
-                 features=[i for i in range(37)],
+                 feature_keys_manual=[i for i in range(37)],
                  dateTest=['2017.09.15','2017.11.06','2017.11.07'],
                  assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
-                 max_var=10):
+                 max_var=10, feature_keys_tsfresh=[i for i in range(37,68)],
+                 noVarFeatsManual=[8,9,12,17,18,21,23,24,25,26,27,28,29]):
         
         self.movingWindow = movingWindow
         self.nEventsPerStat = nEventsPerStat
-        self.nFeatures = len(features)
         
+        self.feature_keys_manual = feature_keys_manual
+        self.n_feats_manual = len(self.feature_keys_manual)
+        self.feature_keys_tsfresh = feature_keys_tsfresh
         self.lB = lB
         self.divideLookAhead = divideLookAhead
         
@@ -146,18 +152,26 @@ class Data:
         self.channels = channels
         
         self.lbd=1-1/(self.nEventsPerStat*self.average_over)
-        self.features = features
-        self.std_var = std_var
-        self.std_time = std_var
+        self.feature_keys = feature_keys_manual+feature_keys_tsfresh
+        self.nFeatures = len(self.feature_keys)
         self.dateTest = dateTest
         self.assets = assets
-        self.noVarFeats = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+        self.noVarFeats = noVarFeatsManual+feature_keys_tsfresh
         self.lookAheadIndex = lookAheadIndex
         self.max_var = max_var
-        
-        self.features_tsfresh = [i for i in range(37,68)]
-        self.n_feats_tsfresh = 76
-        
+        self.n_feats_tsfresh = self._get_n_feats_tsfresh()#76
+     
+    def _get_n_feats_tsfresh(self):
+        """ private function to get number of tsfresh features"""
+        n_feats_tsfresh = 0
+        # loop over key features vector
+        for key in self.feature_keys_tsfresh:
+            # get parameters from dictionary
+            params = self.AllFeatures[str(key)]
+            # add last parameter entry (number of features)
+            n_feats_tsfresh += params[-1]
+        return n_feats_tsfresh
+    
 def initFeaturesLive(data,tradeInfoLive):
     """
     <DocString>
@@ -178,8 +192,8 @@ def initFeaturesLive(data,tradeInfoLive):
         maxAF2 = 2*stepAF
     
     parSarStruct = parSarInit
-    
-    featuresLive = np.zeros((data.nFeatures,1))
+    nF = len(data.feature_keys_tsfresh)
+    featuresLive = np.zeros((nF,1))
     
     initRange = int(data.nEventsPerStat/data.movingWindow)
     em = np.zeros((data.lbd.shape))+tradeInfoLive.SymbolBid.loc[0+tradeInfoLive.SymbolBid.index[0]]
@@ -187,17 +201,17 @@ def initFeaturesLive(data,tradeInfoLive):
         em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i+tradeInfoLive.SymbolBid.index[0]]
     
     
-    if 1 in data.features:
+    if 1 in data.feature_keys:
         featuresLive[1:1+data.lbd.shape[0],0] = tradeInfoLive.SymbolBid.iloc[0]
         for i in range(int(data.nEventsPerStat*(1-data.movingWindow/data.nEventsPerStat))):
             featuresLive[1:1+data.lbd.shape[0],0] = data.lbd*featuresLive[1:1+data.lbd.shape[0],0]+(
                     1-data.lbd)*tradeInfoLive.SymbolBid.iloc[i]
     #print(em-featuresLive[1:1+data.lbd.shape[0],0])
-    if 10 in data.features:
+    if 10 in data.feature_keys:
         featuresLive[10,0] = tradeInfoLive.SymbolBid.iloc[0]
         featuresLive[11,0] = tradeInfoLive.SymbolBid.iloc[0]
     
-    if 13 in data.features:
+    if 13 in data.feature_keys:
         featuresLive[13,0] = tradeInfoLive.SymbolBid.iloc[0]
         featuresLive[14,0] = tradeInfoLive.SymbolBid.iloc[0]
     
@@ -218,7 +232,7 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
         em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i]
     
     
-    if 1 in data.features:
+    if 1 in data.feature_keys:
         newEventsRange = range(int(nEvents*(1-data.movingWindow/data.nEventsPerStat)),nEvents)
         #print(newEventsRange)
         eml = featuresLive[1:1+data.lbd.shape[0],0]
@@ -229,7 +243,7 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
         
         featuresLive[1:1+data.lbd.shape[0],0] = eml
         
-    if 10 in data.features:
+    if 10 in data.feature_keys:
         parSarStruct.HP20 = np.max([np.max(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.HP20])
         parSarStruct.LP20 = np.min([np.min(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.LP20])
         featuresLive[10,0] = featuresLive[10,0]+parSarStruct.AFH20*(parSarStruct.HP20-featuresLive[10,0]) #parSar high
@@ -241,7 +255,7 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
             parSarStruct.AFL20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
             parSarStruct.HP20 = np.max(tradeInfoLive.SymbolBid.iloc[:])
         
-    if 13 in data.features:
+    if 13 in data.feature_keys:
         parSarStruct.HP2 = np.max([np.max(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.HP2])
         parSarStruct.LP2 = np.min([np.min(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.LP2])
         featuresLive[13,0] = featuresLive[13,0]+parSarStruct.AFH2*(parSarStruct.HP2-featuresLive[13,0]) #parSar high
@@ -253,60 +267,60 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
             parSarStruct.AFL2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
             parSarStruct.HP2 = np.max(tradeInfoLive.SymbolBid.iloc[:])
 
-    if 0 in data.features:
+    if 0 in data.feature_keys:
         featuresLive[0,0] = tradeInfoLive.SymbolBid.iloc[-1]
     
     
-    if 8 in data.features:
+    if 8 in data.feature_keys:
             featuresLive[8,0] = 10*np.log10(np.var(tradeInfoLive.SymbolBid.iloc[:])/data.std_var+1e-10)
         
-    if 9 in data.features:
+    if 9 in data.feature_keys:
         te = pd.to_datetime(tradeInfoLive.iloc[-1].DateTime)
         t0 = pd.to_datetime(tradeInfoLive.iloc[0].DateTime)
         timeInterval = (te-t0).seconds/nEvents
         featuresLive[9,0] = 10*np.log10(timeInterval/data.std_time+0.01)
 
-    if 12 in data.features:
+    if 12 in data.feature_keys:
         secsInDay = 86400.0
-        if 9 not in data.features:
+        if 9 not in data.feature_keys:
             # calculate te if not yet calculated
             te = pd.to_datetime(tradeInfoLive.iloc[-1].DateTime)
         timeSec = (te.hour*60*60+te.minute*60+te.second)/secsInDay
         featuresLive[12,0] = timeSec
     
     # Repeat non-variation features to inclue variation betwen first and second input
-    if 15 in data.features:
+    if 15 in data.feature_keys:
         featuresLive[15,0] = featuresLive[8,0]
     
-    if 16 in data.features:
+    if 16 in data.feature_keys:
         featuresLive[16,0] = featuresLive[9,0]
         
-    if 17 in data.features:
+    if 17 in data.feature_keys:
         featuresLive[17,0] = np.max(tradeInfoLive.SymbolBid.iloc[:])-featuresLive[0,0]
     
-    if 18 in data.features:
+    if 18 in data.feature_keys:
         featuresLive[18,0] = featuresLive[0,0]-np.min(tradeInfoLive.SymbolBid.iloc[:])
     
-    if 19 in data.features:
+    if 19 in data.feature_keys:
         featuresLive[19,0] = np.max(tradeInfoLive.SymbolBid.iloc[:])-featuresLive[0,0]
         
-    if 20 in data.features:
+    if 20 in data.feature_keys:
         featuresLive[20,0] = featuresLive[0,0]-np.min(tradeInfoLive.SymbolBid.iloc[:])
     
-    if 21 in data.features:
+    if 21 in data.feature_keys:
         featuresLive[21,0] = np.min(tradeInfoLive.SymbolBid.iloc[:])/np.max(tradeInfoLive.SymbolBid.iloc[:])
     
-    if 22 in data.features:
+    if 22 in data.feature_keys:
         featuresLive[22,0] = np.min(tradeInfoLive.SymbolBid.iloc[:])/np.max(tradeInfoLive.SymbolBid.iloc[:])
     
     for i in range(data.lbd.shape[0]):
         #nF = nF+1
-        if 23+i in data.features:                 
+        if 23+i in data.feature_keys:                 
             featuresLive[23+i,0] = featuresLive[0,0]/eml[i]
     
     for i in range(data.lbd.shape[0]):
         #nF = nF+1
-        if 30+i in data.features:                 
+        if 30+i in data.feature_keys:                 
             featuresLive[30+i,0] = featuresLive[0,0]/eml[i]
     
     return featuresLive,parSarStruct,em
@@ -381,64 +395,6 @@ def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNi
 
     return separators
 
-def build_output(model, Output, batch_size):
-    """
-    Function that builds output binary Y based on real-valued returns Output vector.
-    Args:
-        - model: object containing model parameters
-        - Output: real-valued returns vector
-        - batch_size: scalar representing the batch size 
-    Returns:
-        - output binary matrix y_bin
-    """
-    # init y
-    y = np.zeros((Output.shape))
-    # quantize output to get y
-    out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*model.outputGain),-
-        (model.size_output_layer-1)/2),(model.size_output_layer-1)/2)
-    
-    y = out_quantized+int((model.size_output_layer-1)/2)
-    # conver y as integer
-    y_dec=y.astype(int)
-    # one hot output
-    y_one_hot = convert_to_one_hot(y_dec, model.size_output_layer).T.reshape(
-        batch_size,model.seq_len,model.size_output_layer)
-    # add y_c bits if proceed
-    y_c = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],0))
-    
-    if model.commonY == 1 or model.commonY == 3:
-        y_c0 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
-        # find up/down outputs (=> those with a zero in the middle bit of one-hot vector)
-        nonZeroYs = y_one_hot[:,:,int((model.size_output_layer-1)/2)]!=1
-        # set 1s in y_c0 vector at non-zero entries
-        y_c0[nonZeroYs,0] = 1
-        y_c = np.append(y_c,y_c0,axis=2)
-    if model.commonY == 2 or model.commonY == 3:
-        # build y_c1 and y_c2 vectors. y_c1 indicates all down outputs. y_c2
-        # indicates all up outputs.
-        y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
-        y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
-        # find negative (positive) returns
-        negativeYs = out_quantized<0
-        positiveYs = out_quantized>0
-        # set to 1 the corresponding entries
-        y_c1[np.squeeze(negativeYs),0] = 1
-        y_c2[np.squeeze(positiveYs),0] = 1
-        # append to y_c
-        y_c = np.append(y_c,y_c1,axis=2)
-        y_c = np.append(y_c,y_c2,axis=2)
-#        print(y_c)
-#        print("y_c.shape")
-#        print(y_c.shape)
-    # build output vector
-    #print(y_c)
-
-    y_bin = np.append(y_c,y_one_hot,axis=2)
-#    print("y_bin.shape")
-#    print(y_bin.shape)
-
-    return y_bin, y_dec
-
 def save_as_matfile(filename,varname,var):
     
     sio.savemat("../MATLAB/"+filename+'.mat', {varname:var})
@@ -457,7 +413,7 @@ def get_outputGain(stdO, bid, spread):
     outputGain = np.min([1,stdO/(4*spread*bid)])
     return outputGain
 
-def build_bin_output(model, Output, batch_size):
+def _build_bin_output(model, Output, batch_size):
     """
     Function that builds output binary Y based on real-valued returns Output vector.
     Args:
@@ -704,39 +660,8 @@ def get_features_from_tsfresh(data, DateTime, SymbolBid):
     """
     Funtion that extracts features with the TSFRESH tool
     """
-    # some important variables
-    nExS = data.nEventsPerStat
-    mW = data.movingWindow
-    secsInDay = 86400.0
-    # return per bid
-    #returnBid = SymbolBid.iloc[nExS:]-SymbolBid.iloc[:-nExS+1]
-    nE = SymbolBid.shape[0]
-    # max number of features
-    m = int(np.floor((nE/nExS-1)*nExS/mW)+1)
-    # format TSFRESH input
-    input_ts = pd.DataFrame(data=0,index=range(m*nExS),columns=['SymbolBid','id','time'])
-    batch_size = 10000000
-    par_batches = int(np.ceil(m/batch_size))
-    l_index = 0
-    # loop over batched
-    for b in range(par_batches):
-        # get m of batch
-        m_i = np.min([batch_size, m-b*batch_size])
-        # loop over this batch
-        for mm in range(m_i):
-            # get indexes
-            startIndex = l_index+mm*mW
-            endIndex = startIndex+nExS
-            # period range
-            thisPeriod = range(startIndex,endIndex)
-            input_ts.SymbolBid.iloc[mm*nExS:(mm+1)*nExS] = SymbolBid.iloc[thisPeriod]
-            input_ts.id.iloc[mm*nExS:(mm+1)*nExS] = mm
-            input_ts.time.iloc[mm*nExS:(mm+1)*nExS] = range(nExS)
-        l_index = startIndex
-    # build feature vector
-    features = extract_features(input_ts, column_id="id", column_sort="time")
     
-    return features
+    return None
 
 def get_returns_from_raw(data, returns, ret_idx, DT, B, A, 
                          idx_init, DateTime, SymbolBid, SymbolAsk):
@@ -802,6 +727,7 @@ def get_normalization_stats(data, features, returns, hdf5_directory):
     """
     tic = time.time()
     nChannels = int(data.nEventsPerStat/data.movingWindow)
+    nF = len(data.feature_keys_manual)
     # open temporal file for variations
     try:
         # create file
@@ -809,7 +735,7 @@ def get_normalization_stats(data, features, returns, hdf5_directory):
         # create group
         group_temp = ft.create_group('temp')
         # reserve memory space for variations and normalized variations
-        variations = group_temp.create_dataset("variations", (features.shape[0],data.nFeatures,nChannels), dtype=float)
+        variations = group_temp.create_dataset("variations", (features.shape[0],nF,nChannels), dtype=float)
         # init variations and normalized variations to 999 (impossible value)
         
         #variations[:] = variations[:]+999
@@ -820,8 +746,8 @@ def get_normalization_stats(data, features, returns, hdf5_directory):
             variations[r+1:,data.noVarFeats,r] = features[:-(r+1),data.noVarFeats]
         print("\t time for variations: "+str(time.time()-tic))
         # init stats    
-        means_in = np.zeros((nChannels,data.nFeatures))
-        stds_in = np.zeros((nChannels,data.nFeatures))
+        means_in = np.zeros((nChannels,nF))
+        stds_in = np.zeros((nChannels,nF))
         print("\t getting means and stds")
         # loop over channels
         for r in range(nChannels):
@@ -837,11 +763,11 @@ def get_normalization_stats(data, features, returns, hdf5_directory):
     except KeyboardInterrupt:
         ft.close()
         print("ERROR! Closing file and exiting.")
-        error()
+        raise KeyboardInterrupt
     ft.close()
     return [means_in, stds_in, means_out, stds_out]
 
-def load_features_results(data, thisAsset, separators, f_prep_IO, s):
+def load_returns(data, hdf5_directory, thisAsset, separators, s):
     """
     Function that extracts features, results and normalization stats from already saved
     structures.
@@ -858,9 +784,10 @@ def load_features_results(data, thisAsset, separators, f_prep_IO, s):
         - returns
         - ret_idx
     """
-
+    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+                        str(data.nEventsPerStat)+'_nF'+str(37)+'.hdf5')
+    f_prep_IO = h5py.File(filename_prep_IO,'r')
     # init structures
-    features = []
     returns = []
     ret_idx = []
     # number of events
@@ -882,17 +809,16 @@ def load_features_results(data, thisAsset, separators, f_prep_IO, s):
         if group_name not in f_prep_IO:
             # create group, its attributes and its datasets
             print("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
-            error()
+            raise ValueError
         else:
             # get group from file
             group = f_prep_IO[group_name]
         # get features, returns and stats if don't exist
         if group.attrs.get("means_in") is None:
             print("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
-            error()
+            raise ValueError
         else:
             # get data sets
-            features = group['features']
             returns = group['returns']
             ret_idx = group['ret_idx']
             if 'DT' in group:
@@ -901,19 +827,104 @@ def load_features_results(data, thisAsset, separators, f_prep_IO, s):
                 A = group['A']
     # end of if separators.index[s+1]-separators.index[s]>=2*data.nEventsPerStat:
     # save results in a dictionary
-    IO_prep = {}
-    IO_prep['features'] = features
-    IO_prep['returns'] = returns
-    IO_prep['ret_idx'] = ret_idx
+    returns_struct = {}
+    returns_struct['returns'] = returns
+    returns_struct['ret_idx'] = ret_idx
     if 'DT' in group:
-        IO_prep['DT'] = DT
-        #print(DT.shape)
-        #print(DT[0,0])
-        #print(DT[-1,-1])
-        IO_prep['B'] = B
-        IO_prep['A'] = A
+        returns_struct['DT'] = DT
+        returns_struct['B'] = B
+        returns_struct['A'] = A
+    return returns_struct
+
+def load_manual_features(data, thisAsset, separators, f_prep_IO, s):
+    """
+    Function that extracts features from previously saved structures.
+    Args:
+        - data:
+        - thisAsset
+        - separators
+        - f_prep_IO
+        - group
+        - hdf5_directory
+        - s
+    Returns:
+        - features
+    """
+
+    # init structures
+    features = []
+    # number of events
+    nE = separators.index[s+1]-separators.index[s]+1
+    # check if number of events is not enough to build two features and one return
+    if nE>=2*data.nEventsPerStat:
+#        print("\tSeparator batch {0:d} out of {1:d}".format(int(s/2),int(len(separators)/2-1)))
+#        print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
+        # get init and end dates of these separators
+        init_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        end_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        
+        # group name of separator s
+        group_name = thisAsset+'/'+init_date+end_date
+        
+        # create new gruop if not yet in file
+        if group_name not in f_prep_IO:
+            # create group, its attributes and its datasets
+            print("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
+            raise ValueError
+        else:
+            # get group from file
+            group = f_prep_IO[group_name]
+        # get features, returns and stats if don't exist
+        if group.attrs.get("means_in") is None:
+            print("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
+            raise ValueError
+        else:
+            # get data sets
+            features = group['features']
+            
+    # end of if separators.index[s+1]-separators.index[s]>=2*data.nEventsPerStat:
+    # save results in a dictionary
+#    features_struct = {}
+#    features_struct['features'] = features
     
-    return IO_prep
+    return features
+
+def load_tsf_features(data, thisAsset, separators, f_feats_tsf, s):
+    """ Load features from TSFRESH tool """
+    nE = separators.index[s+1]-separators.index[s]+1
+    # check if number of events is not enough to build two features and one return
+    if nE>=2*data.nEventsPerStat:
+        # get init and end dates of these separators
+        init_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        end_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        # group name of separator s
+        group_name_chunck = thisAsset+'/'+init_date+end_date
+        c = 0
+        # save features in HDF5 file
+        for f in data.feature_keys_manual:
+            group_name_feat = group_name_chunck+'/'+str(f)
+            params = data.AllFeatures[str(f)]
+            n_new_feats = params[-1]
+            #if group_name_feat in file_features_tsf:
+            #    del file_features_tsf[group_name_feat]
+            if group_name_feat not in f_feats_tsf:
+                print("Group should already exist. Run get_features_results_"+
+                      "stats_from_raw first to create it.")
+                raise ValueError
+            else: # load features from HDF5 file if they are saved already
+                params = data.AllFeatures[str(f)]
+                n_new_feats = params[-1]
+                group_chunck = f_feats_tsf[group_name_feat]
+                if c==0:
+                    features = np.zeros((group_chunck.shape[0], data.n_feats_tsfresh))
+                features[:,c:c+n_new_feats] = group_chunck["feature"]
+            c += n_new_feats
+        
+    return features
 
 def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, group_raw,
                                stats, hdf5_directory, s, save_stats):
@@ -978,7 +989,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
             # number of samples
             nExS = data.nEventsPerStat
             mW = data.movingWindow
-            
+            nF = len(data.feature_keys_manual)
             # number of features and number of returns
             m_in = int(np.floor((nE/nExS-1)*nExS/mW)+1)
             m_out = int(m_in-nExS/mW)#len(range(int(nExS/mW)*mW-1,m_in*mW-1,mW))
@@ -987,7 +998,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
             group.attrs.create("m_out", m_out, dtype=int)
             # create datasets
             try:
-                features = group.create_dataset("features", (m_in,data.nFeatures),dtype=float)
+                features = group.create_dataset("features", (m_in,nF),dtype=float)
                 returns = group.create_dataset("returns", (m_out,len(data.lookAheadVector)),dtype=float)
                 ret_idx = group.create_dataset("ret_idx", (m_out,len(data.lookAheadVector)+1),dtype=int)
                 DT = group.create_dataset("DT", (m_out,len(data.lookAheadVector)+1),dtype='S19')
@@ -1058,25 +1069,45 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
     
     return IO_prep, stats
 
-def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, thisAsset):
+def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct,
+             stats_manual,stats_tsf,stats_output,IO,totalSampsPerLevel, 
+             s, nE, thisAsset):
     """
     Function that builds X and Y from data contained in a HDF5 file.
     """
+    # total number of possible channels
+    nChannels = int(data.nEventsPerStat/data.movingWindow)
     # extract means and stats
-    means_in = stats['means_t_in']
-    stds_in = stats['stds_t_in']
-    stds_out = stats['stds_t_out']
+    if len(stats_manual)>0:
+        means_in_manual = stats_manual['means_t_in']
+        stds_in_manual = stats_manual['stds_t_in']
+    else:
+        means_in_manual = np.zeros((nChannels,0))
+        stds_in_manual = np.zeros((nChannels,0))
+        
+    if len(stats_tsf)>0:
+        means_in_tsf = stats_tsf['means_t_in']
+        stds_in_tsf = stats_tsf['stds_t_in']
+    else:
+        means_in_tsf = np.zeros((nChannels,0))
+        stds_in_tsf = np.zeros((nChannels,0))
+    
+    # concatenate features and stats
+    features = np.append(features_manual, features_tsf, 1)
+    stds_in = np.append(stds_in_manual, stds_in_tsf, 1)
+    means_in = np.append(means_in_manual, means_in_tsf, 1)
+    
+    stds_out = stats_output['stds_t_out']
     # extract features and returns
-    features = IO_prep['features']
-    returns = IO_prep['returns']
-    ret_idx = IO_prep['ret_idx']
+    returns = returns_struct['returns']
+    ret_idx = returns_struct['ret_idx']
     # add dateTimes, bids and asks if are included in file
     all_info = 0
     if 'D' in IO:
         all_info = 1
-        dts = IO_prep['DT']
-        bids = IO_prep['B']
-        asks = IO_prep['A']
+        dts = returns_struct['DT']
+        bids = returns_struct['B']
+        asks = returns_struct['A']
         
         D = IO['D']
         B = IO['B']
@@ -1087,8 +1118,6 @@ def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, 
     Y = IO['Y']
     I = IO['I']
     pointer = IO['pointer']
-    # total number of possible channels
-    nChannels = int(data.nEventsPerStat/data.movingWindow)
     # number of channels
     nC = len(data.channels)
     # sequence length
@@ -1105,35 +1134,25 @@ def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, 
     # init variations and normalized variations to 999 (impossible value)
     variations[:] = variations[:]+999
     variations_normed[:] = variations[:]
-    nonVarFeats = np.intersect1d(data.noVarFeats,data.features)
+    nonVarFeats = np.intersect1d(data.noVarFeats,data.feature_keys)
     #non-variation idx for variations normed
     nonVarIdx = np.zeros((len(nonVarFeats))).astype(int)
     nv = 0
     for allnv in range(nF):
-        if data.features[allnv] in nonVarFeats:
+        if data.feature_keys[allnv] in nonVarFeats:
             nonVarIdx[nv] = int(allnv)
             nv += 1
     # loop over channels
     for r in range(nC):
-#        print("r")
-#        print(r)
-#        print("variations[data.channels[r]+1:,:,r]")
-#        print(variations[data.channels[r]+1:,:,r])
-#        print("features[data.channels[r]+1:,data.features]")
-#        print(features[data.channels[r]+1:,data.features])
-#        print("features[:-(data.channels[r]+1),data.features]")
-#        print(features[:-(data.channels[r]+1),data.features])
-        variations[data.channels[r]+1:,:,r] = features[data.channels[r]+1:,data.features]-features[:-(data.channels[r]+1),data.features]
+        variations[data.channels[r]+1:,:,r] = (features[data.channels[r]+1:,
+                                               data.feature_keys]-features[
+                                                :-(data.channels[r]+1),
+                                                data.feature_keys])
         if nonVarFeats.shape[0]>0:
-#            print("variations.shape")
-#            print(variations.shape)
-#            print("variations[data.channels[r]+1:,nonVarIdx,data.channels[r]]")
-#            print(variations[data.channels[r]+1:,nonVarIdx,data.channels[r]])
-#            print("features[:-(data.channels[r]+1),nonVarFeats]")
-#            print(features[:-(data.channels[r]+1),nonVarFeats])
             variations[data.channels[r]+1:,nonVarIdx,r] = features[:-(data.channels[r]+1),nonVarFeats]
+            
         variations_normed[data.channels[r]+1:,:,r] = np.minimum(np.maximum((variations[data.channels[r]+1:,
-                          :,r]-means_in[r,data.features])/stds_in[r,data.features],-data.max_var),data.max_var)
+                          :,r]-means_in[r,data.feature_keys])/stds_in[r,data.feature_keys],-data.max_var),data.max_var)
     # remove the unaltered entries
     nonremoveEntries = range(nChannels,variations_normed.shape[0])#variations_normed[:,0,-1]!=999
     # create new variations 
@@ -1197,10 +1216,10 @@ def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, 
         # update counters
         offset = offset+batch
         # get decimal and binary outputs
-        Y_i, y_dec = build_bin_output(model, O_i, batch)
+        Y_i, y_dec = _build_bin_output(model, O_i, batch)
         # get samples per level
         for l in range(model.size_output_layer):
-            nSampsPerLevel[l] = nSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
+            totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
         # resize IO structures
         X.resize((pointer+batch, seq_len, model.nFeatures))
         Y.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
@@ -1235,7 +1254,7 @@ def build_IO(file_temp, data, model, IO_prep, stats, IO, nSampsPerLevel, s, nE, 
         IO['B'] = B
         IO['A'] = A
     
-    return IO, nSampsPerLevel
+    return IO, totalSampsPerLevel
 
 def load_separators(data, thisAsset, separators_directory, tOt='tr', from_txt=1):
     """
@@ -1249,7 +1268,7 @@ def load_separators(data, thisAsset, separators_directory, tOt='tr', from_txt=1)
         separators = pd.read_csv(separators_directory+separators_filename, index_col='Pointer')
     else:
         print("Depricated load separators from DB. Use text instead")
-        error()
+        raise ValueError
     return separators
 
 def build_DTA(data, D, B, A, ass_IO_ass):
@@ -1304,18 +1323,32 @@ def build_DTA(data, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
+def load_stats_output(data, hdf5_directory, thisAsset):
+    """
+    Load output stats
+    """
+    # TODO: pass output stats to their own container and load them from there
+    stats = pickle.load( open( hdf5_directory+'stats/'+thisAsset+'_stats_mW'+
+                                      str(data.movingWindow)+
+                                     '_nE'+str(data.nEventsPerStat)+
+                                     '_nF37'+'.p', 'rb' ))
+    stats_output = {'m_t_out':stats['m_t_out'],
+                    'stds_t_out':stats['stds_t_out']}
+    return stats_output
+    
 def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False, 
                hdf5_directory='', save_pickle=False):
     """
     Function that loads stats
     """
     nChannels = int(data.nEventsPerStat/data.movingWindow)
+    nF = len(data.feature_keys_manual)
     # init or load total stats
     stats = {}
     if save_stats:
         
-        stats["means_t_in"] = np.zeros((nChannels,data.nFeatures))
-        stats["stds_t_in"] = np.zeros((nChannels,data.nFeatures))
+        stats["means_t_in"] = np.zeros((nChannels,nF))
+        stats["stds_t_in"] = np.zeros((nChannels,nF))
         stats["means_t_out"] = np.zeros((1,len(data.lookAheadVector)))
         stats["stds_t_out"] = np.zeros((1,len(data.lookAheadVector)))
         stats["m_t_in"] = 0
@@ -1333,7 +1366,7 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False,
             stats = pickle.load( open( hdf5_directory+thisAsset+'_stats_mW'+
                                       str(data.movingWindow)+
                                      '_nE'+str(data.nEventsPerStat)+
-                                     '_nF'+str(data.nFeatures)+".p", "rb" ))
+                                     '_nF'+str(nF)+".p", "rb" ))
         except FileNotFoundError:
             print("WARNING FileNotFoundError: [Errno 2] No such file or directory."+
                   " Getting stats from HDF5 file")
@@ -1352,5 +1385,87 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False,
         pickle.dump( stats, open( hdf5_directory+thisAsset+'_stats_mW'+
                                  str(data.movingWindow)+
                                  '_nE'+str(data.nEventsPerStat)+
-                                 '_nF'+str(data.nFeatures)+".p", "wb" ))
+                                 '_nF'+str(nF)+".p", "wb" ))
     return stats
+
+def load_stats_manual(data, thisAsset, ass_group, from_stats_file=False, 
+               hdf5_directory='', save_pickle=False):
+    """
+    Function that loads stats
+    """
+    nF = len(data.feature_keys_manual)
+    # init or load total stats
+    stats = {}
+
+    if not from_stats_file:
+        stats["means_t_in"] = ass_group.attrs.get("means_t_in")
+        stats["stds_t_in"] = ass_group.attrs.get("stds_t_in")
+        stats["m_t_in"] = ass_group.attrs.get("m_t_in")
+    
+    elif from_stats_file:
+        try:
+            stats = pickle.load( open( hdf5_directory+thisAsset+'_stats_mW'+
+                                      str(data.movingWindow)+
+                                     '_nE'+str(data.nEventsPerStat)+
+                                     '_nF'+str(nF)+".p", "rb" ))
+        except FileNotFoundError:
+            print("WARNING FileNotFoundError: [Errno 2] No such file or directory."+
+                  " Getting stats from HDF5 file")
+            stats["means_t_in"] = ass_group.attrs.get("means_t_in")
+            stats["stds_t_in"] = ass_group.attrs.get("stds_t_in")
+            stats["m_t_in"] = ass_group.attrs.get("m_t_in")
+    else:
+        print("EROR: Not a possible combination of input parameters")
+        raise ValueError
+        
+    # save stats individually
+    if save_pickle:
+        pickle.dump( stats, open( hdf5_directory+thisAsset+'_stats_mW'+
+                                 str(data.movingWindow)+
+                                 '_nE'+str(data.nEventsPerStat)+
+                                 '_nF'+str(nF)+".p", "wb" ))
+    return stats
+
+def load_stats_tsf(data, thisAsset, root_directory):
+    """ Load stats (mean and std) from HDF5 file for TSFRESH features """
+    # TODO: to be tested
+    # init means and stds
+    window_size = data.nEventsPerStat
+    sprite_length = data.movingWindow
+    
+    nMaxChannels = int(window_size/sprite_length)
+    
+    means = np.zeros((nMaxChannels,data.n_feats_tsfresh))
+    stds = np.zeros((nMaxChannels,data.n_feats_tsfresh))
+    
+    stats_directory = root_directory+'stats/'
+    filename = (thisAsset+'_tsf_mW'+str(sprite_length)+
+                '_nE'+str(window_size)+'.hdf5')
+    # init hdf5 container
+    stats_file = h5py.File(stats_directory+filename,'a')
+    features_file = h5py.File(stats_directory+filename,'r')
+    # loop over features
+    c = 0
+    for f in data.feature_keys_tsfresh:
+        means_name = 'means_in'+str(f)
+        stds_name = 'means_in'+str(f)
+        n_new_feats = data.AllFeatures[str(f)][-1]
+        # check first in stats file
+        if means_name in stats_file[thisAsset]:
+            means[:,c:c+n_new_feats] = stats_file[thisAsset].attrs.get(means_name)
+            stds[:,c:c+n_new_feats] = stats_file[thisAsset].attrs.get(stds_name)
+        # if not, check in features file
+        elif means_name in features_file[thisAsset]:
+            means[:,c:c+n_new_feats] = features_file[thisAsset].attrs.get(means_name)
+            stds[:,c:c+n_new_feats] = features_file[thisAsset].attrs.get(stds_name)
+            # add stats to stats file
+            stats_file[thisAsset].attrs.create(means_name, means[:,c:c+n_new_feats], dtype=float)
+            stats_file[thisAsset].attrs.create(stds_name, stds[:,c:c+n_new_feats], dtype=float)
+        else: # error
+            print("EROR: Stats not found")
+            raise ValueError
+        c += n_new_feats
+    # add loaded stats to dictionary
+    stats_tsf = {'means_t_in':means,
+                 'stds_t_in':stds}
+    return stats_tsf

@@ -11,7 +11,15 @@ import numpy as np
 import os
 import tensorflow as tf
 from RNN import modelRNN
-from inputs import Data, load_separators, load_stats, load_features_results, build_IO
+from inputs import (Data, 
+                    load_separators, 
+                    build_IO, 
+                    load_stats_manual,
+                    load_stats_tsf,
+                    load_stats_output,
+                    load_returns,
+                    load_manual_features,
+                    load_tsf_features)
 from config import configuration
 
 
@@ -22,21 +30,29 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0280')
+        config = configuration('C0286T')
+    if 'feature_keys_tsfresh' not in config:
+        feature_keys_tsfresh = []
+    else:
+        feature_keys_tsfresh = config['feature_keys_tsfresh']
+    
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
               lB=config['lB'], 
               dateTest=config['dateTest'],
               assets=config['assets'],
               channels=config['channels'],
-              max_var=config['max_var'])
+              max_var=config['max_var'],
+              feature_keys_tsfresh=feature_keys_tsfresh)
     # init structures
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
     # init hdf5 files
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+                        str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
+    filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
+                             '_nE'+str(data.nEventsPerStat)+'_nF'+'.hdf5')
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     
@@ -49,8 +65,15 @@ def train_RNN(*ins):
         # lock HDF5 file from access
         fh = open(filename_prep_IO+'.flag',"w")
         fh.close()
+    if data.n_feats_manual>0:
+        f_prep_IO = h5py.File(filename_prep_IO,'r')
+    else:
+        f_prep_IO = None
+    if data.n_feats_tsfresh>0:
+        f_feats_tsf = h5py.File(filename_features_tsf,'r')
+    else:
+        f_feats_tsf = None
         
-    f_prep_IO = h5py.File(filename_prep_IO,'r')
     if os.path.exists(filename_IO) and len(ins)>0:
         if_build_IO = False
     else:
@@ -114,13 +137,23 @@ def train_RNN(*ins):
                                      tOt='tr', 
                                      from_txt=1)
         # retrive asset group
-        ass_group = f_prep_IO[thisAsset]
-        stats = load_stats(data, 
-                           thisAsset, 
-                           ass_group, 
-                           0, 
-                           from_stats_file=True, 
-                           hdf5_directory=hdf5_directory+'stats/')
+        if f_prep_IO != None:
+            ass_group = f_prep_IO[thisAsset]
+            stats_manual = load_stats_manual(data, 
+                               thisAsset, 
+                               ass_group,
+                               from_stats_file=True, 
+                               hdf5_directory=hdf5_directory+'stats/')
+        else:
+            stats_manual = []
+        
+        stats_output = load_stats_output(data, hdf5_directory, thisAsset)
+        
+        if f_feats_tsf != None:
+            stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory)
+        else:
+            stats_tsf = []
+            
         if if_build_IO:
             print(str(ass)+". "+thisAsset)
             # loop over separators
@@ -132,9 +165,28 @@ def train_RNN(*ins):
                     print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
                           ". From "+separators.DateTime.iloc[s]+" to "+
                           separators.DateTime.iloc[s+1])
-                    #print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
-                    # calculate features, returns and stats from raw data
-                    IO_prep = load_features_results(data, thisAsset, separators, f_prep_IO, s)
+                    # load features, returns and stats from HDF files
+                    if f_prep_IO != None: 
+                        features_manual = load_manual_features(data, 
+                                                               thisAsset, 
+                                                               separators, 
+                                                               f_prep_IO, 
+                                                               s)
+                    else:
+                        features_manual = None
+                    
+                    if f_feats_tsf != None:
+                        features_tsf = load_tsf_features(data, thisAsset, separators, f_feats_tsf, s)
+                    else:
+                        features_tsf = None
+                    # redefine features tsf or features manual in case they are
+                    # None to fit to the concatenation
+                    if features_tsf==None:
+                        features_tsf = np.zeros((features_manual.shape[0],0))
+                    if features_manual==None:
+                        features_manual = np.zeros((features_tsf.shape[0],0))
+                    # load returns
+                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
                     # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
@@ -149,8 +201,12 @@ def train_RNN(*ins):
                             IO, totalSampsPerLevel = build_IO(file_temp, 
                                                                   data, 
                                                                   model, 
-                                                                  IO_prep, 
-                                                                  stats, 
+                                                                  features_manual,
+                                                                  features_tsf,
+                                                                  returns_struct,
+                                                                  stats_manual,
+                                                                  stats_tsf,
+                                                                  stats_output,
                                                                   IO, 
                                                                   totalSampsPerLevel, 
                                                                   s, nE, thisAsset)
@@ -163,7 +219,7 @@ def train_RNN(*ins):
                             f_IO.close()
                             file_temp.close()
                             os.remove(file_temp_name)
-                            end()
+                            raise KeyboardInterrupt
                     else:
                         print("\tNot in the set. Skipped.")
                         # end of if (tOt=='train' and day_s not in data.dateTest) ...
@@ -182,7 +238,7 @@ def train_RNN(*ins):
         ass_idx += 1
         
         # update total number of samples
-        m += stats["m_t_out"]
+        m += stats_manual["m_t_out"]
         # flush content file
         f_prep_IO.flush()
         

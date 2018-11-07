@@ -12,7 +12,16 @@ import h5py
 import pickle
 import os
 from RNN import modelRNN
-from inputs import Data, load_separators, load_stats, load_features_results, build_DTA, build_IO
+from inputs import (Data, 
+                    load_separators, 
+                    build_DTA, 
+                    build_IO,
+                    load_stats_manual,
+                    load_stats_output,
+                    load_stats_tsf,
+                    load_manual_features,
+                    load_tsf_features,
+                    load_returns)
 from config import configuration
 
 
@@ -25,8 +34,12 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0286')
-
+        config = configuration('C0285')
+    if 'feature_keys_tsfresh' not in config:
+        feature_keys_tsfresh = []
+    else:
+        feature_keys_tsfresh = config['feature_keys_tsfresh']
+    
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -34,7 +47,8 @@ def test_RNN(*ins):
                   dateTest=config['dateTest'],
                   assets=config['assets'],
                   channels=config['channels'],
-                  max_var=config['max_var'])
+                  max_var=config['max_var'],
+                  feature_keys_tsfresh=feature_keys_tsfresh)
     
     #if_build_IO = config['if_build_IO']
     startFrom = config['startFrom']
@@ -43,15 +57,21 @@ def test_RNN(*ins):
     
     IDweights = config['IDweights']
     IDresults = config['IDresults']
+    if 'IO_results_name' not in config:
+        IO_results_name = IDresults
+    else:
+        IO_results_name = config['IO_results_name']
+    #IO_results_name = config['IO_results_name']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
     
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+
                         '.hdf5')
-    
+    filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
+                             '_nE'+str(data.nEventsPerStat)+'.hdf5')
     separators_directory = hdf5_directory+'separators/'
-    filename_IO = IO_directory+'IO_'+IDresults+'.hdf5'
+    filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
     # check if file locked
     if len(ins)>0:
         # wait while files are locked
@@ -63,7 +83,14 @@ def test_RNN(*ins):
         fh = open(filename_prep_IO+'.flag',"w")
         fh.close()
     # init hdf5 files
-    f_prep_IO = h5py.File(filename_prep_IO,'r')
+    if data.n_feats_manual>0:
+        f_prep_IO = h5py.File(filename_prep_IO,'r')
+    else:
+        f_prep_IO = None
+    if data.n_feats_tsfresh>0:
+        f_feats_tsf = h5py.File(filename_features_tsf,'r')
+    else:
+        f_feats_tsf = None
     if os.path.exists(filename_IO) and len(ins)>0:
         if_build_IO = False
     else:
@@ -128,14 +155,24 @@ def test_RNN(*ins):
                                      tOt='te', from_txt=1)
         # retrive asset group
         ass_group = f_prep_IO[thisAsset]
-        # load stats
-        stats = load_stats(data, 
-                           thisAsset, 
-                           ass_group, 
-                           0, 
-                           from_stats_file=True, 
-                           hdf5_directory=hdf5_directory+'stats/',
-                           save_pickle=False)
+        # retrive asset group
+        if f_prep_IO != None:
+            ass_group = f_prep_IO[thisAsset]
+            stats_manual = load_stats_manual(data, 
+                               thisAsset, 
+                               ass_group,
+                               from_stats_file=True, 
+                               hdf5_directory=hdf5_directory+'stats/')
+        else:
+            stats_manual = []
+        
+        stats_output = load_stats_output(data, hdf5_directory, thisAsset)
+        
+        if f_feats_tsf != None:
+            stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory)
+        else:
+            stats_tsf = []
+            
         if if_build_IO:
             print(str(ass)+". "+thisAsset)
             # loop over separators
@@ -149,9 +186,28 @@ def test_RNN(*ins):
                           int(len(separators)/2-1))+
                           ". From "+separators.DateTime.iloc[s]+
                           " to "+separators.DateTime.iloc[s+1])
-                    # load features, returns and stats from file
-                    IO_prep = load_features_results(data, thisAsset, separators,
-                                                    f_prep_IO, s)
+                    # load features, returns and stats from HDF files
+                    if f_prep_IO != None: 
+                        features_manual = load_manual_features(data, 
+                                                               thisAsset, 
+                                                               separators, 
+                                                               f_prep_IO, 
+                                                               s)
+                    else:
+                        features_manual = None
+                    
+                    if f_feats_tsf != None:
+                        features_tsf = load_tsf_features(data, thisAsset, separators, f_feats_tsf, s)
+                    else:
+                        features_tsf = None
+                    # redefine features tsf or features manual in case they are
+                    # None to fit to the concatenation
+                    if features_tsf==None:
+                        features_tsf = np.zeros((features_manual.shape[0],0))
+                    if features_manual==None:
+                        features_manual = np.zeros((features_tsf.shape[0],0))
+                        
+                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
                     # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
@@ -166,11 +222,18 @@ def test_RNN(*ins):
                                                   str(np.random.randint(10000))+
                                                   '.hdf5')
                             file_temp = h5py.File(file_temp_name,'w')
-                            IO, totalSampsPerLevel = build_IO(file_temp, data, 
-                                                              model, IO_prep, 
-                                                              stats,IO, 
-                                                              totalSampsPerLevel, 
-                                                              s, nE, thisAsset)
+                            IO, totalSampsPerLevel = build_IO(file_temp, 
+                                                                  data, 
+                                                                  model, 
+                                                                  features_manual,
+                                                                  features_tsf,
+                                                                  returns_struct,
+                                                                  stats_manual,
+                                                                  stats_tsf,
+                                                                  stats_output,
+                                                                  IO, 
+                                                                  totalSampsPerLevel, 
+                                                                  s, nE, thisAsset)
                             # close temp file
                             file_temp.close()
                             os.remove(file_temp_name)
@@ -181,7 +244,7 @@ def test_RNN(*ins):
                             f_IO.close()
                             file_temp.close()
                             os.remove(file_temp_name)
-                            end()
+                            raise KeyboardInterrupt
                         
                     else:
                         print("\tNot in the set. Skipped.")
@@ -217,12 +280,12 @@ def test_RNN(*ins):
     if if_build_IO:
         print("Building DTA...")
         DTA = build_DTA(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
-        pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IDresults+".p", "wb" ))
+        pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IO_results_name+".p", "wb" ))
         f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
         f_IO.close()
     else:
         # get ass_IO_ass from disk
-        DTA = pickle.load( open( "../RNN/IO/DTA"+"_"+IDresults+".p", "rb" ))
+        DTA = pickle.load( open( "../RNN/IO/DTA"+"_"+IO_results_name+".p", "rb" ))
         f_IO = h5py.File(filename_IO,'r')
         ass_IO_ass = f_IO.attrs.get("ass_IO_ass")
         f_IO.close()
@@ -240,7 +303,7 @@ def test_RNN(*ins):
         print("IDresults: "+IDresults)
         model.test(sess, data, IDresults, IDweights, 
                    int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
-                   IDIO=IDresults, data_format='hdf5', DTA=DTA, 
+                   IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                    save_journal=save_journal, endAt=endAt)
         
 if __name__=='__main__':

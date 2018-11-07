@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0277T'
+        config_name = 'C0286T'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -51,22 +51,24 @@ def configuration(*ins):
                 '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
         movingWindow = 100
         nEventsPerStat = 1000
-        lB = int(nEventsPerStat+movingWindow*2)
+        lB = int(nEventsPerStat+movingWindow*3)
         assets = [1]
         channels = [0]
         max_var = 10
+        feature_keys_tsfresh = [i for i in range(37,68)]
         
         # general parameters
         if_build_IO = True
-        IDweights = '000266'
+        IDweights = '000286'
+        IO_results_name = IDweights
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
         # model parameters
-        size_hidden_layer=100
+        size_hidden_layer=200
         L=3
         size_output_layer=5
-        keep_prob_dropout=1
+        keep_prob_dropout=.9
         miniBatchSize=32
         outputGain=.6
         commonY=3
@@ -74,9 +76,9 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100277fNSRsT'
-        startFrom = 11
-        endAt = -1
+        IDresults = '100286T'
+        startFrom = 6
+        endAt = 6
         save_journal = False
         
         # feature-specific configuration
@@ -93,6 +95,7 @@ def configuration(*ins):
                'assets':assets,
                'channels':channels,
                'max_var':max_var,
+               'feature_keys_tsfresh':feature_keys_tsfresh,
                
                'size_hidden_layer':size_hidden_layer,
                'L':L,
@@ -106,6 +109,7 @@ def configuration(*ins):
                
                'if_build_IO':if_build_IO,
                'IDweights':IDweights,
+               'IO_results_name':IO_results_name,
                'hdf5_directory':hdf5_directory,
                'IO_directory':IO_directory,
                
@@ -122,17 +126,15 @@ def configuration(*ins):
             pickle.dump( config, open( config_filename, "wb" ))
             print("Config file "+config_filename+" saved")
         else:
-            print("ERROR config file "+config_name+" already exists. "+
+            raise OSError("ERROR config file "+config_name+" already exists. "+
                   "Pass name as an arg if you want to load it")
-            error()
     else:
         config_filename = config_directory+ins[0]+".config"
         if os.path.exists(config_filename):
             config = pickle.load( open( config_filename, "rb" ))
             print("Config file "+ins[0]+" loaded from disk")
         else:
-            print("ERROR config file "+ins[0]+" does not exist")
-            error()
+            raise OSError("ERROR config file "+ins[0]+" does not exist")
         
     return config
 
@@ -175,5 +177,5 @@ def modify_config(config_name,key,value):
     
         
 if __name__=='__main__':
-    #configuration()
-    pass
+    configuration()
+    #pass

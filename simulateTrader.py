@@ -203,12 +203,29 @@ class Strategy():
         # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
         #int((model.size_output_layer-1)/2))
         if self.use_GRE:
+            weights = np.array([.5,.5])
             allGREs = pickle.load( open( self.dir_origin+self.IDgre+
                                         "/GRE_e"+self.epoch+".p", "rb" ))
-            self.GRE = allGREs[self.t_index, :, :, :]/self.pip
+            GRE = allGREs[self.t_index, :, :, :]/self.pip
             print("GRE level 1:")
-            print(self.GRE[:,:,0])
+            print(GRE[:,:,0])
             print("GRE level 2:")
+            print(GRE[:,:,1])
+            if os.path.exists(self.dir_origin+self.IDgre+"/GREex_e"+self.epoch+".p"):
+                allGREs = pickle.load( open( self.dir_origin+self.IDgre+
+                                            "/GREex_e"+self.epoch+".p", "rb" ))
+                GREex = allGREs[self.t_index, :, :, :]/self.pip
+                print("GREex level 1:")
+                print(GREex[:,:,0])
+                print("GREex level 2:")
+                print(GREex[:,:,1])
+            else: 
+                GREex = 1-weights[0]*GRE
+            
+            self.GRE = weights[0]*GRE+weights[1]*GREex
+            print("GRE combined level 1:")
+            print(self.GRE[:,:,0])
+            print("GRE combined level 2:")
             print(self.GRE[:,:,1])
         else:
             self.GRE = None
@@ -887,17 +904,17 @@ if __name__ == '__main__':
 #    list_name = ['69','66']
 #    list_IDresults = ['100269','100266']
     
-    list_IDresults = ['100286']
-    list_IDgre = ['100286']
-    list_name = ['77']
-    list_epoch_gre = [6]
-    list_epoch_journal = [6]
-    list_use_GRE = [False]
-    list_t_index = [3]
-    list_lb_mc_op = [0.5]
-    list_lb_md_op = [0.8]
-    list_lb_mc_ext = [0.5]
-    list_lb_md_ext = [0.6]
+    list_IDresults = ['100285']#'100277fNSRs'
+    list_IDgre = ['100285']
+    list_name = ['85']
+    list_epoch_gre = [16]
+    list_epoch_journal = [16]
+    list_use_GRE = [True]
+    list_t_index = [4]
+    list_lb_mc_op = [.5]
+    list_lb_md_op = [.8]
+    list_lb_mc_ext = [.5]
+    list_lb_md_ext = [.6]
     list_ub_mc_op = [1]
     list_ub_md_op = [1]
     list_ub_mc_ext = [1]
@@ -1494,3 +1511,25 @@ if __name__ == '__main__':
 #Total GROI = 4.786% Total ROI = 3.307% Sum GROI = 4.843% Sum ROI = 3.334% Accumulated earnings 333.39E
 #Total entries 172 per entries 1.50 percent gross success 58.72% percent nett success 56.40% average loss 6.74p average win 8.64p RR 1 to 1.66
 #DONE. Total time: 36.09 mins
+
+# GREex fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27    
+#Total GROI = 16.249% Total ROI = 6.847% Sum GROI = 16.836% Sum ROI = 7.032% Accumulated earnings 703.17E
+#Total entries 726 per entries 6.33 percent gross success 61.85% percent nett success 54.13% average loss 7.00p average win 7.72p RR 1 to 1.30
+#DONE. Total time: 37.07 mins
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27     
+#Total GROI = 11.014% Total ROI = 6.789% Sum GROI = 11.361% Sum ROI = 6.954% Accumulated earnings 695.43E
+#Total entries 376 per entries 3.28 percent gross success 63.03% percent nett success 59.84% average loss 8.15p average win 8.56p RR 1 to 1.56
+#DONE. Total time: 40.00 mins
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 13 t_index 3 IDr 100277 from 2018.3.9 to .9.27 new AD_resune
+#Total GROI = 12.966% Total ROI = 6.641% Sum GROI = 13.341% Sum ROI = 6.786% Accumulated earnings 678.56E
+#Total entries 465 per entries 5.01 percent gross success 61.29% percent nett success 52.90% average loss 6.25p average win 8.32p RR 1 to 1.50
+#DONE. Total time: 32.67 mins
+
+# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 13/6 t_index 3 IDr 100277 100286 from 2018.3.9 to .9.27 new AD_resune
+#Total GROI = 13.414% Total ROI = 6.131% Sum GROI = 13.782% Sum ROI = 6.233% Accumulated earnings 623.29E
+#Total entries 568 per entries 2.74 percent gross success 62.68% percent nett success 54.58% average loss 7.47p average win 8.23p RR 1 to 1.32
+#DONE. Total time: 53.02 mins
+    
+# ULTIMATELY!!!!!!!!!!!!!!!!!!!

@@ -286,7 +286,8 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         eROIpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2),2))
         NZpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2))).astype(int)
         GRE = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
-        GRE_new = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
+        GREav = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
+        GREex = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
         # generate map of idx to threholds
         map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
         idx = 0
@@ -622,13 +623,13 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         #                            AD_resume[0,thr_idx] = 2/3*AccDir+1/3*AccDirA
                                     #print(thr_idx)
                                     #if t<model.seq_len:
-                                    AD_resumes[t,map_idx2thr[thr_idx],0] = 2/3*AccDir+1/3*AccDirA
+                                    AD_resumes[t,map_idx2thr[thr_idx],0] = 2/3*AccDir+1/3*AccDirA#max(1.7/3*(AccDir-.5)+1.3/3*(AccDirA-.33), 0)#
                                     thr_idx += 1
                                 else:
                                     print("eROIpp for mc between "+
                                           str(round(thr_mc*10)/10)+
                                           "-"+str(round(ub_mc*10)/10)+
-                                          " and "+str(round(thr_md*10)/10)+"-"
+                                          " and md "+str(round(thr_md*10)/10)+"-"
                                           +str(round(ub_md*10)/10))
 #                                    print(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde])==0))
                                     for b in range(int((model.size_output_layer-1)/2)):
@@ -642,8 +643,12 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                         print("Nonzero entries = "+str(NZpp[t,i_t_mc,i_t_md, b]))
                                         # GRE new
                                         if rSampsXlevel[b,1]>0:
-                                            GRE_new[t,i_t_mc,i_t_md, b] = rROIxLevel[b,0]/(100*rSampsXlevel[b,1])
-                                        print("GRE new level "+str(b)+": "+str(GRE_new[t,i_t_mc,i_t_md, b]/0.0001)+" pips")
+                                            GREav[t,i_t_mc,i_t_md, b] = rROIxLevel[b,0]/(100*rSampsXlevel[b,1])
+                                        print("GRE av level "+str(b)+": "+str(GREav[t,i_t_mc,i_t_md, b]/0.0001)+" pips")
+                                        print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
+                                        if rSampsXlevel[b,1]>0:
+                                            GREex[t,i_t_mc,i_t_md, b] = eROIpp[t,i_t_mc,i_t_md, b, 1]/rSampsXlevel[b,1]
+                                        print("GRE ex level "+str(b)+": "+str(GREex[t,i_t_mc,i_t_md, b]/0.0001)+" pips")
                                         print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
                                         # weighted GRE
 #                                        rROIxLevelxExt, rSampsXlevelXExt
@@ -703,14 +708,20 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
             pickle.dump( NZpp, open( resultsDir+IDresults+"/NZpp_e"+str(epoch)+".p", "wb" ))
             pickle.dump( eROIpp, open( resultsDir+IDresults+"/eROIpp_e"+str(epoch)+".p", "wb" ))
             pickle.dump( GRE, open( resultsDir+IDresults+"/GRE_e"+str(epoch)+".p", "wb" ))
+            pickle.dump( GREav, open( resultsDir+IDresults+"/GREav_e"+str(epoch)+".p", "wb" ))
+            pickle.dump( GREex, open( resultsDir+IDresults+"/GREex_e"+str(epoch)+".p", "wb" ))
             print("GRE:")
             for b in range(int((model.size_output_layer-1)/2)):
                 print("Level "+str(b))
-                print(GRE[:,:,:,b]//0.0001)
-            print("GRE new:")
+                print(GRE[:,:,:,b]/0.0001)
+            print("GRE av:")
             for b in range(int((model.size_output_layer-1)/2)):
                 print("Level "+str(b))
-                print(GRE_new[:,:,:,b]//0.0001)
+                print(GREav[:,:,:,b]/0.0001)
+            print("GRE ex:")
+            for b in range(int((model.size_output_layer-1)/2)):
+                print("Level "+str(b))
+                print(GREex[:,:,:,b]/0.0001)
         # add best ROI to best results table
         BR_GROI = pd.DataFrame(best_GROI_profile,index=[0]).set_index("epoch")
         print(BR_GROI.to_string())
@@ -818,6 +829,7 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
                         'Message':Journal['Asset'].iloc[0]+" open" },
                         ignore_index=True)
     
+    e = 0
     for e in range(1,Journal.shape[0]):
 
         oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")

@@ -11,6 +11,7 @@ import h5py
 import os
 import pickle
 import pandas as pd
+import datetime as dt
 from scipy.stats import linregress
 from scipy.signal import cwt, find_peaks_cwt, ricker, welch
 from inputs import Data, load_separators, get_features_results_stats_from_raw
@@ -208,10 +209,13 @@ def get_features_tsfresh():
     """
     # config stuff
     hdf5_directory = 'D:/SDC/py/HDF5/'
+    save_stats = True
     # init stuff
     filename_raw = hdf5_directory+'tradeinfo.hdf5'
     separators_directory = hdf5_directory+'separators/'
+    
     f_raw = h5py.File(filename_raw,'r')
+    
     data=Data(movingWindow=100,
               nEventsPerStat=1000,
               dateTest = [                                          '2018.03.09',
@@ -242,57 +246,189 @@ def get_features_tsfresh():
                 '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
                 '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
                 '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
-    batch_size = 100
+    filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'.hdf5')
+    batch_size = 50000
     window_size = data.nEventsPerStat
     sprite_length = data.movingWindow
+    nMaxChannels = int(window_size/sprite_length)
+    features_tsfresh = data.feature_keys_manual
+    n_feats_tsfresh = data.n_feats_tsfresh
+    file_features_tsf = h5py.File(filename_features_tsf,'a')
+    tic_t = time.time()
     # run over assets
-    for ass in data.assets[:1]:
-        # load separators
+    for ass in data.assets:
+        tic_ass = time.time()
+        # retrieve this asset's name
         thisAsset = data.AllAssets[str(ass)]
+        print(str(ass)+". "+thisAsset)
         # load separators
         separators = load_separators(data, thisAsset, 
                                      separators_directory, 
                                      from_txt=1)
         # get raw data
         SymbolBid = f_raw[thisAsset]["SymbolBid"]
+        # init normalization stats
+        stats = {"means_t_in":np.zeros((nMaxChannels,n_feats_tsfresh)),
+                "stds_t_in":np.zeros((nMaxChannels,n_feats_tsfresh)),
+                "m_t_in":0}
         # run over separators
-        for s in range(0,len(separators)-1,2):
+        for s in range(0,len(separators)-1,2):#
+            tic = time.time()
+            print("\t chuck {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+                      ". From "+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
+            
             # number of events in this chunck
             n_events = separators.index[s+1]-separators.index[s]+1
             if n_events>=2*window_size:
+                print("\t Getting features from raw data...")
+                tic = time.time()
+                tic_chunck = tic
+                # init and end dates in string format
+                init_date = dt.datetime.strftime(dt.datetime.strptime(
+                        separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                end_date = dt.datetime.strftime(dt.datetime.strptime(
+                        separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                # hdf5 group name
+                group_name_chunck = thisAsset+'/'+init_date+end_date
+                # create or retrieve group
+                # create new gruop if not yet in file
                 # bids in this chunck
                 events = SymbolBid[separators.index[s]:separators.index[s+1]+1]
                 # number of samples
-
                 m = int(np.floor((n_events/window_size-1)*window_size/sprite_length)+1)
                 # group ts in m chunks
                 # number of batches
                 batches = int(np.ceil(m/batch_size))
                 l_index = 0
-
+                m_counter = 0
+                features = np.zeros((m,n_feats_tsfresh))
                 # loop over batched
                 for b in range(batches):
+                    print("\t batch "+str(b)+" out of "+str(batches-1))
                     # get batch size
                     m_i = np.min([batch_size, m-b*batch_size])
+                    #print("Batch "+str(b)+" out of "+str(batches-1)+", m_i="+str(m_i))
                     # init and end of event index
                     i_event = l_index
                     e_event = i_event+(m_i-1)*sprite_length+window_size
-                    # init and position of the batch
-                    i_batch = b*batch_size*window_size
-                    e_batch = (b*batch_size+m_i)*window_size
-                    #print(range(i_range,e_range))
-#                    print("Batch "+str(b)+" out of "+str(batches-1))
-#                    print("i_event "+str(i_event))
-#                    print("e_event "+str(e_event))
                     # serial input
                     x_ser = events[i_event:e_event]
-                    # paralelize x_ser
-                    #x_par 
+                    #print("x_ser length="+str(x_ser.shape[0]))
+                    # loop over this batch samples
+                    for mm in range(m_i):
+                        # get sample indexes
+                        i_sample = mm*sprite_length
+                        e_sample = i_sample+window_size
+                        #print("i_sample="+str(i_sample)+" e_sample="+str(e_sample))
+                        x = x_ser[i_sample:e_sample]
+                        c = 0
+                        # extract features
+                        for f in features_tsfresh:
+                            group_name_feat = group_name_chunck+'/'+str(f)
+                            if group_name_feat not in file_features_tsf:
+                                params = data.AllFeatures[str(f)]
+                                new_feats = feval(params[0],x,params[1:])
+                                n_new_feats = params[-1]
+                                features[m_counter,c:c+n_new_feats] = new_feats                                
+                                c += n_new_feats
+                        #assert(c==n_feats_tsfresh)
+                        m_counter += 1
                     # serial loop
                     l_index = e_event-window_size+sprite_length
-                    #print("\r"+DateTime+" "+thisAsset, sep=' ', end='', flush=True)
-                print("\r"+"Batch "+str(b)+" out of "+str(batches-1), sep=' ', end='\n', flush=True)
-    # extract features
+                # end of for b in range(batches):
+                print("\t time for feature extraction: "+str(time.time()-tic))
+                #print("\r"+"e_event="+str(e_event)+" events="+str(events.shape[0]))#, sep=' ', end='\n', flush=True
+                
+                c = 0
+                # save features in HDF5 file
+                for f in features_tsfresh:
+                    group_name_feat = group_name_chunck+'/'+str(f)
+                    params = data.AllFeatures[str(f)]
+                    n_new_feats = params[-1]
+                    #if group_name_feat in file_features_tsf:
+                    #    del file_features_tsf[group_name_feat]
+                    if group_name_feat not in file_features_tsf:
+                        group_chunck = file_features_tsf.create_group(group_name_feat)
+                        group_features = group_chunck.create_dataset("feature", (m,n_new_feats),dtype=float)
+                        group_features[:,:] = features[:,c:c+n_new_feats]
+                    else: # load features from HDF5 file if they are saved already
+                        params = data.AllFeatures[str(f)]
+                        n_new_feats = params[-1]
+                        group_chunck = file_features_tsf[group_name_feat]
+                        features[:,c:c+n_new_feats] = group_chunck["feature"]
+                    c += n_new_feats
+                # end of for f in features_tsfresh:
+                # Calculate normalization stats
+                tic = time.time()
+                # open temporal file for variations
+                try:
+                    # create file
+                    ft = h5py.File(hdf5_directory+'temp.hdf5','w')
+                    # create group
+                    group_temp = ft.create_group('temp')
+                    # reserve memory space for variations and normalized variations
+                    variations = group_temp.create_dataset("variations", (features.shape[0],features.shape[1],nMaxChannels), 
+                                                           dtype=float)
+                    print("\t getting variations")
+                    # loop over channels
+                    for r in range(nMaxChannels):
+                        variations[r+1:,:,r] = features[:-(r+1),:]
+                    print("\t time for variations: "+str(time.time()-tic))
+                    # init stats    
+                    means_in = np.zeros((nMaxChannels,features.shape[1]))
+                    stds_in = np.zeros((nMaxChannels,features.shape[1]))
+                    print("\t getting means and stds")
+                    # loop over channels
+                    for r in range(nMaxChannels):
+                        #nonZeros = variations[:,0,r]!=999
+                        #print(np.sum(nonZeros))
+                        means_in[r,:] = np.mean(variations[nMaxChannels:,:,r],axis=0,keepdims=1)
+                        stds_in[r,:] = np.std(variations[nMaxChannels:,:,r],axis=0,keepdims=1)  
+                    print("\t time for stats: "+str(time.time()-tic))
+                except KeyboardInterrupt:
+                    ft.close()
+                    print("KeyboardInterrupt! Closing file and exiting.")
+                    raise KeyboardInterrupt
+                ft.close()
+                # end of normalization stats
+                # save normalization stats
+                for f in features_tsfresh:
+                    group_name_feat = group_name_chunck+'/'+str(f)
+                    n_new_feats = data.AllFeatures[str(f)][-1]
+                    group_feature = file_features_tsf[group_name_feat]
+                    # save means and variances as atributes
+                    group_feature.attrs.create("means_in", means_in[:,c:c+n_new_feats], dtype=float)
+                    group_feature.attrs.create("stds_in", stds_in[:,c:c+n_new_feats], dtype=float)
+                    c += n_new_feats
+                # update total stats
+                stats["means_t_in"] += m*means_in
+                stats["stds_t_in"] += m*stds_in
+                stats["m_t_in"] += m
+                means_in
+                print("\t this chunck time: "+str(np.floor(time.time()-tic_chunck))+"s")
+            else:
+                print("\t chunck {0:d} of {1:d}. Not enough entries. Skipped.".format(int(s/2),int(len(separators)/2-1)))
+            # end of if n_events>=2*window_size:
+        # end of for s in range(0,len(separators)-1,2):
+        means_t_in = stats["means_t_in"]/stats["m_t_in"]
+        stds_t_in = stats["stds_t_in"]/stats["m_t_in"]
+        if save_stats:
+            for f in features_tsfresh:
+                    group_name_feat = thisAsset
+                    n_new_feats = data.AllFeatures[str(f)][-1]
+                    group_feature = file_features_tsf[group_name_feat]
+                    # save means and variances as atributes
+                    group_feature.attrs.create("means_in"+str(f), means_t_in[:,c:c+n_new_feats], dtype=float)
+                    group_feature.attrs.create("stds_in"+str(f), stds_t_in[:,c:c+n_new_feats], dtype=float)
+                    c += n_new_feats
+    print("\t this asset time: "+str(np.floor(time.time()-tic_ass)/60)+" minutes")
+    # end of for ass in data.assets:
+    file_features_tsf.close()
+    print("DONE. Total time: "+str(np.floor(time.time()-tic_t)/60)+" minutes")
+    
+def feval(funcName, *args):
+    return eval(funcName)(*args)
 
 def complex_agg(x, agg):
     if agg == "real":
@@ -320,7 +456,21 @@ def _aggregate_on_chunks(x, f_agg, chunk_len):
     """
     return [getattr(x[i * chunk_len: (i + 1) * chunk_len], f_agg)() for i in range(int(np.ceil(len(x) / chunk_len)))]    
 
-def fft_coefficient(x, coeff, attr):
+def quantile(x, param):
+    """
+    Calculates the q quantile of x. This is the value of x greater than q% of the ordered values from x.
+
+    :param x: the time series to calculate the feature of
+    :type x: pandas.Series
+    :param q: the quantile to calculate
+    :type q: float
+    :return: the value of this feature
+    :return type: float
+    """
+    #x = pd.Series(x)
+    return np.percentile(x, 100*param[0])
+
+def fft_coefficient(x, param):
     """
     Calculates the fourier coefficients of the one-dimensional discrete Fourier Transform for real input by fast
     fourier transformation algorithm
@@ -342,11 +492,10 @@ def fft_coefficient(x, coeff, attr):
     """
 
     fft = np.fft.rfft(x)
-
-    res = complex_agg(fft[coeff], attr)
+    res = complex_agg(fft[param[0]], param[1])
     return res
 
-def linear_trend(x, attr):
+def linear_trend(x, param):
     """
     Calculate a linear least-squares regression for the values of the time series versus the sequence from 0 to
     length of the time series minus one.
@@ -364,12 +513,12 @@ def linear_trend(x, attr):
     :return type: pandas.Series
     """
     # todo: we could use the index of the DataFrame here
-
+    attr = param[0]
     linReg = linregress(range(len(x)), x)
 
     return getattr(linReg, attr)
 
-def agg_linear_trend(x, chunk_len, f_agg, attr):
+def agg_linear_trend(x, param):
     """
     Calculates a linear least-squares regression for values of the time series that were aggregated over chunks versus
     the sequence from 0 up to the number of chunks minus one.
@@ -391,9 +540,11 @@ def agg_linear_trend(x, chunk_len, f_agg, attr):
     :return type: pandas.Series
     """
     # todo: we could use the index of the DataFrame here
-
     calculated_agg = {}
-
+    f_agg = param[0]
+    chunk_len = param[1]
+    attr = param[2]
+    
     aggregate_result = _aggregate_on_chunks(x, f_agg, chunk_len)
     if f_agg not in calculated_agg or chunk_len not in calculated_agg[f_agg]:
         if chunk_len >= len(x):
@@ -592,7 +743,7 @@ def mean_change(x):
     """
     return np.mean(np.diff(x))
 
-def abs_energy(x):
+def abs_energy(x, param):
     """
     Returns the absolute energy of the time series which is the sum over the squared values
 
@@ -609,7 +760,7 @@ def abs_energy(x):
         x = np.asarray(x)
     return np.dot(x, x)
 
-def sum_values(x):
+def sum_values(x, param):
     """
     Calculates the sum over the time series values
 
@@ -623,7 +774,7 @@ def sum_values(x):
 
     return np.sum(x)
 
-def mean(x):
+def mean(x, param):
     """
     Returns the mean of x
 
@@ -634,7 +785,7 @@ def mean(x):
     """
     return np.mean(x)
 
-def minimum(x):
+def minimum(x, param):
     """
     Calculates the lowest value of the time series x.
 
@@ -645,7 +796,7 @@ def minimum(x):
     """
     return np.min(x)
 
-def median(x):
+def median(x, param):
     """
     Returns the median of x
 
@@ -656,7 +807,7 @@ def median(x):
     """
     return np.median(x)
 
-def c3(x, lag):
+def c3(x, param):
     """
     This function calculates the value of
 
@@ -689,9 +840,59 @@ def c3(x, lag):
     if not isinstance(x, (np.ndarray, pd.Series)):
         x = np.asarray(x)
     n = x.size
-    if 2 * lag >= n:
+    if 2 * param[0] >= n:
         return 0
     else:
-        return np.mean((np.roll(x, 2 * -lag) * np.roll(x, -lag) * x)[0:(n - 2 * lag)])
+        return np.mean((np.roll(x, 2 * -param[0]) * np.roll(x, -param[0]) * x)[0:(n - 2 * param[0])])
+    
+def cwt_coefficients(x, param):
+    """
+    Calculates a Continuous wavelet transform for the Ricker wavelet, also known as the "Mexican hat wavelet" which is
+    defined by
+
+    .. math::
+        \\frac{2}{\\sqrt{3a} \\pi^{\\frac{1}{4}}} (1 - \\frac{x^2}{a^2}) exp(-\\frac{x^2}{2a^2})
+
+    where :math:`a` is the width parameter of the wavelet function.
+
+    This feature calculator takes three different parameter: widths, coeff and w. The feature calculater takes all the
+    different widths arrays and then calculates the cwt one time for each different width array. Then the values for the
+    different coefficient for coeff and width w are returned. (For each dic in param one feature is returned)
+
+    :param x: the time series to calculate the feature of
+    :type x: pandas.Series
+    :param param: contains dictionaries {"widths":x, "coeff": y, "w": z} with x array of int and y,z int
+    :type param: list
+    :return: the different feature values
+    :return type: pandas.Series
+    """
+    
+    widths = param[0]
+    coeff = param[1]
+    w = param[2]
+    res = np.zeros((len(w)))
+    #print(coeff)
+    calculated_cwt_for_widths = cwt(x, ricker, widths)
+    #print(calculated_cwt_for_widths)
+    for r in range(len(w)):
+        i = widths.index(w[r])
+        if calculated_cwt_for_widths.shape[1] <= coeff[r]:
+            res[r] = np.NaN
+        else:
+            res[r] = calculated_cwt_for_widths[i, coeff[r]]
+
+    return res
+
+def maximum(x,param):
+    """
+    Calculates the highest value of the time series x.
+
+    :param x: the time series to calculate the feature of
+    :type x: pandas.Series
+    :return: the value of this feature
+    :return type: float
+    """
+    return np.max(x)
+
 if __name__=='__main__':
     get_features_tsfresh()
