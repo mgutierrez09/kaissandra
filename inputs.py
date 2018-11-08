@@ -871,15 +871,13 @@ def load_manual_features(data, thisAsset, separators, f_prep_IO, s):
         # create new gruop if not yet in file
         if group_name not in f_prep_IO:
             # create group, its attributes and its datasets
-            print("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
-            raise ValueError
+            raise ValueError("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
         else:
             # get group from file
             group = f_prep_IO[group_name]
         # get features, returns and stats if don't exist
         if group.attrs.get("means_in") is None:
-            print("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
-            raise ValueError
+            raise ValueError("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
         else:
             # get data sets
             features = group['features']
@@ -905,7 +903,7 @@ def load_tsf_features(data, thisAsset, separators, f_feats_tsf, s):
         group_name_chunck = thisAsset+'/'+init_date+end_date
         c = 0
         # save features in HDF5 file
-        for f in data.feature_keys_manual:
+        for f in data.feature_keys_tsfresh:
             group_name_feat = group_name_chunck+'/'+str(f)
             params = data.AllFeatures[str(f)]
             n_new_feats = params[-1]
@@ -920,10 +918,11 @@ def load_tsf_features(data, thisAsset, separators, f_feats_tsf, s):
                 n_new_feats = params[-1]
                 group_chunck = f_feats_tsf[group_name_feat]
                 if c==0:
-                    features = np.zeros((group_chunck.shape[0], data.n_feats_tsfresh))
-                features[:,c:c+n_new_feats] = group_chunck["feature"]
+                    features = np.zeros((group_chunck['feature'].shape[0], data.n_feats_tsfresh))
+                features[:,c:c+n_new_feats] = group_chunck['feature']
             c += n_new_feats
-        
+    else:
+        features = np.array([])
     return features
 
 def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, group_raw,
@@ -1377,8 +1376,8 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False,
             stats["m_t_in"] = ass_group.attrs.get("m_t_in")
             stats["m_t_out"] = ass_group.attrs.get("m_t_out")
     else:
-        print("EROR: Not a possible combination of input parameters")
-        error()
+        #print("EROR: Not a possible combination of input parameters")
+        raise ValueError("Not a possible combination of input parameters")
         
     # save stats individually
     if save_pickle:
@@ -1439,11 +1438,11 @@ def load_stats_tsf(data, thisAsset, root_directory):
     stds = np.zeros((nMaxChannels,data.n_feats_tsfresh))
     
     stats_directory = root_directory+'stats/'
-    filename = (thisAsset+'_tsf_mW'+str(sprite_length)+
+    filename = ('tsf_mW'+str(sprite_length)+
                 '_nE'+str(window_size)+'.hdf5')
     # init hdf5 container
-    stats_file = h5py.File(stats_directory+filename,'a')
-    features_file = h5py.File(stats_directory+filename,'r')
+    stats_file = h5py.File(stats_directory+'stats_'+filename,'a')
+    features_file = h5py.File(root_directory+'feats_'+filename,'r')
     # loop over features
     c = 0
     for f in data.feature_keys_tsfresh:
@@ -1451,21 +1450,22 @@ def load_stats_tsf(data, thisAsset, root_directory):
         stds_name = 'means_in'+str(f)
         n_new_feats = data.AllFeatures[str(f)][-1]
         # check first in stats file
-        if means_name in stats_file[thisAsset]:
+        if thisAsset in stats_file and means_name in list(stats_file[thisAsset].attrs.keys()):
             means[:,c:c+n_new_feats] = stats_file[thisAsset].attrs.get(means_name)
             stds[:,c:c+n_new_feats] = stats_file[thisAsset].attrs.get(stds_name)
         # if not, check in features file
-        elif means_name in features_file[thisAsset]:
+        elif thisAsset in features_file and means_name in list(features_file[thisAsset].attrs.keys()):
             means[:,c:c+n_new_feats] = features_file[thisAsset].attrs.get(means_name)
             stds[:,c:c+n_new_feats] = features_file[thisAsset].attrs.get(stds_name)
             # add stats to stats file
-            stats_file[thisAsset].attrs.create(means_name, means[:,c:c+n_new_feats], dtype=float)
-            stats_file[thisAsset].attrs.create(stds_name, stds[:,c:c+n_new_feats], dtype=float)
+#            stats_file[thisAsset].attrs.create(means_name, means[:,c:c+n_new_feats], dtype=float)
+#            stats_file[thisAsset].attrs.create(stds_name, stds[:,c:c+n_new_feats], dtype=float)
         else: # error
-            print("EROR: Stats not found")
-            raise ValueError
+            raise ValueError("Stats not found")
         c += n_new_feats
     # add loaded stats to dictionary
     stats_tsf = {'means_t_in':means,
                  'stds_t_in':stds}
+    stats_file.close()
+    features_file.close()
     return stats_tsf

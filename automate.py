@@ -10,7 +10,7 @@ from multiprocessing import Process
 from trainRNN import train_RNN
 from testRNN import test_RNN
 from config import configuration
-from getFeatures import get_features
+from features import get_features
 
 def run_train_test(config, its, if_train, if_test, if_get_features):
     """
@@ -36,10 +36,10 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
 if __name__=='__main__':
     # init config
     if_get_features = False
-    if_train = False
+    if_train = True
     if_test = True
-    its = 2
-    configs = ['CTEST1']
+    its = 5
+    configs = ['CTESTTSF']
     configs_list = []
     # load configuration files
     for config_name in configs:

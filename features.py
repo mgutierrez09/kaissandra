@@ -26,7 +26,7 @@ def get_features(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0000')
+        config = configuration('C0269')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -40,6 +40,7 @@ def get_features(*ins):
     if load_features_from=='manual':
         filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+        print(filename_prep_IO)
     elif load_features_from=='tsfresh':
         filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'.hdf5')
@@ -895,4 +896,4 @@ def maximum(x,param):
     return np.max(x)
 
 if __name__=='__main__':
-    get_features_tsfresh()
+    get_features()

@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0286T'
+        config_name = 'C0269'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -49,41 +49,42 @@ def configuration(*ins):
                 '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
                 '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
                 '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
-        movingWindow = 100
-        nEventsPerStat = 1000
-        lB = int(nEventsPerStat+movingWindow*3)
+        movingWindow = 200
+        nEventsPerStat = 2000
+        lB = int(nEventsPerStat+movingWindow*2)
         assets = [1]
         channels = [0]
         max_var = 10
-        feature_keys_tsfresh = [i for i in range(37,68)]
+        feature_keys_manual = [i for i in range(37)]
+        feature_keys_tsfresh = []#[i for i in range(37,68)]
         
         # general parameters
         if_build_IO = True
-        IDweights = '000286'
+        IDweights = '000269'
         IO_results_name = IDweights
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
         # model parameters
-        size_hidden_layer=200
+        size_hidden_layer=100
         L=3
         size_output_layer=5
-        keep_prob_dropout=.9
+        keep_prob_dropout=1
         miniBatchSize=32
-        outputGain=.6
+        outputGain=1
         commonY=3
         lR0=0.0002
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100286T'
-        startFrom = 6
-        endAt = 6
-        save_journal = False
+        IDresults = '100269'
+        startFrom = 39
+        endAt = 39
+        save_journal = True
         
         # feature-specific configuration
         save_stats = True
-        load_features_from = 'tsresh' # {manual, tsfresh}
+        load_features_from = 'manual' # {manual, tsfresh}
         
         # add parameters to config dictionary
         config = {'config_name':config_name,
@@ -95,6 +96,7 @@ def configuration(*ins):
                'assets':assets,
                'channels':channels,
                'max_var':max_var,
+               'feature_keys_manual':feature_keys_manual,
                'feature_keys_tsfresh':feature_keys_tsfresh,
                
                'size_hidden_layer':size_hidden_layer,
@@ -177,5 +179,5 @@ def modify_config(config_name,key,value):
     
         
 if __name__=='__main__':
-    configuration()
-    #pass
+    #configuration()
+    pass

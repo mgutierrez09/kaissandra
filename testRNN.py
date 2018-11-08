@@ -24,17 +24,20 @@ from inputs import (Data,
                     load_returns)
 from config import configuration
 
-
 def test_RNN(*ins):
     """
     <DocString>
     """
     ticTotal = time.time()
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0285')
+        config = configuration('C0269')
+    if 'feature_keys_manual' not in config:
+        feature_keys_manual = [i for i in range(37)]
+    else:
+        feature_keys_manual = config['feature_keys_manual']
     if 'feature_keys_tsfresh' not in config:
         feature_keys_tsfresh = []
     else:
@@ -48,6 +51,7 @@ def test_RNN(*ins):
                   assets=config['assets'],
                   channels=config['channels'],
                   max_var=config['max_var'],
+                  feature_keys_manual=feature_keys_manual,
                   feature_keys_tsfresh=feature_keys_tsfresh)
     
     #if_build_IO = config['if_build_IO']
@@ -69,19 +73,19 @@ def test_RNN(*ins):
                         str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+
                         '.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
-                             '_nE'+str(data.nEventsPerStat)+'.hdf5')
+                             '_nE'+str(data.nEventsPerStat)+'_test.hdf5')
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
     # check if file locked
-    if len(ins)>0:
-        # wait while files are locked
-        while os.path.exists(filename_prep_IO+'.flag'):
-            # sleep random time up to 10 seconds if any file is being used
-            print(filename_prep_IO+' busy. Sleeping up to 10 secs')
-            time.sleep(10*np.random.rand(1)[0])
-        # lock HDF5 file from access
-        fh = open(filename_prep_IO+'.flag',"w")
-        fh.close()
+#    if len(ins)>0:
+#        # wait while files are locked
+#        while os.path.exists(filename_prep_IO+'.flag'):
+#            # sleep random time up to 10 seconds if any file is being used
+#            print(filename_prep_IO+' busy. Sleeping up to 10 secs')
+#            time.sleep(10*np.random.rand(1)[0])
+#        # lock HDF5 file from access
+#        fh = open(filename_prep_IO+'.flag',"w")
+#        fh.close()
     # init hdf5 files
     if data.n_feats_manual>0:
         f_prep_IO = h5py.File(filename_prep_IO,'r')
@@ -153,8 +157,7 @@ def test_RNN(*ins):
         # load separators
         separators = load_separators(data, thisAsset, separators_directory,
                                      tOt='te', from_txt=1)
-        # retrive asset group
-        ass_group = f_prep_IO[thisAsset]
+
         # retrive asset group
         if f_prep_IO != None:
             ass_group = f_prep_IO[thisAsset]
@@ -194,17 +197,17 @@ def test_RNN(*ins):
                                                                f_prep_IO, 
                                                                s)
                     else:
-                        features_manual = None
+                        features_manual = np.array([])
                     
                     if f_feats_tsf != None:
                         features_tsf = load_tsf_features(data, thisAsset, separators, f_feats_tsf, s)
                     else:
-                        features_tsf = None
+                        features_tsf = np.array([])
                     # redefine features tsf or features manual in case they are
                     # None to fit to the concatenation
-                    if features_tsf==None:
+                    if features_tsf.shape[0]==0:
                         features_tsf = np.zeros((features_manual.shape[0],0))
-                    if features_manual==None:
+                    if features_manual.shape[0]==0:
                         features_manual = np.zeros((features_tsf.shape[0],0))
                         
                     returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
@@ -264,7 +267,10 @@ def test_RNN(*ins):
         ass_idx += 1
         
         # flush content file
-        f_prep_IO.flush()
+        if f_prep_IO != None:
+            f_prep_IO.flush()
+        if f_feats_tsf != None:
+            f_feats_tsf.flush()
         
         
     
@@ -272,9 +278,12 @@ def test_RNN(*ins):
     # end of for ass in data.assets:
     
     # close files
-    f_prep_IO.close()
+    if f_prep_IO != None:
+        f_prep_IO.close()
+    if f_feats_tsf != None:
+        f_feats_tsf.close()
     # release lock
-    if len(ins)>0:
+    if 0:
         os.remove(filename_prep_IO+'.flag')
     # Build DTA
     if if_build_IO:

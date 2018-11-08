@@ -31,6 +31,10 @@ def train_RNN(*ins):
         config = ins[0]
     else:    
         config = configuration('C0286T')
+    if 'feature_keys_manual' not in config:
+        feature_keys_manual = [i for i in range(37)]
+    else:
+        feature_keys_manual = config['feature_keys_manual']
     if 'feature_keys_tsfresh' not in config:
         feature_keys_tsfresh = []
     else:
@@ -43,6 +47,7 @@ def train_RNN(*ins):
               assets=config['assets'],
               channels=config['channels'],
               max_var=config['max_var'],
+              feature_keys_manual=feature_keys_manual,
               feature_keys_tsfresh=feature_keys_tsfresh)
     # init structures
     IDweights = config['IDweights']
@@ -52,11 +57,11 @@ def train_RNN(*ins):
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
-                             '_nE'+str(data.nEventsPerStat)+'_nF'+'.hdf5')
+                             '_nE'+str(data.nEventsPerStat)+'_test.hdf5')
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
             # sleep random time up to 10 seconds if any file is being used
@@ -153,7 +158,6 @@ def train_RNN(*ins):
             stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory)
         else:
             stats_tsf = []
-            
         if if_build_IO:
             print(str(ass)+". "+thisAsset)
             # loop over separators
@@ -173,17 +177,17 @@ def train_RNN(*ins):
                                                                f_prep_IO, 
                                                                s)
                     else:
-                        features_manual = None
+                        features_manual = np.array([])
                     
                     if f_feats_tsf != None:
                         features_tsf = load_tsf_features(data, thisAsset, separators, f_feats_tsf, s)
                     else:
-                        features_tsf = None
+                        features_tsf = np.array([])
                     # redefine features tsf or features manual in case they are
                     # None to fit to the concatenation
-                    if features_tsf==None:
+                    if features_tsf.shape[0]==0:
                         features_tsf = np.zeros((features_manual.shape[0],0))
-                    if features_manual==None:
+                    if features_manual.shape[0]==0:
                         features_manual = np.zeros((features_tsf.shape[0],0))
                     # load returns
                     returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
@@ -238,9 +242,12 @@ def train_RNN(*ins):
         ass_idx += 1
         
         # update total number of samples
-        m += stats_manual["m_t_out"]
+        #m += stats_manual["m_t_out"]
         # flush content file
-        f_prep_IO.flush()
+        if f_prep_IO != None:
+            f_prep_IO.flush()
+        if f_feats_tsf != None:
+            f_feats_tsf.flush()
         
         
     
@@ -248,9 +255,12 @@ def train_RNN(*ins):
     # end of for ass in data.assets:
     
     # close files
-    f_prep_IO.close()
+    if f_prep_IO != None:
+        f_prep_IO.close()
+    if f_feats_tsf != None:
+        f_feats_tsf.close()
     # release lock
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         os.remove(filename_prep_IO+'.flag')
     
     if if_build_IO:

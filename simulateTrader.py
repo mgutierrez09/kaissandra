@@ -161,7 +161,8 @@ class Strategy():
                  lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
-                 name='',use_GRE=False,t_index=3,IDr=None,IDgre=None,epoch='11'):
+                 name='',use_GRE=False,t_index=3,IDr=None,IDgre=None,epoch='11',
+                 weights=np.array([0,1])):
         
         self.name = name
         self.dir_origin = direct
@@ -194,16 +195,15 @@ class Strategy():
         self.IDgre = IDgre
         self.epoch = epoch
         self.t_index = t_index
+        self.weights = weights
         self._load_GRE()
         
     def _load_GRE(self):
-        """
-        
-        """
+        """ Load strategy efficiency matrix GRE """
         # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
         #int((model.size_output_layer-1)/2))
         if self.use_GRE:
-            weights = np.array([.5,.5])
+            assert(np.sum(self.weights)==1)
             allGREs = pickle.load( open( self.dir_origin+self.IDgre+
                                         "/GRE_e"+self.epoch+".p", "rb" ))
             GRE = allGREs[self.t_index, :, :, :]/self.pip
@@ -220,9 +220,9 @@ class Strategy():
                 print("GREex level 2:")
                 print(GREex[:,:,1])
             else: 
-                GREex = 1-weights[0]*GRE
+                GREex = 1-self.weights[0]*GRE
             
-            self.GRE = weights[0]*GRE+weights[1]*GREex
+            self.GRE = self.weights[0]*GRE+self.weights[1]*GREex
             print("GRE combined level 1:")
             print(self.GRE[:,:,0])
             print("GRE combined level 2:")
@@ -231,8 +231,7 @@ class Strategy():
             self.GRE = None
     
     def _get_idx(self, p):
-        '''
-        '''
+        """ Get probability index """
         
         if p>=0.5 and p<=0.6:
             idx = 0
@@ -261,7 +260,7 @@ class Strategy():
             return 0.0
 class Trader:
     
-    def __init__(self, next_candidate, init_budget=10000,log_file=''):
+    def __init__(self, next_candidate, init_budget=10000,log_file='',summary_file=''):
         
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(data.AllAssets))])
@@ -307,6 +306,11 @@ class Trader:
                              start_time+"trader_v30.log")
         else:
             self.log_file = log_file
+        if summary_file=='':
+            self.summary_file = ("../RNN/resultsLive/simulate/trader/"+
+                             start_time+"summary.log")
+        else:
+            self.summary_file = summary_file
     
     def _get_thr_sl_vector(self):
         
@@ -772,6 +776,16 @@ class Trader:
             file.write(log+"\n")
             file.close()
         return None
+    
+    def write_summary(self, out):
+        """
+        Write summary into a file
+        """
+        if self.save_log:
+            file = open(self.summary_file,"a")
+            file.write(out+"\n")
+            file.close()
+        return None
 
 
 def load_in_memory(data, init_list_index, end_list_index,root_dir='D:/SDC/py/Data/'):
@@ -904,29 +918,55 @@ if __name__ == '__main__':
 #    list_name = ['69','66']
 #    list_IDresults = ['100269','100266']
     
-    list_IDresults = ['100285']#'100277fNSRs'
-    list_IDgre = ['100285']
-    list_name = ['85']
-    list_epoch_gre = [16]
-    list_epoch_journal = [16]
-    list_use_GRE = [True]
-    list_t_index = [4]
-    list_lb_mc_op = [.5]
-    list_lb_md_op = [.8]
-    list_lb_mc_ext = [.5]
-    list_lb_md_ext = [.6]
-    list_ub_mc_op = [1]
-    list_ub_md_op = [1]
-    list_ub_mc_ext = [1]
-    list_ub_md_ext = [1]
-    list_thr_sl = [1000]
-    list_thr_tp = [1000]
-    list_fix_spread = [False]
-    list_fixed_spread_pips = [4]
-    list_max_lots_per_pos = [.1]
-    list_flexible_lot_ratio = [False]
-    list_if_dir_change_close = [False]
-    list_if_dir_change_extend = [False]
+    list_IDresults = ['100287','100285','100286','100277fNSRs']#
+    list_IDgre = ['100287','100285','100286','100277fNSRs']
+    list_name = ['87','85','86','77']
+    list_epoch_gre = [6,16,6,13]
+    list_epoch_journal = [6,16,6,13]
+    list_use_GRE = [True,True,True,True]
+    list_weights = [np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5])]
+    list_t_index = [2,4,3,3]
+    list_lb_mc_op = [.5,.5,.5,.6]
+    list_lb_md_op = [.8,.8,.8,.7]
+    list_lb_mc_ext = [.5,.5,.5,.5]
+    list_lb_md_ext = [.6,.6,.6,.6]
+    list_ub_mc_op = [1,1,1,1]
+    list_ub_md_op = [1,1,1,1]
+    list_ub_mc_ext = [1,1,1,1]
+    list_ub_md_ext = [1,1,1,1]
+    list_thr_sl = [1000,1000,1000,1000]
+    list_thr_tp = [1000,1000,1000,1000]
+    list_fix_spread = [False,False,False,False]
+    list_fixed_spread_pips = [4,4,4,4]
+    list_max_lots_per_pos = [.1,.1,.1,.1]
+    list_flexible_lot_ratio = [False,False,False,False]
+    list_if_dir_change_close = [False,False,False,False]
+    list_if_dir_change_extend = [False,False,False,False]
+    
+#    list_IDresults = ['100287']#
+#    list_IDgre = ['100287']
+#    list_name = ['87']
+#    list_epoch_gre = [6]
+#    list_epoch_journal = [6]
+#    list_use_GRE = [True]
+#    list_weights = [np.array([.5,.5])]
+#    list_t_index = [2]
+#    list_lb_mc_op = [.6]
+#    list_lb_md_op = [.8]
+#    list_lb_mc_ext = [.5]
+#    list_lb_md_ext = [.6]
+#    list_ub_mc_op = [1]
+#    list_ub_md_op = [1]
+#    list_ub_mc_ext = [1]
+#    list_ub_md_ext = [1]
+#    list_thr_sl = [1000]
+#    list_thr_tp = [1000]
+#    list_fix_spread = [False]
+#    list_fixed_spread_pips = [4]
+#    list_max_lots_per_pos = [.1]
+#    list_flexible_lot_ratio = [False]
+#    list_if_dir_change_close = [False]
+#    list_if_dir_change_extend = [False]
     
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
@@ -943,7 +983,7 @@ if __name__ == '__main__':
                           name=list_name[i],use_GRE=list_use_GRE[i],
                           t_index=list_t_index[i],IDr=list_IDresults[i],
                           IDgre=list_IDgre[i],
-                          epoch=str(list_epoch_gre[i])) 
+                          epoch=str(list_epoch_gre[i]),weights=list_weights[i]) 
                           for i in range(len(list_t_index))]
     
     name2str_map = {}
@@ -1027,6 +1067,7 @@ if __name__ == '__main__':
     results = Results()
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     log_file = "../RNN/resultsLive/simulate/trader/"+start_time+"trader_v30.log"
+    summary_file = "../RNN/resultsLive/simulate/trader/"+start_time+"summary.log"
     ##### loop over different day groups #####
     day_index = 0
     t_journal_entries = 0
@@ -1056,7 +1097,8 @@ if __name__ == '__main__':
         day_index += counter_back+1
         # init trader
         trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), 
-                                 init_budget=init_budget, log_file=log_file)
+                                 init_budget=init_budget, log_file=log_file,
+                                 summary_file=summary_file)
         
         out = ("Week from "+data.dateTest[init_list_index]+
                " to "+data.dateTest[end_list_index]+
@@ -1358,6 +1400,7 @@ if __name__ == '__main__':
                 " ROI per position {0:.3f}%".format(ROI_per_entry))
         print(out)
         trader.write_log(out)
+        trader.write_summary(out)
         out = ("Number entries "+str(n_entries)+
                " per entries {0:.2f}%".format(100*perEntries)+
                " per net success "+"{0:.3f}%".format(100*per_net_success)+
@@ -1366,10 +1409,11 @@ if __name__ == '__main__':
                " per sl {0:.3f}%".format(100*perSL))
         print(out)
         trader.write_log(out)
+        trader.write_summary(out)
         out = ("DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins")
         print(out)
         trader.write_log(out)
-        
+        trader.write_summary(out)
         results.update_results()
         
         init_budget = trader.budget
@@ -1381,6 +1425,7 @@ if __name__ == '__main__':
                " Accumulated earnings {0:.2f}E\n".format(results.total_earnings))
         print(out)
         trader.write_log(out)
+        trader.write_summary(out)
         total_entries = int(np.sum(results.number_entries))
         total_successes = int(np.sum(results.net_successes))
         total_failures = total_entries-total_successes
@@ -1391,7 +1436,7 @@ if __name__ == '__main__':
         average_win = np.sum(results.total_wins)/(np.sum(
                 results.net_successes)*trader.pip)
         RR = total_successes*average_win/(average_loss*total_failures)
-    
+    # end of weeks
     out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+
            "Total ROI = {0:.3f}% ".format(results.total_ROI)+
            "Sum GROI = {0:.3f}% ".format(results.sum_GROI)+
@@ -1399,6 +1444,7 @@ if __name__ == '__main__':
            "Accumulated earnings {0:.2f}E".format(results.total_earnings))
     print(out)
     trader.write_log(out)
+    trader.write_summary(out)
     out = ("Total entries "+str(total_entries)+
            " per entries {0:.2f}".format(100*total_entries/total_journal_entries)+
            " percent gross success {0:.2f}%".format(per_gross_success)+
@@ -1408,6 +1454,7 @@ if __name__ == '__main__':
            " RR 1 to {0:.2f}".format(RR))
     print(out)
     trader.write_log(out)
+    trader.write_summary(out)
     out = ("DONE. Total time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins\n")
     print(out)
     trader.write_log(out)
@@ -1517,7 +1564,7 @@ if __name__ == '__main__':
 #Total entries 726 per entries 6.33 percent gross success 61.85% percent nett success 54.13% average loss 7.00p average win 7.72p RR 1 to 1.30
 #DONE. Total time: 37.07 mins
 
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27     
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27
 #Total GROI = 11.014% Total ROI = 6.789% Sum GROI = 11.361% Sum ROI = 6.954% Accumulated earnings 695.43E
 #Total entries 376 per entries 3.28 percent gross success 63.03% percent nett success 59.84% average loss 8.15p average win 8.56p RR 1 to 1.56
 #DONE. Total time: 40.00 mins
@@ -1531,5 +1578,34 @@ if __name__ == '__main__':
 #Total GROI = 13.414% Total ROI = 6.131% Sum GROI = 13.782% Sum ROI = 6.233% Accumulated earnings 623.29E
 #Total entries 568 per entries 2.74 percent gross success 62.68% percent nett success 54.58% average loss 7.47p average win 8.23p RR 1 to 1.32
 #DONE. Total time: 53.02 mins
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 16 IDr 100285 from 2018.3.9 to .9.27
+#Total GROI = 13.119% Total ROI = 6.259% Sum GROI = 13.509% Sum ROI = 6.378% Accumulated earnings 637.82E
+#Total entries 577 per entries 6.30 percent gross success 59.97% percent nett success 53.38% average loss 7.31p average win 8.46p RR 1 to 1.32
+#DONE. Total time: 29.99 mins
     
+# wGRE=[0,1] fix invest to .1 vol epoch 6 t_index 16 IDr 100285 from 2018.3.9 to .9.27
+#Total GROI = 19.277% Total ROI = 6.691% Sum GROI = 19.941% Sum ROI = 6.815% Accumulated earnings 681.53E
+#Total entries 888 per entries 9.70 percent gross success 59.80% percent nett success 52.14% average loss 7.26p average win 8.14p RR 1 to 1.22
+#DONE. Total time: 29.46 mins
+
+# wGRE=[0,1]/[0,1] fix invest to .1 vol epoch 16/6 t_index 3 IDr 100285 100286 from 2018.3.9 to .9.27 new AD_resune
+#Total GROI = 22.585% Total ROI = 6.946% Sum GROI = 23.473% Sum ROI = 7.096% Accumulated earnings 709.62E
+#Total entries 1117 per entries 5.41 percent gross success 60.34% percent nett success 52.91% average loss 7.31p average win 7.71p RR 1 to 1.18
+#DONE. Total time: 42.84 mins
+
+# wGRE=[0,1]/[0,1]/[0,1] fix invest to .1 vol epoch 16/6/13 t_index 3 IDr 100285 100286 100277 from 2018.3.9 to .9.27 new AD_resune
+#Total GROI = 25.602% Total ROI = 7.277% Sum GROI = 26.696% Sum ROI = 7.409% Accumulated earnings 740.89E
+#Total entries 1267 per entries 4.23 percent gross success 59.83% percent nett success 51.46% average loss 7.09p average win 7.82p RR 1 to 1.17
+#DONE. Total time: 41.57 mins
+
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 16/6/13 t_index 3 IDr 100285 100286 100277 from 2018.3.9 to .9.27 new AD_resune
+#Total GROI = 17.811% Total ROI = 8.128% Sum GROI = 18.595% Sum ROI = 8.331% Accumulated earnings 833.14E
+#Total entries 784 per entries 2.62 percent gross success 61.35% percent nett success 55.61% average loss 7.87p average win 8.19p RR 1 to 1.30
+#DONE. Total time: 46.10 mins
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287 from 2018.3.9 to .9.27
+#Total GROI = 13.371% Total ROI = 7.186% Sum GROI = 13.779% Sum ROI = 7.383% Accumulated earnings 738.32E
+#Total entries 542 per entries 5.13 percent gross success 60.89% percent nett success 55.90% average loss 7.61p average win 8.44p RR 1 to 1.41
+#DONE. Total time: 41.07 mins
 # ULTIMATELY!!!!!!!!!!!!!!!!!!!
