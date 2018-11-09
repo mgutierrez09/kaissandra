@@ -1105,7 +1105,8 @@ if __name__ == '__main__':
                " Number journal entries "+str(journal_entries))
         print(out)
         trader.write_log(out)
-            
+        trader.write_summary(out)
+        
         load_in_RAM = True
         DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(data, 
                                                                             init_list_index, 
@@ -1413,7 +1414,6 @@ if __name__ == '__main__':
         out = ("DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins")
         print(out)
         trader.write_log(out)
-        trader.write_summary(out)
         results.update_results()
         
         init_budget = trader.budget
@@ -1608,4 +1608,9 @@ if __name__ == '__main__':
 #Total GROI = 13.371% Total ROI = 7.186% Sum GROI = 13.779% Sum ROI = 7.383% Accumulated earnings 738.32E
 #Total entries 542 per entries 5.13 percent gross success 60.89% percent nett success 55.90% average loss 7.61p average win 8.44p RR 1 to 1.41
 #DONE. Total time: 41.07 mins
+
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16/6/13 t_index 2/3/3/3 IDr 100287/100286/100285/100277 from 2018.3.9 to .9.27 100277 new AD_resune
+#Total GROI = 20.212% Total ROI = 9.398% Sum GROI = 21.168% Sum ROI = 9.735% Accumulated earnings 973.54E
+#Total entries 892 per entries 2.20 percent gross success 60.87% percent nett success 55.49% average loss 7.87p average win 8.28p RR 1 to 1.31
+#DONE. Total time: 73.31 mins
 # ULTIMATELY!!!!!!!!!!!!!!!!!!!
