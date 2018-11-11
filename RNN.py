@@ -194,8 +194,7 @@ class modelRNN(object):
             self._init_op = tf.global_variables_initializer()
             self._sess.run(self._init_op)
         else:
-            print("Error. Graph does not exist. Revise IDweights and IDepoch")
-            error()
+            raise ValueError("Graph "+ID+"E"+str(epoch)+" does not exist. Revise IDweights and IDepoch")
         
         
         return epoch+1

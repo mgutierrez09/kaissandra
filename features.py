@@ -26,11 +26,13 @@ def get_features(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0269')
+        config = configuration('C0266Nov09')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
-              dateTest = config['dateTest'])
+              dateTest = config['dateTest'],
+              feature_keys_manual=config['feature_keys_manual'],
+              feature_keys_tsfresh=config['feature_keys_tsfresh'])
     # init booleans
     save_stats = config['save_stats']  
     # init file directories
@@ -896,4 +898,5 @@ def maximum(x,param):
     return np.max(x)
 
 if __name__=='__main__':
-    get_features()
+    #get_features()
+    pass

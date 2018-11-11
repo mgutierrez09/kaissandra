@@ -192,7 +192,7 @@ def initFeaturesLive(data,tradeInfoLive):
         maxAF2 = 2*stepAF
     
     parSarStruct = parSarInit
-    nF = len(data.feature_keys_tsfresh)
+    nF = len(data.feature_keys_manual)
     featuresLive = np.zeros((nF,1))
     
     initRange = int(data.nEventsPerStat/data.movingWindow)
@@ -916,7 +916,17 @@ def load_tsf_features(data, thisAsset, separators, f_feats_tsf, s):
             else: # load features from HDF5 file if they are saved already
                 params = data.AllFeatures[str(f)]
                 n_new_feats = params[-1]
-                group_chunck = f_feats_tsf[group_name_feat]
+                success = False
+                tries = 0
+                while not success and tries<10:
+                    try:
+                        group_chunck = f_feats_tsf[group_name_feat]
+                        success = True
+                    except KeyError:
+                        print("KeyError reading "+group_name_feat)
+                        tries += 1
+                if not success:
+                    raise KeyError(group_name_feat+" File corrupted. Delete and retrieve again")
                 if c==0:
                     features = np.zeros((group_chunck['feature'].shape[0], data.n_feats_tsfresh))
                 features[:,c:c+n_new_feats] = group_chunck['feature']

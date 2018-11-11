@@ -57,7 +57,7 @@ def train_RNN(*ins):
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
-                             '_nE'+str(data.nEventsPerStat)+'_test.hdf5')
+                             '_nE'+str(data.nEventsPerStat)+'.hdf5')
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     

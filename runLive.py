@@ -2,10 +2,9 @@
 """
 Created on Thu Dec  7 11:40:34 2017
 
-@author: mgutierrez
+@author: Miguel Angel Gutierrez Estevez
 
-This script merges the sequential run of the entire chain (Fetcher/Dispatcher/live RNN/Trader)
-with the option of getting trader's input from a pre-saved Journal
+This script merges the sequential execution of the entire chain: Fetcher/Dispatcher/live RNN/Trader
 """
 import time
 import os
@@ -108,9 +107,13 @@ class Position:
 
 class Strategy():
     
-    def __init__(self, direct='',thr_sl=1000, thr_tp=1000, fix_spread=False, fixed_spread_pips=2, max_lots_per_pos=.1, flexible_lot_ratio=False, 
-                 lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
-                 if_dir_change_close=False, if_dir_change_extend=False, name='',t_index=3,use_GRE=False,IDr=None,epoch='11'):
+    def __init__(self, direct='',thr_sl=1000, thr_tp=1000, fix_spread=False, 
+                 fixed_spread_pips=2, max_lots_per_pos=.1, 
+                 flexible_lot_ratio=False, lb_mc_op=0.6, lb_md_op=0.6, 
+                 lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, 
+                 ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
+                 if_dir_change_extend=False, name='',t_index=3,use_GRE=False,
+                 IDr=None,epoch='11',weights=np.array([0,1])):
         
         self.name = name
         self.dir_origin = direct
@@ -141,21 +144,74 @@ class Strategy():
         self.IDr = IDr
         self.epoch = epoch
         self.t_index = t_index
+        self.weights = weights
         self._load_GRE()
         
     def _load_GRE(self):
-        '''
-        '''
-        # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2))
+        """ Load strategy efficiency matrix GRE """
+        # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
+        #int((model.size_output_layer-1)/2))
         if self.use_GRE:
-            allGREs = pickle.load( open( self.dir_origin+self.IDr+"/GRE_e"+self.epoch+".p", "rb" ))
-            self.GRE = allGREs[self.t_index, :, :, :]/self.pip+20
+            assert(np.sum(self.weights)==1)
+            allGREs = pickle.load( open( self.dir_origin+self.IDr+
+                                        "/GRE_e"+self.epoch+".p", "rb" ))
+
+            allGREs = self._fill_up_GRE(allGREs)
+            GRE = allGREs[self.t_index, :, :, :]/self.pip
             print("GRE level 1:")
-            print(self.GRE[:,:,0])
+            print(GRE[:,:,0])
             print("GRE level 2:")
+            print(GRE[:,:,1])
+            if os.path.exists(self.dir_origin+self.IDr+"/GREex_e"+self.epoch+".p"):
+                allGREs = pickle.load( open( self.dir_origin+self.IDr+
+                                            "/GREex_e"+self.epoch+".p", "rb" ))
+#                print("before")
+#                print(allGREs[self.t_index, :, :, :]/self.pip)
+                allGREs = self._fill_up_GRE(allGREs)
+#                print("after")
+#                print(allGREs[self.t_index, :, :, :]/self.pip)
+                GREex = allGREs[self.t_index, :, :, :]/self.pip
+                print("GREex level 1:")
+                print(GREex[:,:,0])
+                print("GREex level 2:")
+                print(GREex[:,:,1])
+            else: 
+                GREex = 1-self.weights[0]*GRE
+            
+            self.GRE = self.weights[0]*GRE+self.weights[1]*GREex
+            print(GRE.shape)
+            # fill the gaps in the GRE matrix
+            
+            print("GRE combined level 1:")
+            print(self.GRE[:,:,0])
+            print("GRE combined level 2:")
             print(self.GRE[:,:,1])
         else:
             self.GRE = None
+    
+    def _fill_up_GRE(self, GRE):
+        """
+        Fill uo the gaps in GRE matrix
+        """
+        for t in range(GRE.shape[0]):
+            for idx_mc in range(len(thresholds_mc)):
+                min_md = GRE[t,idx_mc,:,:]
+                for idx_md in range(len(thresholds_md)):
+                    min_mc = GRE[t,:,idx_md,:]    
+                    for l in range(int((5-1)/2)):
+                        if GRE[t,idx_mc,idx_md,l]==0:
+                            if idx_md==0:
+                                if idx_mc==0:
+                                    if l==0:
+                                        # all zeros, nothing to do
+                                        pass
+                                    else:
+                                        GRE[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
+                                else:
+                                    GRE[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
+                            else:
+                                GRE[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
+        return GRE
     
     def _get_idx(self, p):
         '''
@@ -350,8 +406,8 @@ class Trader:
         elif not this_strategy.fix_spread and this_strategy.use_GRE:
             condition_open = self.next_candidate.profitability>e_spread+margin
         else:
-            print("ERROR: fix_spread cannot be fixed if GRE is in use")
-            error()
+            #print("ERROR: fix_spread cannot be fixed if GRE is in use")
+            raise ValueError("fix_spread cannot be fixed if GRE is in use")
             
         return condition_open
     
@@ -432,7 +488,7 @@ class Trader:
 #        print("roi_ratio "+str(roi_ratio))
 #        print("lot_ratio "+str(lot_ratio))
         if np.isnan(roi_ratio):
-            error()
+            raise AssertionError("np.isnan(roi_ratio)")
         
 #        GROI_live = roi_ratio*direction*(this_bid-entry_bid)/entry_bid
         
@@ -554,7 +610,7 @@ class Trader:
                 close_lots = (open_lots-self.available_bugdet_in_lots)/len(self.list_opened_positions)
                 print("close_lots "+str(close_lots))
                 if close_lots==np.inf:
-                    error()
+                    raise ValueError("close_lots==np.inf")
                 # loop over open positions to close th close_lot_ratio ratio to allocate the new position
                 for pos in range(len(self.list_opened_positions)):
                     # lots ratio to be closed for this asset
@@ -804,6 +860,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     """
     
     #print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" New input")
+    # TODO: Has to be changed depending on the networks!!
     nChannels = int(data.nEventsPerStat/data.movingWindow)
     file = 0
     #deli = "_"
@@ -892,7 +949,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                     # MRC
 #                      print(weights_matrix)
 #                      print(weights)
-            soft_tilde_t = np.sum(weights*soft_tilde, axis=1)
+                soft_tilde_t = np.sum(weights*soft_tilde, axis=1)
                             
 #############################################################################################################################  
                         
@@ -1101,8 +1158,8 @@ def dispatch(buffer, ass_id, ass_idx):
                             
             elif buffers[ass_idx][nn][ch].shape[0]>buffSizes[ass_idx,nn]:
                 print(thisAsset+" buffer size "+str(buffers[ass_idx][nn][ch].shape[0]))
-                print("Error. Buffer cannot be greater than max buff size")
-                error()
+                #print("Error. Buffer cannot be greater than max buff size")
+                raise ValueError("Buffer cannot be greater than max buff size")
                 
     if len(outputs)>1:
         print("WARNING! Outputs length="+str(len(outputs))+
@@ -1240,7 +1297,7 @@ def fetch(budget):
                     trader.list_last_bid[list_idx] = bid
                     trader.list_last_ask[list_idx] = ask
                 else:
-                    error()
+                    raise ValueError("list_idx<=-1")
                     
                 trader.close_position(DateTime, thisAsset, ass_id)
                 
@@ -1264,7 +1321,7 @@ def fetch(budget):
                     trader.list_last_bid[list_idx] = bid
                     trader.list_last_ask[list_idx] = ask
                 else:
-                    error()
+                    raise ValueError("list_idx<=-1")
                     
                 trader.close_position(DateTime, thisAsset, ass_id)
                 
@@ -1292,7 +1349,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
     print("Fetcher lauched")
     # number of events per file
     n_files = 10
-    n_samps_buffer = 10
+    
     init_row = ['d',0.0,0.0]
     #init_df = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],columns=['DateTime','SymbolBid','SymbolAsk'])
     fileIDs = [0 for ass in range(nAssets)]
@@ -1423,56 +1480,63 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
 
 if __name__ == '__main__':
     
-    test = False
-    run_back_test = False
-    
+    thresholds_mc = [.5,.6,.7,.8,.9]
+    thresholds_md = [.5,.6,.7,.8,.9]
+    n_samps_buffer = 10
+    test = True
+    run_back_test = True
+    dateTest = ([                                                    '2018.03.09',
+                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
+                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
+                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
+                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
+                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
+                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
+                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
+                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
+                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
+                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
+                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
+                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
+                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
+                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
+                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
+                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
+                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
+                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
+                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
+                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+                '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
+    ### TEMP: this data has to be included in list_data and deleted 
     data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,
-              dateTest = ['2018.10.18'])
-
-#    ['2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-#                          '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12']
-#    ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-#                 '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+[
-#                 '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-#                 '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-#                 '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-#                 '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-#                 '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-#                 '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-#                 '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-#                 '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-#                 '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-#                 '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-#                 '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-#                 '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-#                 '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-#                 '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-#                 '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-#                 '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-#                 '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-#                 '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-#                 '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']
-
-#                    '2018.03.09',
-#                 '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-                    
-#    ['2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07','2018.09.10']
-
-    IDepoch = ["11","13"]
-    IDweights = ["000248","000266"]
-    IDresults = ["100248GREN2","100266"]#
+              dateTest = dateTest,feature_keys_tsfresh=[])
+    list_data = [Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
+              dateTest = dateTest,feature_keys_tsfresh=[]),
+    
+                Data(movingWindow=100,nEventsPerStat=1000,lB=1200,
+              dateTest = dateTest,feature_keys_tsfresh=[])]
+    
+    IDepoch = ["6","13"]
+    IDweights = ["000287","000266"]
+    IDresults = ["100287","100277fNSRs"]#
     delays = [0,5]
     t_indexs = [2,2] # time index to use as output. Value between {0,...,model.seq_len-1}
-    MRC = [True,True]
+    MRC = [False,True]
     mWs = [100,100]
     nExSs = [1000,1000]
-    lBs = [1200,1200]
-    netNames = ["000248","000266"]
+    lBs = [1300,1200]
+    netNames = ["87","77"]
     phase_shifts = [10,10] # phase shift
-    
+    list_weights = [np.array([.5,.5]),np.array([.5,.5])]
     list_use_GRE = [True,True]
-    list_lb_mc_op = [0.5,0.5]
-    list_lb_md_op = [0.5,0.5]
+    list_lb_mc_op = [0.5,.5]
+    list_lb_md_op = [0.5,.5]
     list_lb_mc_ext = [2,2]
     list_lb_md_ext = [2,2]
     list_ub_mc_op = [1,1]
@@ -1487,18 +1551,7 @@ if __name__ == '__main__':
     list_flexible_lot_ratio = [False,False]
     list_if_dir_change_close = [False,False]
     list_if_dir_change_extend = [False,False]
-    list_name = ['48','66']
-    
-#    IDepoch = ["5"]#
-#    IDweights = ["000233"]#
-#    IDresults = ["100233"]
-#    shifts = [0]
-#    t_index = [2] # time index to use as output. Value between {0,...,model.seq_len-1}
-#    MRC = [False]
-#    mWs = [10]
-#    nExSs = [100]
-#    lBs = [120]
-#    netNames = ["100"]
+    list_name = ['87','77']
 #    
     verbose_RNN = True
     verbose_trader = True
@@ -1517,7 +1570,7 @@ if __name__ == '__main__':
         
         if MRC[i]==True:
             if t_indexs[i]!=2:
-                error()
+                raise ValueError("t_indexs[i] must be 2")
             ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+
                                          IDepoch[i]+".p", "rb" )))
         else:
@@ -1611,11 +1664,11 @@ if __name__ == '__main__':
     # pre allocate memory size
     
     # init non-variation features
-    nonVarFeats = np.intersect1d(data.noVarFeats,data.features)
+    nonVarFeats = np.intersect1d(data.noVarFeats,data.feature_keys_manual)
     nonVarIdx = np.zeros((len(nonVarFeats))).astype(int)
     nv = 0
     for allnv in range(data.nFeatures):
-        if data.features[allnv] in nonVarFeats:
+        if data.feature_keys_manual[allnv] in nonVarFeats:
             nonVarIdx[nv] = int(allnv)
             nv += 1
     
@@ -1646,9 +1699,10 @@ if __name__ == '__main__':
                           if_dir_change_close=list_if_dir_change_close[i], 
                           if_dir_change_extend=list_if_dir_change_extend[i], 
                           name=list_name[i],t_index=ti_name[i],use_GRE=list_use_GRE[i],
-                          IDr=IDresults[i],epoch=IDepoch[i]) for i in range(len(ti_name))]
+                          IDr=IDresults[i],epoch=IDepoch[i],
+                          weights=list_weights[i]) for i in range(len(ti_name))]
     
-    root_dir = 'D:/SDC/py/Data_test/'#'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data/'
+    root_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data/'
     directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
     results = Results()
@@ -1660,8 +1714,8 @@ if __name__ == '__main__':
     tf.reset_default_graph()
     if 1:#with tf.Session() as sess:
         
-        list_models = [modelRNN(data,
-                    size_hidden_layer=100,
+        list_models = [modelRNN(list_data[0],
+                    size_hidden_layer=200,
                     L=3,
                     size_output_layer=5,
                     keep_prob_dropout=1,
@@ -1670,8 +1724,8 @@ if __name__ == '__main__':
                     lR0=0.0001,
                     IDgraph=IDweights[0]+IDepoch[0],
                     sess=None),
-        
-                    modelRNN(data,
+                    
+                    modelRNN(list_data[1],
                     size_hidden_layer=100,
                     L=3,
                     size_output_layer=5,
@@ -1680,8 +1734,18 @@ if __name__ == '__main__':
                     outputGain=0.6,
                     lR0=0.0001,
                     IDgraph=IDweights[1]+IDepoch[1],
-                    sess=None)]
-        
+                    sess=None)
+                    ]
+#        modelRNN(data,
+#                    size_hidden_layer=100,
+#                    L=3,
+#                    size_output_layer=5,
+#                    keep_prob_dropout=1,
+#                    miniBatchSize=32,
+#                    outputGain=0.6,
+#                    lR0=0.0001,
+#                    IDgraph=IDweights[1]+IDepoch[1],
+#                    sess=None)
     ##########################################################
         init_budget = 10000.0
         start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')

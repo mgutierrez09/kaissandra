@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0269')
+        config = configuration('C0266Nov09')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
