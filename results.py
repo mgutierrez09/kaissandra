@@ -284,7 +284,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         # init expected ROI and GROI per profile
         # shape = seq_lens x thr_mc x thr_md x levels x 2 (ROI/GROI)
         eROIpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2),2))
-        NZpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2))).astype(int)
+        NZpp = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2),2)).astype(int)
         GRE = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
         GREav = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
         GREex = np.zeros((model.seq_len+1, len(thresholds_mc), len(thresholds_md), int((model.size_output_layer-1)/2)))
@@ -634,13 +634,14 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
 #                                    print(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde])==0))
                                     for b in range(int((model.size_output_layer-1)/2)):
 #                                        print(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde])==(b+1)))
-                                        NZpp[t,i_t_mc,i_t_md, b] = int(rSampsXlevel[b,0])#int(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde]).astype(int)==(b+1)))
+                                        NZpp[t,i_t_mc,i_t_md, b, 0] = int(rSampsXlevel[b,0])#int(np.sum(np.abs(y_dec_mg_tilde[y_md_tilde]).astype(int)==(b+1)))
+                                        NZpp[t,i_t_mc,i_t_md, b, 1] = int(rSampsXlevel[b,1])
                                         eROIpp[t,i_t_mc,i_t_md, b, 0] = rROIxLevel[b,0]/100
                                         eROIpp[t,i_t_mc,i_t_md, b, 1] = rROIxLevel[b,1]/100
-                                        if NZpp[t,i_t_mc,i_t_md, b]>0:
-                                            GRE[t,i_t_mc,i_t_md, b] = eROIpp[t,i_t_mc,i_t_md, b, 1]/NZpp[t,i_t_mc,i_t_md, b]
+                                        if NZpp[t,i_t_mc,i_t_md, b, 0]>0:
+                                            GRE[t,i_t_mc,i_t_md, b] = eROIpp[t,i_t_mc,i_t_md, b, 1]/NZpp[t,i_t_mc,i_t_md, b, 0]
                                         print("GRE level "+str(b)+": "+str(GRE[t,i_t_mc,i_t_md, b]/0.0001)+" pips")
-                                        print("Nonzero entries = "+str(NZpp[t,i_t_mc,i_t_md, b]))
+                                        print("Nonzero entries = "+str(NZpp[t,i_t_mc,i_t_md, b, 0]))
                                         # GRE new
                                         if rSampsXlevel[b,1]>0:
                                             GREav[t,i_t_mc,i_t_md, b] = rROIxLevel[b,0]/(100*rSampsXlevel[b,1])

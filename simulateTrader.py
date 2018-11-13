@@ -851,7 +851,7 @@ def load_in_memory(data, init_list_index, end_list_index,root_dir='D:/SDC/py/Dat
 
 if __name__ == '__main__':
     
-    dateTest = ([                                                   '2018.03.09',
+    dateTest = (    [                                               '2018.03.09',
                 '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
                 '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
                 '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -878,7 +878,15 @@ if __name__ == '__main__':
                 '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
                 '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
                 '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-                '2018.09.24','2018.09.25','2018.09.26','2018.09.27'])
+                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
+                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
+                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
+                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
+                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
+                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
+                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
+
+    
     # data structure
     data=Data(movingWindow=100,nEventsPerStat=1000,
      dateTest = dateTest)
@@ -918,55 +926,55 @@ if __name__ == '__main__':
 #    list_name = ['69','66']
 #    list_IDresults = ['100269','100266']
     
-    list_IDresults = ['100287','100285','100286','100277fNSRs']#
-    list_IDgre = ['100287','100285','100286','100277fNSRs']
-    list_name = ['87','85','86','77']
-    list_epoch_gre = [6,16,6,13]
-    list_epoch_journal = [6,16,6,13]
-    list_use_GRE = [True,True,True,True]
-    list_weights = [np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5])]
-    list_t_index = [2,4,3,3]
-    list_lb_mc_op = [.5,.5,.5,.6]
-    list_lb_md_op = [.8,.8,.8,.7]
-    list_lb_mc_ext = [.5,.5,.5,.5]
-    list_lb_md_ext = [.6,.6,.6,.6]
-    list_ub_mc_op = [1,1,1,1]
-    list_ub_md_op = [1,1,1,1]
-    list_ub_mc_ext = [1,1,1,1]
-    list_ub_md_ext = [1,1,1,1]
-    list_thr_sl = [1000,1000,1000,1000]
-    list_thr_tp = [1000,1000,1000,1000]
-    list_fix_spread = [False,False,False,False]
-    list_fixed_spread_pips = [4,4,4,4]
-    list_max_lots_per_pos = [.1,.1,.1,.1]
-    list_flexible_lot_ratio = [False,False,False,False]
-    list_if_dir_change_close = [False,False,False,False]
-    list_if_dir_change_extend = [False,False,False,False]
+#    list_IDresults = ['100287','100285','100286','100277fNSRs']#
+#    list_IDgre = ['100287','100285','100286','100277fNSRs']
+#    list_name = ['87','85','86','77']
+#    list_epoch_gre = [6,16,6,13]
+#    list_epoch_journal = [6,16,6,13]
+#    list_use_GRE = [True,True,True,True]
+#    list_weights = [np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5])]
+#    list_t_index = [2,4,3,3]
+#    list_lb_mc_op = [.5,.5,.5,.6]
+#    list_lb_md_op = [.8,.8,.8,.7]
+#    list_lb_mc_ext = [.5,.5,.5,.5]
+#    list_lb_md_ext = [.6,.6,.6,.6]
+#    list_ub_mc_op = [1,1,1,1]
+#    list_ub_md_op = [1,1,1,1]
+#    list_ub_mc_ext = [1,1,1,1]
+#    list_ub_md_ext = [1,1,1,1]
+#    list_thr_sl = [1000,1000,1000,1000]
+#    list_thr_tp = [1000,1000,1000,1000]
+#    list_fix_spread = [False,False,False,False]
+#    list_fixed_spread_pips = [4,4,4,4]
+#    list_max_lots_per_pos = [10,10,10,10]
+#    list_flexible_lot_ratio = [False,False,False,False]
+#    list_if_dir_change_close = [False,False,False,False]
+#    list_if_dir_change_extend = [False,False,False,False]
     
-#    list_IDresults = ['100287']#
-#    list_IDgre = ['100287']
-#    list_name = ['87']
-#    list_epoch_gre = [6]
-#    list_epoch_journal = [6]
-#    list_use_GRE = [True]
-#    list_weights = [np.array([.5,.5])]
-#    list_t_index = [2]
-#    list_lb_mc_op = [.6]
-#    list_lb_md_op = [.8]
-#    list_lb_mc_ext = [.5]
-#    list_lb_md_ext = [.6]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
+    list_IDresults = ['100286Nov09']#
+    list_IDgre = ['100286']
+    list_name = ['86']
+    list_epoch_gre = [6]
+    list_epoch_journal = [6]
+    list_use_GRE = [True]
+    list_weights = [np.array([.5,.5])]
+    list_t_index = [2]
+    list_lb_mc_op = [.6]
+    list_lb_md_op = [.8]
+    list_lb_mc_ext = [.5]
+    list_lb_md_ext = [.6]
+    list_ub_mc_op = [1]
+    list_ub_md_op = [1]
+    list_ub_mc_ext = [1]
+    list_ub_md_ext = [1]
+    list_thr_sl = [1000]
+    list_thr_tp = [1000]
+    list_fix_spread = [False]
+    list_fixed_spread_pips = [4]
+    list_max_lots_per_pos = [.1]
+    list_flexible_lot_ratio = [False]
+    list_if_dir_change_close = [False]
+    list_if_dir_change_extend = [False]
     
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
@@ -1613,4 +1621,19 @@ if __name__ == '__main__':
 #Total GROI = 20.212% Total ROI = 9.398% Sum GROI = 21.168% Sum ROI = 9.735% Accumulated earnings 973.54E
 #Total entries 892 per entries 2.20 percent gross success 60.87% percent nett success 55.49% average loss 7.87p average win 8.28p RR 1 to 1.31
 #DONE. Total time: 73.31 mins
+
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5]/[.5,.5] fix invest to max vol epoch 6/16/6/13 t_index 2/3/3/3 IDr 100287/100286/100285/100277 from 2018.3.9 to .9.27 100277 new AD_resune
+#Total GROI = 255.687% Total ROI = 98.574% Sum GROI = 8.515% Sum ROI = 3.283% Accumulated earnings 10009.90E
+#Total entries 434 per entries 1.07 percent gross success 60.37% percent nett success 54.84% average loss 7.81p average win 7.81p RR 1 to 1.21
+#DONE. Total time: 108.48 mins
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 from 2018.3.9 to .11.09 
+#Total GROI = 12.992% Total ROI = 7.918% Sum GROI = 13.473% Sum ROI = 8.187% Accumulated earnings 818.65E
+#Total entries 452 per entries 3.44 percent gross success 61.50% percent nett success 56.64% average loss 7.13p average win 8.65p RR 1 to 1.59
+#DONE. Total time: 39.35 mins
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100277Nov09 from 2018.3.9 to .11.09  
+#Total GROI = 8.365% Total ROI = 3.042% Sum GROI = 8.454% Sum ROI = 3.054% Accumulated earnings 305.35E
+#Total entries 414 per entries 4.95 percent gross success 57.25% percent nett success 51.69% average loss 6.91p average win 7.88p RR 1 to 1.22
+#DONE. Total time: 46.13 mins
 # ULTIMATELY!!!!!!!!!!!!!!!!!!!

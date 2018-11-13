@@ -1274,7 +1274,10 @@ def load_separators(data, thisAsset, separators_directory, tOt='tr', from_txt=1)
         # separators file name
         separators_filename = thisAsset+'_separators.txt'
         # load separators
-        separators = pd.read_csv(separators_directory+separators_filename, index_col='Pointer')
+        if os.path.exists(separators_directory+separators_filename):
+            separators = pd.read_csv(separators_directory+separators_filename, index_col='Pointer')
+        else:
+            separators = []
     else:
         print("Depricated load separators from DB. Use text instead")
         raise ValueError

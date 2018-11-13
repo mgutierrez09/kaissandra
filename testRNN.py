@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0266Nov09')
+        config = configuration('C0285Nov09')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -74,7 +74,22 @@ def test_RNN(*ins):
                         '.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
                              '_nE'+str(data.nEventsPerStat)+'_test.hdf5')
-    separators_directory = hdf5_directory+'separators/'
+    
+    if 'build_partial_raw' in config:
+        build_partial_raw = config['build_partial_raw']
+        
+        
+    else:
+        build_partial_raw = False
+        
+    if build_partial_raw:
+        # TODO: get init/end dates from dateTest in Data
+        int_date = '180928'
+        end_date = '181109'
+        separators_directory = hdf5_directory+'separators_F'+int_date+'T'+end_date+'/'
+    else:
+        separators_directory = hdf5_directory+'separators/'
+        
     filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
     # check if file locked
 #    if len(ins)>0:
@@ -145,7 +160,7 @@ def test_RNN(*ins):
         IO['A'] = A
         IO['pointer'] = 0
     
-    aloc = 2**17
+    alloc = 200000
     # max number of input channels
     # index asset
     ass_idx = 0
@@ -214,6 +229,7 @@ def test_RNN(*ins):
                     # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
+                    day_e = separators.DateTime.iloc[s+1][0:10]
                     # check if the separator chuck belongs to the training/test set
                     if day_s in data.dateTest:
                         try:
@@ -311,7 +327,7 @@ def test_RNN(*ins):
         # run test RNN
         print("IDresults: "+IDresults)
         model.test(sess, data, IDresults, IDweights, 
-                   int(np.ceil(m_t/aloc)), 1, 'test', startFrom=startFrom,
+                   alloc, 1, 'test', startFrom=startFrom,
                    IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                    save_journal=save_journal, endAt=endAt)
         

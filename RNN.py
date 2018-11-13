@@ -238,7 +238,7 @@ class modelRNN(object):
         
         return softMaxOut
     
-    def test(self, sess, data, IDresults, IDweights, nChunks, save_results, 
+    def test(self, sess, data, IDresults, IDweights, alloc, save_results, 
              trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
              save_journal=False, endAt=-1):
         """ 
@@ -270,7 +270,7 @@ class modelRNN(object):
         f_IO = h5py.File(filename_IO,'r')
         #X_test = f_IO['X'][:]
         Y_test = f_IO['Y'][:]
-        alloc = 500000
+        
         n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
         
         if startFrom == -1:

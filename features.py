@@ -26,7 +26,7 @@ def get_features(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0266Nov09')
+        config = configuration('CPRAWTEST')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -42,7 +42,6 @@ def get_features(*ins):
     if load_features_from=='manual':
         filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
-        print(filename_prep_IO)
     elif load_features_from=='tsfresh':
         filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'.hdf5')
@@ -50,9 +49,26 @@ def get_features(*ins):
         #print("ERROR: load_features_from "+load_features_from+" not recognized")
         raise ValueError("Load_features_from "+load_features_from+" not recognized")
         
-    filename_raw = hdf5_directory+'tradeinfo.hdf5'
-    separators_directory = hdf5_directory+'separators/'
+    if 'build_partial_raw' in config:
+        build_partial_raw = config['build_partial_raw']
+        
+        
+    else:
+        build_partial_raw = False
+        
     
+    if build_partial_raw:
+        # TODO: get init/end dates from dateTest in Data
+        int_date = '180928'
+        end_date = '181109'
+        filename_raw = hdf5_directory+'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
+        separators_directory = hdf5_directory+'separators_F'+int_date+'T'+end_date+'/'
+        if save_stats:
+            raise ValueError("save_stats must be False if building from partial raw")
+    else:
+        filename_raw = hdf5_directory+'tradeinfo.hdf5'
+        separators_directory = hdf5_directory+'separators/'
+
     # reset file
     #reset = False
     #if reset:
