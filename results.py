@@ -1072,23 +1072,73 @@ def get_summary_journal(mc_thr, md_thr, spread_thr, dir_file, print_table=False,
     
     return None
 
-#[[  1.89644665e-01   4.49722797e-01   5.50277174e-01   1.61192399e-02
-#    4.24829900e-01   8.16543881e-12   5.45770705e-01   1.32801458e-02]
-# [  2.44395345e-01   4.44633484e-01   5.55366457e-01   2.40209624e-02
-#    4.14886951e-01   3.51778828e-10   5.42823434e-01   1.82686001e-02]
-# [  2.50142217e-01   4.36904818e-01   5.63095212e-01   1.55553315e-02
-#    4.06303853e-01   5.46768131e-10   5.65299928e-01   1.28408233e-02]]
-#sum_AD[0,0] 1.60078084114
-#[[  2.28120242e-01   4.43772570e-01   5.56227410e-01 ...,   3.02071873e-10
-#    5.51217537e-01   1.48221295e-02]
-# [  2.30687945e-01   4.68803048e-01   5.31197011e-01 ...,   4.92423057e-10
-#    5.22672293e-01   1.61536893e-02]
-# [  1.89086640e-01   4.28530739e-01   5.71469301e-01 ...,   7.28038209e-10
-#    5.70109309e-01   9.16342052e-03]
-# ..., 
-# [  4.41239828e-01   4.63852478e-01   5.36147502e-01 ...,   3.39533312e-10
-#    4.90207105e-01   4.52598002e-02]
-# [  4.80076799e-01   5.01303982e-01   4.98696028e-01 ...,   7.48612705e-10
-#    4.31808985e-01   6.18215955e-02]
-# [  4.29431010e-01   4.80957717e-01   5.19042254e-01 ...,   2.71653928e-10
-#    4.78077795e-01   4.12066225e-02]]
+def print_GRE(dir_origin, IDr, epoch):
+    """ Print lower and upper bound GRE matrices """
+    pip = 0.0001
+    GRElb, GREub, NZs = load_GRE(dir_origin, IDr, epoch)
+    seq_len = GRElb.shape[0]
+    levels = GRElb.shape[3]
+    for l in range(levels):
+        for t in range(seq_len):
+            print("t="+str(t)+" GRElb level "+str(l)+":")
+            print(GRElb[t,:,:,l]/pip)
+    for l in range(levels):
+        for t in range(seq_len):
+            print("t="+str(t)+" GREub level "+str(l)+":")
+            print(GREub[t,:,:,l]/pip)
+    print(NZs)
+    return None
+
+def merge_GREs(dir_origin, list_IDrs, epoch):
+    """ Merge GREs to create a new one with statistics from all IDs.
+    Arg: 
+        - list_IDrs (list of strings): list with IDresult names of GREs to merge 
+    Return:
+        - GREs_merged (list of numpy matrix): merged GRE matrix """
+    # list of lists containing GRElb and GRE lb and non-zeros counter
+    list_GREs = [load_GRE(dir_origin, list_IDrs[i], epoch) 
+                 for i in range(len(list_IDrs))]
+    
+    #weights = 
+    print(list_GREs)
+    return None
+
+def fillup_GRE(GRE):
+    """ Fill up unknows in the GRE matrix """
+    # TODO: implement linear regression to fill up the gaps
+    thresholds_mc = [.5,.6,.7,.8,.9]
+    thresholds_md = [.5,.6,.7,.8,.9]
+    for t in range(GRE.shape[0]):
+        for idx_mc in range(len(thresholds_mc)):
+            min_md = GRE[t,idx_mc,:,:]
+            for idx_md in range(len(thresholds_md)):
+                min_mc = GRE[t,:,idx_md,:]    
+                for l in range(int((5-1)/2)):
+                    if GRE[t,idx_mc,idx_md,l]==0:
+                        if idx_md==0:
+                            if idx_mc==0:
+                                if l==0:
+                                    # all zeros, nothing to do
+                                    pass
+                                else:
+                                    GRE[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
+                            else:
+                                GRE[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
+                        else:
+                            GRE[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
+    return GRE
+
+def load_GRE(dir_origin, IDr, epoch):
+    """ Load lower- and upper bound GREs from Disk. Return a list with
+    both GRE matrices """
+    # load GRE lower bound
+    GRElb = pickle.load( open( dir_origin+IDr+
+                                "/GRE_e"+str(epoch)+".p", "rb" ))
+    # load GRE upper bound
+    GREub = pickle.load( open( dir_origin+IDr+
+                                "/GREex_e"+str(epoch)+".p", "rb" ))
+    # load non-zero counter
+    NZs = pickle.load( open( dir_origin+IDr+
+                                "/NZpp_e"+str(epoch)+".p", "rb" ))
+    return [GRElb, GREub, NZs]
+    

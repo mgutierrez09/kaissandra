@@ -167,8 +167,6 @@ class Strategy():
                                             "/GREex_e"+self.epoch+".p", "rb" ))
                 # fill the gaps in the GRE matrix
                 allGREs = self._fill_up_GRE(allGREs)
-#                print("after")
-#                print(allGREs[self.t_index, :, :, :]/self.pip)
                 GREex = allGREs[self.t_index, :, :, :]/self.pip
                 print("GREex level 1:")
                 print(GREex[:,:,0])
@@ -213,8 +211,7 @@ class Strategy():
         return GRE
     
     def _get_idx(self, p):
-        '''
-        '''
+        """  """
         
         if p>0.5 and p<=0.6:
             idx = 0
@@ -915,7 +912,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                 listFillingX[sc] = False
         else:
 ########################################### Predict #########################################################################              
-            if 1:#verbose_RNN:
+            if verbose_RNN:
                 print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName, sep=' ', end='', flush=True)
             
             soft_tilde = model.run_live_session(list_X_i[sc])
@@ -944,7 +941,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                     list_weights_matrix[sc][t,t] = w
                         
                     # expand dimensions of one row to fit network output
-                    weights = np.expand_dims(np.expand_dims(list_weights_matrix[sc][0,:]/np.sum(list_weights_matrix[sc][0,:]),axis=0),axis=2)
+                    weights = np.expand_dims(np.expand_dims(
+                            list_weights_matrix[sc][0,:]/np.sum(
+                                list_weights_matrix[sc][0,:]),axis=0),axis=2)
                     # MRC
 #                      print(weights_matrix)
 #                      print(weights)
@@ -1010,11 +1009,13 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
             # wait for output to come
             if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
                             
-                Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c])/stds_out[0,data.lookAheadIndex]
+                Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c]
+                         )/stds_out[0,data.lookAheadIndex]
                 countOut+=1
                             
-                Y = (np.minimum(np.maximum(np.sign(Output_i)*np.round(abs(Output_i)*model.outputGain),-
-                            (model.size_output_layer-1)/2),(model.size_output_layer-1)/2)).astype(int)
+                Y = (np.minimum(np.maximum(np.sign(Output_i)*np.round(
+                        abs(Output_i)*model.outputGain),-(model.size_output_layer
+                           -1)/2),(model.size_output_layer-1)/2)).astype(int)
                             
                 look_back_index = -nChannels-t_index-1
                 # compare prediction with actual output 
@@ -1073,7 +1074,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                     
                     columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet",
                                          "Outcome","Diff","Bi","Ai","Bo","Ao",
-                                         "GROI","Spread","ROI","P_mc","P_md","P_mg"]
+                                         "GROI","Spread","ROI","P_mc","P_md",
+                                         "P_mg"]
                     #resultInfo = pd.DataFrame(columns = columnsResultInfo)
                     resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
                                  columns = columnsResultInfo).columns.tolist()]
@@ -1083,8 +1085,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                                       float_format='%.5f')
                     # print entry
                     if verbose_RNN:
-                        print("\r"+netName+resultInfo.to_string(index=False,header=False))
-
+                        print("\r"+netName+resultInfo.to_string(index=False,
+                                                                header=False))
+        # end of if listFillingX[sc]:/else:
         countIndex+=1
     # end of else if fillingX:
     EOF.iloc[c] = tradeInfoLive.iloc[-1]
@@ -1115,7 +1118,8 @@ def dispatch(buffer, ass_id, ass_idx):
             # add info to buffer
             if buffersCounter[ass_idx][nn][ch]>=0:
                 
-                buffers[ass_idx][nn][ch] = buffers[ass_idx][nn][ch].append(tradeInfo,ignore_index=True)
+                buffers[ass_idx][nn][ch] = buffers[ass_idx][nn][ch].append(
+                        tradeInfo,ignore_index=True)
             buffersCounter[ass_idx][nn][ch] += tradeInfo.shape[0]
             # check if buffer reached max
             if buffers[ass_idx][nn][ch].shape[0]==buffSizes[ass_idx,nn]:
@@ -1714,16 +1718,6 @@ if __name__ == '__main__':
                     IDgraph=IDweights[1]+IDepoch[1],
                     sess=None)
                     ]
-#        modelRNN(data,
-#                    size_hidden_layer=100,
-#                    L=3,
-#                    size_output_layer=5,
-#                    keep_prob_dropout=1,
-#                    miniBatchSize=32,
-#                    outputGain=0.6,
-#                    lR0=0.0001,
-#                    IDgraph=IDweights[1]+IDepoch[1],
-#                    sess=None)
     ##########################################################
         init_budget = 10000.0
         start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
