@@ -77,9 +77,6 @@ class Results:
         
     def update_expectations_matrix(self, trader):
         
-#        if trader.list_opened_positions[trader.map_ass_idx2pos_idx[idx]].direction*(bid-trader.list_stop_losses[trader.map_ass_idx2pos_idx[idx]])<=0:
-#            pass
-        
         return None
 
 class Position:
@@ -102,8 +99,8 @@ class Position:
         self.e_spread = float(journal_entry['E_spread'])
         self.deadline = int(journal_entry['Deadline'])
         self.strategy = strategy
-        self.profitability = self.strategy.get_profitability(self.p_mc, self.p_md, self.level)
-        
+        self.network_index = int(journal_entry['network_index'])
+        self.profitability = journal_entry['profitability']
 
 class Strategy():
     
@@ -112,7 +109,7 @@ class Strategy():
                  flexible_lot_ratio=False, lb_mc_op=0.6, lb_md_op=0.6, 
                  lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, 
                  ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
-                 if_dir_change_extend=False, name='',t_index=3,use_GRE=False,
+                 if_dir_change_extend=False, name='',t_indexs=[3],use_GRE=False,
                  IDr=None,epoch='11',weights=np.array([0,1])):
         
         self.name = name
@@ -143,7 +140,7 @@ class Strategy():
         self.use_GRE = use_GRE
         self.IDr = IDr
         self.epoch = epoch
-        self.t_index = t_index
+        self.t_indexs = t_indexs
         self.weights = weights
         self._load_GRE()
         
@@ -157,7 +154,7 @@ class Strategy():
                                         "/GRE_e"+self.epoch+".p", "rb" ))
             # fill the gaps in the GRE matrix
             allGREs = self._fill_up_GRE(allGREs)
-            GRE = allGREs[self.t_index, :, :, :]/self.pip
+            GRE = allGREs[self.t_indexs, :, :, :]/self.pip
             print("GRE level 1:")
             print(GRE[:,:,0])
             print("GRE level 2:")
@@ -167,7 +164,7 @@ class Strategy():
                                             "/GREex_e"+self.epoch+".p", "rb" ))
                 # fill the gaps in the GRE matrix
                 allGREs = self._fill_up_GRE(allGREs)
-                GREex = allGREs[self.t_index, :, :, :]/self.pip
+                GREex = allGREs[self.t_indexs, :, :, :]/self.pip
                 print("GREex level 1:")
                 print(GREex[:,:,0])
                 print("GREex level 2:")
@@ -186,29 +183,29 @@ class Strategy():
         else:
             self.GRE = None
     
-    def _fill_up_GRE(self, GRE):
+    def _fill_up_GRE(self, allGREs):
         """
         Fill uo the gaps in GRE matrix
         """
-        for t in range(GRE.shape[0]):
+        for t in range(allGREs.shape[0]):
             for idx_mc in range(len(thresholds_mc)):
-                min_md = GRE[t,idx_mc,:,:]
+                min_md = allGREs[t,idx_mc,:,:]
                 for idx_md in range(len(thresholds_md)):
-                    min_mc = GRE[t,:,idx_md,:]    
+                    min_mc = allGREs[t,:,idx_md,:]    
                     for l in range(int((5-1)/2)):
-                        if GRE[t,idx_mc,idx_md,l]==0:
+                        if allGREs[t,idx_mc,idx_md,l]==0:
                             if idx_md==0:
                                 if idx_mc==0:
                                     if l==0:
                                         # all zeros, nothing to do
                                         pass
                                     else:
-                                        GRE[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
+                                        allGREs[t,idx_mc,idx_md,l] = max(min_mc[idx_mc,:l])
                                 else:
-                                    GRE[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
+                                    allGREs[t,idx_mc,idx_md,l] = max(min_mc[:idx_mc,l])
                             else:
-                                GRE[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
-        return GRE
+                                allGREs[t,idx_mc,idx_md,l] = max(min_md[:idx_md,l])
+        return allGREs
     
     def _get_idx(self, p):
         """  """
@@ -229,11 +226,10 @@ class Strategy():
             
         return idx
     
-    def get_profitability(self, p_mc, p_md, level):
-        '''
-        '''
+    def get_profitability(self, t, p_mc, p_md, level):
+        """ get profitability for a t_index, prob and output level """
         if self.use_GRE:
-            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
+            return self.GRE[t, self._get_idx(p_mc), self._get_idx(p_md), level]
         else:
             return None
         
@@ -596,10 +592,6 @@ class Trader:
         else:
             # lots ratio to asssign to new asset
             open_lots = min(self.budget_in_lots/(len(self.list_opened_positions)+1),this_strategy.max_lots_per_pos)
-#            print("open_lots "+str(open_lots))
-#            print("self.budget_in_lots "+str(self.budget_in_lots))
-#            print("self.available_bugdet_in_lots "+str(self.available_bugdet_in_lots))
-#            print("self.available_bugdet_in_lots "+str(self.budget_in_lots))
             margin = 0.0001
             # check if necessary lots for opening are available
             if open_lots>self.available_bugdet_in_lots+margin:
@@ -624,38 +616,65 @@ class Trader:
             
         return open_lots
     
-    def get_new_entry(self, inputs, thisAsset):
-        
-        soft_tilde = inputs[0][0]
-        e_spread = inputs[0][1]
-        DateTime = inputs[0][2]
-        Bi = inputs[0][3]
-        Ai = inputs[0][4]
-        deadline = inputs[0][5]
-            
-        # get probabilities
-        max_bit_md = int(np.argmax(soft_tilde[1:3]))
-        if not max_bit_md:
-            #Y_tilde = -1
-            Y_tilde = np.argmax(soft_tilde[3:5])-2
-        else:
-            #Y_tilde = 1
-            Y_tilde = np.argmax(soft_tilde[6:])+1
-            
-        p_mc = soft_tilde[0]
-        p_md = np.max([soft_tilde[1],soft_tilde[2]])
-        #p_mg = soft_tilde[Y_tilde]
-        
+    def select_new_entry(self, inputs, thisAsset):
+        """ get new entry from inputs comming from network
+        Arg:
+            - inputs (list): [n_inputs][list, network_index][t_index][input] """
+        #print(inputs)
+        e_spread = inputs[0][0][0][1]
+        DateTime = inputs[0][0][0][2]
+        Bi = inputs[0][0][0][3]
+        Ai = inputs[0][0][0][4]
+        e_spread_pip = e_spread/self.pip
+        s_prof = -10000 # -infinite
+        for nn in range(len(inputs)):
+            network_index = inputs[nn][-1]
+            for i in range(len(inputs[nn])-1):
+                
+                deadline = inputs[nn][i][0][5]
+                
+                for t in range(len(inputs[nn][i])):
+                    soft_tilde = inputs[nn][i][t][0]
+                    t_index = inputs[nn][i][t][6]
+                    print("nn "+str(network_index)+" i "+str(i)+" t "+str(t_index))
+                    # get probabilities
+                    max_bit_md = int(np.argmax(soft_tilde[1:3]))
+                    if not max_bit_md:
+                        #Y_tilde = -1
+                        Y_tilde = np.argmax(soft_tilde[3:5])-2
+                    else:
+                        #Y_tilde = 1
+                        Y_tilde = np.argmax(soft_tilde[6:])+1
+                        
+                    p_mc = soft_tilde[0]
+                    p_md = np.max([soft_tilde[1],soft_tilde[2]])
+                    profitability = strategies[network_index].get_profitability(
+                            t_index, p_mc, p_md, int(np.abs(Y_tilde)-1))
+                    print("profitability: "+str(profitability))
+                    if profitability>s_prof:
+                        s_prof = profitability
+                        s_deadline = deadline
+                        s_p_mc = p_mc
+                        s_p_md = p_md
+                        s_Y_tilde = Y_tilde
+                        s_network_index = network_index
+                    # end of for t in range(len(inputs[nn][i])):
+            # end of for i in range(len(inputs[nn])-1):
+        # end of for nn in range(len(inputs)):
+        # add profitabilities
+        print("s_prof: "+str(s_prof))
         new_entry = {}
-        new_entry[entry_time_column] = DateTime#dt.datetime.strftime(dt.datetime.now(),'%Y.%m.%d %H:%M:%S')
+        new_entry[entry_time_column] = DateTime
         new_entry['Asset'] = thisAsset
-        new_entry['Bet'] = Y_tilde
-        new_entry['P_mc'] = p_mc
-        new_entry['P_md'] = p_md
+        new_entry['Bet'] = s_Y_tilde
+        new_entry['P_mc'] = s_p_mc
+        new_entry['P_md'] = s_p_md
         new_entry[entry_bid_column] = Bi
         new_entry[entry_ask_column] = Ai
-        new_entry['E_spread'] = e_spread/self.pip
-        new_entry['Deadline'] = deadline
+        new_entry['E_spread'] = e_spread_pip
+        new_entry['Deadline'] = s_deadline
+        new_entry['network_index'] = s_network_index
+        new_entry['profitability'] = s_prof
         
         return new_entry
     
@@ -663,84 +682,84 @@ class Trader:
         '''
         <DocString>
         '''
-        # TODO: make it compatible for multiple inputs at the same time
-        
-        new_entry = self.get_new_entry(inputs, thisAsset)
-        
-        out = ("New entry @ "+new_entry[entry_time_column]+" "+new_entry['Asset']+
-               " P_mc "+str(new_entry['P_mc'])+" P_md "+str(new_entry['P_md'])+" Bet "+
-               str(new_entry['Bet'])+" E_spread "+str(new_entry['E_spread']))
-        print("\r"+out)
-        self.write_log(out)
-        
-        position = Position(new_entry, strategys[0])
-        
-        self.add_new_candidate(position)
-        
-        ass_id = running_assets[ass2index_mapping[thisAsset]]
-#        list_id = self.map_ass_idx2pos_idx[ass_id]
-#        if not run_back_test and list_id>-1:
-#            self.list_last_bid[list_id] = self.next_candidate.entry_bid
-#            self.list_last_ask[list_id] = self.next_candidate.entry_ask
-
-        # open market
-        if not self.is_opened(ass_id):
-            # check if condition for opening is met
-            condition_open = self.check_contition_for_opening()
-            if condition_open:
-                # assign budget
-                lots = self.assign_lots(new_entry[entry_time_column])
-                # check if there is enough budget
-                if self.available_bugdet_in_lots>=lots:
-                    if not run_back_test:
-                        self.send_open_command(directory_MT5_ass)
-                    self.open_position(ass_id, lots, new_entry[entry_time_column], 
-                                       self.next_candidate.e_spread, self.next_candidate.entry_bid, 
-                                       self.next_candidate.entry_ask, self.next_candidate.deadline)
-                else: # no opening due to budget lack
-                    out = "Not enough budget"
-                    print("\r"+out)
-                    self.write_log(out)
-                    # check swap of resources
-                    if self.next_candidate.strategy.use_GRE and self.check_resources_swap():
-                        # lauch swap of resourves
-                        self.initialize_resources_swap(directory_MT5_ass)
-            else:
-                pass
-#                print(" Condition not met")
-        else: # position is opened
-            # check for extension
-            if self.check_primary_condition_for_extention(ass_id):
-                if self.check_secondary_condition_for_extention():    
-                    # include third condition for thresholds
-                    # extend deadline
-                    if not run_back_test:
-                        self.send_open_command(directory_MT5_ass)
-                    self.update_position(ass_id)
-                    self.n_pos_extended += 1
-                    out = (new_entry[entry_time_column]+" Extended "+thisAsset+
-                       " Lots {0:.1f}".format(self.list_lots_per_pos[
-                               self.map_ass_idx2pos_idx[ass_id]])+
-                       " "+str(new_entry['Bet'])+" p_mc={0:.2f}".format(new_entry['P_mc'])+
-                       " p_md={0:.2f}".format(new_entry['P_md'])+ 
-                       " spread={0:.3f}".format(new_entry['E_spread']))
-                    #out = new_entry[entry_time_column]+" Extended "+thisAsset
-                    print("\r"+out)
-                    self.write_log(out)
-                else: # if candidate for extension does not meet requirements
-                    pass
-            else: # if direction is different
-                # if new position has higher GRE, close
-                if self.next_candidate.profitability>=self.list_opened_positions[
-                        self.map_ass_idx2pos_idx[ass_id]].profitability:
-                    if not run_back_test:
-                        self.send_close_command(directory_MT5_ass)
-                        # TODO: study the option of not only closing postiion but also changing direction
-                    else:
-                        # TODO: implement it for back test
-                        pass
-            # end of extention options
+        new_entry = self.select_new_entry(inputs, thisAsset)
+        # check for opening/extension in order of expected returns
+        if 1:
+            out = ("New entry @ "+new_entry[entry_time_column]+" "+new_entry['Asset']+
+                   " P_mc "+str(new_entry['P_mc'])+" P_md "+str(new_entry['P_md'])+" Bet "+
+                   str(new_entry['Bet'])+" E_spread "+str(new_entry['E_spread']))
+            print("\r"+out)
+            self.write_log(out)
             
+            position = Position(new_entry, strategies[new_entry['network_index']])
+            
+            self.add_new_candidate(position)
+            
+            ass_id = running_assets[ass2index_mapping[thisAsset]]
+    #        list_id = self.map_ass_idx2pos_idx[ass_id]
+    #        if not run_back_test and list_id>-1:
+    #            self.list_last_bid[list_id] = self.next_candidate.entry_bid
+    #            self.list_last_ask[list_id] = self.next_candidate.entry_ask
+    
+            # open market
+            if not self.is_opened(ass_id):
+                # check if condition for opening is met
+                condition_open = self.check_contition_for_opening()
+                if condition_open:
+                    # assign budget
+                    lots = self.assign_lots(new_entry[entry_time_column])
+                    # check if there is enough budget
+                    if self.available_bugdet_in_lots>=lots:
+                        if not run_back_test:
+                            self.send_open_command(directory_MT5_ass)
+                        self.open_position(ass_id, lots, new_entry[entry_time_column], 
+                                           self.next_candidate.e_spread, self.next_candidate.entry_bid, 
+                                           self.next_candidate.entry_ask, self.next_candidate.deadline)
+                    else: # no opening due to budget lack
+                        out = "Not enough budget"
+                        print("\r"+out)
+                        self.write_log(out)
+                        # check swap of resources
+                        if self.next_candidate.strategy.use_GRE and self.check_resources_swap():
+                            # lauch swap of resourves
+                            self.initialize_resources_swap(directory_MT5_ass)
+                else:
+                    pass
+    #                print(" Condition not met")
+            else: # position is opened
+                # check for extension
+                if self.check_primary_condition_for_extention(ass_id):
+                    if self.check_secondary_condition_for_extention():    
+                        # include third condition for thresholds
+                        # extend deadline
+                        if not run_back_test:
+                            self.send_open_command(directory_MT5_ass)
+                        self.update_position(ass_id)
+                        self.n_pos_extended += 1
+                        out = (new_entry[entry_time_column]+" Extended "+thisAsset+
+                           " Lots {0:.1f}".format(self.list_lots_per_pos[
+                                   self.map_ass_idx2pos_idx[ass_id]])+
+                           " "+str(new_entry['Bet'])+" p_mc={0:.2f}".format(new_entry['P_mc'])+
+                           " p_md={0:.2f}".format(new_entry['P_md'])+ 
+                           " spread={0:.3f}".format(new_entry['E_spread']))
+                        #out = new_entry[entry_time_column]+" Extended "+thisAsset
+                        print("\r"+out)
+                        self.write_log(out)
+                    else: # if candidate for extension does not meet requirements
+                        pass
+                else: # if direction is different
+                    # if new position has higher GRE, close
+                    if self.next_candidate.profitability>=self.list_opened_positions[
+                            self.map_ass_idx2pos_idx[ass_id]].profitability:
+                        if not run_back_test:
+                            self.send_close_command(directory_MT5_ass)
+                            # TODO: study the option of not only closing postiion but also changing direction
+                        else:
+                            # TODO: implement it for back test
+                            pass
+                # end of extention options
+            # end of if not self.is_opened(ass_id):
+        # end of for io in indexes_ordered:    
         return None
     
     def write_log(self, log):
@@ -849,7 +868,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                   listEM,listAllFeatsLive,list_X_i, means_in,phase_shift,stds_in, 
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
-                  list_Pmd_live,list_Pmg_live,EOF,countOuts,t_index, c, results_dir, 
+                  list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_dir, 
                   results_file, model):
     """
     <DocString>
@@ -916,177 +935,180 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                 print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName, sep=' ', end='', flush=True)
             
             soft_tilde = model.run_live_session(list_X_i[sc])
-            # if only one t_index mode
-            if type(AD)==type(None):
-                soft_tilde_t = soft_tilde[:,-(model.seq_len-t_index),:]
-            else:
-                # if MRC mode
-                for t in range(model.seq_len):
-                    # get weight from AD
-                    mc_idx = (np.floor(soft_tilde[0,t,0]*10)-lb_level)*thr_levels
-                    if mc_idx>=0:
-                        idx_AD = int(mc_idx+(np.floor(np.max(soft_tilde[0,t,1:3])*10)-lb_level))
-                        w = AD[t, max(idx_AD,first_nonzero), 0]
-                    else:
-                        w = AD[t, first_nonzero, 0]# temp. First non-zero level is 6
-                    #print(idx_AD)
-#                      print(AD.shape)
-#                      print(first_nonzero)
-#                   update t-th matrix row from lower row
-                    if t<model.seq_len-1:
-                        list_weights_matrix[sc][t,:] = list_weights_matrix[sc][t+1,:]
-                        # update t matrix entry with weight
-#                       print(w)
+            # loop over t indexes
+            for t_index in range(len(t_indexes)):
+                
+                # if only one t_index mode
+                if t_indexes[t_index]<model.seq_len:
+                    soft_tilde_t = soft_tilde[:,t_indexes[t_index],:]
+                else:
+                    # if MRC mode
+                    for t in range(model.seq_len):
+                        # get weight from AD
+                        mc_idx = (np.floor(soft_tilde[0,t,0]*10)-lb_level)*thr_levels
+                        if mc_idx>=0:
+                            idx_AD = int(mc_idx+(np.floor(np.max(soft_tilde[0,t,1:3])*10)-lb_level))
+                            w = AD[t, max(idx_AD,first_nonzero), 0]
+                        else:
+                            w = AD[t, first_nonzero, 0]# temp. First non-zero level is 6
+                        #print(idx_AD)
+    #                      print(AD.shape)
+    #                      print(first_nonzero)
+    #                   update t-th matrix row from lower row
+                        if t<model.seq_len-1:
+                            list_weights_matrix[sc][t,:] = list_weights_matrix[sc][t+1,:]
+                            # update t matrix entry with weight
+    #                       print(w)
+                                    
+                        list_weights_matrix[sc][t,t] = w
+                            
+                        # expand dimensions of one row to fit network output
+                        weights = np.expand_dims(np.expand_dims(
+                                list_weights_matrix[sc][0,:]/np.sum(
+                                    list_weights_matrix[sc][0,:]),axis=0),axis=2)
+                    soft_tilde_t = np.sum(weights*soft_tilde, axis=1)
                                 
-                    list_weights_matrix[sc][t,t] = w
-                        
-                    # expand dimensions of one row to fit network output
-                    weights = np.expand_dims(np.expand_dims(
-                            list_weights_matrix[sc][0,:]/np.sum(
-                                list_weights_matrix[sc][0,:]),axis=0),axis=2)
-                    # MRC
-#                      print(weights_matrix)
-#                      print(weights)
-                soft_tilde_t = np.sum(weights*soft_tilde, axis=1)
+    #############################################################################################################################  
                             
-#############################################################################################################################  
-                        
-################################# Send prediciton to trader ################################################################# 
-            # get condition to 
-            condition = soft_tilde_t[0,0]>thr_mc
-      
-            # set countdown to enter market
-            if condition:
-                list_time_to_entry[sc].append(t_index)
-                list_list_soft_tildes[sc].append(soft_tilde_t[0,:])
-                if verbose_RNN:
-                    print("\r"+thisAsset+netName+" ToBe sent DateTime "+tradeInfoLive.DateTime.iloc[-1]+
-                                              " P_mc "+str(soft_tilde_t[0,0])+" P_md "+str(np.max(soft_tilde_t[0,1:3])))
-            elif test and verbose_RNN:
-                print("\r"+thisAsset+netName+" DateTime "+tradeInfoLive.DateTime.iloc[-1]+
-                      " P_mc "+str(soft_tilde_t[0,0])+" P_md "+str(np.max(soft_tilde_t[0,1:3])))
-                #print("Prediction in market change")
-                # Snd prediction to trading robot
-            if len(list_time_to_entry[sc])>0 and list_time_to_entry[sc][0]==0:
-                count_t += 1 
-                e_spread = (tradeInfoLive.SymbolAsk.iloc[-1]-tradeInfoLive.SymbolBid.iloc[-1])/tradeInfoLive.SymbolAsk.iloc[-1]
-#                tradeManager([list_list_soft_tildes[sc][0], e_spread])
-                output = [list_list_soft_tildes[sc][0], e_spread, tradeInfoLive.DateTime.iloc[-1],
-                          tradeInfoLive.SymbolBid.iloc[-1], tradeInfoLive.SymbolAsk.iloc[-1], data.nEventsPerStat]
-                
-                if verbose_RNN:
-                    print(thisAsset+netName+" Sent DateTime "+
-                          tradeInfoLive.DateTime.iloc[-1]+
-                          " P_mc "+str(list_list_soft_tildes[sc][0][0])+
-                          " P_md "+str(np.max(list_list_soft_tildes[sc][0][1:3])))
-                
-                list_time_to_entry[sc] = list_time_to_entry[sc][1:]
-                list_list_soft_tildes[sc] = list_list_soft_tildes[sc][1:]
-                
-            list_time_to_entry[sc] = [list_time_to_entry[sc][i]-1 for i in range(len(list_time_to_entry[sc]))]
-###############################################################################################################################
-                        
-################################################# Evaluation ##################################################################
-            
-            
-            prob_mc = np.array([soft_tilde_t[0,0]])
-                        
-            if prob_mc>thr_mc:
-                Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#np.argmax(soft_tilde_t[0,1:3])#np.array([])
-            else:
-                Y_tilde_idx = int((model.size_output_layer-1)/2) # zero index
-                            
-            Y_tilde = np.array([Y_tilde_idx-(model.size_output_layer-1)/2]).astype(int)
-            prob_md = np.array([np.max([soft_tilde_t[0,1],soft_tilde_t[0,2]])])
-            prob_mg = soft_tilde_t[0:,np.argmax(soft_tilde_t[0,3:])]
-            
-            # Check performance. Evaluate prediction
-            list_Ylive[sc] = np.append(list_Ylive[sc],Y_tilde,axis=0)
-            list_Pmc_live[sc] = np.append(list_Pmc_live[sc],prob_mc,axis=0)
-            list_Pmd_live[sc] = np.append(list_Pmd_live[sc],prob_md,axis=0)
-            list_Pmg_live[sc] = np.append(list_Pmg_live[sc],prob_mg,axis=0)
-            
-            # wait for output to come
-            if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
-                            
-                Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c]
-                         )/stds_out[0,data.lookAheadIndex]
-                countOut+=1
-                            
-                Y = (np.minimum(np.maximum(np.sign(Output_i)*np.round(
-                        abs(Output_i)*model.outputGain),-(model.size_output_layer
-                           -1)/2),(model.size_output_layer-1)/2)).astype(int)
-                            
-                look_back_index = -nChannels-t_index-1
-                # compare prediction with actual output 
-                pred = list_Ylive[sc][look_back_index]
-                p_mc = list_Pmc_live[sc][look_back_index]
-                p_md = list_Pmd_live[sc][look_back_index]
-                p_mg = list_Pmg_live[sc][look_back_index]
-                # delete older entries if real time test is running
-                #if 1:#not simulate:
-                list_Ylive[sc] = list_Ylive[sc][look_back_index:]
-                list_Pmc_live[sc] = list_Pmc_live[sc][look_back_index:]
-                list_Pmd_live[sc] = list_Pmd_live[sc][look_back_index:]
-                list_Pmg_live[sc] = list_Pmg_live[sc][look_back_index:]
-                
-
-                countOuts[c]+=1
-                                
-                # if prediction is different than 0, evaluate
-                if pred!=0:
-                    
-                    # entry ask and bid
-                    Ai = EOF.SymbolAsk.iloc[c]
-                    Bi = EOF.SymbolBid.iloc[c]
-                    # exit ask and bid
-                    Ao = tradeInfoLive.SymbolAsk.iloc[-2]
-                    Bo = tradeInfoLive.SymbolBid.iloc[-2]
-                    # long position prediction
-                    #print(pred)
-                    if pred>0:
-                        GROI = 100*(Ao-Ai)/Ai
-                        ROI = 100*(Bo-Ai)/Ai
-                        
-                    else:
-                        GROI = 100*(Bi-Bo)/Ao
-                        ROI = 100*(Bi-Ao)/Ao
-                        
-                    spread = GROI-ROI
-                    newEntry = {}
-                    # update new entry and save
-                    newEntry['Asset'] = thisAsset
-                    newEntry["Entry Time"] = EOF.DateTime.iloc[c]
-                    newEntry["Exit Time"] = tradeInfoLive.DateTime.iloc[-2]
-                    newEntry["GROI"] = GROI
-                    newEntry["Spread"] = spread
-                    newEntry["ROI"] = ROI
-                    newEntry["Bet"] = int(pred)
-                    newEntry["Outcome"] = int(Y)
-                    newEntry["Diff"] = int(np.abs(np.sign(pred)-np.sign(Y)))
-                    newEntry["P_mc"] = p_mc
-                    newEntry["P_md"] = p_md
-                    newEntry["P_mg"] = p_mg
-                    newEntry['Bi'] = EOF.SymbolBid.iloc[c]
-                    newEntry['Ai'] = EOF.SymbolAsk.iloc[c]
-                    newEntry['Bo'] = tradeInfoLive.SymbolBid.iloc[-2]
-                    newEntry['Ao'] = tradeInfoLive.SymbolAsk.iloc[-2]
-                    
-                    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet",
-                                         "Outcome","Diff","Bi","Ai","Bo","Ao",
-                                         "GROI","Spread","ROI","P_mc","P_md",
-                                         "P_mg"]
-                    #resultInfo = pd.DataFrame(columns = columnsResultInfo)
-                    resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
-                                 columns = columnsResultInfo).columns.tolist()]
-                    #if not test:
-                    resultInfo.to_csv(results_dir+results_file,mode="a",
-                                      header=False,index=False,sep='\t',
-                                      float_format='%.5f')
-                    # print entry
+    ################################# Send prediciton to trader ################################################################# 
+                # get condition to 
+                condition = soft_tilde_t[0,0]>thr_mc
+          
+                # set countdown to enter market
+                if condition:
+                    list_time_to_entry[sc][t_index].append(t_index)
+                    list_list_soft_tildes[sc][t_index].append(soft_tilde_t[0,:])
                     if verbose_RNN:
-                        print("\r"+netName+resultInfo.to_string(index=False,
-                                                                header=False))
+                        print("\r"+thisAsset+netName+" ToBe sent DateTime "+tradeInfoLive.DateTime.iloc[-1]+
+                                                  " P_mc "+str(soft_tilde_t[0,0])+" P_md "+str(np.max(soft_tilde_t[0,1:3])))
+                elif test and verbose_RNN:
+                    print("\r"+thisAsset+netName+" DateTime "+tradeInfoLive.DateTime.iloc[-1]+
+                          " P_mc "+str(soft_tilde_t[0,0])+" P_md "+str(np.max(soft_tilde_t[0,1:3])))
+                    #print("Prediction in market change")
+                    # Snd prediction to trading robot
+                if len(list_time_to_entry[sc][t_index])>0 and list_time_to_entry[sc][t_index][0]==0:
+                    count_t += 1 
+                    e_spread = (tradeInfoLive.SymbolAsk.iloc[-1]-tradeInfoLive.SymbolBid.iloc[-1])/tradeInfoLive.SymbolAsk.iloc[-1]
+    #                tradeManager([list_list_soft_tildes[sc][0], e_spread])
+                    output.append([list_list_soft_tildes[sc][t_index][0], e_spread, tradeInfoLive.DateTime.iloc[-1],
+                              tradeInfoLive.SymbolBid.iloc[-1], tradeInfoLive.SymbolAsk.iloc[-1], data.nEventsPerStat, t_indexes[t_index]])
+                    
+                    if verbose_RNN:
+                        print(thisAsset+netName+" Sent DateTime "+
+                              tradeInfoLive.DateTime.iloc[-1]+
+                              " P_mc "+str(list_list_soft_tildes[sc][t_index][0][0])+
+                              " P_md "+str(np.max(list_list_soft_tildes[sc][t_index][0][1:3])))
+                    
+                    list_time_to_entry[sc][t_index] = list_time_to_entry[sc][t_index][1:]
+                    list_list_soft_tildes[sc][t_index] = list_list_soft_tildes[sc][t_index][1:]
+                    
+                list_time_to_entry[sc][t_index] = [list_time_to_entry[sc][t_index][i]-1 for i in range(len(list_time_to_entry[sc][t_index]))]
+    ###############################################################################################################################
+                            
+    ################################################# Evaluation ##################################################################
+                
+                
+                prob_mc = np.array([soft_tilde_t[0,0]])
+                            
+                if prob_mc>thr_mc:
+                    Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#np.argmax(soft_tilde_t[0,1:3])#np.array([])
+                else:
+                    Y_tilde_idx = int((model.size_output_layer-1)/2) # zero index
+                                
+                Y_tilde = np.array([Y_tilde_idx-(model.size_output_layer-1)/2]).astype(int)
+                prob_md = np.array([np.max([soft_tilde_t[0,1],soft_tilde_t[0,2]])])
+                prob_mg = soft_tilde_t[0:,np.argmax(soft_tilde_t[0,3:])]
+                
+                # Check performance. Evaluate prediction
+                list_Ylive[sc][t_index] = np.append(list_Ylive[sc][t_index],Y_tilde,axis=0)
+                list_Pmc_live[sc][t_index] = np.append(list_Pmc_live[sc][t_index],prob_mc,axis=0)
+                list_Pmd_live[sc][t_index] = np.append(list_Pmd_live[sc][t_index],prob_md,axis=0)
+                list_Pmg_live[sc][t_index] = np.append(list_Pmg_live[sc][t_index],prob_mg,axis=0)
+                
+                # wait for output to come
+                if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
+                                
+                    Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c]
+                             )/stds_out[0,data.lookAheadIndex]
+                    countOut+=1
+                                
+                    Y = (np.minimum(np.maximum(np.sign(Output_i)*np.round(
+                            abs(Output_i)*model.outputGain),-(model.size_output_layer
+                               -1)/2),(model.size_output_layer-1)/2)).astype(int)
+                                
+                    look_back_index = -nChannels-t_index-1
+                    # compare prediction with actual output 
+                    pred = list_Ylive[sc][t_index][look_back_index]
+                    p_mc = list_Pmc_live[sc][t_index][look_back_index]
+                    p_md = list_Pmd_live[sc][t_index][look_back_index]
+                    p_mg = list_Pmg_live[sc][t_index][look_back_index]
+                    # delete older entries if real time test is running
+                    #if 1:#not simulate:
+                    list_Ylive[sc][t_index] = list_Ylive[sc][t_index][look_back_index:]
+                    list_Pmc_live[sc][t_index] = list_Pmc_live[sc][t_index][look_back_index:]
+                    list_Pmd_live[sc][t_index] = list_Pmd_live[sc][t_index][look_back_index:]
+                    list_Pmg_live[sc][t_index] = list_Pmg_live[sc][t_index][look_back_index:]
+                    
+    
+                    countOuts[t_index][c]+=1
+                                    
+                    # if prediction is different than 0, evaluate
+                    if pred!=0:
+                        
+                        # entry ask and bid
+                        Ai = EOF.SymbolAsk.iloc[c]
+                        Bi = EOF.SymbolBid.iloc[c]
+                        # exit ask and bid
+                        Ao = tradeInfoLive.SymbolAsk.iloc[-2]
+                        Bo = tradeInfoLive.SymbolBid.iloc[-2]
+                        # long position prediction
+                        #print(pred)
+                        if pred>0:
+                            GROI = 100*(Ao-Ai)/Ai
+                            ROI = 100*(Bo-Ai)/Ai
+                            
+                        else:
+                            GROI = 100*(Bi-Bo)/Ao
+                            ROI = 100*(Bi-Ao)/Ao
+                            
+                        spread = GROI-ROI
+                        newEntry = {}
+                        # update new entry and save
+                        newEntry['Asset'] = thisAsset
+                        newEntry["Entry Time"] = EOF.DateTime.iloc[c]
+                        newEntry["Exit Time"] = tradeInfoLive.DateTime.iloc[-2]
+                        newEntry["GROI"] = GROI
+                        newEntry["Spread"] = spread
+                        newEntry["ROI"] = ROI
+                        newEntry["Bet"] = int(pred)
+                        newEntry["Outcome"] = int(Y)
+                        newEntry["Diff"] = int(np.abs(np.sign(pred)-np.sign(Y)))
+                        newEntry["P_mc"] = p_mc
+                        newEntry["P_md"] = p_md
+                        newEntry["P_mg"] = p_mg
+                        newEntry['Bi'] = EOF.SymbolBid.iloc[c]
+                        newEntry['Ai'] = EOF.SymbolAsk.iloc[c]
+                        newEntry['Bo'] = tradeInfoLive.SymbolBid.iloc[-2]
+                        newEntry['Ao'] = tradeInfoLive.SymbolAsk.iloc[-2]
+                        
+                        columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet",
+                                             "Outcome","Diff","Bi","Ai","Bo","Ao",
+                                             "GROI","Spread","ROI","P_mc","P_md",
+                                             "P_mg"]
+                        #resultInfo = pd.DataFrame(columns = columnsResultInfo)
+                        resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
+                                     columns = columnsResultInfo).columns.tolist()]
+                        #if not test:
+                        resultInfo.to_csv(results_dir[t_index]+results_file[t_index],mode="a",
+                                          header=False,index=False,sep='\t',
+                                          float_format='%.5f')
+                        # print entry
+                        if verbose_RNN:
+                            print("\r"+netName+resultInfo.to_string(index=False,
+                                                                    header=False))
+                    # end of if pred!=0:
+                # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
+            # end of for t_index in t_indexes:
         # end of if listFillingX[sc]:/else:
         countIndex+=1
     # end of else if fillingX:
@@ -1147,10 +1169,10 @@ def dispatch(buffer, ass_id, ass_idx):
                                        list_list_Pmd_live[ass_idx][nn],
                                        list_list_Pmg_live[ass_idx][nn],
                                        EOFs[ass_idx][nn],countOutss[ass_idx][nn],
-                                       t_indexs[nn],ch, resultsDir[nn],
+                                       list_t_indexs[nn],ch, resultsDir[nn],
                                        results_files[nn], list_models[nn])
                 if len(output)>0:
-                    outputs.append(output)
+                    outputs.append([output,nn])
                     new_outputs = 1
                 
                 #reset buffer
@@ -1164,9 +1186,9 @@ def dispatch(buffer, ass_id, ass_idx):
                 #print("Error. Buffer cannot be greater than max buff size")
                 raise ValueError("Buffer cannot be greater than max buff size")
                 
-    if len(outputs)>1:
-        print("WARNING! Outputs length="+str(len(outputs))+
-              ". No support for multiple outputs at the same time yet.") 
+#    if len(outputs)>1:
+#        print("WARNING! Outputs length="+str(len(outputs))+
+#              ". No support for multiple outputs at the same time yet.") 
     return outputs, new_outputs
 
 def fetch(budget):
@@ -1485,9 +1507,9 @@ if __name__ == '__main__':
     
     thresholds_mc = [.5,.6,.7,.8,.9]
     thresholds_md = [.5,.6,.7,.8,.9]
-    n_samps_buffer = 10
+    n_samps_buffer = 100
     test = True
-    run_back_test = True
+    run_back_test = False
     dateTest = (['2018.09.28',
                 '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
                 '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
@@ -1504,17 +1526,20 @@ if __name__ == '__main__':
                 Data(movingWindow=100,nEventsPerStat=1000,lB=1200,
               dateTest = dateTest,feature_keys_tsfresh=[])]
     
+    numberNetworks = 2
     IDepoch = ["6","13"]
     IDweights = ["000287","000266"]
     IDresults = ["100287","100277fNSRs"]#
     delays = [0,5]
-    t_indexs = [2,2] # time index to use as output. Value between {0,...,model.seq_len-1}
-    MRC = [False,True]
+    list_t_indexs = [[0,1,2,3,4],[0,1,2,3]] # time index to use as output. Value between {0,...,model.seq_len-1}
+    #MRC = [False,True]
     mWs = [100,100]
     nExSs = [1000,1000]
     lBs = [1300,1200]
+    list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
+                         list_data[i].movingWindow+1) for i in range(len(mWs))]
     netNames = ["87","77"]
-    phase_shifts = [10,10] # phase shift
+    phase_shifts = [1,1] # phase shift
     list_weights = [np.array([.5,.5]),np.array([.5,.5])]
     list_use_GRE = [True,True]
     list_lb_mc_op = [0.5,.5]
@@ -1535,28 +1560,30 @@ if __name__ == '__main__':
     list_if_dir_change_extend = [False,False]
     list_name = ['87','77']
 #    
-    verbose_RNN = True
-    verbose_trader = True
-    ti_name = []
-    for i in range(len(MRC)):
-        if MRC[i]==True:
-            ti_name.append(3)
-        else:
-            ti_name.append(t_indexs[i])
+    verbose_RNN = False
+    verbose_trader = False
             
     
-    resultsDir = "../RNN/results/"
+    ADsDir = "../RNN/results/"
     
     ADs = []
     for i in range(len(IDepoch)):
-        
-        if MRC[i]==True:
-            if t_indexs[i]!=2:
-                raise ValueError("t_indexs[i] must be 2")
-            ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+
+        mrc = False
+        for t in list_t_indexs[i]:
+            if t==list_seq_lens[i] and not mrc:
+                ADs.append(pickle.load( open( ADsDir+IDresults[i]+"/AD_e"+
                                          IDepoch[i]+".p", "rb" )))
-        else:
-            ADs.append(None)
+                mrc = True
+        if not mrc:
+            ADs.append(np.array([]))
+                
+#        if MRC[i]==True:
+#            if t_indexs[i]!=2:
+#                raise ValueError("t_indexs[i] must be 2")
+#            ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+
+#                                         IDepoch[i]+".p", "rb" )))
+#        else:
+#            ADs.append(None)
 
     nChans = (np.array(nExSs)/np.array(mWs)).astype(int).tolist()
     
@@ -1565,19 +1592,21 @@ if __name__ == '__main__':
     thr_md = 0.5
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
     running_assets = assets
-    numberNetworks = len(nChans)
+    
     
     if run_back_test:
-        resultsDir = ["../RNN/resultsLive/back_test/"+IDresults[nn]+"T"+
-                      str(ti_name[nn])+"E"+IDepoch[nn]+"/" 
-                      for nn in range(numberNetworks)]
+        dir_root = "../RNN/resultsLive/back_test/"
+        
     else:
-        resultsDir = ["../RNN/resultsLive/live/"+IDresults[nn]+"T"+
-                      str(ti_name[nn])+"E"+IDepoch[nn]+"/" 
-                      for nn in range(numberNetworks)]
+        dir_root = "../RNN/resultsLive/live/"
     
-    results_files = [IDresults[nn]+"T"+str(ti_name[nn])+"E"+IDepoch[nn]+".txt" 
-                     for nn in range(numberNetworks)]
+    resultsDir = [[dir_root+IDresults[nn]+"T"+
+                      str(t)+"E"+IDepoch[nn]+"/" 
+                      for t in list_t_indexs[nn]] for nn in range(numberNetworks)]
+    
+    results_files = [[IDresults[nn]+"T"+str(t)+"E"+IDepoch[nn]+".txt" 
+                     for t in list_t_indexs[nn]] for nn in range(numberNetworks)]
+    
     nCxAxN = np.zeros((len(running_assets),numberNetworks))
     columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff",
                          "Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md",
@@ -1588,18 +1617,17 @@ if __name__ == '__main__':
             nCxAxN[:,nn] = int(nChans[nn]*phase_shifts[nn])
         else:
             nCxAxN[:,nn] = int(nChans[nn])
-            
-        if not os.path.exists(resultsDir[nn]):
-            
-            try:
-                os.mkdir(resultsDir[nn])
-                
-            except:
-                print("Warning. Error when creating directory")
-        
-        if not os.path.exists(resultsDir[nn]+results_files[nn]):
-            pd.DataFrame(columns = columnsResultInfo).to_csv(resultsDir[nn]+
-                        results_files[nn],mode="w",index=False,sep='\t')
+        for t in range(len(list_t_indexs[nn])):
+            if not os.path.exists(resultsDir[nn][t]):
+                try:
+                    os.mkdir(resultsDir[nn][t])
+                    
+                except:
+                    print("Warning. Error when creating directory")
+            # check if path exists
+            if not os.path.exists(resultsDir[nn][t]+results_files[nn][t]):
+                pd.DataFrame(columns = columnsResultInfo).to_csv(resultsDir[nn][t]+
+                            results_files[nn][t],mode="w",index=False,sep='\t')
     
     buffSizes = nExSs+np.zeros((len(running_assets),numberNetworks)).astype(int)
     
@@ -1669,7 +1697,7 @@ if __name__ == '__main__':
     exit_ask_column = 'Ao'
     exit_bid_column = 'Bo'
     
-    strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
+    strategies = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                           fixed_spread_pips=list_fixed_spread_pips[i], 
                           max_lots_per_pos=list_max_lots_per_pos[i], 
@@ -1680,9 +1708,9 @@ if __name__ == '__main__':
                           ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
                           if_dir_change_close=list_if_dir_change_close[i], 
                           if_dir_change_extend=list_if_dir_change_extend[i], 
-                          name=list_name[i],t_index=ti_name[i],use_GRE=list_use_GRE[i],
+                          name=list_name[i],t_indexs=list_t_indexs[i],use_GRE=list_use_GRE[i],
                           IDr=IDresults[i],epoch=IDepoch[i],
-                          weights=list_weights[i]) for i in range(len(ti_name))]
+                          weights=list_weights[i]) for i in range(numberNetworks)]
     
     root_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data/'
     directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
@@ -1748,21 +1776,23 @@ if __name__ == '__main__':
                 inits = [[[False for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 listFillingXs = [[[True for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 listCountPoss = [[[0 for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                countOutss = [[np.zeros((int(nChans[nn]*phase_shifts[nn]))).astype(int) for nn in range(nNets)] for ass in range(nAssets)]
+                countOutss = [[[np.zeros((int(nChans[nn]*phase_shifts[nn]))).astype(int) for t in list_t_indexs[nn]] for nn in range(nNets)] for ass in range(nAssets)]
                 EOFs = [[pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk'], index=range(int(nChans[nn]*phase_shifts[nn]))) for nn in range(nNets)] for ass in range(nAssets)]
+                # network inputs
                 list_list_X_i = [[[np.zeros((1, int((lBs[nn]-nExSs[nn])/mWs[nn]+1), data.nFeatures)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                list_list_Ylive = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                list_list_Pmc_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                list_list_Pmd_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                list_list_Pmg_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 list_listAllFeatsLive = [[[np.zeros((data.nFeatures,0)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 list_listFeaturesLive = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 list_listParSarStruct = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 list_listEM = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+                # network outputs
+                list_list_Ylive = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+                list_list_Pmc_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+                list_list_Pmd_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+                list_list_Pmg_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 # init condition vector to open market
                 #condition = np.zeros((model.seq_len))
-                list_list_time_to_entry = [[[[] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)] # list tracking times to entry the market
-                list_list_list_soft_tildes = [[[[] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+                list_list_time_to_entry = [[[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)] # list tracking times to entry the market
+                list_list_list_soft_tildes = [[[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 # upper diagonal matrix containing latest weight values
                 list_list_weights_matrix = [[[np.zeros((int((lBs[nn]-nExSs[nn])/mWs[nn]+1),int((lBs[nn]-nExSs[nn])/mWs[nn]+1))) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
                 
@@ -1780,28 +1810,30 @@ if __name__ == '__main__':
             listCountPoss = [[[0 for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             countOutss = [[np.zeros((int(nChans[nn]*phase_shifts[nn]))).astype(int) for nn in range(nNets)] for ass in range(nAssets)]
             EOFs = [[pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk'], index=range(int(nChans[nn]*phase_shifts[nn]))) for nn in range(nNets)] for ass in range(nAssets)]
+            # network inputs
             list_list_X_i = [[[np.zeros((1, int((lBs[nn]-nExSs[nn])/mWs[nn]+1), data.nFeatures)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-            list_list_Ylive = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-            list_list_Pmc_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-            list_list_Pmd_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-            list_list_Pmg_live = [[[np.zeros((0,)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             list_listAllFeatsLive = [[[np.zeros((data.nFeatures,0)) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             list_listFeaturesLive = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             list_listParSarStruct = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             list_listEM = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+            # network outputs
+            list_list_Ylive = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+            list_list_Pmc_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+            list_list_Pmd_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+            list_list_Pmg_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             # init condition vector to open market
             #condition = np.zeros((model.seq_len))
-            list_list_time_to_entry = [[[[] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)] # list tracking times to entry the market
-            list_list_list_soft_tildes = [[[[] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+            list_list_time_to_entry = [[[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)] # list tracking times to entry the market
+            list_list_list_soft_tildes = [[[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
             # upper diagonal matrix containing latest weight values
             list_list_weights_matrix = [[[np.zeros((int((lBs[nn]-nExSs[nn])/mWs[nn]+1),int((lBs[nn]-nExSs[nn])/mWs[nn]+1))) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-                
+            
             # init trader
             trader = Trader(results_dir="../RNN/resultsLive/live/trader/", init_budget=init_budget, log_file_time=start_time)
             init_budget = fetch(init_budget)
             # launch fetcher
             
-            
+#            list_list_list_soft_tildes = [[[[] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
         # gather results
         total_entries = int(np.sum(results.number_entries))
         total_successes = int(np.sum(results.net_successes))

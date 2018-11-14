@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0285Nov09'
+        config_name = 'C0288Nov09'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -66,13 +66,13 @@ def configuration(*ins):
         
         # general parameters
         if_build_IO = True
-        IDweights = '000285'
+        IDweights = '000288'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
         # model parameters
-        size_hidden_layer=100
+        size_hidden_layer=200
         L=3
         size_output_layer=5
         keep_prob_dropout=1
@@ -83,11 +83,11 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100285Nov09'
+        IDresults = '100288Nov09'
         IO_results_name = IDresults
-        startFrom = 16
-        endAt = 16
-        save_journal = True
+        startFrom = 6
+        endAt = 12
+        save_journal = False
         
         # feature-specific configuration
         save_stats = False
@@ -160,6 +160,16 @@ def get_config(config_name):
     else:
         print("Config name "+config_name+" does not exist")
         return None
+
+def save_config(config):
+    """  """
+    config_filename = config_directory+config['config_name']+config_extension
+    if not os.path.exists(config_filename):
+        pickle.dump( config, open( config_filename, "wb" ))
+        print("Config file "+config_filename+" saved")
+        return True
+    else:
+        return False
 
 def print_config(config_name):
     """

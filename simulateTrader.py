@@ -950,41 +950,42 @@ if __name__ == '__main__':
 #    list_flexible_lot_ratio = [False,False,False,False]
 #    list_if_dir_change_close = [False,False,False,False]
 #    list_if_dir_change_extend = [False,False,False,False]
-        
-    list_IDresults = ['100287Nov09','100287Nov09','100287Nov09','100287Nov09','100287Nov09']#
-    list_IDgre = ['100287Nov09','100286Nov09','100286Nov09','100286Nov09','100286Nov09']
-    list_name = ['87_0','87_1','87_2','87_3','87_4']
-    list_epoch_gre = [6,6,6,6,6]
-    list_epoch_journal = [6,6,6,6,6]
-    list_use_GRE = [True,True,True,True,True]
-    list_weights = [np.array([.5,.5]),np.array([.5,.5]),np.array([.5,.5]),
-                             np.array([.5,.5]),np.array([.5,.5])]
-    list_t_index = [0,1,2,3,4]
-    list_lb_mc_op = [.5,.5,.5,.5,.5]
-    list_lb_md_op = [.8,.8,.8,.8,.8]
-    list_lb_mc_ext = [.5,.5,.5,.5,.5]
-    list_lb_md_ext = [.6,.6,.6,.6,.6]
-    list_ub_mc_op = [1,1,1,1,1]
-    list_ub_md_op = [1,1,1,1,1]
-    list_ub_mc_ext = [1,1,1,1,1]
-    list_ub_md_ext = [1,1,1,1,1]
-    list_thr_sl = [1000,1000,1000,1000,1000]
-    list_thr_tp = [1000,1000,1000,1000,1000]
-    list_fix_spread = [False,False,False,False,False]
-    list_fixed_spread_pips = [4,4,4,4,4]
-    list_max_lots_per_pos = [.1,.1,.1,.1,.1]
-    list_flexible_lot_ratio = [False,False,False,False,False]
-    list_if_dir_change_close = [False,False,False,False,False]
-    list_if_dir_change_extend = [False,False,False,False,False]
-
-#    list_IDresults = ['100286Nov09']#
-#    list_IDgre = ['100286']
-#    list_name = ['86']
-#    list_epoch_gre = [6]
-#    list_epoch_journal = [6]
+    
+    numberNetwors = 3
+    list_IDresults = ['100287Nov09','100286Nov09','100285Nov09']#
+    list_IDgre = ['100287Nov09','100286Nov09','100285Nov09']
+    list_name = ['87_6','87_6','85_16']
+    list_epoch_gre = [6,6,16]
+    list_epoch_journal = [6,6,16]
+    list_t_index = [2,3,3]
+    list_use_GRE = [True for i in range(numberNetwors)]
+    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
+    list_lb_mc_op = [.5 for i in range(numberNetwors)]
+    list_lb_md_op = [.8 for i in range(numberNetwors)]
+    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
+    list_lb_md_ext = [.6 for i in range(numberNetwors)]
+    list_ub_mc_op = [1 for i in range(numberNetwors)]
+    list_ub_md_op = [1 for i in range(numberNetwors)]
+    list_ub_mc_ext = [1 for i in range(numberNetwors)]
+    list_ub_md_ext = [1 for i in range(numberNetwors)]
+    list_thr_sl = [1000 for i in range(numberNetwors)]
+    list_thr_tp = [1000 for i in range(numberNetwors)]
+    list_fix_spread = [False for i in range(numberNetwors)]
+    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
+    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
+    list_if_dir_change_close = [False for i in range(numberNetwors)]
+    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+    
+#    numberNetwors = 1
+#    list_IDresults = ['100288Nov09']#
+#    list_IDgre = ['100288Nov09']
+#    list_name = ['88_11']
+#    list_epoch_gre = [11]
+#    list_epoch_journal = [11]
 #    list_use_GRE = [True]
 #    list_weights = [np.array([.5,.5])]
-#    list_t_index = [2]
+#    list_t_index = [4]
 #    list_lb_mc_op = [.6]
 #    list_lb_md_op = [.8]
 #    list_lb_mc_ext = [.5]
@@ -1662,6 +1663,7 @@ if __name__ == '__main__':
 #Total GROI = 12.992% Total ROI = 7.918% Sum GROI = 13.473% Sum ROI = 8.187% Accumulated earnings 818.65E
 #Total entries 452 per entries 3.44 percent gross success 61.50% percent nett success 56.64% average loss 7.13p average win 8.65p RR 1 to 1.59
 #DONE. Total time: 39.35 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_13_08_58_10trader_v30.log
 
 # wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100277Nov09 from 2018.3.9 to .11.09  
 #Total GROI = 8.365% Total ROI = 3.042% Sum GROI = 8.454% Sum ROI = 3.054% Accumulated earnings 305.35E
@@ -1678,4 +1680,27 @@ if __name__ == '__main__':
 #Total entries 562 per entries 2.01 percent gross success 64.77% percent nett success 58.01% average loss 7.15p average win 8.24p RR 1 to 1.59
 #DONE. Total time: 56.37 mins
 #Log file: ../RNN/resultsLive/simulate/trader/18_11_13_15_52_42trader_v30.log
-# ULTIMATELY!!!!!!!!!!!!!!!!!!!
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 All t_indexs IDr 100287Nov09 from 2018.3.9 to .11.09
+#Total GROI = 16.271% Total ROI = 6.777% Sum GROI = 16.831% Sum ROI = 6.900% Accumulated earnings 690.02E
+#Total entries 715 per entries 1.24 percent gross success 61.40% percent nett success 53.71% average loss 7.55p average win 8.30p RR 1 to 1.28
+#DONE. Total time: 81.04 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_13_17_31_32trader_v30.log
+
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/3/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09    
+#Total GROI = 20.403% Total ROI = 11.463% Sum GROI = 21.502% Sum ROI = 11.932% Accumulated earnings 1193.17E
+#Total entries 760 per entries 1.82 percent gross success 62.89% percent nett success 56.84% average loss 7.81p average win 8.69p RR 1 to 1.47
+#DONE. Total time: 135.56 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_11_36_03trader_v30.log
+    
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100286Nov09 from 2018.3.9 to .11.09  
+#Total GROI = 13.804% Total ROI = 7.036% Sum GROI = 14.254% Sum ROI = 7.171% Accumulated earnings 717.09E
+#Total entries 552 per entries 3.86 percent gross success 61.23% percent nett success 56.16% average loss 7.72p average win 8.34p RR 1 to 1.38
+#DONE. Total time: 56.82 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_14_05_53trader_v30.log
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 4 IDr 100288Nov09 from 2018.3.9 to .11.09
+#Total GROI = 9.010% Total ROI = 5.299% Sum GROI = 9.228% Sum ROI = 5.385% Accumulated earnings 538.47E
+#Total entries 318 per entries 3.37 percent gross success 57.86% percent nett success 53.14% average loss 8.44p average win 10.63p RR 1 to 1.43
+#DONE. Total time: 28.72 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_15_20_25trader_v30.log
