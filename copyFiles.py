@@ -12,15 +12,15 @@ import datetime as dt
 from inputs import Data
 
 #
-destiny = 'D:/SDC/py/Data/'
-origin = 'D:/SDC/py/Data_aws_4/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'#'C:/Users/mgutierrez/Desktop/SVN root/Projects/SDC/predictForex/ex4/py/Data/'
+destiny = 'D:/SDC/py/Data_DL3/'
+origin = 'E:/py/Data_DL3/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'#'C:/Users/mgutierrez/Desktop/SVN root/Projects/SDC/predictForex/ex4/py/Data/'
 
 data = Data()
 
 if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
 
-copyFrom = '2018.09.28 00:00:00'
+copyFrom = '2018.11.02 00:00:00'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
 
 for i in data.assets:#

@@ -25,20 +25,26 @@ class Results:
     def __init__(self):
         
         self.total_GROI = 0.0
+        self.GROIs_week = np.array([])
         self.GROIs = np.array([])
         
         self.total_ROI = 0.0
+        self.ROIs_week = np.array([])
         self.ROIs = np.array([])
         
         self.sum_GROI = 0.0
+        self.sum_GROIs_week = np.array([])
         self.sum_GROIs = np.array([])
         
         self.sum_ROI = 0.0
+        self.sum_ROIs_week = np.array([])
         self.sum_ROIs = np.array([])
         
         self.total_earnings = 0.0
+        self.earnings_week = np.array([])
         self.earnings = np.array([])
         
+        self.datetimes = []
         self.number_entries = np.array([])
         
         self.net_successes = np.array([])
@@ -51,24 +57,28 @@ class Results:
         self.n_slots = 10
         self.expectations_matrix = np.zeros((self.sl_levels.shape[0], self.n_slots))
         
+        self.n_entries = 0
+        
     def update_results(self):
         
+        self.n_entries += trader.n_entries
+        
         self.sum_GROI += 100*trader.tGROI_live
-        self.sum_GROIs = np.append(self.sum_GROIs, 100*trader.tGROI_live)
+        self.sum_GROIs_week = np.append(self.sum_GROIs_week, 100*trader.tGROI_live)
         
         self.sum_ROI += 100*trader.tROI_live
-        self.sum_ROIs = np.append(self.sum_ROIs, 100*trader.tROI_live)
+        self.sum_ROIs_week = np.append(self.sum_ROIs_week, 100*trader.tROI_live)
         
         self.total_GROI += 100*GROI
-        self.GROIs = np.append(self.GROIs, 100*GROI)
+        self.GROIs_week = np.append(self.GROIs_week, 100*GROI)
         
         self.total_ROI += 100*ROI
-        self.ROIs = np.append(self.ROIs, 100*ROI)
+        self.ROIs_week = np.append(self.ROIs_week, 100*ROI)
         
         self.total_earnings += earnings
-        self.earnings = np.append(self.earnings, earnings)
+        self.earnings_week = np.append(self.earnings_week, earnings)
         
-        self.number_entries = np.append(self.number_entries, n_entries)
+        self.number_entries = np.append(self.number_entries, trader.n_entries)
         self.net_successes = np.append(self.net_successes, trader.net_successes)
         self.total_losses = np.append(self.total_losses, np.abs(trader.average_loss))
         self.total_wins = np.append(self.total_wins, np.abs(trader.average_win))
@@ -258,10 +268,11 @@ class Strategy():
             return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
         else:
             return 0.0
+
 class Trader:
     
     def __init__(self, next_candidate, init_budget=10000,log_file='',summary_file=''):
-        
+        """  """
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(data.AllAssets))])
         self.list_count_events = []
@@ -292,12 +303,15 @@ class Trader:
         
         self.tROI_live = 0.0
         self.tGROI_live = 0.0
+        self.GROIs = np.array([])
+        self.ROIs = np.array([])
         
         self.net_successes = 0 
         self.average_loss = 0.0
         self.average_win = 0.0
         self.gross_successes = 0
         self.n_pos_extended = 0
+        self.n_entries = 0
         
         self.save_log = 1
         if log_file=='':
@@ -313,11 +327,12 @@ class Trader:
             self.summary_file = summary_file
     
     def _get_thr_sl_vector(self):
-        
+        """  """
         return self.next_candidate.entry_bid*(1-self.next_candidate.direction*
                                               self.sl_thr_vector*self.pip)
     
     def add_position(self, idx, lots):
+        """  """
         self.list_opened_positions.append(self.next_candidate)
         self.list_count_events.append(0)
         self.list_lots_per_pos.append(lots)
@@ -339,8 +354,7 @@ class Trader:
         
         
     def remove_position(self, idx):
-#        print(self.map_ass_idx2pos_idx[idx])
-#        print(self.list_opened_positions[:self.map_ass_idx2pos_idx[idx]]+self.list_opened_positions[self.map_ass_idx2pos_idx[idx]+1:])
+        """  """
         self.list_opened_positions = self.list_opened_positions[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_opened_positions[
                         self.map_ass_idx2pos_idx[idx]+1:]
@@ -486,8 +500,7 @@ class Trader:
                                     )-1))>e_spread/self.pip+margin)
             
         else:
-            print("ERROR: fix_spread cannot be fixed if GRE is in use")
-            error()
+            raise ValueError("fix_spread cannot be fixed if GRE is in use")
             
         return second_condition_open
         
@@ -579,7 +592,7 @@ class Trader:
     def close_position(self, date_time, ass, idx, lot_ratio=None, partial_close=False):
         # update results and exit market
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-        
+        self.n_entries += 1
         Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
@@ -593,7 +606,7 @@ class Trader:
                         self.map_ass_idx2pos_idx[idx]]
 
         if np.isnan(roi_ratio):
-            error()
+            raise ValueError("roi_ratio NaN")
         
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -620,11 +633,13 @@ class Trader:
         self.available_bugdet_in_lots = self.available_budget/self.LOT
         self.budget_in_lots += self.list_lots_per_pos[
                 self.map_ass_idx2pos_idx[idx]]*ROI_live
-        self.budget += self.list_lots_entry[
+        nett_win = self.list_lots_entry[
                 self.map_ass_idx2pos_idx[idx]]*ROI_live*self.LOT
-        earnings = self.budget-self.init_budget
-        self.gross_earnings += self.list_lots_entry[
+        gross_win = self.list_lots_entry[
                 self.map_ass_idx2pos_idx[idx]]*GROI_live*self.LOT
+        self.budget += nett_win
+        earnings = self.budget-self.init_budget
+        self.gross_earnings += gross_win
         if ROI_live>0:
             self.net_successes += 1
             self.average_win += ROI_live
@@ -650,18 +665,22 @@ class Trader:
                       100*ROI_live,100*spread,100*GROI_live)+" TGROI {1:.3f}% TROI = {0:.3f}%".format(
                       100*self.tROI_live,100*self.tGROI_live)+" Earnings {0:.2f}".format(earnings)
               +". Remeining open "+str(len(self.list_opened_positions)))
+        # update results
+        results.datetimes.append(date_time.decode("utf-8"))
+        results.GROIs = np.append(results.GROIs,100*GROI_live)
+        results.ROIs = np.append(results.ROIs,100*ROI_live)
+        results.earnings = np.append(results.GROIs,nett_win)
         self.write_log(out)
         print(out)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
-    def open_position(self, idx, approached, n_entries, n_pos_opened, lots):
+    def open_position(self, idx, approached, n_pos_opened, lots):
         """
         
         """
         self.available_budget -= lots*self.LOT
         self.available_bugdet_in_lots -= lots
         approached = 1
-        n_entries += 1
         n_pos_opened += 1
         
         # update vector of opened positions
@@ -678,7 +697,7 @@ class Trader:
         print(out)
         self.write_log(out)
         
-        return approached, n_entries, n_pos_opened, EXIT, rewind
+        return approached, n_pos_opened, EXIT, rewind
     
     def extend_position(self, idx):
         """
@@ -747,7 +766,7 @@ class Trader:
                 print(out)
                 self.write_log(out)
                 if close_lots==np.inf:
-                    error()
+                    raise ValueError("close_lots==np.inf")
                 # loop over open positions to close th close_lot_ratio 
                 #ratio to allocate the new position
                 for pos in range(len(self.list_opened_positions)):
@@ -951,58 +970,63 @@ if __name__ == '__main__':
 #    list_if_dir_change_close = [False,False,False,False]
 #    list_if_dir_change_extend = [False,False,False,False]
     
-    numberNetwors = 3
-    list_IDresults = ['100287Nov09','100286Nov09','100285Nov09']#
-    list_IDgre = ['100287Nov09','100286Nov09','100285Nov09']
-    list_name = ['87_6','87_6','85_16']
-    list_epoch_gre = [6,6,16]
-    list_epoch_journal = [6,6,16]
-    list_t_index = [2,3,3]
-    list_use_GRE = [True for i in range(numberNetwors)]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
-    list_lb_mc_op = [.5 for i in range(numberNetwors)]
-    list_lb_md_op = [.8 for i in range(numberNetwors)]
-    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.6 for i in range(numberNetwors)]
-    list_ub_mc_op = [1 for i in range(numberNetwors)]
-    list_ub_md_op = [1 for i in range(numberNetwors)]
-    list_ub_mc_ext = [1 for i in range(numberNetwors)]
-    list_ub_md_ext = [1 for i in range(numberNetwors)]
-    list_thr_sl = [1000 for i in range(numberNetwors)]
-    list_thr_tp = [1000 for i in range(numberNetwors)]
-    list_fix_spread = [False for i in range(numberNetwors)]
-    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
-    list_if_dir_change_close = [False for i in range(numberNetwors)]
-    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+#    numberNetwors = 3
+#    list_IDresults = ['100287Nov09','100286Nov09','100285Nov09']#
+#    list_IDgre = ['100287Nov09','100286Nov09','100285Nov09']
+#    list_name = ['87_6','87_6','85_16']
+#    list_epoch_gre = [6,6,16]
+#    list_epoch_journal = [6,6,16]
+#    list_t_index = [2,2,3]
+#    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
+#    list_lb_mc_op = [.5 for i in range(numberNetwors)]
+#    list_lb_md_op = [.8 for i in range(numberNetwors)]
+#    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.6 for i in range(numberNetwors)]
+#    list_ub_mc_op = [1 for i in range(numberNetwors)]
+#    list_ub_md_op = [1 for i in range(numberNetwors)]
+#    list_ub_mc_ext = [1 for i in range(numberNetwors)]
+#    list_ub_md_ext = [1 for i in range(numberNetwors)]
+#    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    list_thr_tp = [1000 for i in range(numberNetwors)]
+#    list_fix_spread = [False for i in range(numberNetwors)]
+#    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
+#    list_if_dir_change_close = [False for i in range(numberNetwors)]
+#    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+#    list_w_str = ["05","05","05"]
     
-#    numberNetwors = 1
-#    list_IDresults = ['100288Nov09']#
-#    list_IDgre = ['100288Nov09']
-#    list_name = ['88_11']
-#    list_epoch_gre = [11]
-#    list_epoch_journal = [11]
-#    list_use_GRE = [True]
-#    list_weights = [np.array([.5,.5])]
-#    list_t_index = [4]
-#    list_lb_mc_op = [.6]
-#    list_lb_md_op = [.8]
-#    list_lb_mc_ext = [.5]
-#    list_lb_md_ext = [.6]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
+    numberNetwors = 1
+    list_IDresults = ['100288Nov09']#
+    list_IDgre = ['100288Nov09']
+    list_name = ['89_13']
+    list_epoch_gre = [11]
+    list_epoch_journal = [11]
+    list_use_GRE = [True]
+    list_weights = [np.array([0,1])]
+    list_w_str = ["01"]
+    list_t_index = [4]
+    list_lb_mc_op = [.6]
+    list_lb_md_op = [.8]
+    list_lb_mc_ext = [.5]
+    list_lb_md_ext = [.6]
+    list_ub_mc_op = [1]
+    list_ub_md_op = [1]
+    list_ub_mc_ext = [1]
+    list_ub_md_ext = [1]
+    list_thr_sl = [1000]
+    list_thr_tp = [1000]
+    list_fix_spread = [False]
+    list_fixed_spread_pips = [4]
+    list_max_lots_per_pos = [.1]
+    list_flexible_lot_ratio = [False]
+    list_if_dir_change_close = [False]
+    list_if_dir_change_extend = [False]
     
+    results_file_name = '_'.join([list_IDresults[i]+'E'+str(list_epoch_gre[i])+'T'+
+                         str(list_t_index[i])+'W'+list_w_str[i]
+                         for i in range(numberNetwors)])
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -1100,9 +1124,10 @@ if __name__ == '__main__':
     total_journal_entries = journal_all_days.shape[0]
     init_budget = 10000
     results = Results()
-    start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-    log_file = "../RNN/resultsLive/simulate/trader/"+start_time+"trader_v30.log"
-    summary_file = "../RNN/resultsLive/simulate/trader/"+start_time+"summary.log"
+    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+    directory = "../RNN/resultsLive/simulate/trader/"
+    log_file = directory+start_time+"trader_v30.log"
+    summary_file = directory+start_time+"summary.log"
     ##### loop over different day groups #####
     day_index = 0
     t_journal_entries = 0
@@ -1152,7 +1177,6 @@ if __name__ == '__main__':
                                                                             root_dir=root_dir)
     
         # set counters and flags
-        n_entries = 0
         n_pos_opened = 0
         secs_counter = 0
         approached = 0
@@ -1215,9 +1239,8 @@ if __name__ == '__main__':
                     #print("trader.available_bugdet_in_lots "+str(trader.available_bugdet_in_lots))
     
                     if trader.available_bugdet_in_lots>=lots:
-                        approached, n_entries, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, 
+                        approached, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, 
                                                                                                  approached, 
-                                                                                                 n_entries, 
                                                                                                  n_pos_opened, 
                                                                                                  lots=lots)
                     else:
@@ -1342,21 +1365,22 @@ if __name__ == '__main__':
             if condition_open and no_budget:
                 not_entered += 1
                 not_entered_av_budget += 1
-                print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+
+                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+
                       " Not enough butget "+Assets[event_idx].decode("utf-8"))
+                print(out)
                 if trader.flexible_lot_ratio:
-                    error()
+                    raise ValueError(out+" and trader.flexible_lot_ratio== True")
                 EXIT, rewind = trader.update_candidates()
                 if len(trader.list_opened_positions)==0:
                     approached = 0
             if (trader.next_candidate!= None and 
                 trader.next_candidate.entry_time<time_stamp):# and len(trader.list_opened_positions)==0
                 out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+
-                      " WARNING! Next exit time should be "+
+                      " ERROR! Next exit time should be "+
                       "later than current time stamp."+" Updating candidates")
                 print(out)
                 trader.write_log(out)
-                error()
+                raise ValueError(out)
                 # updating candidates
                 EXIT, rewind = trader.update_candidates()
 #                error()
@@ -1411,12 +1435,12 @@ if __name__ == '__main__':
         # get statistics
         t_entries = n_pos_opened+trader.n_pos_extended
         perEntries = t_entries/journal_entries
-        if n_entries>0:
-            per_net_success = trader.net_successes/n_entries
-            average_loss = np.abs(trader.average_loss)/(n_entries-trader.net_successes)
-            per_gross_success = trader.gross_successes/n_entries
-            perSL = stoplosses/n_entries
-            ROI_per_entry = 100*trader.tROI_live/n_entries
+        if trader.n_entries>0:
+            per_net_success = trader.net_successes/trader.n_entries
+            average_loss = np.abs(trader.average_loss)/(trader.n_entries-trader.net_successes)
+            per_gross_success = trader.gross_successes/trader.n_entries
+            perSL = stoplosses/trader.n_entries
+            ROI_per_entry = 100*trader.tROI_live/trader.n_entries
         else:
             per_net_success = 0.0
             average_loss = 0.0
@@ -1440,7 +1464,7 @@ if __name__ == '__main__':
         print("\n"+out)
         trader.write_log(out)
         trader.write_summary(out)
-        out = ("Number entries "+str(n_entries)+
+        out = ("Number entries "+str(trader.n_entries)+
                " per entries {0:.2f}%".format(100*perEntries)+
                " per net success "+"{0:.3f}%".format(100*per_net_success)+
                " per gross success "+"{0:.3f}%".format(100*per_gross_success)+
@@ -1496,8 +1520,9 @@ if __name__ == '__main__':
     out = ("DONE. Total time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins")
     print(out)
     trader.write_log(out)
-    out = "Log file: "+trader.log_file
+    out = "Results file: "+results_file_name
     print(out)
+    pickle.dump( results, open( directory+start_time+"_"+results_file_name+".p", "wb" ))
 
 # Combine .6/.7/.6/.6 .7/.7/.6/.6 real spread<.03 fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248/100246 not closing not extending if direction changes 
 #Total GROI = 11.064% Total ROI = 7.700% Sum GROI = 11.411% Sum ROI = 7.923% Accumulated earnings 792.35E
@@ -1687,7 +1712,7 @@ if __name__ == '__main__':
 #DONE. Total time: 81.04 mins
 #Log file: ../RNN/resultsLive/simulate/trader/18_11_13_17_31_32trader_v30.log
 
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/3/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09    
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/2/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09    
 #Total GROI = 20.403% Total ROI = 11.463% Sum GROI = 21.502% Sum ROI = 11.932% Accumulated earnings 1193.17E
 #Total entries 760 per entries 1.82 percent gross success 62.89% percent nett success 56.84% average loss 7.81p average win 8.69p RR 1 to 1.47
 #DONE. Total time: 135.56 mins
@@ -1704,3 +1729,27 @@ if __name__ == '__main__':
 #Total entries 318 per entries 3.37 percent gross success 57.86% percent nett success 53.14% average loss 8.44p average win 10.63p RR 1 to 1.43
 #DONE. Total time: 28.72 mins
 #Log file: ../RNN/resultsLive/simulate/trader/18_11_14_15_20_25trader_v30.log
+
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/3/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09
+#Total GROI = 18.969% Total ROI = 10.174% Sum GROI = 19.894% Sum ROI = 10.526% Accumulated earnings 1052.56E
+#Total entries 718 per entries 1.72 percent gross success 63.65% percent nett success 57.52% average loss 8.10p average win 8.53p RR 1 to 1.43
+#DONE. Total time: 81.57 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_17_25_58trader_v30.log
+
+# wGRE=[.5,.5] fix invest to .1 vol epoch 13 t_index 2 IDr 100289Nov09 from 2018.3.9 to .11.09
+#Total GROI = 11.027% Total ROI = 6.130% Sum GROI = 11.343% Sum ROI = 6.281% Accumulated earnings 628.12E
+#Total entries 414 per entries 4.14 percent gross success 63.53% percent nett success 58.21% average loss 7.14p average win 7.73p RR 1 to 1.51
+#DONE. Total time: 30.31 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_15_11_21_21trader_v30.log
+
+# wGRE=[0,1] fix invest to .1 vol epoch 13 t_index 2 IDr 100289Nov09 from 2018.3.9 to .11.09
+#Total GROI = 14.546% Total ROI = 4.787% Sum GROI = 14.914% Sum ROI = 4.841% Accumulated earnings 484.12E
+#Total entries 699 per entries 6.99 percent gross success 60.94% percent nett success 54.08% average loss 6.83p average win 7.08p RR 1 to 1.22
+#DONE. Total time: 29.13 mins
+#Log file: ../RNN/resultsLive/simulate/trader/18_11_15_12_08_04trader_v30.log
+
+# wGRE=[0,1] fix invest to .1 vol epoch 13 t_index 2 IDr 100288Nov09 from 2018.3.9 to .11.09
+#Total GROI = 15.349% Total ROI = 8.068% Sum GROI = 15.945% Sum ROI = 8.310% Accumulated earnings 830.99E
+#Total entries 556 per entries 5.90 percent gross success 60.97% percent nett success 55.94% average loss 7.85p average win 8.86p RR 1 to 1.43
+#DONE. Total time: 26.26 mins
+#Log file: ../RNN/resultsLive/simulate/trader/181115141434trader_v30.log
