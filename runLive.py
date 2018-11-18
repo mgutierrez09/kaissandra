@@ -635,8 +635,8 @@ class Trader:
                 
                 for t in range(len(inputs[nn][i])):
                     soft_tilde = inputs[nn][i][t][0]
-                    t_index = inputs[nn][i][t][6]
-                    print("nn "+str(network_index)+" i "+str(i)+" t "+str(t_index))
+                    #t_index = inputs[nn][i][t][6]
+                    #print("nn "+str(network_index)+" i "+str(i)+" t "+str(t_index))
                     # get probabilities
                     max_bit_md = int(np.argmax(soft_tilde[1:3]))
                     if not max_bit_md:
@@ -650,7 +650,7 @@ class Trader:
                     p_md = np.max([soft_tilde[1],soft_tilde[2]])
                     profitability = strategies[network_index].get_profitability(
                             t, p_mc, p_md, int(np.abs(Y_tilde)-1))
-                    print("profitability: "+str(profitability))
+                    #print("profitability: "+str(profitability))
                     if profitability>s_prof:
                         s_prof = profitability
                         s_deadline = deadline
@@ -662,7 +662,7 @@ class Trader:
             # end of for i in range(len(inputs[nn])-1):
         # end of for nn in range(len(inputs)):
         # add profitabilities
-        print("s_prof: "+str(s_prof))
+        #print("s_prof: "+str(s_prof))
         new_entry = {}
         new_entry[entry_time_column] = DateTime
         new_entry['Asset'] = thisAsset
@@ -1026,7 +1026,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                 list_Pmg_live[sc][t_index] = np.append(list_Pmg_live[sc][t_index],prob_mg,axis=0)
                 
                 # wait for output to come
-                if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
+                if listCountPos[sc]>nChannels+model.seq_len+t_indexes[t_index]-1:
                                 
                     Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c]
                              )/stds_out[0,data.lookAheadIndex]
@@ -1036,7 +1036,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                             abs(Output_i)*model.outputGain),-(model.size_output_layer
                                -1)/2),(model.size_output_layer-1)/2)).astype(int)
                                 
-                    look_back_index = -nChannels-t_index-1
+                    look_back_index = -nChannels-t_indexes[t_index]-1
                     # compare prediction with actual output 
                     pred = list_Ylive[sc][t_index][look_back_index]
                     p_mc = list_Pmc_live[sc][t_index][look_back_index]
@@ -1552,7 +1552,7 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
+    dateTest = ['2018.11.15','2018.11.16']
     ### TEMP: this data has to be included in list_data and deleted 
     data=Data(movingWindow=100,nEventsPerStat=1000,lB=1200,
               dateTest = dateTest,feature_keys_tsfresh=[])
@@ -1567,7 +1567,7 @@ if __name__ == '__main__':
     IDweights = ["000287"]
     IDresults = ["100287Nov09"]#
     delays = [0]
-    list_t_indexs = [[0,1,2,3,4]] # time index to use as output. Value between {0,...,model.seq_len-1}
+    list_t_indexs = [[2]] # time index to use as output. Value between {0,...,model.seq_len-1}
     #MRC = [False,True]
     mWs = [100]
     nExSs = [1000]
@@ -1831,6 +1831,15 @@ if __name__ == '__main__':
                 trader = Trader(results_dir="../RNN/resultsLive/back_test/trader/", init_budget=init_budget, log_file_time=start_time)
                 
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(data, init_list_index, end_list_index,root_dir=root_dir)
+###############################################################################
+###################################################### TEMP ###################
+###############################################################################
+#                idxs = DateTimes>=b'2018.11.15 10:00:00'
+#                DateTimes = DateTimes[idxs]
+#                SymbolBids = SymbolBids[idxs]
+#                SymbolAsks = SymbolAsks[idxs]
+#                Assets = Assets[idxs]
+#                nEvents = SymbolAsks.shape[0]
                 init_budget = back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, init_budget)
         else:
             # init lists
