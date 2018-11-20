@@ -196,7 +196,7 @@ def initFeaturesLive(data,tradeInfoLive):
     featuresLive = np.zeros((nF,1))
     
     initRange = int(data.nEventsPerStat/data.movingWindow)
-    em = np.zeros((data.lbd.shape))+tradeInfoLive.SymbolBid.loc[0+tradeInfoLive.SymbolBid.index[0]]
+    em = np.zeros((data.lbd.shape))+tradeInfoLive.SymbolBid.loc[tradeInfoLive.SymbolBid.index[0]]
     for i in range(initRange*data.movingWindow-data.movingWindow):
         em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i+tradeInfoLive.SymbolBid.index[0]]
     
