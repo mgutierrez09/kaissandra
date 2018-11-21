@@ -467,7 +467,7 @@ class Trader:
         this_strategy = self.next_candidate.strategy
         margin = 0.5
         if not this_strategy.use_GRE:
-            condition_open = (self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
+            condition_extension = (self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
                               self.next_candidate.p_md>=this_strategy.lb_md_ext and
                               self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
@@ -483,13 +483,22 @@ class Trader:
             previous_idx_md = self.list_opened_positions[self.\
                                             map_ass_idx2pos_idx[ass_id]].idx_md
                                                          
-            condition_open = (self.next_candidate.profitability>margin and 
-                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
-                              self.next_candidate.p_md>=previous_p_md-.05)# and sum_p>=sum_previous_p
+            
+            curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+            print("currGROI: "+str(curr_GROI))
+            condition_extension= (self.next_candidate.profitability>margin and 
+                                  100*curr_GROI>=-.1)
+# sum_p-base condition for extension:
+#           # and sum_p>=sum_previous_p
+# idx_mc/md-based condition for extension:
 #                                                                       and 
 #                            self.next_candidate.idx_mc>=previous_idx_mc and
 #                            self.next_candidate.idx_md>=previous_idx_md
-        return condition_open
+# p_mc/md-based condition for extension_
+#                                                                           and 
+#                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
+#                              self.next_candidate.p_md>=previous_p_md-.05
+        return condition_extension
 
     def update_stoploss(self, idx, bid):
         # update stoploss
@@ -528,25 +537,23 @@ class Trader:
         return stoploss_flag
     
     def is_takeprofit_reached(self, this_pos, take_profit, takeprofits, bid, event_idx):
-        
+        """ check if take-profit threshold has been reached """
         # check take profit reachead
         if this_pos.direction*(bid-take_profit)>=0:
             # exit position due to stop loss
             exit_pos = 1
             takeprofits += 1
-            out = "Exit position due to take profit @event idx "+str(event_idx)+". tp="+str(take_profit)
+            out = "Exit position due to take profit @event idx "+str(event_idx)+\
+                ". tp="+str(take_profit)
             print("\r"+out)
             self.write_log(out)
         else:
             exit_pos = 0
         return exit_pos, takeprofits
     
-    def close_position(self, date_time, ass, idx, lot_ratio=None, partial_close=False):
-        """
+    def get_rois(self, idx, date_time='', roi_ratio=1, ass=''):
+        """ Get current GROI and ROI of a given asset idx """
         
-        """
-        
-        # update results and exit market
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
         Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
         bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
@@ -554,18 +561,7 @@ class Trader:
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]][-1]
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]][-1]
-        # if it's full close, get the raminings of lots as lots ratio
-        if not partial_close:
-            lot_ratio = 1.0
-            
-        roi_ratio = lot_ratio*self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]]/self.list_lots_entry[self.map_ass_idx2pos_idx[idx]]
-#        print("roi_ratio "+str(roi_ratio))
-#        print("lot_ratio "+str(lot_ratio))
-        if np.isnan(roi_ratio):
-            raise AssertionError("np.isnan(roi_ratio)")
-        
-#        GROI_live = roi_ratio*direction*(this_bid-entry_bid)/entry_bid
-        
+
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
             spread = (Ao-Bo)/Ai
@@ -586,14 +582,75 @@ class Trader:
             else:
                 ROI_live = GROI_live-roi_ratio*spread
         
-        self.available_budget += self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]]*self.LOT*(lot_ratio+ROI_live)
+        info = (ass+","+Ti+","+date_time+","+str(bet)+","+
+                  str(Bi)+","+str(Ai)+","+str(Bo)+","+
+                  str(Ao)+","+"0"+","+str(100*GROI_live)+","+
+                  str(100*spread)+","+str(100*ROI_live))
+        
+        return GROI_live, ROI_live, spread, info
+        
+    
+    def close_position(self, date_time, ass, idx, 
+                       lot_ratio=None, partial_close=False):
+        """
+        
+        """
+        # if it's full close, get the raminings of lots as lots ratio
+        if not partial_close:
+            lot_ratio = 1.0
+        
+        roi_ratio = lot_ratio*self.list_lots_per_pos\
+            [self.map_ass_idx2pos_idx[idx]]/self.list_lots_entry\
+            [self.map_ass_idx2pos_idx[idx]]
+        if np.isnan(roi_ratio):
+            raise AssertionError("np.isnan(roi_ratio)")
+        # update results and exit market
+#        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
+#        Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
+#        bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
+#        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
+#        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
+#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]][-1]
+#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]][-1]
+#        
+#        if direction>0:
+#            GROI_live = roi_ratio*(Ao-Ai)/Ai
+#            spread = (Ao-Bo)/Ai
+#            
+#        else:
+#            GROI_live = roi_ratio*(Bi-Bo)/Ao
+#            spread = (Ao-Bo)/Ao
+#        
+#        if type(self.next_candidate)!=type(None):
+#            this_strategy = self.next_candidate.strategy
+#            if this_strategy.fix_spread:
+#                ROI_live = GROI_live-roi_ratio*this_strategy.fixed_spread_ratio
+#            else:
+#                ROI_live = GROI_live-roi_ratio*spread
+#        else:
+#            if self.last_fix_spread:
+#                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
+#            else:
+#                ROI_live = GROI_live-roi_ratio*spread
+        
+        GROI_live, ROI_live, spread, info = self.get_rois(idx, date_time=date_time,
+                                                          roi_ratio=roi_ratio,
+                                                          ass=ass)
+        
+        self.available_budget += self.list_lots_per_pos[self.map_ass_idx2pos_idx\
+            [idx]]*self.LOT*(lot_ratio+ROI_live)
         self.available_bugdet_in_lots = self.available_budget/self.LOT
         
-        self.budget_in_lots += self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]]*ROI_live
-        self.budget += self.list_lots_entry[self.map_ass_idx2pos_idx[idx]]*ROI_live*self.LOT
+        self.budget_in_lots += self.list_lots_per_pos[self.map_ass_idx2pos_idx\
+            [idx]]*ROI_live
+        self.budget += self.list_lots_entry[self.map_ass_idx2pos_idx[idx]]*\
+            ROI_live*self.LOT
         earnings = self.budget-self.init_budget
-        profit = self.list_lots_entry[self.map_ass_idx2pos_idx[idx]]*ROI_live*self.LOT
-        self.gross_earnings += self.list_lots_entry[self.map_ass_idx2pos_idx[idx]]*GROI_live*self.LOT
+        profit = self.list_lots_entry[self.map_ass_idx2pos_idx[idx]]*\
+            ROI_live*self.LOT
+        self.gross_earnings += self.list_lots_entry[self.map_ass_idx2pos_idx\
+            [idx]]*GROI_live*self.LOT
+        
         if ROI_live>0:
             self.net_successes += 1
             self.average_win += ROI_live
@@ -608,9 +665,7 @@ class Trader:
         self.tGROI_live += GROI_live
         
         # write output to trader summary
-        info_close = (ass+","+Ti+","+date_time+","+str(bet)+","+
-                  str(Bi)+","+str(Ai)+","+str(Bo)+","+
-                  str(Ao)+","+"0"+","+str(100*GROI_live)+","+str(100*spread)+","+str(100*ROI_live)+","+str(profit))
+        info_close = info+","+str(profit)
         
         file = open(self.log_summary,"a")
         file.write(info_close+"\n")
@@ -623,14 +678,16 @@ class Trader:
             self.remove_position(idx)
         else:
             # decrease the lot ratio in case the position is not fully closed
-            self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]] = self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]]*(1-lot_ratio)
+            self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]] = \
+                self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]]*(1-lot_ratio)
 
         if partial_close:
             partial_string = ' Partial'
         else:
             partial_string = ' Full'
         
-        out =( date_time+partial_string+" close "+ass+" Ratio {0:.2f}".format(lot_ratio)+
+        out =( date_time+partial_string+" close "+ass+" Ratio {0:.2f}"\
+              .format(lot_ratio)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
                       100*ROI_live,100*spread,100*GROI_live)+
                       " TGROI {1:.3f}% TROI = {0:.3f}%".format(
@@ -774,7 +831,8 @@ class Trader:
             out = ("New entry @ "+new_entry[entry_time_column]+" "+new_entry['Asset']+
                    " P_mc "+str(new_entry['P_mc'])+" P_md "+str(new_entry['P_md'])+" Bet "+
                    str(new_entry['Bet'])+" E_spread "+str(new_entry['E_spread']))
-            print("\r"+out)
+            if verbose_trader:
+                print("\r"+out)
             self.write_log(out)
             
             position = Position(new_entry, strategies[new_entry['network_index']])
@@ -1573,20 +1631,18 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
         new_outputs = 0
 #        print("\r"+DateTime+" "+thisAsset, sep=' ', end='', flush=True)
         # Run RNN
-        if 1:
-            # add new entry to buffer
-            (buffers[ass_idx]).iloc[buffersCounter[ass_idx]] = [DateTime, bid, ask]
-            buffersCounter[ass_idx] = (buffersCounter[ass_idx]+1)%n_samps_buffer
-            
-            if buffersCounter[ass_idx]==0:
+        # add new entry to buffer
+        (buffers[ass_idx]).iloc[buffersCounter[ass_idx]] = [DateTime, bid, ask]
+        buffersCounter[ass_idx] = (buffersCounter[ass_idx]+1)%n_samps_buffer
+        
+        if buffersCounter[ass_idx]==0:
+            outputs, new_outputs = dispatch(buffers[ass_idx], ass_id, ass_idx)
 
-                outputs, new_outputs = dispatch(buffers[ass_idx], ass_id, ass_idx)
-    
-                ####### Update counters and buffers ##########
-                fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
-                # reset buffer
-                buffers[ass_idx] = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
-                       columns=['DateTime','SymbolBid','SymbolAsk'])
+            ####### Update counters and buffers ##########
+            fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
+            # reset buffer
+            buffers[ass_idx] = pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
+                   columns=['DateTime','SymbolBid','SymbolAsk'])
         
         
         ################# Trader ##################
@@ -1765,7 +1821,7 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.11.14','2018.11.15']
+    dateTest = ['2018.11.15']
     ### TEMP: this data has to be included in list_data and deleted 
     data=Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
               dateTest = dateTest,feature_keys_tsfresh=[])
@@ -1836,7 +1892,7 @@ if __name__ == '__main__':
     list_ub_md_op = [1 for i in range(numberNetworks)]
     list_ub_mc_ext = [1 for i in range(numberNetworks)]
     list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_thr_sl = [20 for i in range(numberNetworks)]
+    list_thr_sl = [1000 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     list_fix_spread = [False for i in range(numberNetworks)]
     list_fixed_spread_pips = [4 for i in range(numberNetworks)]
@@ -1846,7 +1902,7 @@ if __name__ == '__main__':
     list_if_dir_change_extend = [False for i in range(numberNetworks)]
     list_w_str = ["55","55","55"]
 #    
-    verbose_RNN = True
+    verbose_RNN = False
     verbose_trader = False
     
     ADs = []

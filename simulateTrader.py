@@ -1534,7 +1534,12 @@ if __name__ == '__main__':
     trader.write_log(out)
     out = "Results file: "+start_time+"_"+results_file_name+".p"
     print(out)
-    pickle.dump( results, open( directory+start_time+"_"+results_file_name+".p", "wb" ))
+    # build results dictionary
+    results_dict = {'dts':results.datetimes,
+                    'GROIs':results.GROIs,
+                    'ROIs':results.ROIs,
+                    'earnings':earnings}
+    pickle.dump( results_dict, open( directory+start_time+"_"+results_file_name+".p", "wb" ))
 
 # Combine .6/.7/.6/.6 .7/.7/.6/.6 real spread<.03 fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248/100246 not closing not extending if direction changes 
 #Total GROI = 11.064% Total ROI = 7.700% Sum GROI = 11.411% Sum ROI = 7.923% Accumulated earnings 792.35E
