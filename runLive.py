@@ -600,12 +600,14 @@ class Trader:
                                                          
             
             curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
-            print("currGROI: "+str(100*curr_GROI))
+            #print("currGROI: "+str(100*curr_GROI))
             condition_extension= (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=-.1)
-
+                                  sum_p>=sum_previous_p)
+            #condition_extension = False
+#             and 
+#                                  100*curr_GROI>=-.2 
 # sum_p-base condition for extension:
-#           # and sum_p>=sum_previous_p
+#           # 
 # idx_mc/md-based condition for extension:
 #                                                                       and 
 #                            self.next_candidate.idx_mc>=previous_idx_mc and
@@ -825,16 +827,19 @@ class Trader:
         this_strategy = self.next_candidate.strategy
         if not this_strategy.flexible_lot_ratio:
             if self.available_bugdet_in_lots>0:
-                open_lots = min(this_strategy.max_lots_per_pos, self.available_bugdet_in_lots)
+                open_lots = min(this_strategy.max_lots_per_pos, 
+                                self.available_bugdet_in_lots)
             else:
                 open_lots = this_strategy.max_lots_per_pos
         else:
             # lots ratio to asssign to new asset
-            open_lots = min(self.budget_in_lots/(len(self.list_opened_positions)+1),this_strategy.max_lots_per_pos)
+            open_lots = min(self.budget_in_lots/(len(self.list_opened_positions)+1),
+                            this_strategy.max_lots_per_pos)
             margin = 0.0001
             # check if necessary lots for opening are available
             if open_lots>self.available_bugdet_in_lots+margin:
-                close_lots = (open_lots-self.available_bugdet_in_lots)/len(self.list_opened_positions)
+                close_lots = (open_lots-self.available_bugdet_in_lots)/\
+                    len(self.list_opened_positions)
                 print("close_lots "+str(close_lots))
                 if close_lots==np.inf:
                     raise ValueError("close_lots==np.inf")
@@ -847,7 +852,8 @@ class Trader:
                     close_lot_ratio = close_lots/self.list_lots_per_pos[pos]
 #                    print("close_lot_ratio "+str(close_lot_ratio))
                     idx = running_assets[ass2index_mapping[ass]]
-                    self.close_position(date_time, ass, idx, lot_ratio = close_lot_ratio, partial_close = True)
+                    self.close_position(date_time, ass, idx, lot_ratio = 
+                                        close_lot_ratio, partial_close = True)
             
             # make sure the available resources are smaller or equal than slots to open
             open_lots = min(open_lots,self.available_bugdet_in_lots)
@@ -924,9 +930,12 @@ class Trader:
         new_entry = self.select_new_entry(inputs, thisAsset)
         # check for opening/extension in order of expected returns
         if 1:
-            out = ("New entry @ "+new_entry[entry_time_column]+" "+new_entry['Asset']+
-                   " P_mc "+str(new_entry['P_mc'])+" P_md "+str(new_entry['P_md'])+" Bet "+
-                   str(new_entry['Bet'])+" E_spread "+str(new_entry['E_spread']))
+            out = ("New entry @ "+new_entry[entry_time_column]+" "+
+                   new_entry['Asset']+
+                   " P_mc {0:.3f} ".format(new_entry['P_mc'])+
+                   "P_md {0:.3f} ".format(new_entry['P_md'])+
+                   "Bet {0:d} ".format(new_entry['Bet'])+
+                   "E_spread {0:.3f}".format(new_entry['E_spread']))
             if verbose_trader:
                 print("\r"+out)
             self.write_log(out)
@@ -934,8 +943,8 @@ class Trader:
             position = Position(new_entry, strategies[new_entry['network_index']])
             
             self.add_new_candidate(position)
-            
-            ass_id = running_assets[ass2index_mapping[thisAsset]]
+            ass_idx = ass2index_mapping[thisAsset]
+            ass_id = running_assets[ass_idx]
     
             # open market
             if not self.is_opened(ass_id):
@@ -947,16 +956,20 @@ class Trader:
                     # check if there is enough budget
                     if self.available_bugdet_in_lots>=lots:
                         if not run_back_test:
-                            self.send_open_command(directory_MT5_ass)
-                        self.open_position(ass_id, lots, new_entry[entry_time_column], 
-                                           self.next_candidate.e_spread, self.next_candidate.entry_bid, 
-                                           self.next_candidate.entry_ask, self.next_candidate.deadline)
+                            self.send_open_command(directory_MT5_ass, ass_idx)
+                        self.open_position(ass_id, lots, 
+                                           new_entry[entry_time_column], 
+                                           self.next_candidate.e_spread, 
+                                           self.next_candidate.entry_bid, 
+                                           self.next_candidate.entry_ask, 
+                                           self.next_candidate.deadline)
                     else: # no opening due to budget lack
                         out = "Not enough budget"
                         print("\r"+out)
                         self.write_log(out)
                         # check swap of resources
-                        if self.next_candidate.strategy.use_GRE and self.check_resources_swap():
+                        if self.next_candidate.strategy.use_GRE and \
+                            self.check_resources_swap():
                             # lauch swap of resourves
                             self.initialize_resources_swap(directory_MT5_ass)
                 else:
@@ -969,13 +982,15 @@ class Trader:
                         # include third condition for thresholds
                         # extend deadline
                         if not run_back_test:
-                            self.send_open_command(directory_MT5_ass)
+                            self.send_open_command(directory_MT5_ass, ass_idx)
                         self.update_position(ass_id)
                         self.n_pos_extended += 1
-                        out = (new_entry[entry_time_column]+" Extended "+thisAsset+
+                        out = (new_entry[entry_time_column]+" Extended "+
+                               thisAsset+
                            " Lots {0:.1f}".format(self.list_lots_per_pos[
                                    self.map_ass_idx2pos_idx[ass_id]])+
-                           " "+str(new_entry['Bet'])+" p_mc={0:.2f}".format(new_entry['P_mc'])+
+                           " "+str(new_entry['Bet'])+
+                           " p_mc={0:.2f}".format(new_entry['P_mc'])+
                            " p_md={0:.2f}".format(new_entry['P_md'])+ 
                            " spread={0:.3f}".format(new_entry['E_spread']))
                         #out = new_entry[entry_time_column]+" Extended "+thisAsset
@@ -988,8 +1003,10 @@ class Trader:
                     if self.next_candidate.profitability>=self.list_opened_positions[
                             self.map_ass_idx2pos_idx[ass_id]].profitability:
                         if not run_back_test:
-                            self.send_close_command(directory_MT5_ass)
-                            # TODO: study the option of not only closing postiion but also changing direction
+                            pass
+                            #self.send_close_command(directory_MT5_ass)
+                            # TODO: study the option of not only closing 
+                            #postiion but also changing direction
                         else:
                             # TODO: implement it for back test
                             pass
@@ -1000,7 +1017,7 @@ class Trader:
     
     def write_log(self, log):
         """
-        <DocString>
+        Write in log file
         """
         if self.save_log:
             file = open(self.log_file,"a")
@@ -1008,9 +1025,9 @@ class Trader:
             file.close()
         return None
     
-    def send_open_command(self, directory_MT5_ass):
+    def send_open_command(self, directory_MT5_ass, ass_idx):
         """
-        <DocString>    
+        Send command for opening position to MT5 software   
         """
         success = 0
         # load network output
@@ -1022,12 +1039,13 @@ class Trader:
                          ","+str(self.next_candidate.deadline))
                 fh.close()
                 success = 1
+                stop_timer(ass_idx)
             except PermissionError:
                 print("Error writing TT")
         
     def send_close_command(self, dirDes):
         """
-        <DocString>
+        Send command for closeing position to MT5 software
         """
         success = 0
         # load network output
@@ -1403,9 +1421,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     return output
 
 def flush_asset(ass_idx, bid):
-    """ Flush assets """
-    # FLUSH
-    
+    """ Flush asset """
     class parSarInit:
         # old parsar=> 20
         #periodSAR = data.nEventsPerStat
@@ -1524,11 +1540,8 @@ def dispatch(buffer, ass_id, ass_idx):
 #              ". No support for multiple outputs at the same time yet.") 
     return outputs, new_outputs
 
-def fetch(budget):
-    """
-    <DocString>
-    """
-    
+def renew_directories():
+    """ Renew MT5 directories """
     for ass_id in running_assets:
         thisAsset = data.AllAssets[str(ass_id)]
         
@@ -1545,6 +1558,23 @@ def fetch(budget):
                 print(thisAsset+" Directiory created")
             except:
                 print("Warning. Error when creating directory")
+
+def start_timer(ass_idx):
+    """  """
+    timers_till_open[ass_idx] = time.time()
+
+def stop_timer(ass_idx):
+    """  """
+    out = "Timer stoped for asset "+\
+        data.AllAssets[str(running_assets[ass_idx])]+" @ "+\
+        str(time.time()-timers_till_open[ass_idx])+" secs"
+    print(out)
+    trader.write_log(out)
+    
+def fetch(budget):
+    """ Fetch info coming from MT5 """
+    
+    renew_directories()
     
     print("Fetcher lauched")
 
@@ -1559,30 +1589,25 @@ def fetch(budget):
     flag_sl_name = "SL"
     
     while 1:
-        
+        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
-            
             thisAsset = data.AllAssets[str(ass_id)]
-            
             directory_MT5_ass = directory_MT5+thisAsset+"/"
-            
             # Fetching buffers
             fileID = thisAsset+deli+str(fileExt[ass_idx])+extension
             success = 0
+            
             try:
-                
                 buffer = pd.read_csv(directory_MT5_ass+fileID, encoding='utf_16_le')#
                 #print(thisAsset+" new buffer received")
                 os.remove(directory_MT5_ass+fileID)
                 success = 1
-                
+                start_timer(ass_idx)
                 if not first_info_fetched:
                     print("First info fetched")
                     first_info_fetched = True
-                
             except (FileNotFoundError,PermissionError):
                 pass
-            
             # update file extension
             if success:
                 fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
@@ -1687,8 +1712,17 @@ def fetch(budget):
                 file.close()
                 
     #            trader.ban_currencies(data, thisAsset, rootDirOr, netName)
+            
             # end of elifs
-    
+        #end of for ass_idx, ass_id in enumerate(running_assets):
+        toc = time.time()-tic
+        
+        if toc > max_loop_time[0]:
+            max_loop_time[0] = toc
+            out = "Time loop over assets: {0:.3f}".format(toc)
+            print(out)#, sep=' ', end='', flush=True
+            trader.write_log(out)
+    # end of while 1
     return budget
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
@@ -1872,8 +1906,8 @@ if __name__ == '__main__':
     thresholds_mc = [.5,.6,.7,.8,.9]
     thresholds_md = [.5,.6,.7,.8,.9]
     n_samps_buffer = 100
-    test = False
-    run_back_test = True
+    test = True
+    run_back_test = False
     # directories
     data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
     directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
@@ -1888,6 +1922,7 @@ if __name__ == '__main__':
     dir_results_trader = dir_results+"trader/"
     init_budget = 10000.0
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
+    
 #    dateTest = ([                                                   '2018.03.09',
 #                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
 #                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
@@ -1928,6 +1963,7 @@ if __name__ == '__main__':
     ### TEMP: this data has to be included in list_data and deleted 
     data=Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
               dateTest = dateTest,feature_keys_tsfresh=[])
+    
     list_data = [Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
               dateTest = dateTest,feature_keys_tsfresh=[]),
     
@@ -1936,7 +1972,7 @@ if __name__ == '__main__':
                 
                 Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
               dateTest = dateTest,feature_keys_tsfresh=[])]
-    
+    max_loop_time = [0]
 #    numberNetworks = 1
 #    IDepoch = ["6"]
 #    IDweights = ["000287"]
@@ -1978,7 +2014,7 @@ if __name__ == '__main__':
     IDepoch = ["6","6","16"]
     netNames = ["87","86","85"]
     list_t_indexs = [[2],[2],[3]]
-    phase_shifts = [1,1,1]
+    phase_shifts = [10,10,10]
     delays = [0,0,0]
     mWs = [100,100,100]
     nExSs = [1000,1000,1000]
@@ -1995,7 +2031,7 @@ if __name__ == '__main__':
     list_ub_md_op = [1 for i in range(numberNetworks)]
     list_ub_mc_ext = [1 for i in range(numberNetworks)]
     list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_thr_sl = [20 for i in range(numberNetworks)]
+    list_thr_sl = [1000 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     list_fix_spread = [False for i in range(numberNetworks)]
     list_fixed_spread_pips = [4 for i in range(numberNetworks)]
@@ -2005,7 +2041,7 @@ if __name__ == '__main__':
     list_if_dir_change_extend = [False for i in range(numberNetworks)]
     list_w_str = ["55","55","55"]
 #    
-    verbose_RNN = False
+    verbose_RNN = True
     verbose_trader = True
     
     ADs = []
@@ -2080,6 +2116,7 @@ if __name__ == '__main__':
     bufferExt = [[[0 for k in range(int(nCxAxN[ass,nn]))] 
                   for nn in range(nNets)] 
                   for ass in range(nAssets)]
+    timers_till_open = [0 for ass in range(nAssets)]
     #########################################
     
     # init stats structures
@@ -2094,7 +2131,7 @@ if __name__ == '__main__':
                     +'_nE'+str(nExSs[nn])+'_nF'+str(data.nFeatures)+
                     '.hdf5','r')[data.AllAssets[str(running_assets[ass])]], 
                     0, from_stats_file=True, hdf5_directory=hdf5_directory+
-                    'stats_DL3/') for nn in range(nNets)] for ass in range(nAssets)]
+                    'stats/') for nn in range(nNets)] for ass in range(nAssets)]
     
     if test:
         gain = .000000001
