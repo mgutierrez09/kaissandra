@@ -284,6 +284,7 @@ class Trader:
         self.list_last_bid = []
         self.list_last_ask = []
         self.list_sl_thr_vector = []
+        self.list_EM = []
         
         self.next_candidate = next_candidate
         self.journal_idx = 0
@@ -340,6 +341,7 @@ class Trader:
         self.list_lots_entry.append(lots)
         self.list_last_bid.append(bid)
         self.list_last_ask.append(ask)
+        self.list_EM.append(bid)
         self.map_ass_idx2pos_idx[idx] = len(self.list_count_events)-1
         self.list_stop_losses.append(self.next_candidate.entry_bid*
                                      (1-self.next_candidate.direction*strategys
@@ -379,7 +381,9 @@ class Trader:
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_last_ask = (self.list_last_ask[:self.map_ass_idx2pos_idx[idx]]+
                               self.list_last_ask[self.map_ass_idx2pos_idx[idx]+1:])
-        
+        self.list_EM = self.list_EM\
+            [:self.map_ass_idx2pos_idx[idx]]+self.list_EM\
+            [self.map_ass_idx2pos_idx[idx]+1:]
         mask = self.map_ass_idx2pos_idx>self.map_ass_idx2pos_idx[idx]
         self.map_ass_idx2pos_idx[idx] = -1
         self.map_ass_idx2pos_idx = self.map_ass_idx2pos_idx-mask*1#np.maximum(,-1)
@@ -519,7 +523,7 @@ class Trader:
 
     def check_secondary_condition_for_extention(self, idx):
         """
-        
+            
         """
         margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
@@ -540,11 +544,13 @@ class Trader:
             #self.next_candidate.p_mc+self.next_candidate.p_md>=sum_previous_p
 #            if self.next_candidate!= None:
 #                print("sum_p: "+str(self.next_candidate.p_mc+self.next_candidate.p_md))
+            curr_GROI, _, _ = self.get_rois(idx, date_time='', roi_ratio=1)
             condition = (self.next_candidate!= None and 
                          this_strategy.get_profitability(
                          self.next_candidate.p_mc, self.next_candidate.p_md, 
                          int(np.abs(self.next_candidate.bet)-1))>margin)
-        
+#        and 
+#                         100*curr_GROI>=-.1
 #             and
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
@@ -571,8 +577,9 @@ class Trader:
     def is_stoploss_reached(self, idx, stoplosses):
         # check stop loss reachead
         #print(self.list_stop_losses)
+        list_idx = self.map_ass_idx2pos_idx[idx]
         if (self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction*(
-                bid-self.list_stop_losses[self.map_ass_idx2pos_idx[idx]])<=0):
+                self.list_EM[list_idx]-self.list_stop_losses[self.map_ass_idx2pos_idx[idx]])<=0):
             # exit position due to stop loss
             exit_pos = 1
             stoplosses += 1
@@ -600,25 +607,17 @@ class Trader:
             exit_pos = 0
         return exit_pos, takeprofits
     
-    def close_position(self, date_time, ass, idx, lot_ratio=None, partial_close=False):
-        # update results and exit market
+    def get_rois(self, idx, date_time='', roi_ratio=1, ass=''):
+        """ Get current GROI and ROI of a given asset idx """
+        
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-        self.n_entries += 1
+#        Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
+#        bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
         Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
-        
-        # if it's full close, get the raminings of lots as lots ratio
-        if not partial_close:
-            lot_ratio = 1.0
-        roi_ratio = lot_ratio*self.list_lots_per_pos[
-                self.map_ass_idx2pos_idx[idx]]/self.list_lots_entry[
-                        self.map_ass_idx2pos_idx[idx]]
 
-        if np.isnan(roi_ratio):
-            raise ValueError("roi_ratio NaN")
-        
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
             spread = (Ao-Bo)/Ai
@@ -638,6 +637,57 @@ class Trader:
                 ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
             else:
                 ROI_live = GROI_live-roi_ratio*spread
+        
+#        info = (ass+","+Ti+","+date_time+","+str(bet)+","+
+#                  str(Bi)+","+str(Ai)+","+str(Bo)+","+
+#                  str(Ao)+","+"0"+","+str(100*GROI_live)+","+
+#                  str(100*spread)+","+str(100*ROI_live))
+        
+        return GROI_live, ROI_live, spread
+    
+    def close_position(self, date_time, ass, idx, lot_ratio=None, partial_close=False):
+        # update results and exit market
+        self.n_entries += 1
+        
+        # if it's full close, get the raminings of lots as lots ratio
+        if not partial_close:
+            lot_ratio = 1.0
+        roi_ratio = lot_ratio*self.list_lots_per_pos[
+                self.map_ass_idx2pos_idx[idx]]/self.list_lots_entry[
+                        self.map_ass_idx2pos_idx[idx]]
+        
+        if np.isnan(roi_ratio):
+            raise ValueError("roi_ratio NaN")
+        
+#        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
+#        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
+#        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
+#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
+#        
+#        if direction>0:
+#            GROI_live = roi_ratio*(Ao-Ai)/Ai
+#            spread = (Ao-Bo)/Ai
+#            
+#        else:
+#            GROI_live = roi_ratio*(Bi-Bo)/Ao
+#            spread = (Ao-Bo)/Ao
+        
+#        if type(self.next_candidate)!=type(None):
+#            if strategys[name2str_map[self.next_candidate.strategy]].fix_spread:
+#                ROI_live = GROI_live-roi_ratio*strategys[name2str_map[
+#                        self.next_candidate.strategy]].fixed_spread_ratio
+#            else:
+#                ROI_live = GROI_live-roi_ratio*spread
+#        else:
+#            if self.last_fix_spread:
+#                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
+#            else:
+#                ROI_live = GROI_live-roi_ratio*spread
+        GROI_live, ROI_live, spread = self.get_rois(idx, date_time=date_time,
+                                                          roi_ratio=roi_ratio,
+                                                          ass=ass)
+        
         
         self.available_budget += self.list_lots_per_pos[
                 self.map_ass_idx2pos_idx[idx]]*self.LOT*(lot_ratio+ROI_live)
@@ -671,10 +721,13 @@ class Trader:
             partial_string = ' Partial'
         else:
             partial_string = ' Full'
-        out =( date_time.decode("utf-8")+partial_string+" close "+ass+" Ratio {0:.2f}".format(lot_ratio)+
+        out =( date_time.decode("utf-8")+partial_string+" close "+ass+
+              " Ratio {0:.2f}".format(lot_ratio)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
-                      100*ROI_live,100*spread,100*GROI_live)+" TGROI {1:.3f}% TROI = {0:.3f}%".format(
-                      100*self.tROI_live,100*self.tGROI_live)+" Earnings {0:.2f}".format(earnings)
+                      100*ROI_live,100*spread,100*GROI_live)+
+                      " TGROI {1:.3f}% TROI = {0:.3f}%".format(
+                      100*self.tROI_live,100*self.tGROI_live)+
+                              " Earnings {0:.2f}".format(earnings)
               +". Remeining open "+str(len(self.list_opened_positions)))
         # update results
         results.datetimes.append(date_time.decode("utf-8"))
@@ -998,7 +1051,7 @@ if __name__ == '__main__':
     list_ub_md_op = [1 for i in range(numberNetwors)]
     list_ub_mc_ext = [1 for i in range(numberNetwors)]
     list_ub_md_ext = [1 for i in range(numberNetwors)]
-    list_thr_sl = [1000 for i in range(numberNetwors)]
+    list_thr_sl = [20 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
     list_fix_spread = [False for i in range(numberNetwors)]
     list_fixed_spread_pips = [4 for i in range(numberNetwors)]
@@ -1203,7 +1256,7 @@ if __name__ == '__main__':
         not_entered_extention = 0
         not_entered_same_time = 0
         not_entered_secondary = 0
-        
+        w = 1-1/20
         # get to 
         while event_idx<nEvents:
             rewind = 0
@@ -1220,6 +1273,8 @@ if __name__ == '__main__':
             if list_idx>-1:
                 trader.list_last_bid[list_idx] = bid
                 trader.list_last_ask[list_idx] = ask
+                em = w*trader.list_EM[list_idx]+(1-w)*bid
+                trader.list_EM[list_idx] = em
             
             condition_open = (trader.chech_ground_condition_for_opening() and 
                               trader.check_primary_condition_for_opening() and 
@@ -1812,3 +1867,9 @@ if __name__ == '__main__':
 #Total entries 788 per entries 1.86 percent gross success 64.97% percent nett success 57.61% average loss 7.85p average win 8.56p RR 1 to 1.48
 #DONE. Total time: 94.49 mins
 #Results file: ../RNN/resultsLive/simulate/trader/181120164702_100287Nov09E6T2W55_100286Nov09E6T2W55_100285Nov09E16T3W55.p
+    
+# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/2/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09 ext. GROI>=-10p
+#Total GROI = 21.170% Total ROI = 10.870% Sum GROI = 22.301% Sum ROI = 11.283% Accumulated earnings 1128.32E
+#Total entries 834 per entries 1.97 percent gross success 64.15% percent nett success 57.31% average loss 8.40p average win 8.62p RR 1 to 1.38
+#DONE. Total time: 148.41 mins
+#Results file: 181121172720_100287Nov09E6T2W55_100286Nov09E6T2W55_100285Nov09E16T3W55.p
