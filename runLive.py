@@ -970,8 +970,10 @@ class Trader:
                         # check swap of resources
                         if self.next_candidate.strategy.use_GRE and \
                             self.check_resources_swap():
+                            # TODO: Check propertly function of swapinng
                             # lauch swap of resourves
-                            self.initialize_resources_swap(directory_MT5_ass)
+                            pass
+                            #self.initialize_resources_swap(directory_MT5_ass)
                 else:
                     pass
     #                print(" Condition not met")
@@ -1004,6 +1006,7 @@ class Trader:
                             self.map_ass_idx2pos_idx[ass_id]].profitability:
                         if not run_back_test:
                             pass
+                        # TODO: check proper function of  close_command
                             #self.send_close_command(directory_MT5_ass)
                             # TODO: study the option of not only closing 
                             #postiion but also changing direction
@@ -1195,12 +1198,16 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     #rc = int(np.floor(c/phase_shift))
     
     if listFillingX[sc] and verbose_RNN:# and not simulate
-        print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+"C"+str(c)+"F"+str(file))
+        out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+"C"+str(c)+"F"+str(file)
+        print("\r"+out)
+        trader.write_log(out)
                 
     # launch features extraction
     if init[sc]==False:
         if verbose_RNN:
-            print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Features inited")
+            out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Features inited"
+            print("\r"+out)
+            trader.write_log(out)
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = initFeaturesLive(data,tradeInfoLive)
         init[sc] = True
 
@@ -1215,9 +1222,12 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
         list_X_i[sc][0,:-1,:] = list_X_i[sc][0,1:,:]
         variationLive = np.zeros((data.nFeatures,len(data.channels)))
         for r in range(len(data.channels)):
-            variationLive[:,r] = listAllFeatsLive[sc][:,-1]-listAllFeatsLive[sc][:,-(data.channels[r]+2)]#-np.min([allFeatsLive.shape[1],channsInX[r]+2])
-            variationLive[nonVarIdx,0] = listAllFeatsLive[sc][data.noVarFeats,-(data.channels[r]+2)]#-np.min([allFeatsLive.shape[1],channsInX[r]+2])
-            varNormed = np.minimum(np.maximum((variationLive.T-means_in[data.channels[r],:])/stds_in[data.channels[r],:],-10),10)
+            variationLive[:,r] = listAllFeatsLive[sc][:,-1]-\
+                listAllFeatsLive[sc][:,-(data.channels[r]+2)]
+            variationLive[nonVarIdx,0] = listAllFeatsLive[sc]\
+                [data.noVarFeats,-(data.channels[r]+2)]
+            varNormed = np.minimum(np.maximum((variationLive.T-\
+                means_in[data.channels[r],:])/stds_in[data.channels[r],:],-10),10)
             # copy new entry in last pos of X
             list_X_i[sc][0,-1,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
             
@@ -1227,16 +1237,25 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
         
         if listFillingX[sc]:
             if verbose_RNN:
-                print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Filling X sc "+str(sc))
+                out = tradeInfoLive.DateTime.iloc[-1]+" "+\
+                    thisAsset+netName+" Filling X sc "+str(sc)
+                print("\r"+out)
+                trader.write_log(out)
                 
             if listCountPos[sc]>=model.seq_len-1:
                 if verbose_RNN:
-                    print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Filling X sc "+str(sc)+" done. Waiting for output...")
+                    out = tradeInfoLive.DateTime.iloc[-1]+" "+\
+                        thisAsset+netName+" Filling X sc "+str(sc)+\
+                        " done. Waiting for output..."
+                    print("\r"+out)
+                    trader.write_log(out)
                 listFillingX[sc] = False
         else:
 ########################################### Predict #########################################################################              
             if verbose_RNN:
-                print("\r"+tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName, sep=' ', end='', flush=True)
+                out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName
+                print("\r"+out, sep=' ', end='', flush=True)
+                trader.write_log(out)
             
             soft_tilde = model.run_live_session(list_X_i[sc])
             # loop over t indexes
@@ -1251,7 +1270,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                         # get weight from AD
                         mc_idx = (np.floor(soft_tilde[0,t,0]*10)-lb_level)*thr_levels
                         if mc_idx>=0:
-                            idx_AD = int(mc_idx+(np.floor(np.max(soft_tilde[0,t,1:3])*10)-lb_level))
+                            idx_AD = int(mc_idx+(np.floor(np.max(soft_tilde\
+                                                    [0,t,1:3])*10)-lb_level))
                             w = AD[t, max(idx_AD,first_nonzero), 0]
                         else:
                             w = AD[t, first_nonzero, 0]# temp. First non-zero level is 6
@@ -1260,7 +1280,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     #                      print(first_nonzero)
     #                   update t-th matrix row from lower row
                         if t<model.seq_len-1:
-                            list_weights_matrix[sc][t,:] = list_weights_matrix[sc][t+1,:]
+                            list_weights_matrix[sc][t,:] = list_weights_matrix\
+                                [sc][t+1,:]
                             # update t matrix entry with weight
     #                       print(w)
                                     
@@ -1283,30 +1304,49 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                     list_time_to_entry[sc][t_index].append(t_index)
                     list_list_soft_tildes[sc][t_index].append(soft_tilde_t[0,:])
                     if verbose_RNN:
-                        print("\r"+thisAsset+netName+" ToBe sent DateTime "+tradeInfoLive.DateTime.iloc[-1]+
-                                                  " P_mc "+str(soft_tilde_t[0,0])+" P_md "+str(np.max(soft_tilde_t[0,1:3])))
+                        out = thisAsset+netName+" ToBe sent DateTime "+\
+                            tradeInfoLive.DateTime.iloc[-1]+\
+                            " P_mc "+str(soft_tilde_t[0,0])+\
+                            " P_md "+str(np.max(soft_tilde_t[0,1:3]))
+                        print("\r"+out)
+                        trader.write_log(out)
                 elif test and verbose_RNN:
-                    print("\r"+thisAsset+netName+" DateTime "+tradeInfoLive.DateTime.iloc[-1]+
-                          " P_mc "+str(soft_tilde_t[0,0])+" P_md "+str(np.max(soft_tilde_t[0,1:3])))
+                    out = thisAsset+netName+" DateTime "+\
+                        tradeInfoLive.DateTime.iloc[-1]+\
+                        " P_mc "+str(soft_tilde_t[0,0])+\
+                        " P_md "+str(np.max(soft_tilde_t[0,1:3]))
+                    print("\r"+out)
+                    trader.write_log(out)
                     #print("Prediction in market change")
                     # Snd prediction to trading robot
-                if len(list_time_to_entry[sc][t_index])>0 and list_time_to_entry[sc][t_index][0]==0:
+                if len(list_time_to_entry[sc][t_index])>0 and \
+                    list_time_to_entry[sc][t_index][0]==0:
                     count_t += 1 
-                    e_spread = (tradeInfoLive.SymbolAsk.iloc[-1]-tradeInfoLive.SymbolBid.iloc[-1])/tradeInfoLive.SymbolAsk.iloc[-1]
+                    e_spread = (tradeInfoLive.SymbolAsk.iloc[-1]-\
+                                tradeInfoLive.SymbolBid.iloc[-1])/\
+                                tradeInfoLive.SymbolAsk.iloc[-1]
     #                tradeManager([list_list_soft_tildes[sc][0], e_spread])
-                    output.append([list_list_soft_tildes[sc][t_index][0], e_spread, tradeInfoLive.DateTime.iloc[-1],
-                              tradeInfoLive.SymbolBid.iloc[-1], tradeInfoLive.SymbolAsk.iloc[-1], data.nEventsPerStat, t_indexes[t_index]])
+                    output.append([list_list_soft_tildes[sc][t_index][0], \
+                                   e_spread, tradeInfoLive.DateTime.iloc[-1],\
+                                   tradeInfoLive.SymbolBid.iloc[-1], \
+                                   tradeInfoLive.SymbolAsk.iloc[-1], \
+                                   data.nEventsPerStat, t_indexes[t_index]])
                     
                     if verbose_RNN:
-                        print(thisAsset+netName+" Sent DateTime "+
-                              tradeInfoLive.DateTime.iloc[-1]+
-                              " P_mc "+str(list_list_soft_tildes[sc][t_index][0][0])+
-                              " P_md "+str(np.max(list_list_soft_tildes[sc][t_index][0][1:3])))
+                        out = thisAsset+netName+" Sent DateTime "+\
+                              tradeInfoLive.DateTime.iloc[-1]+\
+                              " P_mc "+str(list_list_soft_tildes\
+                                           [sc][t_index][0][0])+\
+                              " P_md "+str(np.max(list_list_soft_tildes\
+                                                  [sc][t_index][0][1:3]))
+                        print(out)
+                        trader.write_log(out)
                     
                     list_time_to_entry[sc][t_index] = list_time_to_entry[sc][t_index][1:]
                     list_list_soft_tildes[sc][t_index] = list_list_soft_tildes[sc][t_index][1:]
                     
-                list_time_to_entry[sc][t_index] = [list_time_to_entry[sc][t_index][i]-1 for i in range(len(list_time_to_entry[sc][t_index]))]
+                list_time_to_entry[sc][t_index] = [list_time_to_entry[sc][t_index][i]-1\
+                                   for i in range(len(list_time_to_entry[sc][t_index]))]
     ###############################################################################################################################
                             
     ################################################# Evaluation ##################################################################
@@ -1408,8 +1448,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                                           float_format='%.5f')
                         # print entry
                         if verbose_RNN:
-                            print("\r"+netName+resultInfo.to_string(index=False,
-                                                                    header=False))
+                            out = netName+resultInfo.to_string(index=False,\
+                                                               header=False)
+                            print("\r"+out)
+                            trader.write_log(out)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -1784,7 +1826,9 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
         if trader.is_opened(ass_id):
             
             trader.count_one_event(ass_id)
-            stoploss_flag  = trader.is_stoploss_reached(DateTime, ass_id, bid, trader.list_EM[list_idx][-1], event_idx)
+            stoploss_flag  = trader.is_stoploss_reached(DateTime, ass_id, bid, 
+                                                        trader.list_EM[list_idx][-1], 
+                                                        event_idx)
             
             # check for closing
             if (not stoploss_flag and 
@@ -1905,11 +1949,11 @@ if __name__ == '__main__':
     
     thresholds_mc = [.5,.6,.7,.8,.9]
     thresholds_md = [.5,.6,.7,.8,.9]
-    n_samps_buffer = 100
+    n_samps_buffer = 50
     test = True
-    run_back_test = False
+    run_back_test = True
     # directories
-    data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
+    data_dir = 'D:/SDC/py/Data_test/'#'D:/SDC/py/Data_aws_5/'#
     directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
     ADsDir = "../RNN/results/"
@@ -1958,8 +2002,9 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']+\
-               ['2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03']
+    dateTest = ['2018.11.23']
+#    ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']+\
+#               ['2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03']
     ### TEMP: this data has to be included in list_data and deleted 
     data=Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
               dateTest = dateTest,feature_keys_tsfresh=[])
@@ -2014,7 +2059,7 @@ if __name__ == '__main__':
     IDepoch = ["6","6","16"]
     netNames = ["87","86","85"]
     list_t_indexs = [[2],[2],[3]]
-    phase_shifts = [10,10,10]
+    phase_shifts = [2,2,2]
     delays = [0,0,0]
     mWs = [100,100,100]
     nExSs = [1000,1000,1000]
