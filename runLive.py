@@ -15,6 +15,7 @@ import pickle
 import h5py
 import re
 import tensorflow as tf
+from multiprocessing import Process
 from simulateTrader import load_in_memory
 from inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
 from RNN import modelRNN
@@ -56,7 +57,7 @@ class Results:
 #                         for i in range(numberNetworks)])
         
     def __init__(self):
-        
+        """ Init Results attributs """
         self.total_GROI = 0.0
         self.GROIs_week = np.array([])
         self.GROIs = np.array([])
@@ -80,6 +81,7 @@ class Results:
         self.dts_close = []
         self.number_entries = np.array([])
         
+        self.n_entries = 0
         self.net_successes = np.array([])
         self.total_losses = np.array([])
         self.total_wins = np.array([])
@@ -92,32 +94,6 @@ class Results:
                          str(list_t_indexs[i])+'W'+list_w_str[i]
                          for i in range(numberNetworks)])
         self.dir_positions = dir_results_trader+'positions/'+start_time+'/'
-        #self.stats_file = 
-    
-#    def update_results(self, GROI, earnings, ROI, n_entries, stoplosses):
-#        
-#        self.sum_GROI += 100*trader.tGROI_live
-#        self.sum_GROIs = np.append(self.sum_GROIs, 100*trader.tGROI_live)
-#        
-#        self.sum_ROI += 100*trader.tROI_live
-#        self.sum_ROIs = np.append(self.sum_ROIs, 100*trader.tROI_live)
-#        
-#        self.total_GROI += 100*GROI
-#        self.GROIs = np.append(self.GROIs, 100*GROI)
-#        
-#        self.total_ROI += 100*ROI
-#        self.ROIs = np.append(self.ROIs, 100*ROI)
-#        
-#        self.total_earnings += earnings
-#        self.earnings = np.append(self.earnings, earnings)
-#        
-#        self.number_entries = np.append(self.number_entries, n_entries)
-#        self.net_successes = np.append(self.net_successes, trader.net_successes)
-#        self.total_losses = np.append(self.total_losses, np.abs(trader.average_loss))
-#        self.total_wins = np.append(self.total_wins, np.abs(trader.average_win))
-#        self.gross_successes = np.append(self.gross_successes, trader.gross_successes)
-#        self.number_stoplosses = np.append(self.number_stoplosses, stoplosses)
-#        self.n_entries = 0
         
     def update_weekly_results(self, GROI, earnings, ROI, n_entries, stoplosses):
         """ Update weekly results """
@@ -405,18 +381,16 @@ class Trader:
         
         if log_file_time=='':
             
-            start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-            self.log_file = self.results_dir+start_time+"_BT_trader_v30.log"
-            self.log_summary = self.results_dir+start_time+"_BT_summary_v30.log"
-            self.results_pos = results_dir+'/positions/'+start_time+'/'
+            raise ValueError("Depricated. String log_file_time cannot be empty")
             
         else:
             if run_back_test:
                 tag = '_BT_'
             else:
                 tag = '_LI_'
-            self.log_file = self.results_dir+log_file_time+tag+"trader_v30.log"
-            self.log_summary = self.results_dir+log_file_time+tag+"summary_v30.log"
+            self.log_file = self.results_dir+log_file_time+tag+"trader.log"
+            self.log_positions = self.results_dir+log_file_time+tag+"positions.log"
+            self.log_summary = self.results_dir+log_file_time+tag+"summary.log"
             self.results_pos = results_dir+'/positions/'+log_file_time+'/'
         
         if not os.path.exists(self.results_dir):
@@ -425,9 +399,7 @@ class Trader:
                 os.makedirs(self.results_pos)
         # results tracking
         resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit"
-        file = open(self.log_summary,"a")
-        file.write(resultsInfoHeader+"\n")
-        file.close()
+        write_log(resultsInfoHeader, self.log_positions)
         
         # flow control
         self.EXIT = 0
@@ -576,7 +548,7 @@ class Trader:
         
         
 
-    def check_secondary_condition_for_extention(self, ass_id):
+    def check_secondary_condition_for_extention(self, ass_id, ass_idx):
         '''
         '''
         this_strategy = self.next_candidate.strategy
@@ -601,9 +573,10 @@ class Trader:
             
             curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
             #print("currGROI: "+str(100*curr_GROI))
-            condition_extension= (self.next_candidate.profitability>margin and 
-                                  sum_p>=sum_previous_p)
-            #condition_extension = False
+            condition_extension= (self.next_candidate.profitability>margin)
+            
+            #condition_extension = list_extend[ass_idx]
+            #list_extend[ass_idx] = int(round(.2*np.random.rand(1)[0]))
 #             and 
 #                                  100*curr_GROI>=-.2 
 # sum_p-base condition for extension:
@@ -757,10 +730,7 @@ class Trader:
         
         # write output to trader summary
         info_close = info+","+str(nett_win)
-        
-        file = open(self.log_summary,"a")
-        file.write(info_close+"\n")
-        file.close()
+        write_log(info_close, self.log_positions)
         
         # save position evolution
         #self.save_pos_evolution(ass, list_idx)
@@ -980,7 +950,7 @@ class Trader:
             else: # position is opened
                 # check for extension
                 if self.check_primary_condition_for_extention(ass_id):
-                    if self.check_secondary_condition_for_extention(ass_id):    
+                    if self.check_secondary_condition_for_extention(ass_id, ass_idx):    
                         # include third condition for thresholds
                         # extend deadline
                         if not run_back_test:
@@ -1170,7 +1140,16 @@ class Trader:
             ass_idx += 1
             
         return None
-    
+
+def write_log(log_message, log_file):
+        """
+        Write in log file
+        """
+        file = open(log_file,"a")
+        file.write(log_message+"\n")
+        file.close()
+        return None
+
 def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSarStruct,
                   listEM,listAllFeatsLive,list_X_i, means_in,phase_shift,stds_in, 
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
@@ -1196,18 +1175,18 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     # sub channel
     sc = c%phase_shift
     #rc = int(np.floor(c/phase_shift))
-    
+    time_stamp[0] = tradeInfoLive.DateTime.iloc[-1]
     if listFillingX[sc] and verbose_RNN:# and not simulate
         out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+"C"+str(c)+"F"+str(file)
         print("\r"+out)
-        trader.write_log(out)
+        write_log(out, log_file)
                 
     # launch features extraction
     if init[sc]==False:
         if verbose_RNN:
             out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Features inited"
             print("\r"+out)
-            trader.write_log(out)
+            write_log(out, log_file)
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = initFeaturesLive(data,tradeInfoLive)
         init[sc] = True
 
@@ -1240,7 +1219,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                 out = tradeInfoLive.DateTime.iloc[-1]+" "+\
                     thisAsset+netName+" Filling X sc "+str(sc)
                 print("\r"+out)
-                trader.write_log(out)
+                write_log(out, log_file)
                 
             if listCountPos[sc]>=model.seq_len-1:
                 if verbose_RNN:
@@ -1248,14 +1227,14 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                         thisAsset+netName+" Filling X sc "+str(sc)+\
                         " done. Waiting for output..."
                     print("\r"+out)
-                    trader.write_log(out)
+                    write_log(out, log_file)
                 listFillingX[sc] = False
         else:
 ########################################### Predict #########################################################################              
             if verbose_RNN:
                 out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName
                 print("\r"+out, sep=' ', end='', flush=True)
-                trader.write_log(out)
+                write_log(out, log_file)
             
             soft_tilde = model.run_live_session(list_X_i[sc])
             # loop over t indexes
@@ -1309,14 +1288,14 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                             " P_mc "+str(soft_tilde_t[0,0])+\
                             " P_md "+str(np.max(soft_tilde_t[0,1:3]))
                         print("\r"+out)
-                        trader.write_log(out)
+                        write_log(out, log_file)
                 elif test and verbose_RNN:
                     out = thisAsset+netName+" DateTime "+\
                         tradeInfoLive.DateTime.iloc[-1]+\
                         " P_mc "+str(soft_tilde_t[0,0])+\
                         " P_md "+str(np.max(soft_tilde_t[0,1:3]))
                     print("\r"+out)
-                    trader.write_log(out)
+                    write_log(out, log_file)
                     #print("Prediction in market change")
                     # Snd prediction to trading robot
                 if len(list_time_to_entry[sc][t_index])>0 and \
@@ -1340,7 +1319,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                               " P_md "+str(np.max(list_list_soft_tildes\
                                                   [sc][t_index][0][1:3]))
                         print(out)
-                        trader.write_log(out)
+                        write_log(out, log_file)
                     
                     list_time_to_entry[sc][t_index] = list_time_to_entry[sc][t_index][1:]
                     list_list_soft_tildes[sc][t_index] = list_list_soft_tildes[sc][t_index][1:]
@@ -1451,7 +1430,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                             out = netName+resultInfo.to_string(index=False,\
                                                                header=False)
                             print("\r"+out)
-                            trader.write_log(out)
+                            write_log(out, log_file)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -1611,7 +1590,13 @@ def stop_timer(ass_idx):
         data.AllAssets[str(running_assets[ass_idx])]+" @ "+\
         str(time.time()-timers_till_open[ass_idx])+" secs"
     print(out)
-    trader.write_log(out)
+    write_log(out, log_file)
+    
+def test_multiprocessing(ass_idx):
+    global listCountPoss
+    time.sleep(1*np.random.rand(1)[0])
+    print(str(ass_idx)+": "+str(listCountPoss[-1][0][0]))
+    return None
     
 def fetch(budget):
     """ Fetch info coming from MT5 """
@@ -1623,17 +1608,24 @@ def fetch(budget):
     extension = ".txt"
     deli = "_"
     fileExt = [0 for ass in range(nAssets)]
-    nFiles = 10
+    nFiles = 100
     
     first_info_fetched = False
     
     flag_cl_name = "CL"
     flag_sl_name = "SL"
-    
+    #a = True
     while 1:
         tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
+            
             thisAsset = data.AllAssets[str(ass_id)]
+            
+            #test_multiprocessing(ass_idx)
+            
+#            disp = Process(target=test_multiprocessing, args=[ass_idx])
+#            disp.start()
+            
             directory_MT5_ass = directory_MT5+thisAsset+"/"
             # Fetching buffers
             fileID = thisAsset+deli+str(fileExt[ass_idx])+extension
@@ -1704,7 +1696,9 @@ def fetch(budget):
                             os.remove(directory_MT5_ass+flag_sl_name)
                             success = 1
                         else:
-                            print("Error in reading file. Length "+str(len(info_close)))
+                            out = "Error in reading file. Length "+str(len(info_close))
+                            print(out)
+                            write_log(out, log_file)
                     except (FileNotFoundError,PermissionError):
                         pass
                 
@@ -1722,9 +1716,7 @@ def fetch(budget):
                     
                 trader.close_position(DateTime, thisAsset, ass_id)
                 
-                file = open(trader.log_summary,"a")
-                file.write(info_close+"\n")
-                file.close()
+                write_log(info_close, trader.log_positions)
                 # open position if swap process is on
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
@@ -1746,16 +1738,19 @@ def fetch(budget):
                 out = ("Exit position due to stop loss "+" sl="+
                        str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]]))
                 print("\r"+out)
-                trader.write_log(out)
+                write_log(out, trader.log_file)
                 
                 #if not simulate:
-                file = open(trader.log_summary,"a")
-                file.write(info_close+"\n")
-                file.close()
+                write_log(info_close, trader.log_positions)
                 
     #            trader.ban_currencies(data, thisAsset, rootDirOr, netName)
             
             # end of elifs
+            if time_stamp[0]<last_time_stamp[0]:
+                out = "WARNING!! time_stamp<last_time_stamp"
+                print(out)#, sep=' ', end='', flush=True
+                write_log(out, log_file)
+            last_time_stamp[0] = time_stamp[0]
         #end of for ass_idx, ass_id in enumerate(running_assets):
         toc = time.time()-tic
         
@@ -1763,7 +1758,8 @@ def fetch(budget):
             max_loop_time[0] = toc
             out = "Time loop over assets: {0:.3f}".format(toc)
             print(out)#, sep=' ', end='', flush=True
-            trader.write_log(out)
+            write_log(out, log_file)
+        #a = False
     # end of while 1
     return budget
 
@@ -1869,7 +1865,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
           " per earnings {0:.3f}%".format(100*(
                   trader.budget-trader.init_budget)/trader.init_budget)+
           " ROI per position {0:.3f}%".format(ROI_per_entry))
-    trader.write_log(out)
+    write_log(out, trader.log_file)
+    write_log(out, trader.log_summary)
     print(out)
     out = ("Number entries "+str(trader.n_entries)+
            " per entries {0:.2f}%".format(100*perEntries)+
@@ -1877,10 +1874,12 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
           " per gross success "+"{0:.3f}%".format(100*per_gross_success)+
           " av loss {0:.3f}%".format(100*average_loss)+
           " per sl {0:.3f}%".format(100*perSL))
-    trader.write_log(out)
+    write_log(out, trader.log_file)
+    write_log(out, trader.log_summary)
     print(out)
     out = "DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins"
-    trader.write_log(out)
+    write_log(out, trader.log_file)
+    write_log(out, trader.log_summary)
     print(out)
     
     results.update_weekly_results(GROI, earnings, ROI, trader.n_entries, trader.stoplosses)
@@ -1893,7 +1892,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents ,data, budget):
            "Sum ROI = {0:.3f}%".format(results.sum_ROI)+
            " Accumulated earnings {0:.2f}E\n".format(results.total_earnings))
     print(out)
-    trader.write_log(out)
+    write_log(out, trader.log_summary)
+    write_log(out, trader.log_file)
     
     return budget
 
@@ -1949,11 +1949,11 @@ if __name__ == '__main__':
     
     thresholds_mc = [.5,.6,.7,.8,.9]
     thresholds_md = [.5,.6,.7,.8,.9]
-    n_samps_buffer = 50
-    test = True
+    n_samps_buffer = 100
+    test = False
     run_back_test = True
     # directories
-    data_dir = 'D:/SDC/py/Data_test/'#'D:/SDC/py/Data_aws_5/'#
+    data_dir = 'D:/SDC/py/Data_DL3/'#'D:/SDC/py/Data_aws_5/'#
     directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
     ADsDir = "../RNN/results/"
@@ -1966,7 +1966,7 @@ if __name__ == '__main__':
     dir_results_trader = dir_results+"trader/"
     init_budget = 10000.0
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-    
+    log_file = dir_results+start_time+'_log.log'
 #    dateTest = ([                                                   '2018.03.09',
 #                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
 #                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
@@ -2002,7 +2002,7 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.11.23']
+    dateTest = ['2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23']
 #    ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']+\
 #               ['2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03']
     ### TEMP: this data has to be included in list_data and deleted 
@@ -2017,21 +2017,26 @@ if __name__ == '__main__':
                 
                 Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
               dateTest = dateTest,feature_keys_tsfresh=[])]
+    
+    # flow control variables
     max_loop_time = [0]
+    last_time_stamp = ['0']
+    time_stamp = ['0']
+    
+    
 #    numberNetworks = 1
 #    IDepoch = ["6"]
 #    IDweights = ["000287"]
 #    IDresults = ["100287Nov09"]#
 #    delays = [0]
-#    list_t_indexs = [[2]] # time index to use as output. Value between {0,...,model.seq_len-1}
-#    #MRC = [False,True]
+#    list_t_indexs = [[2]] # time index to use as output. Value between {0,...,model.seq_len}
 #    mWs = [100]
 #    nExSs = [1000]
 #    lBs = [1300]
 #    list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
 #                         list_data[i].movingWindow+1) for i in range(len(mWs))]
 #    netNames = ["87"]
-#    phase_shifts = [1] # phase shift
+#    phase_shifts = [10] # phase shift
 #    list_weights = [np.array([.5,.5])]
 #    list_use_GRE = [True]
 #    list_lb_mc_op = [0.5]
@@ -2208,6 +2213,9 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
+    list_extend = [0 for ass in range(nAssets)]
+    
+    
     ################# Trader #############################
     entry_time_column = 'Entry Time'#'Entry Time
     exit_time_column = 'Exit Time'#'Exit Time
@@ -2300,7 +2308,8 @@ if __name__ == '__main__':
                     day_index += 1
                 
                 end_list_index = day_index+counter_back
-                print("Week from "+data.dateTest[init_list_index]+" to "+data.dateTest[end_list_index])
+                out = "Week from "+data.dateTest[init_list_index]+" to "+data.dateTest[end_list_index]
+                print(out)
                 
                 day_index += counter_back+1
                 
@@ -2313,7 +2322,8 @@ if __name__ == '__main__':
     #            trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), init_budget=init_budget)
                 trader = Trader(results_dir=dir_results_trader, 
                                 init_budget=init_budget, log_file_time=start_time)
-                
+                write_log(out, trader.log_file)
+                write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(data, init_list_index, end_list_index,
                                    root_dir=data_dir)
@@ -2360,7 +2370,8 @@ if __name__ == '__main__':
                "Sum ROI = {0:.3f}%".format(results.sum_ROI)+
                " Accumulated earnings {0:.2f}E".format(results.total_earnings))
         print(out)
-        trader.write_log(out)
+        write_log(out, trader.log_file)
+        write_log(out, trader.log_summary)
         out = ("Total entries "+str(total_entries)+
                " percent gross success {0:.2f}%".format(per_gross_success)+
               " percent nett success {0:.2f}%".format(per_net_succsess)+
@@ -2368,10 +2379,12 @@ if __name__ == '__main__':
               " average win {0:.2f}p".format(average_win)+
               " RR 1 to {0:.2f}".format(RR))
         print(out)
-        trader.write_log(out)
+        write_log(out, trader.log_file)
+        write_log(out, trader.log_summary)
         out = ("DONE. Total time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins\n")
         print(out)
-        trader.write_log(out)
+        write_log(out, trader.log_file)
+        write_log(out, trader.log_summary)
         results.save_results()
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
