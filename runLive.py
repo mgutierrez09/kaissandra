@@ -548,7 +548,7 @@ class Trader:
         
         
 
-    def check_secondary_condition_for_extention(self, ass_id, ass_idx):
+    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI):
         '''
         '''
         this_strategy = self.next_candidate.strategy
@@ -570,15 +570,13 @@ class Trader:
             previous_idx_md = self.list_opened_positions[self.\
                                             map_ass_idx2pos_idx[ass_id]].idx_md
                                                          
-            
-            curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
             #print("currGROI: "+str(100*curr_GROI))
-            condition_extension= (self.next_candidate.profitability>margin)
+            condition_extension= (self.next_candidate.profitability>margin and 
+                                  100*curr_GROI>=-.1)
             
             #condition_extension = list_extend[ass_idx]
             #list_extend[ass_idx] = int(round(.2*np.random.rand(1)[0]))
-#             and 
-#                                  100*curr_GROI>=-.2 
+#              
 # sum_p-base condition for extension:
 #           # 
 # idx_mc/md-based condition for extension:
@@ -950,7 +948,8 @@ class Trader:
             else: # position is opened
                 # check for extension
                 if self.check_primary_condition_for_extention(ass_id):
-                    if self.check_secondary_condition_for_extention(ass_id, ass_idx):    
+                    curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                    if self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI):    
                         # include third condition for thresholds
                         # extend deadline
                         if not run_back_test:
@@ -964,7 +963,8 @@ class Trader:
                            " "+str(new_entry['Bet'])+
                            " p_mc={0:.2f}".format(new_entry['P_mc'])+
                            " p_md={0:.2f}".format(new_entry['P_md'])+ 
-                           " spread={0:.3f}".format(new_entry['E_spread']))
+                           " spread={0:.3f}".format(new_entry['E_spread'])+
+                           " current GROI={0:.2f}%".format(100*curr_GROI))
                         #out = new_entry[entry_time_column]+" Extended "+thisAsset
                         print("\r"+out)
                         self.write_log(out)
@@ -1190,7 +1190,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = initFeaturesLive(data,tradeInfoLive)
         init[sc] = True
 
-    listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive(tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
+    listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive\
+        (tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
     # check if variations can be calculated or have to wait
     #allFeats = np.append(allFeats,features,axis=1)
     listAllFeatsLive[sc] = np.append(listAllFeatsLive[sc],listFeaturesLive[sc],axis=1)
@@ -1234,7 +1235,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
             if verbose_RNN:
                 out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName
                 print("\r"+out, sep=' ', end='', flush=True)
-                write_log(out, log_file)
+                #write_log(out, log_file)
             
             soft_tilde = model.run_live_session(list_X_i[sc])
             # loop over t indexes
@@ -1949,7 +1950,7 @@ if __name__ == '__main__':
     
     thresholds_mc = [.5,.6,.7,.8,.9]
     thresholds_md = [.5,.6,.7,.8,.9]
-    n_samps_buffer = 100
+    n_samps_buffer = 20
     test = False
     run_back_test = True
     # directories
@@ -2002,7 +2003,7 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23']
+    dateTest = ['2018.11.22','2018.11.23']
 #    ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']+\
 #               ['2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03']
     ### TEMP: this data has to be included in list_data and deleted 
@@ -2064,7 +2065,7 @@ if __name__ == '__main__':
     IDepoch = ["6","6","16"]
     netNames = ["87","86","85"]
     list_t_indexs = [[2],[2],[3]]
-    phase_shifts = [2,2,2]
+    phase_shifts = [5,5,5]
     delays = [0,0,0]
     mWs = [100,100,100]
     nExSs = [1000,1000,1000]
@@ -2081,7 +2082,7 @@ if __name__ == '__main__':
     list_ub_md_op = [1 for i in range(numberNetworks)]
     list_ub_mc_ext = [1 for i in range(numberNetworks)]
     list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_thr_sl = [1000 for i in range(numberNetworks)]
+    list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     list_fix_spread = [False for i in range(numberNetworks)]
     list_fixed_spread_pips = [4 for i in range(numberNetworks)]
