@@ -870,7 +870,7 @@ class Trader:
         return None
 
 
-def load_in_memory(data, init_list_index, end_list_index,root_dir='D:/SDC/py/Data/'):
+def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,root_dir='D:/SDC/py/Data/'):
     print("Loading info from original files...")
     files_list = []
     DateTimes = np.chararray((0,),itemsize=19)
@@ -885,8 +885,8 @@ def load_in_memory(data, init_list_index, end_list_index,root_dir='D:/SDC/py/Dat
     SymbolAsks = np.zeros((alloc,))
     idx_counter = 0
     # read trade info from raw files
-    for ass in data.assets:
-        thisAsset = data.AllAssets[str(ass)]
+    for ass in assets:
+        thisAsset = AllAssets[str(ass)]
         #print(thisAsset)
         directory_origin = root_dir+thisAsset+'/'#'../Data/'+thisAsset+'/'
         # get files list, and beginning and end current dates
@@ -899,7 +899,7 @@ def load_in_memory(data, init_list_index, end_list_index,root_dir='D:/SDC/py/Dat
                     day = dt.datetime.strftime(dt.datetime.strptime(last_date_s, 
                                                                     '%Y%m%d%H%M%S'), 
                                                                     '%Y.%m.%d')
-                    if day in data.dateTest[init_list_index:end_list_index+1]:
+                    if day in dateTest[init_list_index:end_list_index+1]:
                         #print(file)
                         files_list.append(file)
                         pd_file = pd.read_csv(directory_origin+file)
@@ -1236,7 +1236,9 @@ if __name__ == '__main__':
         trader.write_summary(out)
         
         load_in_RAM = True
-        DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(data, 
+        DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(data.assets, 
+                                                                            data.AllAssets,
+                                                                            data.dateTest, 
                                                                             init_list_index, 
                                                                             end_list_index,
                                                                             root_dir=root_dir)
