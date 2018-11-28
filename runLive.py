@@ -1950,7 +1950,7 @@ if __name__ == '__main__':
     
     thresholds_mc = [.5,.6,.7,.8,.9]
     thresholds_md = [.5,.6,.7,.8,.9]
-    n_samps_buffer = 20
+    n_samps_buffer = 100
     test = False
     run_back_test = True
     # directories
@@ -2003,7 +2003,7 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.11.22','2018.11.23']
+    dateTest = ['2018.11.22']
 #    ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']+\
 #               ['2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03']
     ### TEMP: this data has to be included in list_data and deleted 
@@ -2065,7 +2065,7 @@ if __name__ == '__main__':
     IDepoch = ["6","6","16"]
     netNames = ["87","86","85"]
     list_t_indexs = [[2],[2],[3]]
-    phase_shifts = [5,5,5]
+    phase_shifts = [1,1,1]
     delays = [0,0,0]
     mWs = [100,100,100]
     nExSs = [1000,1000,1000]
@@ -2082,7 +2082,7 @@ if __name__ == '__main__':
     list_ub_md_op = [1 for i in range(numberNetworks)]
     list_ub_mc_ext = [1 for i in range(numberNetworks)]
     list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_thr_sl = [20 for i in range(numberNetworks)]
+    list_thr_sl = [1000 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     list_fix_spread = [False for i in range(numberNetworks)]
     list_fixed_spread_pips = [4 for i in range(numberNetworks)]
