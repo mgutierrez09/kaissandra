@@ -2381,8 +2381,8 @@ def run(running_assets, start_time):
                     write_log(out, trader.log_file)
                     write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
-                    load_in_memory(running_assets, AllAssets, dateTest, init_list_index, end_list_index,
-                                   root_dir=data_dir)
+                    load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
+                                   end_list_index, root_dir=data_dir)
 ###############################################################################
 ###################################################### TEMP ###################
 ###############################################################################
@@ -2398,16 +2398,73 @@ def run(running_assets, start_time):
                                         ass2index_mapping, lists, AllAssets, 
                                         log_file)
         else:
-            # init lists
-            # init structures RNN
+            
+            buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
+                                for nn in range(nNets)] 
+                                for ass in range(nAssets)]
+            buffersCounter = [[[-k*buffSizes[ass,nn]/nCxAxN[ass,nn]-delays[nn] 
+                                    for k in range(int(nCxAxN[ass,nn]))] 
+                                    for nn in range(nNets)] 
+                                    for ass in range(nAssets)]
+            bufferExt = [[[0 for k in range(int(nCxAxN[ass,nn]))] 
+                              for nn in range(nNets)] 
+                              for ass in range(nAssets)]
+            #timers_till_open = [0 for ass in range(nAssets)]
+                
+            lists = {}
+            lists['phase_shifts'] = phase_shifts
+            lists['nChans'] = nChans
+            lists['list_t_indexs'] = list_t_indexs
+            lists['lBs'] = lBs
+            lists['nExSs'] = nExSs
+            lists['mWs'] = mWs
+            lists['list_data'] = list_data
+            lists['nCxAxN'] = nCxAxN
+            lists['buffSizes'] = buffSizes
+                
             (inits,listFillingXs,listCountPoss,countOutss,EOFs,list_list_X_i,
              list_listAllFeatsLive,list_listFeaturesLive,list_listParSarStruct,
              list_listEM,list_list_Ylive,list_list_Pmc_live,list_list_Pmd_live,
              list_list_Pmg_live,list_list_time_to_entry,list_list_list_soft_tildes,
-             list_list_weights_matrix) = init_network_structures()
+             list_list_weights_matrix) = init_network_structures(lists, nNets, nAssets)
+                
+            lists['buffers'] = buffers
+            lists['buffersCounter'] = buffersCounter
+            lists['bufferExt'] = bufferExt
+            lists['bufferExt'] = bufferExt
+            lists['listFillingXs'] = listFillingXs
+            lists['inits'] = inits
+            lists['list_listFeaturesLive'] = list_listFeaturesLive
+            lists['list_listParSarStruct']= list_listParSarStruct
+            lists['list_listEM'] = list_listEM
+            lists['list_listAllFeatsLive'] = list_listAllFeatsLive
+            lists['list_list_X_i'] = list_list_X_i
+            lists['list_means_in'] = list_means_in
+            lists['phase_shifts'] = phase_shifts
+            lists['list_stds_in'] = list_stds_in
+            lists['list_stds_out'] = list_stds_out
+            lists['ADs'] = ADs
+            lists['netNames'] = netNames
+            lists['listCountPoss'] = listCountPoss
+            lists['list_list_weights_matrix'] = list_list_weights_matrix
+            lists['list_list_time_to_entry'] = list_list_time_to_entry
+            lists['list_list_list_soft_tildes'] = list_list_list_soft_tildes
+            lists['list_list_Ylive'] = list_list_Ylive
+            lists['list_list_Pmc_live'] = list_list_Pmc_live
+            lists['list_list_Pmd_live'] = list_list_Pmd_live
+            lists['list_list_Pmg_live'] = list_list_Pmg_live
+            lists['EOFs'] = EOFs
+            lists['countOutss'] = countOutss
+            lists['resultsDir'] = resultsDir
+            lists['results_files'] = results_files
+            lists['list_models'] = list_models
+            lists['list_data'] = list_data
+            lists['list_nonVarIdx'] = list_nonVarIdx
             # init trader
-            trader = Trader(results_dir=dir_results_trader,
-                            log_file_time=start_time)
+            trader = Trader(running_assets,
+                                ass2index_mapping, strategies, AllAssets, 
+                                results_dir=dir_results_trader, 
+                                log_file_time=start_time)
             # launch fetcher
             init_budget = fetch(init_budget, trader, directory_MT5, AllAssets, 
                                 running_assets, log_file, results)
