@@ -34,7 +34,7 @@ verbose_trader = True
 test = False
 run_back_test = True
 
-data_dir = 'D:/SDC/py/Data_DL3/'#'D:/SDC/py/Data_aws_5/'#
+data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
 ADsDir = "../RNN/results/"
@@ -406,7 +406,7 @@ class Trader:
                 os.makedirs(self.results_pos)
         # results tracking
         if not os.path.exists(self.log_positions):
-            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit"
+            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions)
         
         # flow control
@@ -579,9 +579,9 @@ class Trader:
 #                                            map_ass_idx2pos_idx[ass_id]].idx_md
                                                          
             #print("currGROI: "+str(100*curr_GROI))
-            condition_extension= (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=-.1)
-            
+            condition_extension= (self.next_candidate.profitability>margin )
+#            and 
+#                                  100*curr_GROI>=-.1
             #condition_extension = list_extend[ass_idx]
             #list_extend[ass_idx] = int(round(.2*np.random.rand(1)[0]))
 #              
@@ -735,7 +735,8 @@ class Trader:
         self.tGROI_live += GROI_live
         
         # write output to trader summary
-        info_close = info+","+str(nett_win)
+        info_close = info+","+str(nett_win)+","+\
+            str(100*self.tGROI_live)+","+str(100*self.tROI_live)
         write_log(info_close, self.log_positions)
         
         # save position evolution
@@ -973,12 +974,13 @@ class Trader:
                            " p_mc={0:.2f}".format(new_entry['P_mc'])+
                            " p_md={0:.2f}".format(new_entry['P_md'])+ 
                            " spread={0:.3f}".format(new_entry['E_spread'])+
-                           " current GROI={0:.2f}%".format(100*curr_GROI))
+                           " current GROI={0:.1f}p".format(1/self.pip*curr_GROI))
                         #out = new_entry[entry_time_column]+" Extended "+thisAsset
                         print("\r"+out)
                         self.write_log(out)
                     else: # if candidate for extension does not meet requirements
-                        pass
+                        out = new_entry[entry_time_column]+" not extended "+\
+                              thisAsset+" current GROI={0:.1f}p".format(1/self.pip*curr_GROI)
                 else: # if direction is different
                     # if new position has higher GRE, close
                     if self.next_candidate.profitability>=self.list_opened_positions[
@@ -1051,7 +1053,8 @@ class Trader:
                 min_op = op
         if self.next_candidate.profitability>min_profitability:    
             self.swap_pos = min_op
-            out = "Swap "+self.next_candidate.asset+" with "+self.list_opened_positions[op].asset
+            out = "Swap "+self.next_candidate.asset+" with "\
+                +self.list_opened_positions[op].asset
             self.write_log(out)
             print(out)
             return True
@@ -1062,12 +1065,14 @@ class Trader:
         """
         <DocString>
         """
-        out = self.next_candidate.entry_time+" "+self.next_candidate.asset+" initialize swap"
+        out = self.next_candidate.entry_time+" "+\
+            self.next_candidate.asset+" initialize swap"
         self.write_log(out)
         print(out)
         #send close command if running live
         if not run_back_test:
-            directory_MT5_ass2close = directory_MT5+self.list_opened_positions[self.swap_pos].asset+"/"
+            directory_MT5_ass2close = directory_MT5+\
+                self.list_opened_positions[self.swap_pos].asset+"/"
             self.send_close_command(directory_MT5_ass2close)
         # activate swap pending flag
         self.swap_pending = 1
@@ -1082,12 +1087,14 @@ class Trader:
         """
         <DocString>
         """
-        out = self.new_swap_candidate.entry_time+" "+self.new_swap_candidate.asset+" finlaize swap"
+        out = self.new_swap_candidate.entry_time+" "+\
+            self.new_swap_candidate.asset+" finlaize swap"
         self.write_log(out)
         print(out)
         # open new position
         lots = self.assign_lots(self.new_swap_candidate.entry_time)
-        ass_idx = self.running_assets[self.ass2index_mapping[self.new_swap_candidate.asset]]
+        ass_idx = self.running_assets[self.ass2index_mapping\
+                                      [self.new_swap_candidate.asset]]
         # check if there is enough budget
         if self.available_bugdet_in_lots>=lots:
             # send open command to MT5 if running live
@@ -1095,8 +1102,10 @@ class Trader:
                 self.send_open_command(self.swap_directory_MT5_ass)
             # open position
             self.open_position(ass_idx, lots, self.new_swap_candidate.entry_time, 
-                               self.new_swap_candidate.e_spread, self.new_swap_candidate.entry_bid, 
-                               self.new_swap_candidate.entry_ask, self.new_swap_candidate.deadline)
+                               self.new_swap_candidate.e_spread, 
+                               self.new_swap_candidate.entry_bid, 
+                               self.new_swap_candidate.entry_ask, 
+                               self.new_swap_candidate.deadline)
             self.swap_pending = 0
     
     def update_list_last(self, list_idx, datetime, bid, ask):
@@ -1114,9 +1123,11 @@ class Trader:
         """ Save evolution of the position from opening till close """
         # format datetime for filename
         dt_open = dt.datetime.strftime(dt.datetime.strptime(
-                        self.list_last_dt[list_idx][0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                        self.list_last_dt[list_idx][0],'%Y.%m.%d %H:%M:%S'),
+                '%y%m%d%H%M%S')
         dt_close = dt.datetime.strftime(dt.datetime.strptime(
-                        self.list_last_dt[list_idx][-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                        self.list_last_dt[list_idx][-1],'%Y.%m.%d %H:%M:%S'),
+                '%y%m%d%H%M%S')
         filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
         direct = self.results_pos
         df = pd.DataFrame({'DateTime':self.list_last_dt[list_idx],
@@ -1159,7 +1170,7 @@ def write_log(log_message, log_file):
         file.close()
         return None
 
-def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSarStruct,
+def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSarStruct,
                   listEM,listAllFeatsLive,list_X_i, means_in,phase_shift,stds_in, 
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
@@ -1190,24 +1201,28 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
     #rc = int(np.floor(c/phase_shift))
     #time_stamp[0] = tradeInfoLive.DateTime.iloc[-1]
     if listFillingX[sc] and verbose_RNN:# and not simulate
-        out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+"C"+str(c)+"F"+str(file)
+        out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+"C"+\
+            str(c)+"F"+str(file)
         print("\r"+out)
         write_log(out, log_file)
                 
     # launch features extraction
     if init[sc]==False:
         if verbose_RNN:
-            out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+" Features inited"
+            out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName+\
+                " Features inited"
             print("\r"+out)
             write_log(out, log_file)
-        listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = initFeaturesLive(data,tradeInfoLive)
+        listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = \
+            initFeaturesLive(data,tradeInfoLive)
         init[sc] = True
 
     listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive\
         (tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
     # check if variations can be calculated or have to wait
     #allFeats = np.append(allFeats,features,axis=1)
-    listAllFeatsLive[sc] = np.append(listAllFeatsLive[sc],listFeaturesLive[sc],axis=1)
+    listAllFeatsLive[sc] = np.append(listAllFeatsLive[sc],listFeaturesLive[sc],
+                                     axis=1)
     
     if listAllFeatsLive[sc].shape[1]>nChannels:
         
@@ -1335,11 +1350,15 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                         print(out)
                         write_log(out, log_file)
                     
-                    list_time_to_entry[sc][t_index] = list_time_to_entry[sc][t_index][1:]
-                    list_list_soft_tildes[sc][t_index] = list_list_soft_tildes[sc][t_index][1:]
+                    list_time_to_entry[sc][t_index] = list_time_to_entry[sc]\
+                        [t_index][1:]
+                    list_list_soft_tildes[sc][t_index] = list_list_soft_tildes\
+                        [sc][t_index][1:]
                     
-                list_time_to_entry[sc][t_index] = [list_time_to_entry[sc][t_index][i]-1\
-                                   for i in range(len(list_time_to_entry[sc][t_index]))]
+                list_time_to_entry[sc][t_index] = [list_time_to_entry[sc]\
+                                   [t_index][i]-1\
+                                   for i in range(len(list_time_to_entry[sc]\
+                                   [t_index]))]
     ###############################################################################################################################
                             
     ################################################# Evaluation ##################################################################
@@ -1358,9 +1377,12 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                 
                 # Check performance. Evaluate prediction
                 list_Ylive[sc][t_index] = np.append(list_Ylive[sc][t_index],Y_tilde,axis=0)
-                list_Pmc_live[sc][t_index] = np.append(list_Pmc_live[sc][t_index],prob_mc,axis=0)
-                list_Pmd_live[sc][t_index] = np.append(list_Pmd_live[sc][t_index],prob_md,axis=0)
-                list_Pmg_live[sc][t_index] = np.append(list_Pmg_live[sc][t_index],prob_mg,axis=0)
+                list_Pmc_live[sc][t_index] = np.append(list_Pmc_live[sc]\
+                                                       [t_index],prob_mc,axis=0)
+                list_Pmd_live[sc][t_index] = np.append(list_Pmd_live[sc]\
+                                                       [t_index],prob_md,axis=0)
+                list_Pmg_live[sc][t_index] = np.append(list_Pmg_live[sc]\
+                                                       [t_index],prob_mg,axis=0)
                 
                 # wait for output to come
                 if listCountPos[sc]>nChannels+model.seq_len+t_indexes[t_index]-1:
@@ -1381,12 +1403,14 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive,listParSar
                     p_mg = list_Pmg_live[sc][t_index][look_back_index]
                     # delete older entries if real time test is running
                     #if 1:#not simulate:
-                    list_Ylive[sc][t_index] = list_Ylive[sc][t_index][look_back_index:]
-                    list_Pmc_live[sc][t_index] = list_Pmc_live[sc][t_index][look_back_index:]
-                    list_Pmd_live[sc][t_index] = list_Pmd_live[sc][t_index][look_back_index:]
-                    list_Pmg_live[sc][t_index] = list_Pmg_live[sc][t_index][look_back_index:]
-                    
-    
+                    list_Ylive[sc][t_index] = list_Ylive[sc][t_index]\
+                        [look_back_index:]
+                    list_Pmc_live[sc][t_index] = list_Pmc_live[sc][t_index]\
+                        [look_back_index:]
+                    list_Pmd_live[sc][t_index] = list_Pmd_live[sc][t_index]\
+                        [look_back_index:]
+                    list_Pmg_live[sc][t_index] = list_Pmg_live[sc][t_index]\
+                        [look_back_index:]
                     countOuts[t_index][c]+=1
                                     
                     # if prediction is different than 0, evaluate
@@ -1614,7 +1638,8 @@ def test_multiprocessing(ass_idx):
     print(str(ass_idx)+": "+str(listCountPoss[-1][0][0]))
     return None
     
-def fetch(budget, trader, directory_MT5, AllAssets, running_assets, log_file, results):
+def fetch(lists, budget, trader, directory_MT5, 
+          AllAssets, running_assets, log_file, results):
     """ Fetch info coming from MT5 """
     
     nAssets = len(running_assets)
@@ -2026,7 +2051,7 @@ def run(running_assets, start_time):
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.11.22']
+    dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']
 
     ### TEMP: this data has to be included in list_data and deleted 
 #    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
@@ -2466,8 +2491,8 @@ def run(running_assets, start_time):
                                 results_dir=dir_results_trader, 
                                 log_file_time=start_time)
             # launch fetcher
-            init_budget = fetch(init_budget, trader, directory_MT5, AllAssets, 
-                                running_assets, log_file, results)
+            init_budget = fetch(lists, init_budget, trader, directory_MT5, 
+                                AllAssets, running_assets, log_file, results)
 
         # gather results
         total_entries = int(np.sum(results.number_entries))
