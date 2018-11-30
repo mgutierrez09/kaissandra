@@ -31,8 +31,8 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = True
 verbose_trader = True
-test = False
-run_back_test = True
+test = True
+run_back_test = False
 
 data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
@@ -247,20 +247,20 @@ class Strategy():
             # fill the gaps in the GRE matrix
             allGREs = self._fill_up_GRE(allGREs)
             GRE = allGREs[self.t_indexs, :, :, :]/self.pip
-            print("GRE level 1:")
-            print(GRE[:,:,0])
-            print("GRE level 2:")
-            print(GRE[:,:,1])
+#            print("GRE level 1:")
+#            print(GRE[:,:,0])
+#            print("GRE level 2:")
+#            print(GRE[:,:,1])
             if os.path.exists(self.dir_origin+self.IDr+"/GREex_e"+self.epoch+".p"):
                 allGREs = pickle.load( open( self.dir_origin+self.IDr+
                                             "/GREex_e"+self.epoch+".p", "rb" ))
                 # fill the gaps in the GRE matrix
                 allGREs = self._fill_up_GRE(allGREs)
                 GREex = allGREs[self.t_indexs, :, :, :]/self.pip
-                print("GREex level 1:")
-                print(GREex[:,:,0])
-                print("GREex level 2:")
-                print(GREex[:,:,1])
+#                print("GREex level 1:")
+#                print(GREex[:,:,0])
+#                print("GREex level 2:")
+#                print(GREex[:,:,1])
             else: 
                 GREex = 1-self.weights[0]*GRE
             
@@ -268,10 +268,10 @@ class Strategy():
             
             if test:
                 self.GRE = self.GRE+20
-            print("GRE combined level 1:")
-            print(self.GRE[:,:,0])
-            print("GRE combined level 2:")
-            print(self.GRE[:,:,1])
+#            print("GRE combined level 1:")
+#            print(self.GRE[:,:,0])
+#            print("GRE combined level 2:")
+#            print(self.GRE[:,:,1])
         else:
             self.GRE = None
     
@@ -1638,12 +1638,12 @@ def test_multiprocessing(ass_idx):
     print(str(ass_idx)+": "+str(listCountPoss[-1][0][0]))
     return None
     
-def fetch(lists, budget, trader, directory_MT5, 
+def fetch(lists, trader, directory_MT5, 
           AllAssets, running_assets, log_file, results):
     """ Fetch info coming from MT5 """
     
     nAssets = len(running_assets)
-    renew_directories(AllAssets, running_assets)
+    renew_directories(AllAssets, running_assets, directory_MT5)
     
     print("Fetcher lauched")
 
@@ -1656,6 +1656,7 @@ def fetch(lists, budget, trader, directory_MT5,
     
     flag_cl_name = "CL"
     flag_sl_name = "SL"
+    nMaxFilesInDir = 0
     #a = True
     while 1:
 #        tic = time.time()
@@ -1678,16 +1679,25 @@ def fetch(lists, budget, trader, directory_MT5,
                 #print(thisAsset+" new buffer received")
                 os.remove(directory_MT5_ass+fileID)
                 success = 1
+                nFilesDir = len(os.listdir(directory_MT5_ass))
                 #start_timer(ass_idx)
                 if not first_info_fetched:
                     print("First info fetched")
                     first_info_fetched = True
+                elif nMaxFilesInDir<nFilesDir:
+                    nMaxFilesInDir = nFilesDir
+                    out = "new max number files in dir "+thisAsset+": "+str(nMaxFilesInDir)
+                    print(out)
+                    write_log(out, log_file)
+                    
             except (FileNotFoundError,PermissionError):
-                pass
+                time.sleep(.01)
             # update file extension
             if success:
                 fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
-                outputs, new_outputs = dispatch(buffer, ass_id, ass_idx)
+                outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
+                                                ass_id, ass_idx, 
+                                                log_file)
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
@@ -1803,7 +1813,6 @@ def fetch(lists, budget, trader, directory_MT5,
 #            write_log(out, log_file)
         #a = False
     # end of while 1
-    return budget
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               trader, results, running_assets, ass2index_mapping, lists,
@@ -2112,7 +2121,7 @@ def run(running_assets, start_time):
     IDepoch = ["6","6","16"]
     netNames = ["87","86","85"]
     list_t_indexs = [[2],[2],[3]]
-    phase_shifts = [1,1,1]
+    phase_shifts = [5,5,5]
     delays = [0,0,0]
     mWs = [100,100,100]
     nExSs = [1000,1000,1000]
@@ -2491,7 +2500,7 @@ def run(running_assets, start_time):
                                 results_dir=dir_results_trader, 
                                 log_file_time=start_time)
             # launch fetcher
-            init_budget = fetch(lists, init_budget, trader, directory_MT5, 
+            fetch(lists, trader, directory_MT5, 
                                 AllAssets, running_assets, log_file, results)
 
         # gather results
@@ -2528,6 +2537,27 @@ def run(running_assets, start_time):
         write_log(out, trader.log_file)
         write_log(out, trader.log_summary)
         results.save_results()
+        
+def launch():
+    # runLive in multiple processes
+    from multiprocessing import Process
+    from runLive import run
+    import datetime as dt
+    import time
+    
+    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
+    running_assets = assets#[7, 14]
+    start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
+    #disp = Process(target=run, args=[running_assets,start_time])
+    #disp.start()
+    for ass_idx in range(len(running_assets)):
+        disp = Process(target=run, args=[running_assets[ass_idx:ass_idx+1],start_time])
+        disp.start()
+        time.sleep(2)
+    time.sleep(30)
+    print("All RNNs launched")
+if __name__=='__main__':
+    launch()
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
