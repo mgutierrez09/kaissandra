@@ -2218,10 +2218,7 @@ def run(running_assets, start_time):
     
     
     # load stats
-    list_stats = [[load_stats(list_data[nn], AllAssets[str(running_assets[ass])], 
-                    h5py.File(hdf5_directory+'IO_mW'+str(mWs[nn])
-                    +'_nE'+str(nExSs[nn])+'_nF'+str(list_data[nn].nFeatures)+
-                    '.hdf5','r')[AllAssets[str(running_assets[ass])]], 
+    list_stats = [[load_stats(list_data[nn], None, 
                     0, from_stats_file=True, hdf5_directory=hdf5_directory+
                     'stats/') for nn in range(nNets)] for ass in range(nAssets)]
     
