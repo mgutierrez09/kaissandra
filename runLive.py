@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import pickle
-import h5py
+#import h5py
 import re
 import tensorflow as tf
 #from multiprocessing import Process
@@ -29,10 +29,10 @@ entry_ask_column = 'Ai'
 exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
-verbose_RNN = True
-verbose_trader = True
+verbose_RNN = False
+verbose_trader = False
 test = True
-run_back_test = False
+run_back_test = True
 
 data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
@@ -330,7 +330,7 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  AllAssets, results_dir="../RNN/resultsLive/back_test/trader/", 
-                 init_budget=10000, log_file_time=''):
+                 log_file_time=''):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
@@ -396,19 +396,22 @@ class Trader:
             else:
                 tag = '_LI_'
             self.log_file = self.results_dir+log_file_time+tag+"trader.log"
-            self.log_positions = self.results_dir+log_file_time+tag+"positions.log"
+            self.log_positions_soll = self.results_dir+log_file_time+tag+"positions.log"
+            self.log_positions_ist = self.results_dir+log_file_time+tag+"positions.log"
             self.log_summary = self.results_dir+log_file_time+tag+"summary.log"
             self.results_pos = results_dir+'/positions/'+log_file_time+'/'
+            self.budget_file = self.results_dir+log_file_time+tag+"budget.log"
         
         if not os.path.exists(self.results_dir):
             os.mkdir(self.results_dir)
         if not os.path.exists(self.results_pos):
                 os.makedirs(self.results_pos)
         # results tracking
-        if not os.path.exists(self.log_positions):
+        if not os.path.exists(self.log_positions_soll):
             resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
-            write_log(resultsInfoHeader, self.log_positions)
-        
+            write_log(resultsInfoHeader, self.log_positions_soll)
+            write_log(resultsInfoHeader, self.log_positions_ist)
+            write_log(str(self.available_bugdet_in_lots), self.budget_file)
         # flow control
         self.EXIT = 0
         self.rewind = 0
@@ -708,9 +711,11 @@ class Trader:
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
         
-        self.available_budget += self.list_lots_per_pos[list_idx]*\
-            self.LOT*(lot_ratio+ROI_live)
-        self.available_bugdet_in_lots = self.available_budget/self.LOT
+        lots2add = self.list_lots_per_pos[list_idx]*(lot_ratio+ROI_live)
+        self.available_bugdet_in_lots = self.get_current_available_budget()+lots2add
+        self.available_budget = self.available_bugdet_in_lots*self.LOT 
+        # update available budget file
+        self.update_current_available_budget()
         
         self.budget_in_lots += self.list_lots_per_pos[list_idx]*ROI_live
                                                     
@@ -737,7 +742,7 @@ class Trader:
         # write output to trader summary
         info_close = info+","+str(nett_win)+","+\
             str(100*self.tGROI_live)+","+str(100*self.tROI_live)
-        write_log(info_close, self.log_positions)
+        write_log(info_close, self.log_positions_soll)
         
         # save position evolution
         #self.save_pos_evolution(ass, list_idx)
@@ -773,14 +778,32 @@ class Trader:
         
         
         assert(lot_ratio<=1.00 and lot_ratio>0)
-        
+    
+    def get_current_available_budget(self):
+        """ get available budget from shared file among traders """
+        fh = open(self.budget_file,"r")
+        # read output
+        av_bugdet_in_lots = float(fh.read())
+        fh.close()
+        print("get_current_available_budget: "+str(av_bugdet_in_lots))
+        return av_bugdet_in_lots
+    
+    def update_current_available_budget(self):
+        """ update available budget from shared file among traders """
+        fh = open(self.budget_file,"w")
+        fh.write(str(self.available_bugdet_in_lots))
+        fh.close()
+        print("update_current_available_budget: "+str(self.available_bugdet_in_lots))
+        return None
     
     def open_position(self, idx, lots, DateTime, e_spread, bid, ask, deadline):
-        """
-        
-        """
-        self.available_budget -= lots*self.LOT
+        """ Open position """
+        # update available budget
         self.available_bugdet_in_lots -= lots
+        self.available_budget = self.available_bugdet_in_lots*self.LOT
+        # update available budget file
+        self.update_current_available_budget()
+        #self.available_bugdet_in_lots -= lots
         self.n_entries += 1
         self.n_pos_opened += 1
         
@@ -803,6 +826,9 @@ class Trader:
         '''
         this_strategy = self.next_candidate.strategy
         if not this_strategy.flexible_lot_ratio:
+            # update available budget
+            self.available_bugdet_in_lots = self.get_current_available_budget()
+            # check if there's enough bugdet available
             if self.available_bugdet_in_lots>0:
                 open_lots = min(this_strategy.max_lots_per_pos, 
                                 self.available_bugdet_in_lots)
@@ -946,11 +972,13 @@ class Trader:
                         print("\r"+out)
                         self.write_log(out)
                         # check swap of resources
-                        if self.next_candidate.strategy.use_GRE and \
-                            self.check_resources_swap():
+                        if self.next_candidate.strategy.use_GRE:
+#                             and self.check_resources_swap()
                             # TODO: Check propertly function of swapinng
                             # lauch swap of resourves
                             pass
+                            ### WARNING! With multi-process traders no swap
+                            ### supported
                             #self.initialize_resources_swap(directory_MT5_ass)
                 else:
                     pass
@@ -1768,7 +1796,7 @@ def fetch(lists, trader, directory_MT5,
                     
                 trader.close_position(DateTime, thisAsset, ass_id, results)
                 
-                write_log(info_close, trader.log_positions)
+                write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
@@ -1793,7 +1821,7 @@ def fetch(lists, trader, directory_MT5,
                 write_log(out, trader.log_file)
                 
                 #if not simulate:
-                write_log(info_close, trader.log_positions)
+                write_log(info_close, trader.log_positions_ist)
                 
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, results)
             
@@ -2218,7 +2246,8 @@ def run(running_assets, start_time):
     
     
     # load stats
-    list_stats = [[load_stats(list_data[nn], None, 
+    list_stats = [[load_stats(list_data[nn], AllAssets[str(running_assets[ass])], 
+                    None, 
                     0, from_stats_file=True, hdf5_directory=hdf5_directory+
                     'stats/') for nn in range(nNets)] for ass in range(nAssets)]
     
@@ -2423,7 +2452,7 @@ def run(running_assets, start_time):
 #                SymbolAsks = SymbolAsks[idxs]
 #                Assets = Assets[idxs]
 #                nEvents = SymbolAsks.shape[0]
-                init_budget = back_test(DateTimes, SymbolBids, SymbolAsks, 
+                back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         trader, results, running_assets, 
                                         ass2index_mapping, lists, AllAssets, 
