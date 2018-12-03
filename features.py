@@ -19,20 +19,19 @@ from config import configuration
 
 
 def get_features(*ins):
-    """
-    
-    """
+    """  """
     ticTotal = time.time()
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('CPRAWTEST')
+        config = configuration('C0301')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
               dateTest = config['dateTest'],
               feature_keys_manual=config['feature_keys_manual'],
-              feature_keys_tsfresh=config['feature_keys_tsfresh'])
+              feature_keys_tsfresh=config['feature_keys_tsfresh'],
+              assets=config['assets'])
     # init booleans
     save_stats = config['save_stats']  
     # init file directories
@@ -43,7 +42,7 @@ def get_features(*ins):
         filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
     elif load_features_from=='tsfresh':
-        filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE'+
+        filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE_test'+
                             str(data.nEventsPerStat)+'.hdf5')
     else:
         #print("ERROR: load_features_from "+load_features_from+" not recognized")
@@ -164,10 +163,14 @@ def get_features(*ins):
         # save stats in attributes
         if save_stats:
             # normalize stats
-            means_t_in = stats["means_t_in"]/stats["m_t_in"]
-            stds_t_in = stats["stds_t_in"]/stats["m_t_in"]
-            means_t_out = stats["means_t_out"]/stats["m_t_out"]
-            stds_t_out = stats["stds_t_out"]/stats["m_t_out"]
+            stats["means_t_in"] = stats["means_t_in"]/stats["m_t_in"]
+            stats["stds_t_in"] = stats["stds_t_in"]/stats["m_t_in"]
+            stats["means_t_out"] = stats["means_t_out"]/stats["m_t_out"]
+            stats["stds_t_out"] = stats["stds_t_out"]/stats["m_t_out"]
+            means_t_in = stats["means_t_in"]
+            stds_t_in = stats["stds_t_in"] 
+            means_t_out = stats["means_t_out"]
+            stds_t_out = stats["stds_t_out"]
             #save total stats as attributes
             ass_group.attrs.create("means_t_in", means_t_in, dtype=float)
             ass_group.attrs.create("stds_t_in", stds_t_in, dtype=float)
@@ -208,6 +211,29 @@ def get_features(*ins):
     if len(ins)>0:
         os.remove(filename_raw+'.flag')
         os.remove(filename_prep_IO+'.flag')
+
+def print_file_groups():
+    """ Print groups of HDF5 file """
+    data=Data(movingWindow=200,
+                  nEventsPerStat=2000)
+    hdf5_directory = 'D:/SDC/py/HDF5/'
+    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+    f_prep_IO = h5py.File(filename_prep_IO,'r')
+    for ass in data.assets:
+        thisAsset = data.AllAssets[str(ass)]
+        # open file for read
+       
+        if thisAsset not in f_prep_IO:
+            # init total stats
+            raise ValueError
+        else:
+            # retrive ass group if exists
+            ass_group = f_prep_IO[thisAsset]
+            print(ass_group)
+            for member in ass_group:        
+                print(member)
+    f_prep_IO.close()
 
 def get_number_samples(window_size, sprite_length, n_events):
     """ 

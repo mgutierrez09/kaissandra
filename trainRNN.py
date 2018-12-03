@@ -30,7 +30,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0286T')
+        config = configuration('C0301')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -162,68 +162,70 @@ def train_RNN(*ins):
             print(str(ass)+". "+thisAsset)
             # loop over separators
             for s in range(0,len(separators)-1,2):
+                print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+                              ". From "+separators.DateTime.iloc[s]+" to "+
+                              separators.DateTime.iloc[s+1])
                 # number of events within this separator chunk
                 nE = separators.index[s+1]-separators.index[s]+1
+                # get first day after separator
+                day_s = separators.DateTime.iloc[s][0:10]
                 # check if number of events is not enough to build two features and one return
                 if nE>=2*data.nEventsPerStat:
-                    print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
-                          ". From "+separators.DateTime.iloc[s]+" to "+
-                          separators.DateTime.iloc[s+1])
-                    # load features, returns and stats from HDF files
-                    if f_prep_IO != None: 
-                        features_manual = load_manual_features(data, 
-                                                               thisAsset, 
-                                                               separators, 
-                                                               f_prep_IO, 
-                                                               s)
-                    else:
-                        features_manual = np.array([])
-                    
-                    if f_feats_tsf != None:
-                        features_tsf = load_tsf_features(data, thisAsset, separators, f_feats_tsf, s)
-                    else:
-                        features_tsf = np.array([])
-                    # redefine features tsf or features manual in case they are
-                    # None to fit to the concatenation
-                    if features_tsf.shape[0]==0:
-                        features_tsf = np.zeros((features_manual.shape[0],0))
-                    if features_manual.shape[0]==0:
-                        features_manual = np.zeros((features_tsf.shape[0],0))
-                    # load returns
-                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
-                    # build network input and output
-                    # get first day after separator
-                    day_s = separators.DateTime.iloc[s][0:10]
-                    # check if the separator chuck belongs to the training/test set
-                    if day_s not in data.dateTest:
+                    if day_s not in data.dateTest and day_s<=data.dateTest[-1]:
                         
-                        try:
-                            file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
-                            while os.path.exists(file_temp_name):
+                        # load features, returns and stats from HDF files
+                        if f_prep_IO != None: 
+                            features_manual = load_manual_features(data, 
+                                                                   thisAsset, 
+                                                                   separators, 
+                                                                   f_prep_IO, 
+                                                                   s)
+                        else:
+                            features_manual = np.array([])
+                        
+                        if f_feats_tsf != None:
+                            features_tsf = load_tsf_features(data, thisAsset, separators, f_feats_tsf, s)
+                        else:
+                            features_tsf = np.array([])
+                        # redefine features tsf or features manual in case they are
+                        # None to fit to the concatenation
+                        if features_tsf.shape[0]==0:
+                            features_tsf = np.zeros((features_manual.shape[0],0))
+                        if features_manual.shape[0]==0:
+                            features_manual = np.zeros((features_tsf.shape[0],0))
+                        # load returns
+                        returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
+                        # build network inputs and outputs
+                        # check if the separator chuck belongs to the training/test set
+                        if 1:
+                            
+                            try:
                                 file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
-                            file_temp = h5py.File(file_temp_name,'w')
-                            IO, totalSampsPerLevel = build_IO(file_temp, 
-                                                                  data, 
-                                                                  model, 
-                                                                  features_manual,
-                                                                  features_tsf,
-                                                                  returns_struct,
-                                                                  stats_manual,
-                                                                  stats_tsf,
-                                                                  stats_output,
-                                                                  IO, 
-                                                                  totalSampsPerLevel, 
-                                                                  s, nE, thisAsset)
-                            # close temp file
-                            file_temp.close()
-                            os.remove(file_temp_name)
-                        except (KeyboardInterrupt):
-                            print("KeyBoardInterrupt. Closing files and exiting program.")
-                            f_prep_IO.close()
-                            f_IO.close()
-                            file_temp.close()
-                            os.remove(file_temp_name)
-                            raise KeyboardInterrupt
+                                while os.path.exists(file_temp_name):
+                                    file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                                file_temp = h5py.File(file_temp_name,'w')
+                                IO, totalSampsPerLevel = build_IO(file_temp, 
+                                                                      data, 
+                                                                      model, 
+                                                                      features_manual,
+                                                                      features_tsf,
+                                                                      returns_struct,
+                                                                      stats_manual,
+                                                                      stats_tsf,
+                                                                      stats_output,
+                                                                      IO, 
+                                                                      totalSampsPerLevel, 
+                                                                      s, nE, thisAsset)
+                                # close temp file
+                                file_temp.close()
+                                os.remove(file_temp_name)
+                            except (KeyboardInterrupt):
+                                print("KeyBoardInterrupt. Closing files and exiting program.")
+                                f_prep_IO.close()
+                                f_IO.close()
+                                file_temp.close()
+                                os.remove(file_temp_name)
+                                raise KeyboardInterrupt
                     else:
                         print("\tNot in the set. Skipped.")
                         # end of if (tOt=='train' and day_s not in data.dateTest) ...

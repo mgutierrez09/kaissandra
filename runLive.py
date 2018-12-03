@@ -2176,8 +2176,6 @@ def run(running_assets, start_time):
     list_if_dir_change_extend = [False for i in range(numberNetworks)]
     list_w_str = ["55","55","55"]
 #    
-    
-    
     ADs = []
     for i in range(len(IDepoch)):
         mrc = False

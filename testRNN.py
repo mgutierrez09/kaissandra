@@ -179,7 +179,7 @@ def test_RNN(*ins):
             stats_manual = load_stats_manual(data, 
                                thisAsset, 
                                ass_group,
-                               from_stats_file=True, 
+                               from_stats_file=False, 
                                hdf5_directory=hdf5_directory+'stats/')
         else:
             stats_manual = []

@@ -136,7 +136,7 @@ class Data:
                  feature_keys_manual=[i for i in range(37)],
                  dateTest=['2017.09.15','2017.11.06','2017.11.07'],
                  assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
-                 max_var=10, feature_keys_tsfresh=[i for i in range(37,68)],
+                 max_var=10, feature_keys_tsfresh=[],#[i for i in range(37,68)]
                  noVarFeatsManual=[8,9,12,17,18,21,23,24,25,26,27,28,29]):
         
         self.movingWindow = movingWindow

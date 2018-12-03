@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0288Nov09'
+        config_name = 'C0301'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -55,8 +55,10 @@ def configuration(*ins):
                 '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
                 '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
                 '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
-        movingWindow = 100
-        nEventsPerStat = 1000
+        
+        
+        movingWindow = 200
+        nEventsPerStat = 2000
         lB = int(nEventsPerStat+movingWindow*3)
         assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
         channels = [0]
@@ -66,7 +68,7 @@ def configuration(*ins):
         
         # general parameters
         if_build_IO = True
-        IDweights = '000288'
+        IDweights = '000301'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
@@ -77,20 +79,20 @@ def configuration(*ins):
         size_output_layer=5
         keep_prob_dropout=1
         miniBatchSize=32
-        outputGain=.6
+        outputGain=.8
         commonY=3
         lR0=0.0001
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100288Nov09'
+        IDresults = '100301'
         IO_results_name = IDresults
-        startFrom = 6
-        endAt = 12
+        startFrom = -1
+        endAt = -1
         save_journal = False
         
         # feature-specific configuration
-        save_stats = False
+        save_stats = True
         load_features_from = 'manual' # {manual, tsfresh}
         build_partial_raw = False
         
