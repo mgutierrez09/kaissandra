@@ -443,9 +443,10 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                             perNZA = NZA/m # percent of non-zeros all
                             # get this DateTime/Asset
                             if t<model.seq_len:
-                                DTAt = DTA.iloc[t_index::model.seq_len,:]
+                                DTAt = DTA.iloc[t_index+1::model.seq_len,:]
                             else:
-                                DTAt = DTA.iloc[t-1::model.seq_len,:]
+                                # for MRC, DTA indexes correspond of those for t_index=0
+                                DTAt = DTA.iloc[1::model.seq_len,:]
                             
                             
                             # get and save results if upper bound is 1

@@ -29,9 +29,9 @@ entry_ask_column = 'Ai'
 exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
-verbose_RNN = False
-verbose_trader = False
-test = True
+verbose_RNN = True
+verbose_trader = True
+test = False
 run_back_test = True
 
 data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
@@ -692,9 +692,7 @@ class Trader:
     
     def close_position(self, date_time, ass, idx, results,
                        lot_ratio=None, partial_close=False):
-        """
-        
-        """
+        """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
         if not partial_close:
@@ -2053,42 +2051,42 @@ def run(running_assets, start_time):
     dir_results_trader = dir_results+"trader/"
     
     log_file = dir_results+start_time+'_log.log'
-#    dateTest = ([                                                   '2018.03.09',
-#                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-#                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-#                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-#                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-#                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-#                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-#                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-#                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-#                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-#                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-#                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-#                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-#                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-#                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-#                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-#                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-#                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-#                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-#                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-#                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
-#               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
-#                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
-#                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
-#                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
-#                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
-#                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-#                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
-#                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-#                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
-#                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
-#                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
-#                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-#                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
+    dateTest = ([                                                   '2018.03.09',
+                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
+                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
+                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
+                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
+                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
+                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
+                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
+                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
+                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
+                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
+                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
+                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
+                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
+                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
+                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
+                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
+                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
+                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
+                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
+                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
+                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
+                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
+                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
+                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
+                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
+                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']
+    #dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']
 
     ### TEMP: this data has to be included in list_data and deleted 
 #    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
@@ -2109,51 +2107,35 @@ def run(running_assets, start_time):
 #    time_stamp = ['0']
     
     AllAssets = Data().AllAssets
-#    numberNetworks = 1
-#    IDepoch = ["6"]
-#    IDweights = ["000287"]
-#    IDresults = ["100287Nov09"]#
-#    delays = [0]
-#    list_t_indexs = [[2]] # time index to use as output. Value between {0,...,model.seq_len}
-#    mWs = [100]
-#    nExSs = [1000]
-#    lBs = [1300]
-#    list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
-#                         list_data[i].movingWindow+1) for i in range(len(mWs))]
-#    netNames = ["87"]
-#    phase_shifts = [10] # phase shift
-#    list_weights = [np.array([.5,.5])]
-#    list_use_GRE = [True]
-#    list_lb_mc_op = [0.5]
-#    list_lb_md_op = [0.5]
-#    list_lb_mc_ext = [2]
-#    list_lb_md_ext = [2]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
-#    list_name = ['87']
     
-    numberNetworks = 3
-    IDweights = ["000287","000286","000285"]
-    IDresults = ['100287Nov09','100286Nov09','100285Nov09']
-    list_name = ['87_6','87_6','85_16']
-    IDepoch = ["6","6","16"]
-    netNames = ["87","86","85"]
-    list_t_indexs = [[2],[2],[3]]
-    phase_shifts = [5,5,5]
-    delays = [0,0,0]
-    mWs = [100,100,100]
-    nExSs = [1000,1000,1000]
-    lBs = [1300,1300,1300]
+#    numberNetworks = 3
+#    IDweights = ["000287","000286","000285"]
+#    IDresults = ['100287Nov09','100286Nov09','100285Nov09']
+#    list_name = ['87_6','87_6','85_16']
+#    IDepoch = ["6","6","16"]
+#    netNames = ["87","86","85"]
+#    list_t_indexs = [[2],[2],[3]]
+#    phase_shifts = [1,1,1]
+#    delays = [0,0,0]
+#    mWs = [100,100,100]
+#    nExSs = [1000,1000,1000]
+#    lBs = [1300,1300,1300]
+#    list_w_str = ["55","55","55"]
+    
+    numberNetworks = 1
+    IDweights = ["000287"]
+    IDresults = ['100287Nov09']
+    list_name = ['87_6']
+    IDepoch = ["6"]
+    netNames = ["87"]
+    list_t_indexs = [[2]]
+    phase_shifts = [1]
+    delays = [0]
+    mWs = [100]
+    nExSs = [1000]
+    lBs = [1300]
+    list_w_str = ["55"]
+    
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
     list_use_GRE = [True for i in range(numberNetworks)]
@@ -2174,7 +2156,7 @@ def run(running_assets, start_time):
     list_flexible_lot_ratio = [False for i in range(numberNetworks)]
     list_if_dir_change_close = [False for i in range(numberNetworks)]
     list_if_dir_change_extend = [False for i in range(numberNetworks)]
-    list_w_str = ["55","55","55"]
+    
 #    
     ADs = []
     for i in range(len(IDepoch)):
@@ -2206,7 +2188,7 @@ def run(running_assets, start_time):
                       str(t)+"E"+IDepoch[nn]+"/" 
                       for t in list_t_indexs[nn]] for nn in range(numberNetworks)]
     
-    results_files = [[IDresults[nn]+"T"+str(t)+"E"+IDepoch[nn]+".txt" 
+    results_files = [[start_time+'_'+IDresults[nn]+"T"+str(t)+"E"+IDepoch[nn]+".txt" 
                      for t in list_t_indexs[nn]] for nn in range(numberNetworks)]
     
     nCxAxN = np.zeros((len(running_assets),numberNetworks))
@@ -2227,9 +2209,10 @@ def run(running_assets, start_time):
                 except:
                     print("Warning. Error when creating directory")
             # check if path exists
-            if not os.path.exists(resultsDir[nn][t]+results_files[nn][t]):
-                pd.DataFrame(columns = columnsResultInfo).to_csv(resultsDir[nn][t]+
-                            results_files[nn][t],mode="w",index=False,sep='\t')
+            filedirname = resultsDir[nn][t]+results_files[nn][t]
+            if not os.path.exists(filedirname):
+                pd.DataFrame(columns = columnsResultInfo).to_csv(filedirname, 
+                            mode="w",index=False,sep='\t')
     
     buffSizes = nExSs+np.zeros((len(running_assets),numberNetworks)).astype(int)
     
@@ -2324,27 +2307,27 @@ def run(running_assets, start_time):
                                 IDgraph=IDweights[0]+IDepoch[0],
                                 sess=None),
                     
-                    modelRNN(list_data[1],
-                             size_hidden_layer=200,
-                             L=3,
-                             size_output_layer=5,
-                             keep_prob_dropout=1,
-                             miniBatchSize=32,
-                             outputGain=0.6,
-                             lR0=0.0001,
-                             IDgraph=IDweights[1]+IDepoch[1],
-                             sess=None),
-        
-                    modelRNN(list_data[2],
-                             size_hidden_layer=100,
-                             L=3,
-                             size_output_layer=5,
-                             keep_prob_dropout=1,
-                             miniBatchSize=32,
-                             outputGain=0.6,
-                             lR0=0.0001,
-                             IDgraph=IDweights[2]+IDepoch[2],
-                             sess=None)
+#                    modelRNN(list_data[1],
+#                             size_hidden_layer=200,
+#                             L=3,
+#                             size_output_layer=5,
+#                             keep_prob_dropout=1,
+#                             miniBatchSize=32,
+#                             outputGain=0.6,
+#                             lR0=0.0001,
+#                             IDgraph=IDweights[1]+IDepoch[1],
+#                             sess=None),
+#        
+#                    modelRNN(list_data[2],
+#                             size_hidden_layer=100,
+#                             L=3,
+#                             size_output_layer=5,
+#                             keep_prob_dropout=1,
+#                             miniBatchSize=32,
+#                             outputGain=0.6,
+#                             lR0=0.0001,
+#                             IDgraph=IDweights[2]+IDepoch[2],
+#                             sess=None)
                     ]
     ##########################################################
         
@@ -2569,16 +2552,19 @@ def launch():
     import datetime as dt
     import time
     
+    synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
     running_assets = assets#[7, 14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-    #disp = Process(target=run, args=[running_assets,start_time])
-    #disp.start()
-    for ass_idx in range(len(running_assets)):
-        disp = Process(target=run, args=[running_assets[ass_idx:ass_idx+1],start_time])
+    if synchroned_run:
+        disp = Process(target=run, args=[running_assets,start_time])
         disp.start()
-        time.sleep(2)
-    time.sleep(30)
+    else:
+        for ass_idx in range(len(running_assets)):
+            disp = Process(target=run, args=[running_assets[ass_idx:ass_idx+1],start_time])
+            disp.start()
+            time.sleep(2)
+        time.sleep(30)
     print("All RNNs launched")
 if __name__=='__main__':
     launch()

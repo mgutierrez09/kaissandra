@@ -24,7 +24,7 @@ from config import configuration
 
 
 def train_RNN(*ins):
-    
+    """  """
     ticTotal = time.time()
     # create data structure
     if len(ins)>0:
@@ -39,6 +39,11 @@ def train_RNN(*ins):
         feature_keys_tsfresh = []
     else:
         feature_keys_tsfresh = config['feature_keys_tsfresh']
+    
+    if 'from_stats_file' in config:
+        from_stats_file = config['from_stats_file']
+    else:
+        from_stats_file = True
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -147,7 +152,7 @@ def train_RNN(*ins):
             stats_manual = load_stats_manual(data, 
                                thisAsset, 
                                ass_group,
-                               from_stats_file=True, 
+                               from_stats_file=from_stats_file, 
                                hdf5_directory=hdf5_directory+'stats/')
         else:
             stats_manual = []

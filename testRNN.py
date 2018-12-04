@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0289Nov09')
+        config = configuration('C0286Nov09NTI')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -89,6 +89,11 @@ def test_RNN(*ins):
         separators_directory = hdf5_directory+'separators_F'+int_date+'T'+end_date+'/'
     else:
         separators_directory = hdf5_directory+'separators/'
+        
+    if 'from_stats_file' in config:
+        from_stats_file = config['from_stats_file']
+    else:
+        from_stats_file = True
         
     filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
     # check if file locked
@@ -179,7 +184,7 @@ def test_RNN(*ins):
             stats_manual = load_stats_manual(data, 
                                thisAsset, 
                                ass_group,
-                               from_stats_file=False, 
+                               from_stats_file=from_stats_file, 
                                hdf5_directory=hdf5_directory+'stats/')
         else:
             stats_manual = []

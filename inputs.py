@@ -1315,8 +1315,12 @@ def build_DTA(data, D, B, A, ass_IO_ass):
             DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
             print(DTA_i['DT1'].iloc[0])
             print(DTA_i['DT1'].iloc[-1])
-            assert(DTA_i['DT1'].iloc[0][:10] in data.dateTest)
-            assert(DTA_i['DT1'].iloc[-1][:10] in data.dateTest)
+            if DTA_i['DT1'].iloc[0][:10] not in data.dateTest:
+                print("WARNING!!! DTA_i['DT1'].iloc[0][:10] not in data.dateTest")
+            #assert(DTA_i['DT1'].iloc[0][:10] in data.dateTest)
+#            assert(DTA_i['DT1'].iloc[-1][:10] in data.dateTest)
+            if DTA_i['DT1'].iloc[-1][:10] not in data.dateTest:
+                print("WARNING!!! DTA_i['DT1'].iloc[-1][:10] not in data.dateTest")
             #DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
             DTA_i['B1'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
             DTA_i['A1'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))

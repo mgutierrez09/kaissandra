@@ -660,10 +660,10 @@ class Trader:
             raise ValueError("roi_ratio NaN")
         
 #        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-#        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
-#        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
-#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
+        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
+        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
+        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
 #        
 #        if direction>0:
 #            GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -722,7 +722,8 @@ class Trader:
         else:
             partial_string = ' Full'
         out =( date_time.decode("utf-8")+partial_string+" close "+ass+
-              " Ratio {0:.2f}".format(lot_ratio)+
+              " Bi {0:.5f} ".format(Bi)+"Bo {0:.5f} ".format(Bo)+
+              "Ai {0:.5f} ".format(Ai)+"Ao {0:.5f} ".format(Ao)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
                       100*ROI_live,100*spread,100*GROI_live)+
                       " TGROI {1:.3f}% TROI = {0:.3f}%".format(
@@ -1034,61 +1035,60 @@ if __name__ == '__main__':
 #    list_if_dir_change_close = [False,False,False,False]
 #    list_if_dir_change_extend = [False,False,False,False]
     
-    numberNetwors = 3
-    list_IDresults = ['100287Nov09','100286Nov09','100285Nov09']#
-    list_IDgre = ['100287Nov09','100286Nov09','100285Nov09']
-    list_name = ['87_6','87_6','85_16']
-    list_epoch_gre = [6,6,16]
-    list_epoch_journal = [6,6,16]
-    list_t_index = [2,2,3]
-    list_use_GRE = [True for i in range(numberNetwors)]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
-    list_lb_mc_op = [.5 for i in range(numberNetwors)]
-    list_lb_md_op = [.8 for i in range(numberNetwors)]
-    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.6 for i in range(numberNetwors)]
-    list_ub_mc_op = [1 for i in range(numberNetwors)]
-    list_ub_md_op = [1 for i in range(numberNetwors)]
-    list_ub_mc_ext = [1 for i in range(numberNetwors)]
-    list_ub_md_ext = [1 for i in range(numberNetwors)]
-    list_thr_sl = [20 for i in range(numberNetwors)]
-    list_thr_tp = [1000 for i in range(numberNetwors)]
-    list_fix_spread = [False for i in range(numberNetwors)]
-    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
-    list_if_dir_change_close = [False for i in range(numberNetwors)]
-    list_if_dir_change_extend = [False for i in range(numberNetwors)]
-    list_w_str = ["55","55","55"]
+#    numberNetwors = 3
+#    list_IDresults = ['100287Nov09','100286Nov09','100285Nov09']#
+#    list_IDgre = ['100287Nov09','100286Nov09','100285Nov09']
+#    list_name = ['87_6','86_6','85_16']
+#    list_epoch_gre = [6,6,16]
+#    list_epoch_journal = [6,6,16]
+#    list_t_index = [2,2,3]
+#    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
+#    list_lb_mc_op = [.5 for i in range(numberNetwors)]
+#    list_lb_md_op = [.8 for i in range(numberNetwors)]
+#    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.6 for i in range(numberNetwors)]
+#    list_ub_mc_op = [1 for i in range(numberNetwors)]
+#    list_ub_md_op = [1 for i in range(numberNetwors)]
+#    list_ub_mc_ext = [1 for i in range(numberNetwors)]
+#    list_ub_md_ext = [1 for i in range(numberNetwors)]
+#    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    list_thr_tp = [1000 for i in range(numberNetwors)]
+#    list_fix_spread = [False for i in range(numberNetwors)]
+#    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
+#    list_if_dir_change_close = [False for i in range(numberNetwors)]
+#    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+#    list_w_str = ["55","55","55"]
     
-#    numberNetwors = 1
-#    list_IDresults = ['100287Nov09']#
-#    list_IDgre = ['100287Nov09']
-#    list_name = ['87_06']
-#    list_epoch_gre = [6]
-#    list_epoch_journal = [6]
-#    list_use_GRE = [True]
-#    list_weights = [np.array([.5,.5])]
-#    list_w_str = ['55']
-#    list_margin_ext = ['variable']
-#    list_t_index = [2]
-#    
-#    list_lb_mc_op = [.6]
-#    list_lb_md_op = [.8]
-#    list_lb_mc_ext = [.5]
-#    list_lb_md_ext = [.6]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
+    numberNetwors = 1
+    list_IDresults = ['100287Nov09NTI']#
+    list_IDgre = ['100287Nov09NTI']
+    list_name = ['87_06']
+    list_epoch_gre = [6]
+    list_epoch_journal = [6]
+    list_use_GRE = [True]
+    list_weights = [np.array([.5,.5])]
+    list_w_str = ['55']
+    list_margin_ext = ['variable']
+    list_t_index = [2]
+    list_lb_mc_op = [.6]
+    list_lb_md_op = [.8]
+    list_lb_mc_ext = [.5]
+    list_lb_md_ext = [.6]
+    list_ub_mc_op = [1]
+    list_ub_md_op = [1]
+    list_ub_mc_ext = [1]
+    list_ub_md_ext = [1]
+    list_thr_sl = [1000]
+    list_thr_tp = [1000]
+    list_fix_spread = [False]
+    list_fixed_spread_pips = [4]
+    list_max_lots_per_pos = [.1]
+    list_flexible_lot_ratio = [False]
+    list_if_dir_change_close = [False]
+    list_if_dir_change_extend = [False]
     
     results_file_name = '_'.join([list_IDresults[i]+'E'+str(list_epoch_gre[i])+'T'+
                          str(list_t_index[i])+'W'+list_w_str[i]
@@ -1193,6 +1193,8 @@ if __name__ == '__main__':
     directory = "../RNN/resultsLive/simulate/trader/"
     log_file = directory+start_time+"trader_v30.log"
     summary_file = directory+start_time+"summary.log"
+    # save sorted journal
+    #journal_all_days.drop('index',axis=1).to_csv(directory+start_time+'journal.log',sep='\t',float_format='%.3f',index_label='index')
     ##### loop over different day groups #####
     day_index = 0
     t_journal_entries = 0
