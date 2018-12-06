@@ -34,7 +34,7 @@ class modelRNN(object):
                  size_hidden_layer=400,
                  L=3,
                  size_output_layer=5,
-                 keep_prob_dropout=0.9,
+                 keep_prob_dropout=1,
                  miniBatchSize=32,
                  outputGain=0.5,
                  commonY=0,

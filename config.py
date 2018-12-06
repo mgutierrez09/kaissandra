@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0286Nov09NTI'
+        config_name = 'C0285Nov09NTI'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -73,13 +73,13 @@ def configuration(*ins):
         # general parameters
         if_build_IO = True
         from_stats_file = True
-        IDweights = '000286'
+        IDweights = '000285'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
         # model parameters
-        size_hidden_layer=200
+        size_hidden_layer=100
         L=3
         size_output_layer=5
         keep_prob_dropout=1
@@ -90,10 +90,10 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100286Nov09NTI'
+        IDresults = '100285Nov09NTI'
         IO_results_name = IDresults
-        startFrom = 6
-        endAt = 6
+        startFrom = 16
+        endAt = 16
         save_journal = True
         
         # feature-specific configuration

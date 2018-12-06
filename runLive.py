@@ -33,6 +33,8 @@ verbose_RNN = True
 verbose_trader = True
 test = False
 run_back_test = True
+spread_ban = True
+ban_only_if_open = False # not in use
 
 data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
@@ -178,7 +180,10 @@ class Position:
         self.entry_bid = int(np.round(journal_entry[entry_bid_column]*100000))/100000
         self.entry_ask = int(np.round(journal_entry[entry_ask_column]*100000))/100000
         self.bet = int(journal_entry['Bet'])
-        self.direction = np.sign(self.bet)
+###############################################################################   
+############################# WARNING!! ##################################################        
+###############################################################################        
+        self.direction = np.sign(self.bet)#np.sign(np.random.randn()).astype(int)#
         self.level = int(np.abs(self.bet)-1)
         self.p_mc = float(journal_entry['P_mc'])
         self.p_md = float(journal_entry['P_md'])
@@ -330,7 +335,7 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  AllAssets, results_dir="../RNN/resultsLive/back_test/trader/", 
-                 log_file_time=''):
+                 start_time=''):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
@@ -386,31 +391,38 @@ class Trader:
         
         self.strategies = strategies
         
-        if log_file_time=='':
+        if start_time=='':
             
-            raise ValueError("Depricated. String log_file_time cannot be empty")
+            raise ValueError("Depricated. String start_time cannot be empty")
             
         else:
             if run_back_test:
                 tag = '_BT_'
             else:
                 tag = '_LI_'
-            self.log_file = self.results_dir+log_file_time+tag+"trader.log"
-            self.log_positions_soll = self.results_dir+log_file_time+tag+"positions.log"
-            self.log_positions_ist = self.results_dir+log_file_time+tag+"positions.log"
-            self.log_summary = self.results_dir+log_file_time+tag+"summary.log"
-            self.results_pos = results_dir+'/positions/'+log_file_time+'/'
-            self.budget_file = self.results_dir+log_file_time+tag+"budget.log"
+            self.log_file = self.results_dir+start_time+tag+"trader.log"
+            self.log_positions_soll = self.results_dir+start_time+tag+"positions_soll.log"
+            self.log_positions_ist = self.results_dir+start_time+tag+"positions_ist.log"
+            self.log_summary = self.results_dir+start_time+tag+"summary.log"
+            self.results_pos = results_dir+'/positions/'+start_time+'/'
+            self.budget_file = self.results_dir+start_time+tag+"budget.log"
+            self.io_dir = '../RNN/IOlive/'
+            self.ban_currencies_dir = self.io_dir+'/ban/'
+        
+        self.start_time = start_time
         
         if not os.path.exists(self.results_dir):
             os.mkdir(self.results_dir)
         if not os.path.exists(self.results_pos):
                 os.makedirs(self.results_pos)
+        if not os.path.exists(self.ban_currencies_dir):
+                os.makedirs(self.ban_currencies_dir)
         # results tracking
         if not os.path.exists(self.log_positions_soll):
             resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions_soll)
-            write_log(resultsInfoHeader, self.log_positions_ist)
+            if not run_back_test:
+                write_log(resultsInfoHeader, self.log_positions_ist)
             write_log(str(self.available_bugdet_in_lots), self.budget_file)
         # flow control
         self.EXIT = 0
@@ -582,9 +594,9 @@ class Trader:
 #                                            map_ass_idx2pos_idx[ass_id]].idx_md
                                                          
             #print("currGROI: "+str(100*curr_GROI))
-            condition_extension= (self.next_candidate.profitability>margin )
-#            and 
-#                                  100*curr_GROI>=-.1
+            condition_extension= (self.next_candidate.profitability>margin and 
+                                  100*curr_GROI>=-.1)
+            
             #condition_extension = list_extend[ass_idx]
             #list_extend[ass_idx] = int(round(.2*np.random.rand(1)[0]))
 #              
@@ -617,10 +629,10 @@ class Trader:
                     this_strategy.fixed_spread_ratio)))
     
     def is_stoploss_reached(self, lists, datetime, ass_id, bid, em, event_idx, results):
-        # check stop loss reachead
-        
-        if (self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].direction*
-            (em-self.list_stop_losses[self.map_ass_idx2pos_idx[ass_id]])<=0):
+        """ check stop loss reachead """
+        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].direction
+        if (direction*
+            (bid-self.list_stop_losses[self.map_ass_idx2pos_idx[ass_id]])<=0):
             # exit position due to stop loss
             asset = self.list_opened_positions[self.\
                                                map_ass_idx2pos_idx[ass_id]].asset
@@ -631,7 +643,7 @@ class Trader:
             print("\r"+out)
             self.write_log(out)
             stoploss_flag = True
-            self.ban_currencies(lists, asset, datetime, results)
+            self.ban_currencies(lists, asset, datetime, results, direction)
         else:
             stoploss_flag = False
         return stoploss_flag
@@ -812,7 +824,8 @@ class Trader:
               " Lots {0:.1f}".format(lots)+" "+str(self.list_opened_positions[-1].bet)+
               " p_mc={0:.2f}".format(self.list_opened_positions[-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
-              " spread={0:.3f}".format(e_spread))
+              " spread={0:.3f} ".format(e_spread)+" strategy "+
+              self.list_opened_positions[-1].strategy.name)
         print("\r"+out)
         self.write_log(out)
         
@@ -930,14 +943,17 @@ class Trader:
         <DocString>
         '''
         new_entry = self.select_new_entry(inputs, thisAsset)
+        strategy_name = self.strategies[new_entry['network_index']].name
         # check for opening/extension in order of expected returns
         if 1:
             out = ("New entry @ "+new_entry[entry_time_column]+" "+
                    new_entry['Asset']+
                    " P_mc {0:.3f} ".format(new_entry['P_mc'])+
                    "P_md {0:.3f} ".format(new_entry['P_md'])+
+                   "profitability {0:.2f} ".format(new_entry['profitability'])+
                    "Bet {0:d} ".format(new_entry['Bet'])+
-                   "E_spread {0:.3f}".format(new_entry['E_spread']))
+                   "E_spread {0:.3f} ".format(new_entry['E_spread'])+
+                   "Strategy "+strategy_name)
             if verbose_trader:
                 print("\r"+out)
             self.write_log(out)
@@ -1000,13 +1016,13 @@ class Trader:
                            " p_mc={0:.2f}".format(new_entry['P_mc'])+
                            " p_md={0:.2f}".format(new_entry['P_md'])+ 
                            " spread={0:.3f}".format(new_entry['E_spread'])+
-                           " current GROI={0:.1f}p".format(1/self.pip*curr_GROI))
+                           " current GROI={0:.2f}p".format(1/self.pip*curr_GROI))
                         #out = new_entry[entry_time_column]+" Extended "+thisAsset
                         print("\r"+out)
                         self.write_log(out)
                     else: # if candidate for extension does not meet requirements
                         out = new_entry[entry_time_column]+" not extended "+\
-                              thisAsset+" current GROI={0:.1f}p".format(1/self.pip*curr_GROI)
+                              thisAsset+" current GROI={0:.2f}p".format(1/self.pip*curr_GROI)
                 else: # if direction is different
                     # if new position has higher GRE, close
                     if self.next_candidate.profitability>=self.list_opened_positions[
@@ -1052,20 +1068,6 @@ class Trader:
                 #stop_timer(ass_idx)
             except PermissionError:
                 print("Error writing TT")
-        
-    def send_close_command(self, dirDes):
-        """
-        Send command for closeing position to MT5 software
-        """
-        success = 0
-        # load network output
-        while not success:
-            try:
-                fh = open(dirDes+"LC","w", encoding='utf_16_le')
-                fh.close()
-                success = 1
-            except PermissionError:
-                print("Error writing LC")
                 
     def check_resources_swap(self):
         """
@@ -1162,30 +1164,83 @@ class Trader:
                            'EmBid':self.list_EM[list_idx]})
         df.to_csv(direct+filename, index=False)
     
-    def ban_currencies(self, lists, thisAsset, DateTime, results):
+    def ban_currencies(self, lists, thisAsset, DateTime, results, direction):
         """ Ban currency pairs related to ass_idx asset. WARNING! Assets 
         involving GOLD are not supported """
         # WARNING! Ban of only the asset closing stoploss. Change and for or
         # for ban on all assets sharing one currency
         ass_idx = 0
-        for ass_id in self.running_assets:
-            asset = self.AllAssets[str(ass_id)]
+        message = thisAsset+','+str(direction)
+        for ass_key in self.AllAssets:
+            asset = self.AllAssets[ass_key]
+            ass_id = int(ass_key)
             m1 = re.search(thisAsset[:3],asset)
             m2 = re.search(thisAsset[3:],asset)
-            if (((m1!=None and m1.span()[1]-m1.span()[0]==3)  or # and
-                (m2!=None and m2.span()[1]-m2.span()[0]==3)) and 
-                 self.is_opened(ass_id)):
-                out = "Ban "+asset
-                print(out)
-                self.write_log(out)
+            if spread_ban:
+                condition = ((m1!=None and m1.span()[1]-m1.span()[0]==3) or \
+                             (m2!=None and m2.span()[1]-m2.span()[0]==3))
+            else:
+                condition = ((m1!=None and m1.span()[1]-m1.span()[0]==3) and \
+                             (m2!=None and m2.span()[1]-m2.span()[0]==3))
+            if condition:# and self.is_opened(ass_id)
+                # check if asset is controlled by this trader
+                if ass_id in self.running_assets:
+                    # check if position is opened
+                    if self.is_opened(ass_id):
+                        otherDirection = self.list_opened_positions\
+                             [self.map_ass_idx2pos_idx[ass_id]].direction
+                        
+                        # check if directions coincide
+                        if self.assets_same_direction(ass_id, thisAsset, 
+                                                      direction, 
+                                                      asset, otherDirection):
+                            # ban assets this trader is controlling
+                            ass_idx = self.running_assets.index(ass_id)
+                            out = asset+ "banned "
+                            print(out)
+                            self.write_log(out)
+                            
+                            list_idx = self.map_ass_idx2pos_idx[ass_id]
+                            bid = self.list_last_bid[list_idx][-1]
+                            self.close_position(DateTime, asset, ass_id, results)
+                            lists = flush_asset(lists, ass_idx, bid)
+                        else:
+                            out = asset+" NOT banned due to different directions"
+                            print(out)
+                            self.write_log(out)
+                    else:
+                        out = asset+" NOT banned due to not opened"
+                        print(out)
+                        self.write_log(out)
+                else:
+                    # send ban message to traders controlling the other assets
+                    self.send_ban_command(asset,message)
+                    out = "Ban command sent from "+thisAsset+" to "+asset
+                    print(out)
+                    self.write_log(out)
                 
-                list_idx = self.map_ass_idx2pos_idx[ass_id]
-                bid = self.list_last_bid[list_idx][-1]
-                self.close_position(DateTime, asset, ass_id, results)
-                lists = flush_asset(lists, ass_idx, bid)
             ass_idx += 1
             
         return lists
+    
+    def send_ban_command(self, ban_asset, message):
+        """ Send ban command to an asset """
+        file = open(self.ban_currencies_dir+self.start_time+ban_asset,"w")
+        file.write(message+"\n")
+        file.close()
+        return None
+    
+    def assets_same_direction(self, ass_id, thisAsset, thisDirection, 
+                              otherAsset, otherDirection):
+        """  """
+        m1 = re.search(thisAsset[:3],otherAsset)
+        m2 = re.search(thisAsset[3:],otherAsset)
+        condition = ((m1!=None and m1.span()[1]-m1.span()[0]==3 and \
+                     thisDirection*otherDirection>0) or \
+                     (m2!=None and m2.span()[1]-m2.span()[0]==3 and \
+                     thisDirection*otherDirection<0))
+        
+        return condition
 
 def write_log(log_message, log_file):
         """
@@ -1658,14 +1713,22 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
 #    print(out)
 #    write_log(out, log_file)
     
-def test_multiprocessing(ass_idx):
-    global listCountPoss
-    time.sleep(1*np.random.rand(1)[0])
-    print(str(ass_idx)+": "+str(listCountPoss[-1][0][0]))
-    return None
+def send_close_command(asset):
+        """ Send command for closeing position to MT5 software """
+        directory_MT5_ass2close = directory_MT5+asset+"/"
+        success = 0
+        # load network output
+        while not success:
+            try:
+                fh = open(directory_MT5_ass2close+"LC","w", encoding='utf_16_le')
+                fh.close()
+                success = 1
+            except PermissionError:
+                print("Error writing LC")
     
 def fetch(lists, trader, directory_MT5, 
-          AllAssets, running_assets, log_file, results):
+          AllAssets, running_assets, 
+          log_file, results):
     """ Fetch info coming from MT5 """
     
     nAssets = len(running_assets)
@@ -1779,6 +1842,24 @@ def fetch(lists, trader, directory_MT5,
                             write_log(out, log_file)
                     except (FileNotFoundError,PermissionError):
                         pass
+
+            # check if asset has been banned from outside
+            if os.path.exists(trader.ban_currencies_dir+trader.start_time+thisAsset):
+                out = thisAsset+" flag ban found"
+                print(out)
+                trader.write_log(out)
+                if not ban_only_if_open or trader.is_opened(ass_id):
+                    lists = flush_asset(lists, ass_idx, 0.0)
+                    out = thisAsset+" flushed"
+                    print(out)
+                    trader.write_log(out)
+                    if trader.is_opened(ass_id):
+                        send_close_command(thisAsset)
+                else:
+                    out = thisAsset+" NOT flushed"
+                    print(out)
+                    trader.write_log(out)
+                os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
                 
                 
             # i stoploss
@@ -1807,10 +1888,11 @@ def fetch(lists, trader, directory_MT5,
                 bid = float(info_split[6])
                 ask = float(info_split[7])
                 DateTime = info_split[2]
+                direction = int(info_split[3])
                 # update bid and ask lists if exist
                 trader.update_list_last(list_idx, DateTime, bid, ask)
                     
-                trader.close_position(DateTime, thisAsset, ass_id, results)
+                #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
                 trader.stoplosses += 1
                 out = ("Exit position due to stop loss "+" sl="+
@@ -1821,7 +1903,7 @@ def fetch(lists, trader, directory_MT5,
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
                 
-                lists = trader.ban_currencies(lists, thisAsset, DateTime, results)
+                lists = trader.ban_currencies(lists, thisAsset, DateTime, results, direction)
             
             # end of elifs
 #            if time_stamp[0]<last_time_stamp[0]:
@@ -1853,8 +1935,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     n_samps_buffer = 100
     init_row = ['d',0.0,0.0]
     fileIDs = [0 for ass in range(nAssets)]
-    buffers = [pd.DataFrame(data=[init_row for i in range(n_samps_buffer)], 
-                columns=['DateTime','SymbolBid','SymbolAsk']) for ass in range(nAssets)]
+    buffers = [pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
+            columns=['DateTime','SymbolBid','SymbolAsk']) for ass in range(nAssets)]
     
     sampsBuffersCounter = [0 for ass in range(nAssets)]
     
@@ -1880,6 +1962,42 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # add new entry to buffer
         (buffers[ass_idx]).iloc[sampsBuffersCounter[ass_idx]] = [DateTime, bid, ask]
         sampsBuffersCounter[ass_idx] = (sampsBuffersCounter[ass_idx]+1)%n_samps_buffer
+        
+        # check if asset has been banned from outside
+        if os.path.exists(trader.ban_currencies_dir+trader.start_time+thisAsset):
+            time.sleep(.01)
+            fh = open(trader.ban_currencies_dir+trader.start_time+thisAsset,"r")
+            message = fh.read()
+            fh.close()
+            info = message.split(",")
+            otherAsset = info[0]
+            otherDirection = int(info[1])
+            
+            out = thisAsset+" flag ban from found: "+message[:-1]
+            print(out)
+            trader.write_log(out)
+            # for now, ban only if asset is opened AND they go in same direction
+            if trader.is_opened(ass_id):
+                thisDirection = trader.list_opened_positions\
+                    [trader.map_ass_idx2pos_idx[ass_id]].direction
+                if trader.assets_same_direction(ass_id, thisAsset, thisDirection, 
+                              otherAsset, otherDirection):
+                    lists = flush_asset(lists, ass_idx, 0.0)
+                    out = thisAsset+" flushed"
+                    print(out)
+                    trader.write_log(out)
+                    trader.close_position(DateTime, thisAsset, ass_id, results)
+                else:
+                    out = thisAsset+" NOT flushed due to different directions"
+                    print(out)
+                    trader.write_log(out)
+            else:
+                out = thisAsset+" NOT flushed due to not opened"
+                print(out)
+                trader.write_log(out)
+            os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
+            
+            
         
         if sampsBuffersCounter[ass_idx]==0:
             outputs, new_outputs = dispatch(lists, buffers[ass_idx], AllAssets, 
@@ -2039,6 +2157,13 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
+def run_carefully(running_assets, start_time):
+    """  """
+    try:
+        run(running_assets, start_time)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt: Exit program organizedly")
+    
 def run(running_assets, start_time):
     """  """    
     
@@ -2051,42 +2176,44 @@ def run(running_assets, start_time):
     dir_results_trader = dir_results+"trader/"
     
     log_file = dir_results+start_time+'_log.log'
-    dateTest = ([                                                   '2018.03.09',
-                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
-               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
-                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
-                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
-                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
-                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
-                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
-                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
-                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
-                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
-                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
+#    dateTest = ([                                                   '2018.03.09',
+#                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
+#                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
+#                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
+#                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
+#                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
+#                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
+#                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
+#                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
+#                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
+#                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
+#                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
+#                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
+#                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
+#                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
+#                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
+#                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
+#                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
+#                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
+#                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
+#                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+#               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+#                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+#                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+#                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+#                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+#                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+#                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
+#                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
+#                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
+#                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
+#                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
+#                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
+#                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     
-    #dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']
+    
+    
+    dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']
 
     ### TEMP: this data has to be included in list_data and deleted 
 #    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
@@ -2108,33 +2235,36 @@ def run(running_assets, start_time):
     
     AllAssets = Data().AllAssets
     
-#    numberNetworks = 3
-#    IDweights = ["000287","000286","000285"]
-#    IDresults = ['100287Nov09','100286Nov09','100285Nov09']
-#    list_name = ['87_6','87_6','85_16']
-#    IDepoch = ["6","6","16"]
-#    netNames = ["87","86","85"]
-#    list_t_indexs = [[2],[2],[3]]
-#    phase_shifts = [1,1,1]
-#    delays = [0,0,0]
-#    mWs = [100,100,100]
-#    nExSs = [1000,1000,1000]
-#    lBs = [1300,1300,1300]
-#    list_w_str = ["55","55","55"]
-    
-    numberNetworks = 1
-    IDweights = ["000287"]
-    IDresults = ['100287Nov09']
-    list_name = ['87_6']
-    IDepoch = ["6"]
-    netNames = ["87"]
-    list_t_indexs = [[2]]
-    phase_shifts = [1]
-    delays = [0]
-    mWs = [100]
-    nExSs = [1000]
-    lBs = [1300]
-    list_w_str = ["55"]
+    numberNetworks = 2
+    IDweights = ["000287","000285"]
+    IDresults = ['100287Nov09NTI','100285Nov09NTI']
+    list_name = ['87_6','85_16']
+    IDepoch = ["6","16"]
+    netNames = ["87","85"]
+    list_t_indexs = [[2],[3]]
+    phase_shifts = [1,1]
+    delays = [0,0]
+    mWs = [100,100]
+    nExSs = [1000,1000]
+    lBs = [1300,1300]
+    list_w_str = ["55","55"]
+    model_dict = {'size_hidden_layer':[200,100],
+                  'L':[3,3],
+                  'size_output_layer':[5 for i in range(numberNetworks)],
+                  'outputGain':[.6,.6]}
+#    numberNetworks = 1
+#    IDweights = ["000287"]
+#    IDresults = ['100287Nov09']
+#    list_name = ['87_6']
+#    IDepoch = ["6"]
+#    netNames = ["87"]
+#    list_t_indexs = [[2]]
+#    phase_shifts = [1]
+#    delays = [0]
+#    mWs = [100]
+#    nExSs = [1000]
+#    lBs = [1300]
+#    list_w_str = ["55"]
     
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
@@ -2148,7 +2278,7 @@ def run(running_assets, start_time):
     list_ub_md_op = [1 for i in range(numberNetworks)]
     list_ub_mc_ext = [1 for i in range(numberNetworks)]
     list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_thr_sl = [1000 for i in range(numberNetworks)]
+    list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     list_fix_spread = [False for i in range(numberNetworks)]
     list_fixed_spread_pips = [4 for i in range(numberNetworks)]
@@ -2156,6 +2286,7 @@ def run(running_assets, start_time):
     list_flexible_lot_ratio = [False for i in range(numberNetworks)]
     list_if_dir_change_close = [False for i in range(numberNetworks)]
     list_if_dir_change_extend = [False for i in range(numberNetworks)]
+    
     
 #    
     ADs = []
@@ -2296,17 +2427,25 @@ def run(running_assets, start_time):
     tf.reset_default_graph()
     if 1:#with tf.Session() as sess:
         
-        list_models = [modelRNN(list_data[0],
-                                size_hidden_layer=200,
-                                L=3,
-                                size_output_layer=5,
-                                keep_prob_dropout=1,
-                                miniBatchSize=32,
-                                outputGain=0.6,
-                                lR0=0.0001,
-                                IDgraph=IDweights[0]+IDepoch[0],
-                                sess=None),
-                    
+        list_models = [modelRNN(list_data[i],
+                                size_hidden_layer=model_dict['size_hidden_layer'][i],
+                                L=model_dict['L'][i],
+                                size_output_layer=model_dict['size_output_layer'][i],
+                                outputGain=model_dict['outputGain'][i],
+                                IDgraph=IDweights[i]+IDepoch[i]) \
+                                for i in range(numberNetworks)]
+        
+#        list_models = [modelRNN(list_data[0],
+#                                size_hidden_layer=200,
+#                                L=3,
+#                                size_output_layer=5,
+#                                keep_prob_dropout=1,
+#                                miniBatchSize=32,
+#                                outputGain=0.6,
+#                                lR0=0.0001,
+#                                IDgraph=IDweights[0]+IDepoch[0],
+#                                sess=None),
+#                    
 #                    modelRNN(list_data[1],
 #                             size_hidden_layer=200,
 #                             L=3,
@@ -2328,7 +2467,7 @@ def run(running_assets, start_time):
 #                             lR0=0.0001,
 #                             IDgraph=IDweights[2]+IDepoch[2],
 #                             sess=None)
-                    ]
+#                    ]
     ##########################################################
         
         
@@ -2417,7 +2556,7 @@ def run(running_assets, start_time):
                 trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
                                 results_dir=dir_results_trader, 
-                                log_file_time=start_time)
+                                start_time=start_time)
                 if not os.path.exists(trader.log_file):
                     write_log(out, trader.log_file)
                     write_log(out, trader.log_summary)
@@ -2505,7 +2644,7 @@ def run(running_assets, start_time):
             trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
                                 results_dir=dir_results_trader, 
-                                log_file_time=start_time)
+                                start_time=start_time)
             # launch fetcher
             fetch(lists, trader, directory_MT5, 
                                 AllAssets, running_assets, log_file, results)
@@ -2554,20 +2693,23 @@ def launch():
     
     synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    running_assets = assets#[7, 14]
+    running_assets = assets#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
         disp = Process(target=run, args=[running_assets,start_time])
         disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run, args=[running_assets[ass_idx:ass_idx+1],start_time])
+            disp = Process(target=run_carefully, args=[running_assets[ass_idx:ass_idx+1],start_time])
             disp.start()
             time.sleep(2)
         time.sleep(30)
     print("All RNNs launched")
 if __name__=='__main__':
-    launch()
+    
+        launch()
+    
+        
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
