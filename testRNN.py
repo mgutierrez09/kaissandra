@@ -97,15 +97,15 @@ def test_RNN(*ins):
         
     filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
     # check if file locked
-#    if len(ins)>0:
-#        # wait while files are locked
-#        while os.path.exists(filename_prep_IO+'.flag'):
-#            # sleep random time up to 10 seconds if any file is being used
-#            print(filename_prep_IO+' busy. Sleeping up to 10 secs')
-#            time.sleep(10*np.random.rand(1)[0])
-#        # lock HDF5 file from access
-#        fh = open(filename_prep_IO+'.flag',"w")
-#        fh.close()
+    if len(ins)>0:
+        # wait while files are locked
+        while os.path.exists(filename_prep_IO+'.flag'):
+            # sleep random time up to 10 seconds if any file is being used
+            print(filename_prep_IO+' busy. Sleeping up to 10 secs')
+            time.sleep(10*np.random.rand(1)[0])
+        # lock HDF5 file from access
+        fh = open(filename_prep_IO+'.flag',"w")
+        fh.close()
     # init hdf5 files
     if data.n_feats_manual>0:
         f_prep_IO = h5py.File(filename_prep_IO,'r')
@@ -304,7 +304,7 @@ def test_RNN(*ins):
     if f_feats_tsf != None:
         f_feats_tsf.close()
     # release lock
-    if 0:
+    if len(ins)>0:
         os.remove(filename_prep_IO+'.flag')
     # Build DTA
     if if_build_IO:

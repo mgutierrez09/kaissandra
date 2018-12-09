@@ -24,7 +24,7 @@ def get_features(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0301')
+        config = configuration('C01100')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],

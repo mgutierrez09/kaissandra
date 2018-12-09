@@ -285,6 +285,7 @@ class Trader:
         self.list_last_ask = []
         self.list_sl_thr_vector = []
         self.list_EM = []
+        self.list_banned_counter = np.zeros((len(data.assets)))-1
         
         self.next_candidate = next_candidate
         self.journal_idx = 0
@@ -512,6 +513,15 @@ class Trader:
             raise ValueError("fix_spread cannot be fixed if GRE is in use")
             
         return second_condition_open
+    
+    def check_asset_not_banned(self):
+        """  """
+        condition = self.list_banned_counter[ass_idx]==-1
+#        if not condition:
+#            out = data.AllAssets[str(data.assets[ass_idx])]+" is banned"
+#            self.write_log(out)
+#            print(out)
+        return condition
         
     def check_primary_condition_for_extention(self, time_stamp, idx):
         """
@@ -525,7 +535,7 @@ class Trader:
         """
             
         """
-        margin = 0.5
+        margin = 0.0
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
         # if not use GRE matrix
         if not this_strategy.use_GRE:
@@ -544,13 +554,13 @@ class Trader:
             #self.next_candidate.p_mc+self.next_candidate.p_md>=sum_previous_p
 #            if self.next_candidate!= None:
 #                print("sum_p: "+str(self.next_candidate.p_mc+self.next_candidate.p_md))
-            curr_GROI, _, _ = self.get_rois(idx, date_time='', roi_ratio=1)
+            
             condition = (self.next_candidate!= None and 
                          this_strategy.get_profitability(
                          self.next_candidate.p_mc, self.next_candidate.p_md, 
-                         int(np.abs(self.next_candidate.bet)-1))>margin)
-#        and 
-#                         100*curr_GROI>=-.1
+                         int(np.abs(self.next_candidate.bet)-1))>margin and 
+                         100*curr_GROI>=-.1)
+        
 #             and
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
@@ -579,7 +589,7 @@ class Trader:
         #print(self.list_stop_losses)
         list_idx = self.map_ass_idx2pos_idx[idx]
         if (self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction*(
-                self.list_EM[list_idx]-self.list_stop_losses[self.map_ass_idx2pos_idx[idx]])<=0):
+                self.list_last_bid[list_idx]-self.list_stop_losses[self.map_ass_idx2pos_idx[idx]])<=0):
             # exit position due to stop loss
             exit_pos = 1
             stoplosses += 1
@@ -591,6 +601,19 @@ class Trader:
         else:
             exit_pos = 0
         return exit_pos, stoplosses
+    
+    def ban_asset(self, ass_idx):
+        """  """
+        self.list_banned_counter[ass_idx] = data.lB
+        out = data.AllAssets[str(ass_idx)]+" banned"
+        print(out)
+        self.write_log(out)
+        return None
+    
+    def decrease_ban_counter(self, ass_idx, n_counts):
+        """  """
+        self.list_banned_counter[ass_idx] = max(self.list_banned_counter[ass_idx]-n_counts,-1)
+        return None
     
     def is_takeprofit_reached(self, this_pos, take_profit, takeprofits):
         
@@ -764,7 +787,7 @@ class Trader:
         
         return approached, n_pos_opened, EXIT, rewind
     
-    def extend_position(self, idx):
+    def extend_position(self, idx, curr_GROI):
         """
         <DocString>
         """
@@ -778,7 +801,7 @@ class Trader:
                        self.map_ass_idx2pos_idx[idx]].p_mc)+
                " p_md={0:.2f}".format(self.list_opened_positions[
                        self.map_ass_idx2pos_idx[idx]].p_md)+
-               " spread={0:.3f}".format(100*e_spread))
+               " spread={0:.3f}".format(100*e_spread)+ " cGROI {0:.2f}".format(100*curr_GROI))
         print(out)
         self.write_log(out)
         self.n_pos_extended += 1
@@ -975,10 +998,6 @@ if __name__ == '__main__':
     data=Data(movingWindow=100,nEventsPerStat=1000,
      dateTest = dateTest)
 
-#    ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-#                 '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
-        
-    nExS = data.nEventsPerStat-1
     tic = time.time()
     # init positions vector
     # build asset to index mapping
@@ -988,17 +1007,17 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-    
-    numberNetwors = 8
+    numberNetwors = 10
     list_IDresults = ['100287Nov09NTI','100287Nov09NTI','100285Nov09NTI',
                       '100285Nov09NTI','100287Nov09NTI','100285Nov09NTI',
-                      '100287Nov09NTI','100285Nov09NTI']#
+                      '100287Nov09NTI','100285Nov09NTI','100287Nov09NTI',
+                      '100285Nov09NTI']#
     list_IDgre = list_IDresults#['100287Nov09','100286Nov09','100285Nov09']
     list_name = ['87_6_2','87_6_3','85_16_3','85_16_2','87_6_1','85_16_1',
-                 '87_6_0','85_16_0']
-    list_epoch_gre = [6,6,16,16,6,16,6,16]
-    list_epoch_journal = [6,6,16,16,6,16,6,16]
-    list_t_index = [2,3,3,2,1,1,0,0]
+                 '87_6_0','85_16_0','87_6_4','85_16_4']
+    list_epoch_gre = [6,6,16,16,6,16,6,16,6,16]
+    list_epoch_journal = [6,6,16,16,6,16,6,16,6,16]
+    list_t_index = [2,3,3,2,1,1,0,0,4,4]
     list_w_str = ["55" for i in range(numberNetwors)]
     list_use_GRE = [True for i in range(numberNetwors)]
     list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
@@ -1047,10 +1066,6 @@ if __name__ == '__main__':
 #    list_flexible_lot_ratio = [False]
 #    list_if_dir_change_close = [False]
 #    list_if_dir_change_extend = [False]
-    
-    results_file_name = '_'.join([list_IDresults[i]+'E'+str(list_epoch_gre[i])+'T'+
-                         str(list_t_index[i])+'W'+list_w_str[i]
-                         for i in range(numberNetwors)])
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -1148,6 +1163,11 @@ if __name__ == '__main__':
     init_budget = 10000
     results = Results()
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+    run_description = start_time+','+','.join([list_IDresults[i]+'E'+str(list_epoch_gre[i])+'T'+
+                         str(list_t_index[i])+'W'+list_w_str[i]+
+                         'LOT'+str(list_max_lots_per_pos[i])+'SL'+str(list_thr_sl[i])
+                         for i in range(numberNetwors)])+',F'+dateTest[0]+'T'+\
+                         dateTest[-1]
     directory = "../RNN/resultsLive/simulate/trader/"
     log_file = directory+start_time+"trader_v30.log"
     summary_file = directory+start_time+"summary.log"
@@ -1238,9 +1258,11 @@ if __name__ == '__main__':
                 em = w*trader.list_EM[list_idx]+(1-w)*bid
                 trader.list_EM[list_idx] = em
             
+            ban_condition = trader.check_asset_not_banned()
             condition_open = (trader.chech_ground_condition_for_opening() and 
                               trader.check_primary_condition_for_opening() and 
-                              trader.check_secondary_contition_for_opening())
+                              trader.check_secondary_contition_for_opening() and 
+                              ban_condition)
     
             if condition_open:
                 profitability = strategys[name2str_map[trader.next_candidate.strategy
@@ -1306,6 +1328,7 @@ if __name__ == '__main__':
                     trader.close_position(DateTimes[event_idx], 
                                           Assets[event_idx].decode("utf-8"), 
                                           ass_idx)
+                    trader.ban_asset(ass_idx)
                     # reset approched
                     if len(trader.list_opened_positions)==0:
                         approached = 0
@@ -1318,11 +1341,12 @@ if __name__ == '__main__':
                         if (trader.check_primary_condition_for_extention(
                                 time_stamp, ass_idx)):#next_pos.eGROI>e_spread):
                             #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+Assets[event_idx].decode("utf-8")+" Primary condition fulfilled")
+                            curr_GROI, _, _ = trader.get_rois(ass_idx, date_time='', roi_ratio=1)
                             if trader.check_secondary_condition_for_extention(
                                     ass_idx):
                                 # include third condition for thresholds
                                 # extend deadline
-                                EXIT, rewind = trader.extend_position(ass_idx)
+                                EXIT, rewind = trader.extend_position(ass_idx, curr_GROI)
                                 
                             else:
                                 # extend conditon not met
@@ -1338,6 +1362,7 @@ if __name__ == '__main__':
                                       " pofitability "+str(profitability)+
                                       " E_spread "+str(e_spread/trader.pip)+
                                       " Bet "+str(int(np.abs(trader.next_candidate.bet)-1))+
+                                      "cGROI {0:.2f} ".format(100*curr_GROI)+
                                       " Extend Condition not met")
                                 print(out)
                                 trader.write_log(out)
@@ -1379,10 +1404,15 @@ if __name__ == '__main__':
     #                        break
                     
                 # end of if count_events==nExS or timeout==0 or exit_pos:
+            elif trader.list_banned_counter[ass_idx]>=0:
+                #out = "decreasing ban counter"
+                #trader.write_log(out)
+                #print(out)
+                trader.decrease_ban_counter(ass_idx, 1)
             # uptade posiitions if ADm is too low or eGROI is too low too
             if (trader.chech_ground_condition_for_opening() and 
-                trader.check_primary_condition_for_opening() and not 
-                trader.check_secondary_contition_for_opening()):
+                trader.check_primary_condition_for_opening() and (not 
+                trader.check_secondary_contition_for_opening() or ban_condition)):
                 not_entered_secondary += 1
                 #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Secondary condition failed "+Assets[event_idx].decode("utf-8"))
                 EXIT, rewind = trader.update_candidates()
@@ -1420,13 +1450,17 @@ if __name__ == '__main__':
                     event_idx += 1
                 else:
                     original_time = time_stamp.strftime('%Y.%m.%d %H:%M:%S')
-                    out = "WARNING! "+original_time+" Rewind @ index "+str(event_idx)
-                    print(out)
-                    trader.write_log(out)
+#                    out = "WARNING! "+original_time+" Rewind @ index "+str(event_idx)
+#                    print(out)
+#                    trader.write_log(out)
                     event_idx -= 100
+                    trader.list_banned_counter[trader.list_banned_counter>-1] = \
+                        trader.list_banned_counter[trader.list_banned_counter>-1]+100
                     while DateTimes[event_idx].decode("utf-8")==original_time:
                         event_idx -= 100
-                    print("Rewinded to "+DateTimes[event_idx].decode("utf-8"))
+                        trader.list_banned_counter[trader.list_banned_counter>-1] = \
+                            trader.list_banned_counter[trader.list_banned_counter>-1]+100
+                    #print("Rewinded to "+DateTimes[event_idx].decode("utf-8"))
                     rewinded += 1
         
             else:
@@ -1439,6 +1473,8 @@ if __name__ == '__main__':
                                 Assets[event_idx:]==trader.next_candidate.asset))
                         if idx.shape[0]>0:
                             event_idx = idx[0]+event_idx
+                            trader.list_banned_counter[trader.list_banned_counter>-1] = \
+                                np.maximum(trader.list_banned_counter[trader.list_banned_counter>-1]-idx[0],-1)
                             approached = 1
                         else:
                             out = " WARNING! Entry not found. Skipping it"
@@ -1449,7 +1485,7 @@ if __name__ == '__main__':
                             trader.write_log(out)
                             EXIT, rewind = trader.update_candidates()
                     else:
-                        print("Run out of events. EXIT")
+                        print("Ran out of events. EXIT")
                         break
                 else:
                     break
@@ -1549,14 +1585,32 @@ if __name__ == '__main__':
     out = ("DONE. Total time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins")
     print(out)
     trader.write_log(out)
-    out = "Results file: "+start_time+"_"+results_file_name+".p"
+    out = "Results file: "+start_time+"results.p"
     print(out)
     # build results dictionary
     results_dict = {'dts':results.datetimes,
                     'GROIs':results.GROIs,
                     'ROIs':results.ROIs,
                     'earnings':earnings}
-    pickle.dump( results_dict, open( directory+start_time+"_"+results_file_name+".p", "wb" ))
+    pickle.dump( results_dict, open( directory+start_time+"_results.p", "wb" ))
+    
+    results_description = ",TGROI{0:.2f}".format(results.total_GROI)+\
+                          "TROI{0:.2f}".format(results.total_ROI)+\
+                          "SGROI{0:.2f}".format(results.sum_GROI)+\
+                          "SROI{0:.2f}".format(results.sum_ROI)+\
+                          "EAR{0:.2f}".format(results.total_earnings)+\
+                          "TENT"+str(total_entries)+","+\
+                          "PGS{0:.2f}".format(per_gross_success)+\
+                          "PNS{0:.2f}".format(per_net_succsess)+\
+                          "AVL{0:.2f}".format(average_loss)+\
+                          "AVW{0:.2f}".format(average_win)+\
+                          "RR{0:.2f}".format(RR)
+    
+    run_description += results_description
+    fh = open(directory+'runs_description.txt',"a")
+    fh.write(run_description+'\n')
+    fh.close()
+    
 
 # Combine .6/.7/.6/.6 .7/.7/.6/.6 real spread<.03 fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248/100246 not closing not extending if direction changes 
 #Total GROI = 11.064% Total ROI = 7.700% Sum GROI = 11.411% Sum ROI = 7.923% Accumulated earnings 792.35E
@@ -1859,3 +1913,45 @@ if __name__ == '__main__':
 #Total entries 1006 per entries 1.03 percent gross success 60.93% percent nett success 53.68% average loss 8.55p average win 9.12p RR 1 to 1.24
 #DONE. Total time: 622.26 mins
 #Results file: 181205222654_100287Nov09NTIE6T2W55_100287Nov09NTIE6T3W55_100285Nov09NTIE16T3W55_100285Nov09NTIE16T2W55_100287Nov09NTIE6T1W55_100285Nov09NTIE16T1W55_100287Nov09NTIE6T0W55_100285Nov09NTIE16T0W55.p
+    
+# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16 t_index [2,3,1]/[3,2,1] IDr 100287Nov09/100285Nov09 from 2018.3.9 to .11.09 NTI  
+#Total GROI = 20.578% Total ROI = 8.681% Sum GROI = 21.673% Sum ROI = 8.927% Accumulated earnings 892.71E
+#Total entries 951 per entries 1.24 percent gross success 61.09% percent nett success 54.26% average loss 8.68p average win 9.05p RR 1 to 1.24
+#DONE. Total time: 123.46 mins
+#Results file: 181207090352results.p
+
+
+#Total GROI = 23.389% Total ROI = 10.158% Sum GROI = 24.780% Sum ROI = 10.532% Accumulated earnings 1053.22E
+#Total entries 1033 per entries 0.87 percent gross success 60.99% percent nett success 54.21% average loss 8.59p average win 9.13p RR 1 to 1.26
+#DONE. Total time: 155.07 mins
+#Results file: 181207111607results.p
+
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 20 pips from 2018.3.9 to .11.09 NTI    
+#Total GROI = 20.001% Total ROI = 6.473% Sum GROI = 20.851% Sum ROI = 6.549% Accumulated earnings 654.90E
+#Total entries 1032 per entries 0.87 percent gross success 59.88% percent nett success 53.49% average loss 9.18p average win 9.17p RR 1 to 1.15
+#DONE. Total time: 180.69 mins
+#Results file: 181207212623results.p
+
+# with no extension if GROI<.1%
+#Total GROI = 24.689% Total ROI = 10.780% Sum GROI = 26.272% Sum ROI = 11.186% Accumulated earnings 1118.61E
+#Total entries 1114 per entries 0.94 percent gross success 60.86% percent nett success 54.22% average loss 8.93p average win 9.39p RR 1 to 1.25
+#DONE. Total time: 128.24 mins
+#Results file: 181208090058results.p
+
+# with no extension if GROI<.2%
+#Total GROI = 22.744% Total ROI = 9.149% Sum GROI = 24.011% Sum ROI = 9.433% Accumulated earnings 943.32E
+#Total entries 1066 per entries 0.90 percent gross success 60.79% percent nett success 54.22% average loss 8.88p average win 9.13p RR 1 to 1.22
+#DONE. Total time: 165.16 mins
+#Results file: 181208114219results.p
+
+#margin 1p
+#Total GROI = 21.249% Total ROI = 6.143% Sum GROI = 22.036% Sum ROI = 6.206% Accumulated earnings 620.62E
+#Total entries 1210 per entries 1.02 percent gross success 60.91% percent nett success 53.97% average loss 7.91p average win 7.70p RR 1 to 1.14
+#DONE. Total time: 191.81 mins
+#Results file: 181208150003results.p
+
+#margin 0
+#Total GROI = 21.916% Total ROI = 8.245% Sum GROI = 23.013% Sum ROI = 8.449% Accumulated earnings 844.90E
+#Total entries 1062 per entries 0.89 percent gross success 60.36% percent nett success 54.05% average loss 9.06p average win 9.17p RR 1 to 1.19
+#DONE. Total time: 168.23 mins
+#Results file: 181208182027results.p

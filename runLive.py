@@ -1340,7 +1340,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     write_log(out, log_file)
                 listFillingX[sc] = False
         else:
-########################################### Predict #########################################################################              
+########################################### Predict ###########################            
             if verbose_RNN:
                 out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName
                 print("\r"+out, sep=' ', end='', flush=True)
@@ -1382,9 +1382,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                                     list_weights_matrix[sc][0,:]),axis=0),axis=2)
                     soft_tilde_t = np.sum(weights*soft_tilde, axis=1)
                                 
-    #############################################################################################################################  
+    ###########################################################################
                             
-    ################################# Send prediciton to trader ################################################################# 
+    ################################# Send prediciton to trader ###############
                 # get condition to 
                 condition = soft_tilde_t[0,0]>thr_mc
           
@@ -1440,9 +1440,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                                    [t_index][i]-1\
                                    for i in range(len(list_time_to_entry[sc]\
                                    [t_index]))]
-    ###############################################################################################################################
+    ###########################################################################
                             
-    ################################################# Evaluation ##################################################################
+    ################################################# Evaluation ##############
                 
                 
                 prob_mc = np.array([soft_tilde_t[0,0]])
@@ -1771,7 +1771,7 @@ def fetch(lists, trader, directory_MT5,
                 nFilesDir = len(os.listdir(directory_MT5_ass))
                 #start_timer(ass_idx)
                 if not first_info_fetched:
-                    print("First info fetched")
+                    print(thisAsset+" First info fetched")
                     first_info_fetched = True
                 elif nMaxFilesInDir<nFilesDir:
                     nMaxFilesInDir = nFilesDir
@@ -1784,6 +1784,13 @@ def fetch(lists, trader, directory_MT5,
             # update file extension
             if success:
                 fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
+                # update list
+                list_idx = trader.map_ass_idx2pos_idx[ass_id]
+                bid = buffer.SymbolBid.iloc[-1]
+                ask = buffer.SymbolAsk.iloc[-1]
+                DateTime = buffer.DateTime.iloc[-1]
+                trader.update_list_last(list_idx, DateTime, bid, ask)
+                # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
                                                 log_file)
@@ -1845,18 +1852,48 @@ def fetch(lists, trader, directory_MT5,
 
             # check if asset has been banned from outside
             if os.path.exists(trader.ban_currencies_dir+trader.start_time+thisAsset):
-                out = thisAsset+" flag ban found"
+#                out = thisAsset+" flag ban found"
+#                print(out)
+#                trader.write_log(out)
+#                if not ban_only_if_open or trader.is_opened(ass_id):
+#                    lists = flush_asset(lists, ass_idx, 0.0)
+#                    out = thisAsset+" flushed"
+#                    print(out)
+#                    trader.write_log(out)
+#                    if trader.is_opened(ass_id):
+#                        send_close_command(thisAsset)
+#                else:
+#                    out = thisAsset+" NOT flushed"
+#                    print(out)
+#                    trader.write_log(out)
+#                os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
+                
+                fh = open(trader.ban_currencies_dir+trader.start_time+thisAsset,"r")
+                message = fh.read()
+                fh.close()
+                info = message.split(",")
+                otherAsset = info[0]
+                otherDirection = int(info[1])
+                out = thisAsset+" flag ban from found: "+message[:-1]
                 print(out)
                 trader.write_log(out)
-                if not ban_only_if_open or trader.is_opened(ass_id):
-                    lists = flush_asset(lists, ass_idx, 0.0)
-                    out = thisAsset+" flushed"
-                    print(out)
-                    trader.write_log(out)
-                    if trader.is_opened(ass_id):
+                # for now, ban only if asset is opened AND they go in same direction
+                if trader.is_opened(ass_id):
+                    thisDirection = trader.list_opened_positions\
+                        [trader.map_ass_idx2pos_idx[ass_id]].direction
+                    if trader.assets_same_direction(ass_id, thisAsset, thisDirection, 
+                                  otherAsset, otherDirection):
+                        lists = flush_asset(lists, ass_idx, 0.0)
+                        out = thisAsset+" flushed"
+                        print(out)
+                        trader.write_log(out)
                         send_close_command(thisAsset)
+                    else:
+                        out = thisAsset+" NOT flushed due to different directions"
+                        print(out)
+                        trader.write_log(out)
                 else:
-                    out = thisAsset+" NOT flushed"
+                    out = thisAsset+" NOT flushed due to not opened"
                     print(out)
                     trader.write_log(out)
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
@@ -1895,7 +1932,7 @@ def fetch(lists, trader, directory_MT5,
                 #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
                 trader.stoplosses += 1
-                out = ("Exit position due to stop loss "+" sl="+
+                out = (thisAsset+" Exit position due to stop loss "+" sl="+
                        str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]]))
                 print("\r"+out)
                 write_log(out, trader.log_file)
@@ -1905,21 +1942,6 @@ def fetch(lists, trader, directory_MT5,
                 
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, results, direction)
             
-            # end of elifs
-#            if time_stamp[0]<last_time_stamp[0]:
-#                out = "WARNING!! time_stamp<last_time_stamp"
-#                print(out)#, sep=' ', end='', flush=True
-#                write_log(out, log_file)
-#            last_time_stamp[0] = time_stamp[0]
-        #end of for ass_idx, ass_id in enumerate(running_assets):
-#        toc = time.time()-tic
-        
-#        if toc > max_loop_time[0]:
-#            max_loop_time[0] = toc
-#            out = "Time loop over assets: {0:.3f}".format(toc)
-#            print(out)#, sep=' ', end='', flush=True
-#            write_log(out, log_file)
-        #a = False
     # end of while 1
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
@@ -2708,7 +2730,6 @@ def launch():
 if __name__=='__main__':
     
         launch()
-    
         
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%

@@ -66,7 +66,7 @@ def train_RNN(*ins):
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     
-    if 0:#len(ins)>0:
+    if len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
             # sleep random time up to 10 seconds if any file is being used
@@ -267,7 +267,7 @@ def train_RNN(*ins):
     if f_feats_tsf != None:
         f_feats_tsf.close()
     # release lock
-    if 0:#len(ins)>0:
+    if len(ins)>0:
         os.remove(filename_prep_IO+'.flag')
     
     if if_build_IO:

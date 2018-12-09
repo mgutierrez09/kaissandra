@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0285Nov09NTI'
+        config_name = 'C01100'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -61,8 +61,8 @@ def configuration(*ins):
 #                '2018.03.19','2018.03.20']
         
         
-        movingWindow = 100
-        nEventsPerStat = 1000
+        movingWindow = 110
+        nEventsPerStat = 1100
         lB = int(nEventsPerStat+movingWindow*3)
         assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
         channels = [0]
@@ -73,7 +73,7 @@ def configuration(*ins):
         # general parameters
         if_build_IO = True
         from_stats_file = True
-        IDweights = '000285'
+        IDweights = '001100'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
@@ -83,17 +83,17 @@ def configuration(*ins):
         L=3
         size_output_layer=5
         keep_prob_dropout=1
-        miniBatchSize=32
-        outputGain=.6
+        miniBatchSize=512
+        outputGain=.4
         commonY=3
         lR0=0.0001
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '100285Nov09NTI'
+        IDresults = '101100'
         IO_results_name = IDresults
-        startFrom = 16
-        endAt = 16
+        startFrom = -1
+        endAt = -1
         save_journal = True
         
         # feature-specific configuration
@@ -143,6 +143,7 @@ def configuration(*ins):
         # save config file for later use
         if not os.path.exists(config_filename):
             pickle.dump( config, open( config_filename, "wb" ))
+            print(config)
             print("Config file "+config_filename+" saved")
         else:
             raise OSError("ERROR config file "+config_name+" already exists. "+
