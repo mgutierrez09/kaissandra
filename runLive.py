@@ -36,7 +36,7 @@ run_back_test = True
 spread_ban = True
 ban_only_if_open = False # not in use
 
-data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
+data_dir = 'D:/SDC/py/Data_DL3/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
 ADsDir = "../RNN/results/"
@@ -2235,7 +2235,7 @@ def run(running_assets, start_time):
     
     
     
-    dateTest = ['2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01']
+    dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
 
     ### TEMP: this data has to be included in list_data and deleted 
 #    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
@@ -2263,8 +2263,8 @@ def run(running_assets, start_time):
     list_name = ['87_6','85_16']
     IDepoch = ["6","16"]
     netNames = ["87","85"]
-    list_t_indexs = [[2],[3]]
-    phase_shifts = [1,1]
+    list_t_indexs = [[0,1,2,3],[0,1,2,3]]
+    phase_shifts = [2,2]
     delays = [0,0]
     mWs = [100,100]
     nExSs = [1000,1000]

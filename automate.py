@@ -39,7 +39,7 @@ if __name__=='__main__':
     if_train = True
     if_test = True
     its = 5
-    configs = ['CTESTTSF']
+    configs = ['CTESTTSFRESH1']
     configs_list = []
     # load configuration files
     for config_name in configs:

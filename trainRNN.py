@@ -30,7 +30,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0301')
+        config = configuration('CTESTTSFRESH1')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -61,8 +61,9 @@ def train_RNN(*ins):
     # init hdf5 files
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
-    filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
-                             '_nE'+str(data.nEventsPerStat)+'.hdf5')
+    filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+'_nE'+
+                         str(data.nEventsPerStat)+'_2.hdf5')
+    
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     
@@ -81,6 +82,16 @@ def train_RNN(*ins):
         f_prep_IO = None
     if data.n_feats_tsfresh>0:
         f_feats_tsf = h5py.File(filename_features_tsf,'r')
+        #file_features_tsf = h5py.File(filename_features_tsf,'r')
+#        for ass in f_feats_tsf.keys():
+#            print(f_feats_tsf[ass])
+#            for chunck in f_feats_tsf[ass].keys():
+#                print(f_feats_tsf[ass][chunck])
+#                for feat in f_feats_tsf[ass][chunck].keys():
+#                    print(f_feats_tsf[ass][chunck][feat])
+#                    for v in f_feats_tsf[ass][chunck][feat].keys():
+#                        print(f_feats_tsf[ass][chunck][feat][v].shape)
+            #a=p
     else:
         f_feats_tsf = None
         
@@ -160,7 +171,9 @@ def train_RNN(*ins):
         stats_output = load_stats_output(data, hdf5_directory, thisAsset)
         
         if f_feats_tsf != None:
-            stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory)
+            stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory, f_feats_tsf,
+                                       load_from_stats_file=True)
+            print(stats_tsf)
         else:
             stats_tsf = []
         if if_build_IO:
@@ -226,10 +239,10 @@ def train_RNN(*ins):
                                 os.remove(file_temp_name)
                             except (KeyboardInterrupt):
                                 print("KeyBoardInterrupt. Closing files and exiting program.")
-                                f_prep_IO.close()
                                 f_IO.close()
                                 file_temp.close()
                                 os.remove(file_temp_name)
+                                f_prep_IO.close()
                                 raise KeyboardInterrupt
                     else:
                         print("\tNot in the set. Skipped.")

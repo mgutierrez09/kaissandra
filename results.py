@@ -820,6 +820,7 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     rSampsXlevel = np.zeros((int(size_output_layer-1),2))
         
     fixed_spread_ratios = np.array([0.00005,0.0001,0.0002,0.0003,0.0004,0.0005])
+    # fixed ratio success percent
     fNSP = np.zeros((fixed_spread_ratios.shape[0]))
     fROIs = np.zeros((fixed_spread_ratios.shape))
     ROI_vector = np.array([])
@@ -1090,7 +1091,18 @@ def print_GRE(dir_origin, IDr, epoch):
     print(NZs)
     return None
 
-def merge_GREs(dir_origin, list_IDrs, epoch):
+def merge_results():
+    """ Merge results from two different test executions 
+    Arg:
+        - 
+    Return:
+        - None"""
+    
+    
+    
+    return None
+
+def merge_GREs(dir_origin, dir_destiny, gre_id, list_IDrs, epoch):
     """ Merge GREs to create a new one with statistics from all IDs.
     Arg: 
         - list_IDrs (list of strings): list with IDresult names of GREs to merge 
@@ -1100,9 +1112,18 @@ def merge_GREs(dir_origin, list_IDrs, epoch):
     list_GREs = [load_GRE(dir_origin, list_IDrs[i], epoch) 
                  for i in range(len(list_IDrs))]
     
-    #weights = 
-    print(list_GREs)
-    return None
+    GRElbs = np.array([gre[0] for gre in list_GREs])
+    GREubs = np.array([gre[1] for gre in list_GREs])
+    NOs = np.array([gre[2] for gre in list_GREs])
+    NO = sum(NOs)
+    weights = np.nan_to_num(NOs/NO)
+    
+    GRElb = sum(weights*GRElbs)
+    GREub = sum(weights*GREubs)
+    
+    pickle.dump([GRElb,GREub,NO], open( dir_destiny+gre_id+str(epoch)+".p", "wb" ))
+    
+    return list_GREs
 
 def fillup_GRE(GRE):
     """ Fill up unknows in the GRE matrix """

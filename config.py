@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C01100'
+        config_name = 'CTESTTSFRESH1'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -61,19 +61,19 @@ def configuration(*ins):
 #                '2018.03.19','2018.03.20']
         
         
-        movingWindow = 110
-        nEventsPerStat = 1100
-        lB = int(nEventsPerStat+movingWindow*3)
+        movingWindow = 100
+        nEventsPerStat = 1000
+        lB = int(nEventsPerStat+movingWindow*2)
         assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
         channels = [0]
         max_var = 10
-        feature_keys_manual = [i for i in range(37)]
-        feature_keys_tsfresh = []#[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]#[i for i in range(37,68)]
+        feature_keys_manual = []#[i for i in range(37)]
+        feature_keys_tsfresh = [i for i in range(37,68)]#[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]#
         
         # general parameters
         if_build_IO = True
         from_stats_file = True
-        IDweights = '001100'
+        IDweights = '0TESTTSFRESH1'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
@@ -83,14 +83,14 @@ def configuration(*ins):
         L=3
         size_output_layer=5
         keep_prob_dropout=1
-        miniBatchSize=512
-        outputGain=.4
+        miniBatchSize=32
+        outputGain=.6
         commonY=3
         lR0=0.0001
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '101100'
+        IDresults = '1TESTTSFRESH1'
         IO_results_name = IDresults
         startFrom = -1
         endAt = -1
@@ -98,7 +98,7 @@ def configuration(*ins):
         
         # feature-specific configuration
         save_stats = True
-        load_features_from = 'manual' # {manual, tsfresh}
+        load_features_from = 'tsfresh' # {manual, tsfresh}
         build_partial_raw = False
         
         # add parameters to config dictionary

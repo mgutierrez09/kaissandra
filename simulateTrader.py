@@ -85,9 +85,6 @@ class Results:
         self.gross_successes = np.append(self.gross_successes, trader.gross_successes)
         self.number_stoplosses = np.append(self.number_stoplosses, stoplosses)
         
-    def update_expectations_matrix(self, trader):
-        
-        return None
 
 class Position:
     """
@@ -167,7 +164,7 @@ class Position:
         
 class Strategy():
     
-    def __init__(self, direct='', thr_sl=1000, thr_tp=1000, fix_spread=False, 
+    def __init__(self, direct='', thr_sl=1000, lim_groi=-.1, thr_tp=1000, fix_spread=False, 
                  fixed_spread_pips=2, max_lots_per_pos=.1, flexible_lot_ratio=False, 
                  lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
@@ -178,8 +175,9 @@ class Strategy():
         self.name = name
         self.dir_origin = direct
         
-        self.thr_sl=thr_sl 
-        self.thr_tp=thr_tp
+        self.thr_sl = thr_sl 
+        self.lim_groi = lim_groi
+        self.thr_tp = thr_tp
         
         self.fix_spread = fix_spread
         self.pip = 0.0001
@@ -278,6 +276,7 @@ class Trader:
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(data.AllAssets))])
         self.list_count_events = []
         self.list_stop_losses = []
+        self.list_lim_groi = []
         self.list_take_profits = []
         self.list_lots_per_pos = []
         self.list_lots_entry = []
@@ -354,7 +353,8 @@ class Trader:
                                        strategys[name2str_map[
                                                self.next_candidate.strategy]].thr_tp
                                                *self.pip))
-#        self.list_sl_thr_vector.append(self._get_thr_sl_vector())
+        self.list_lim_groi.append(strategys[name2str_map[
+                                               self.next_candidate.strategy]].lim_groi)
         
         
     def remove_position(self, idx):
@@ -370,6 +370,9 @@ class Trader:
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_take_profits = self.list_take_profits[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_take_profits[
+                        self.map_ass_idx2pos_idx[idx]+1:]
+        self.list_lim_groi = self.list_lim_groi[
+                :self.map_ass_idx2pos_idx[idx]]+self.list_lim_groi[
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_lots_per_pos = self.list_lots_per_pos[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_lots_per_pos[
@@ -531,11 +534,11 @@ class Trader:
                 self.map_ass_idx2pos_idx[idx]].asset and 
             time_stamp==self.next_candidate.entry_time)
 
-    def check_secondary_condition_for_extention(self, idx):
+    def check_secondary_condition_for_extention(self, idx, curr_GROI):
         """
             
         """
-        margin = 0.0
+        margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
         # if not use GRE matrix
         if not this_strategy.use_GRE:
@@ -559,8 +562,10 @@ class Trader:
                          this_strategy.get_profitability(
                          self.next_candidate.p_mc, self.next_candidate.p_md, 
                          int(np.abs(self.next_candidate.bet)-1))>margin and 
-                         100*curr_GROI>=-.1)
-        
+                         100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
+            out = "lim GROI: "+str(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
+            print(out)
+            self.write_log(out)
 #             and
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
@@ -636,11 +641,12 @@ class Trader:
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
 #        Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
 #        bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
+############################ WARNING!!!! ##############################################        
         Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
-
+        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+        
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
             spread = (Ao-Bo)/Ai
@@ -667,6 +673,13 @@ class Trader:
 #                  str(100*spread)+","+str(100*ROI_live))
         
         return GROI_live, ROI_live, spread
+    
+    def update_groi_limit(self, idx, curr_GROI):
+        self.list_lim_groi[self.map_ass_idx2pos_idx[idx]] = \
+            max(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]], 
+                100*curr_GROI+strategys[name2str_map[
+                self.next_candidate.strategy]].lim_groi)
+        return None
     
     def close_position(self, date_time, ass, idx, lot_ratio=None, partial_close=False):
         # update results and exit market
@@ -1030,6 +1043,7 @@ if __name__ == '__main__':
     list_ub_mc_ext = [1 for i in range(numberNetwors)]
     list_ub_md_ext = [1 for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
+    list_groi_limit = [-.1 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
     list_fix_spread = [False for i in range(numberNetwors)]
     list_fixed_spread_pips = [4 for i in range(numberNetwors)]
@@ -1319,7 +1333,6 @@ if __name__ == '__main__':
             # check if a position is already opened
             if trader.is_opened(ass_idx):
                 trader.count_one_event(ass_idx)
-                results.update_expectations_matrix(trader)
         #        stop_loss = update_stoploss(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]], stop_loss)
                 exit_pos, stoplosses = trader.is_stoploss_reached(ass_idx, stoplosses)
                 if exit_pos:
@@ -1342,8 +1355,10 @@ if __name__ == '__main__':
                                 time_stamp, ass_idx)):#next_pos.eGROI>e_spread):
                             #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+Assets[event_idx].decode("utf-8")+" Primary condition fulfilled")
                             curr_GROI, _, _ = trader.get_rois(ass_idx, date_time='', roi_ratio=1)
+                            # update GROI limit for extension
+                            trader.update_groi_limit(ass_idx, curr_GROI)
                             if trader.check_secondary_condition_for_extention(
-                                    ass_idx):
+                                    ass_idx, curr_GROI):
                                 # include third condition for thresholds
                                 # extend deadline
                                 EXIT, rewind = trader.extend_position(ass_idx, curr_GROI)
@@ -1355,15 +1370,16 @@ if __name__ == '__main__':
                                         ].get_profitability(trader.next_candidate.p_mc, 
                                                             trader.next_candidate.p_md, 
                                                             int(np.abs(trader.next_candidate.bet)-1))
-                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+
-                                       " "+Assets[event_idx].decode("utf-8")+
-                                       " p_mc "+str(trader.next_candidate.p_mc)+
-                                       " p_md "+str(trader.next_candidate.p_md)+
-                                      " pofitability "+str(profitability)+
-                                      " E_spread "+str(e_spread/trader.pip)+
-                                      " Bet "+str(int(np.abs(trader.next_candidate.bet)-1))+
-                                      "cGROI {0:.2f} ".format(100*curr_GROI)+
-                                      " Extend Condition not met")
+                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
+                                       Assets[event_idx].decode("utf-8")+
+                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
+                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+                                      " pofitability {0:.3f}".format(profitability)+
+                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+                                      str(int(np.abs(trader.next_candidate.bet)-1))+
+                                      " cGROI {0:.2f} ".format(100*curr_GROI)+
+                                      " Extend condition not met")
+                                
                                 print(out)
                                 trader.write_log(out)
                                 
@@ -1391,7 +1407,7 @@ if __name__ == '__main__':
                                 ask==trader.list_opened_positions[
                                 trader.map_ass_idx2pos_idx[ass_idx]].exit_ask and
                                 time_stamp==trader.list_opened_positions[
-                                trader.map_ass_idx2pos_idx[ass_idx]].exit_time):#and trader.list_count_events[trader.map_ass_idx2pos_idx[ass_idx]]>=nExS 
+                                trader.map_ass_idx2pos_idx[ass_idx]].exit_time):#and trader.list_count_events[trader.map_ass_idx2pos_idx[ass_idx]]>=nExS
                         
                         trader.close_position(DateTimes[event_idx], 
                                               Assets[event_idx].decode("utf-8"), 
@@ -1920,7 +1936,7 @@ if __name__ == '__main__':
 #DONE. Total time: 123.46 mins
 #Results file: 181207090352results.p
 
-
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI 
 #Total GROI = 23.389% Total ROI = 10.158% Sum GROI = 24.780% Sum ROI = 10.532% Accumulated earnings 1053.22E
 #Total entries 1033 per entries 0.87 percent gross success 60.99% percent nett success 54.21% average loss 8.59p average win 9.13p RR 1 to 1.26
 #DONE. Total time: 155.07 mins
@@ -1932,26 +1948,38 @@ if __name__ == '__main__':
 #DONE. Total time: 180.69 mins
 #Results file: 181207212623results.p
 
-# with no extension if GROI<.1%
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  with no extension if GROI<.1%
 #Total GROI = 24.689% Total ROI = 10.780% Sum GROI = 26.272% Sum ROI = 11.186% Accumulated earnings 1118.61E
 #Total entries 1114 per entries 0.94 percent gross success 60.86% percent nett success 54.22% average loss 8.93p average win 9.39p RR 1 to 1.25
 #DONE. Total time: 128.24 mins
 #Results file: 181208090058results.p
 
-# with no extension if GROI<.2%
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  with no extension if GROI<.2%
 #Total GROI = 22.744% Total ROI = 9.149% Sum GROI = 24.011% Sum ROI = 9.433% Accumulated earnings 943.32E
 #Total entries 1066 per entries 0.90 percent gross success 60.79% percent nett success 54.22% average loss 8.88p average win 9.13p RR 1 to 1.22
 #DONE. Total time: 165.16 mins
 #Results file: 181208114219results.p
 
-#margin 1p
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  margin 1p
 #Total GROI = 21.249% Total ROI = 6.143% Sum GROI = 22.036% Sum ROI = 6.206% Accumulated earnings 620.62E
 #Total entries 1210 per entries 1.02 percent gross success 60.91% percent nett success 53.97% average loss 7.91p average win 7.70p RR 1 to 1.14
 #DONE. Total time: 191.81 mins
 #Results file: 181208150003results.p
 
-#margin 0
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  margin 0
 #Total GROI = 21.916% Total ROI = 8.245% Sum GROI = 23.013% Sum ROI = 8.449% Accumulated earnings 844.90E
 #Total entries 1062 per entries 0.89 percent gross success 60.36% percent nett success 54.05% average loss 9.06p average win 9.17p RR 1 to 1.19
 #DONE. Total time: 168.23 mins
 #Results file: 181208182027results.p
+
+# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  margin 0.5 no spread
+#Total GROI = 52.882% Total ROI = 52.882% Sum GROI = 68.545% Sum ROI = 68.545% Accumulated earnings 6854.54E
+#Total entries 4031 per entries 3.38 percent gross success 58.57% percent nett success 58.57% average loss 8.12p average win 8.64p RR 1 to 1.51
+#DONE. Total time: 152.82 mins
+#Results file: 181210120110results.p
+
+#wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI adaptive GROI lim=-.1%
+#Total GROI = 23.152% Total ROI = 8.518% Sum GROI = 24.372% Sum ROI = 8.717% Accumulated earnings 871.67E
+#Total entries 1154 per entries 0.97 percent gross success 59.45% percent nett success 52.60% average loss 8.67p average win 9.25p RR 1 to 1.18
+#DONE. Total time: 185.07 mins
+#Results file: 181211111952results.p

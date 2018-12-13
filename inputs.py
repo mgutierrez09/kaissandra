@@ -905,6 +905,7 @@ def load_tsf_features(data, thisAsset, separators, f_feats_tsf, s):
         # save features in HDF5 file
         for f in data.feature_keys_tsfresh:
             group_name_feat = group_name_chunck+'/'+str(f)
+            #print(group_name_feat)
             params = data.AllFeatures[str(f)]
             n_new_feats = params[-1]
             #if group_name_feat in file_features_tsf:
@@ -1442,7 +1443,7 @@ def load_stats_manual(data, thisAsset, ass_group, from_stats_file=False,
                                  '_nF'+str(nF)+".p", "wb" ))
     return stats
 
-def load_stats_tsf(data, thisAsset, root_directory):
+def load_stats_tsf(data, thisAsset, root_directory, features_file, load_from_stats_file=True):
     """ Load stats (mean and std) from HDF5 file for TSFRESH features """
     # TODO: to be tested
     # init means and stds
@@ -1455,25 +1456,26 @@ def load_stats_tsf(data, thisAsset, root_directory):
     stds = np.zeros((nMaxChannels,data.n_feats_tsfresh))
     
     stats_directory = root_directory+'stats/'
-    filename = ('tsf_mW'+str(sprite_length)+
-                '_nE'+str(window_size)+'.hdf5')
+    filename = ('mW'+str(sprite_length)+
+                '_nE'+str(window_size)+'_2.hdf5')
     # init hdf5 container
-    stats_file = h5py.File(stats_directory+'stats_'+filename,'a')
-    features_file = h5py.File(root_directory+'feats_'+filename,'r')
+    stats_file = h5py.File(stats_directory+'stats_'+filename,'r')
+    #features_file = h5py.File(root_directory+'feats_'+filename,'r')
     # loop over features
     c = 0
     for f in data.feature_keys_tsfresh:
         means_name = 'means_in'+str(f)
-        stds_name = 'means_in'+str(f)
+        stds_name = 'stds_in'+str(f)
         n_new_feats = data.AllFeatures[str(f)][-1]
         # check first in stats file
-        if thisAsset in stats_file and means_name in list(stats_file[thisAsset].attrs.keys()):
+        if load_from_stats_file and thisAsset in stats_file and means_name in list(stats_file[thisAsset].attrs.keys()):
             means[:,c:c+n_new_feats] = stats_file[thisAsset].attrs.get(means_name)
             stds[:,c:c+n_new_feats] = stats_file[thisAsset].attrs.get(stds_name)
         # if not, check in features file
         elif thisAsset in features_file and means_name in list(features_file[thisAsset].attrs.keys()):
             means[:,c:c+n_new_feats] = features_file[thisAsset].attrs.get(means_name)
             stds[:,c:c+n_new_feats] = features_file[thisAsset].attrs.get(stds_name)
+            print("Here!")
             # add stats to stats file
 #            stats_file[thisAsset].attrs.create(means_name, means[:,c:c+n_new_feats], dtype=float)
 #            stats_file[thisAsset].attrs.create(stds_name, stds[:,c:c+n_new_feats], dtype=float)
@@ -1484,5 +1486,5 @@ def load_stats_tsf(data, thisAsset, root_directory):
     stats_tsf = {'means_t_in':means,
                  'stds_t_in':stds}
     stats_file.close()
-    features_file.close()
+    #features_file.close()
     return stats_tsf

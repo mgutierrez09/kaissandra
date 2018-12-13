@@ -73,7 +73,7 @@ def test_RNN(*ins):
                         str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+
                         '.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
-                             '_nE'+str(data.nEventsPerStat)+'_test.hdf5')
+                             '_nE'+str(data.nEventsPerStat)+'_2.hdf5')
     
     if 'build_partial_raw' in config:
         build_partial_raw = config['build_partial_raw']
@@ -192,7 +192,8 @@ def test_RNN(*ins):
         stats_output = load_stats_output(data, hdf5_directory, thisAsset)
         
         if f_feats_tsf != None:
-            stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory)
+            stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory, f_feats_tsf,
+                                       load_from_stats_file=True)
         else:
             stats_tsf = []
             
