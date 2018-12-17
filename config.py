@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'CTESTTSFRESH1'
+        config_name = 'CTESTTSFRESH2'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -69,11 +69,13 @@ def configuration(*ins):
         max_var = 10
         feature_keys_manual = []#[i for i in range(37)]
         feature_keys_tsfresh = [i for i in range(37,68)]#[37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]#
+        trsfresh_from_variations = True
+        var_feats_keys_manual = [i for i in range(68,93)]
         
         # general parameters
         if_build_IO = True
         from_stats_file = True
-        IDweights = '0TESTTSFRESH1'
+        IDweights = '0TESTTSFRESH2'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
@@ -90,7 +92,7 @@ def configuration(*ins):
         num_epochs=1
         
         # test-specific parameters
-        IDresults = '1TESTTSFRESH1'
+        IDresults = '1TESTTSFRESH2'
         IO_results_name = IDresults
         startFrom = -1
         endAt = -1
@@ -113,6 +115,7 @@ def configuration(*ins):
                'max_var':max_var,
                'feature_keys_manual':feature_keys_manual,
                'feature_keys_tsfresh':feature_keys_tsfresh,
+               'trsfresh_from_variations':trsfresh_from_variations,
                
                'size_hidden_layer':size_hidden_layer,
                'L':L,
@@ -181,9 +184,7 @@ def save_config(config):
         return False
 
 def print_config(config_name):
-    """
-    
-    """
+    """ Print configuration file """
     config_filename = config_directory+config_name+config_extension
     if os.path.exists(config_filename):
         config = pickle.load( open( config_filename, "rb" ))
@@ -194,9 +195,7 @@ def print_config(config_name):
         return False
 
 def delete_config(config_name):
-    """
-    
-    """
+    """ Delete configuration file from disk """
     config_filename = config_directory+config_name+config_extension
     os.remove(config_filename)
     print("Config file "+config_name+" deleted")

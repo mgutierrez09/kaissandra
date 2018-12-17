@@ -30,7 +30,8 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('CTESTTSFRESH1')
+        config = configuration('CCOMPTS')
+    # Feed retrocompatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -39,11 +40,14 @@ def train_RNN(*ins):
         feature_keys_tsfresh = []
     else:
         feature_keys_tsfresh = config['feature_keys_tsfresh']
-    
     if 'from_stats_file' in config:
         from_stats_file = config['from_stats_file']
     else:
         from_stats_file = True
+    if 'trsfresh_from_variations' in config:
+        trsfresh_from_variations = config['trsfresh_from_variations']
+    else:
+        trsfresh_from_variations = False
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -53,7 +57,8 @@ def train_RNN(*ins):
               channels=config['channels'],
               max_var=config['max_var'],
               feature_keys_manual=feature_keys_manual,
-              feature_keys_tsfresh=feature_keys_tsfresh)
+              feature_keys_tsfresh=feature_keys_tsfresh,
+              trsfresh_from_variations=trsfresh_from_variations)
     # init structures
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']
@@ -242,7 +247,10 @@ def train_RNN(*ins):
                                 f_IO.close()
                                 file_temp.close()
                                 os.remove(file_temp_name)
-                                f_prep_IO.close()
+                                if f_prep_IO != None:
+                                    f_prep_IO.close()
+                                if f_feats_tsf != None:
+                                    f_feats_tsf.close()
                                 raise KeyboardInterrupt
                     else:
                         print("\tNot in the set. Skipped.")

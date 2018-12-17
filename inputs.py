@@ -56,7 +56,8 @@ class Data:
     cwt_weights = [5,10,2,2,10,10,5,5,5,10,5,5,10,10, 5, 5,2, 5,10,20,20,10,5,10,
                    5,10,20,2,10,5,20,10,5,2,20,20,10,10,20,20,20,20,20,20, 5,20]
     
-    AllFeatures = {"0":"bids",
+    AllFeatures = {# Manueal features
+                "0":"bids",
                 "1":"EMA01",
                 "2":"EMA05",
                 "3":"EMA1",
@@ -93,6 +94,7 @@ class Data:
                 "34":"difBidOema10",
                 "35":"difBidOema50",
                 "36":"difBidOema100",
+                # TSFRESH features
                 "37":["quantile",0.3,1],
                 "38":["quantile",0.4,1],
                 "39":["quantile",0.2,1],
@@ -123,13 +125,40 @@ class Data:
                 "64":["agg_linear_trend","mean",5,"intercept",1],
                 "65":["agg_linear_trend","min",10,"intercept",1],
                 "66":["agg_linear_trend","mean",10,"intercept",1],
-                "67":["agg_linear_trend","max",5,"intercept",1]}
+                "67":["agg_linear_trend","max",5,"intercept",1],
+                # Variations-based features
+                "68":"vars",
+                "69":"EMAvar01",
+                "70":"EMAvar05",
+                "71":"EMAvar1",
+                "72":"EMAvar5",
+                "73":"EMAvar10",
+                "74":"EMAvar50",
+                "75":"EMAvar100",
+                "76":"varVar",
+                "77":"timeIntervalVar",
+                "78":"parSARhigh20Var",
+                "79":"parSARlow20Var",
+                "80":"parSARhigh2Var",
+                "81":"parSARlow2Var",
+                "82": "timeVar",
+                "83":"maxValueVar",
+                "84":"minValueVar",
+                "85":"minOmaxVar",
+                "86":"varOema01",
+                "87":"varOema05",
+                "88":"varOema1",
+                "89":"varOema5",
+                "90":"varOema10",
+                "91":"varOema50",
+                "92":"varOema100"}
     
     
     average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
     std_var = 0.1
     std_time = 0.1
     lookAheadVector=[.1,.2,.5,1,2,5,10]
+    parsars = [20,2]
     
     def __init__(self, movingWindow=100,nEventsPerStat=1000,lB=1200,
                  channels=[0],divideLookAhead=1,lookAheadIndex=3,
@@ -137,7 +166,8 @@ class Data:
                  dateTest=['2017.09.15','2017.11.06','2017.11.07'],
                  assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
                  max_var=10, feature_keys_tsfresh=[],#[i for i in range(37,68)]
-                 noVarFeatsManual=[8,9,12,17,18,21,23,24,25,26,27,28,29]):
+                 noVarFeatsManual=[8,9,12,17,18,21,23,24,25,26,27,28,29],
+                 trsfresh_from_variations=True):
         
         self.movingWindow = movingWindow
         self.nEventsPerStat = nEventsPerStat
@@ -156,7 +186,10 @@ class Data:
         self.nFeatures = len(self.feature_keys)
         self.dateTest = dateTest
         self.assets = assets
-        self.noVarFeats = noVarFeatsManual+feature_keys_tsfresh
+        if not trsfresh_from_variations:
+            self.noVarFeats = noVarFeatsManual+feature_keys_tsfresh
+        else:
+            self.noVarFeats = noVarFeatsManual
         self.lookAheadIndex = lookAheadIndex
         self.max_var = max_var
         self.n_feats_tsfresh = self._get_n_feats_tsfresh()#76
@@ -1188,7 +1221,7 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
 #        else:
 #            tag = '_a_'
 #        save_as_matfile(thisAsset+tag+str(int(s/2)),thisAsset+tag+str(int(s/2)),v_support)
-#        raise ValueError
+#        raise KeyboardInterrupt
         # we only take here the entry time index, and later at DTA building the 
         # exit time index is derived from the entry time and the number of events to
         # look ahead
