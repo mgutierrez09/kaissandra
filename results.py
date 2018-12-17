@@ -1091,14 +1091,116 @@ def print_GRE(dir_origin, IDr, epoch):
     print(NZs)
     return None
 
-def merge_results():
-    """ Merge results from two different test executions 
-    Arg:
-        - 
+def init_results_dict(origin='merge'):
+    """  """
+    if origin == 'merge':
+        results_dict = {"epoch":0,
+                   "t_index":0,
+                   "RD":0,
+                   "NZ":0,
+                   "NZA":0,
+                   "AD":0.0,
+                   "ADA":0.0,
+                   "pNZ":0.0,
+                   "pNZA":0.0,
+                   "rGROI":0.0,
+                   "rROI":0.0,
+                   "sharpe":0.0,
+                   "varGROI":0.0,
+                   "varROI":0.0,
+                   "GSP":0.0,
+                   "NSP":0.0,
+                   "NO":0,
+                   "NSP2p":0.0,
+                   "SI2p":0.0,
+                   "RSI":0.0,
+                   "thr_mc":0.0,
+                   "thr_md":0.0}
+    return results_dict
+
+def merge_best_result_files(results_dir, IDr_m1, IDr_m2):
+    """ Merge files for best results.
+    Args:
+        - results_dir (string): results directory. 
     Return:
-        - None"""
+        - merged_df (pandas DataFrame): table containing merged results. """
+    best_cases = ['GROI','ROI','sharpe']
     
-    
+    # loop over best cases
+    for case in best_cases:
+        filename1 = IDr_m1+'_BR_'+case+'.txt'
+        filename2 = IDr_m2+'_BR_'+case+'.txt'
+        
+        df1 = pd.read_csv(results_dir+IDr_m1+'/'+filename1, sep='\t')
+        df2 = pd.read_csv(results_dir+IDr_m2+'/'+filename2,sep='\t')
+        
+#        print(df1)
+#        print(df2)
+        
+        # find common epochs
+        # TODO. Assume common epochs for now
+        epochs = df1.epoch.iloc[:]
+        # init results dict
+        merged_df = pd.DataFrame()
+        i = 0
+        for epoch in epochs:
+            merged_df = merged_df.append(pd.DataFrame(init_results_dict(), index=[i]))
+            merged_df.epoch.iloc[-1] = epoch
+            i += 1
+        print(merged_df.to_string())
+        #
+        
+    return merged_df
+
+def merge_t_index_results(results_dir, IDr_m1, IDr_m2):
+    """ Merge results of one t_index """
+    t_index = 0
+    t_index_dir1 = results_dir+IDr_m1+'/t'+str(t_index)+'/'
+    t_index_dir2 = results_dir+IDr_m2+'/t'+str(t_index)+'/'
+    while os.path.exists(t_index_dir1) and os.path.exists(t_index_dir2):
+        #print(t_index_dir1)
+        filename1 = t_index_dir1+IDr_m1+'t'+str(t_index)+'_results.txt'
+        filename2 = t_index_dir2+IDr_m2+'t'+str(t_index)+'_results.txt'
+        if os.path.exists(filename1) and os.path.exists(filename2):
+#            print(filename1)
+#            print(filename2)
+            df1 = pd.read_csv(filename1, sep='\t')
+            df2 = pd.read_csv(filename2,sep='\t')
+#            print(df1)
+#            print(df2)
+            # find unique epoch values
+            unique_epochs_df1 = df1.epoch.unique()
+            unique_epochs_df2 = df2.epoch.unique()
+            #print(unique_epochs_df1)
+            #print(unique_epochs_df2)
+            intersect = np.intersect1d(unique_epochs_df1, unique_epochs_df2)
+            print(intersect)
+            # find intersection between common values
+            
+            # combine columns for shared epochs
+            
+            
+        t_index += 1
+        t_index_dir1 = results_dir+IDr_m1+'/t'+str(t_index)+'/'
+        t_index_dir2 = results_dir+IDr_m2+'/t'+str(t_index)+'/'
+    if os.path.exists(t_index_dir1) or os.path.exists(t_index_dir2):
+        raise ValueError("merge 1 and 2 must have same number of t_indexes")
+    return None
+
+def merge_results(IDr_m1, IDr_m2, IDr_merged):
+    """ Merge results from two different test executions.
+    Arg:
+        - IDr_m1 (string): ID of first merging results
+        - IDr_m2 (string): ID of second merging results
+        - IDr_merged (string): ID of merged results
+    Return:
+        - None """
+    results_dir = '../RNN/results/'
+#    if os.path.exists(results_dir):
+#        raise ValueError("Results directory already exists")
+    # merge best results
+    #merge_best_result_files(results_dir, IDr_m1, IDr_m2)
+    merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
     return None
 
@@ -1163,4 +1265,14 @@ def load_GRE(dir_origin, IDr, epoch):
     NZs = pickle.load( open( dir_origin+IDr+
                                 "/NZpp_e"+str(epoch)+".p", "rb" ))
     return [GRElb, GREub, NZs]
+
+def print_cost(IDw, epochs):
+    """ Print cost value of weights IDw for some epochs.
+    Args:
+        - IDw (string): ID of weights.
+        - epochs (list): list of ints representing the epochs. If list is empty, 
+          the print all epochs """
+    costs = pickle.load( open( "../RNN/weights/"+IDw+"/cost.p", "rb" ))
     
+    print(costs)
+    return None

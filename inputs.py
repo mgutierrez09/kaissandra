@@ -1183,6 +1183,12 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         # create support numpy vectors to speed up iterations
         v_support = variations_normed_new[offset:offset+batch+seq_len, :, :]
         r_support = returns[nChannels+offset+2:nChannels+offset+batch+seq_len+2, data.lookAheadIndex]
+#        if len(stats_manual)>0:
+#            tag = '_m_'
+#        else:
+#            tag = '_a_'
+#        save_as_matfile(thisAsset+tag+str(int(s/2)),thisAsset+tag+str(int(s/2)),v_support)
+#        raise ValueError
         # we only take here the entry time index, and later at DTA building the 
         # exit time index is derived from the entry time and the number of events to
         # look ahead

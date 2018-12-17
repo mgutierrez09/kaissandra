@@ -29,11 +29,11 @@ def test_RNN(*ins):
     <DocString>
     """
     ticTotal = time.time()
-    if 0:#len(ins)>0:
+    if len(ins)>0:
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0285Nov09NTI')
+        config = configuration('CTESTTSFRESH1')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -97,7 +97,7 @@ def test_RNN(*ins):
         
     filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
     # check if file locked
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
             # sleep random time up to 10 seconds if any file is being used
@@ -305,7 +305,7 @@ def test_RNN(*ins):
     if f_feats_tsf != None:
         f_feats_tsf.close()
     # release lock
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         os.remove(filename_prep_IO+'.flag')
     # Build DTA
     if if_build_IO:

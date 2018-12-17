@@ -32,13 +32,14 @@ exit_bid_column = 'Bo'
 verbose_RNN = True
 verbose_trader = True
 test = False
-run_back_test = True
+run_back_test = False
 spread_ban = True
 ban_only_if_open = False # not in use
 
 data_dir = 'D:/SDC/py/Data_DL3/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
+io_dir = '../RNN/IOlive/'
 ADsDir = "../RNN/results/"
 hdf5_directory = 'D:/SDC/py/HDF5/'#'../HDF5/'#
 
@@ -406,8 +407,8 @@ class Trader:
             self.log_summary = self.results_dir+start_time+tag+"summary.log"
             self.results_pos = results_dir+'/positions/'+start_time+'/'
             self.budget_file = self.results_dir+start_time+tag+"budget.log"
-            self.io_dir = '../RNN/IOlive/'
-            self.ban_currencies_dir = self.io_dir+'/ban/'
+            self.ban_currencies_dir = io_dir+'/ban/'
+            
         
         self.start_time = start_time
         
@@ -1688,18 +1689,31 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
         thisAsset = AllAssets[str(ass_id)]
         
         directory_MT5_ass = directory_MT5+thisAsset+"/"
+        io_ass_dir = io_dir+thisAsset+"/"
         
         try:
             shutil.rmtree(directory_MT5_ass)
         except:
-            print(thisAsset+" Warning. Error when renewing directory")
+            print(thisAsset+" Warning. Error when renewing MT5 directory")
+            
+        try:
+            shutil.rmtree(io_ass_dir)
+        except:
+            print(thisAsset+" Warning. Error when renewing IO directory")
             
         if not os.path.exists(directory_MT5_ass):
             try:
                 os.mkdir(directory_MT5_ass)
-                print(thisAsset+" Directiory created")
+                print(directory_MT5_ass+" Directiory created")
             except:
-                print("Warning. Error when creating directory")
+                print(directory_MT5_ass+" Warning. Error when creating directory")
+        
+        if not os.path.exists(io_ass_dir):
+            try:
+                os.mkdir(io_ass_dir)
+                print(io_ass_dir+" Directiory created")
+            except:
+                print(io_ass_dir+" Warning. Error when creating directory")
 
 #def start_timer(ass_idx):
 #    """  """
@@ -1746,8 +1760,9 @@ def fetch(lists, trader, directory_MT5,
     flag_cl_name = "CL"
     flag_sl_name = "SL"
     nMaxFilesInDir = 0
-    #a = True
-    while 1:
+    tic = time.time()
+    run = True
+    while run:
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
             
@@ -1780,6 +1795,13 @@ def fetch(lists, trader, directory_MT5,
                     write_log(out, log_file)
                     
             except (FileNotFoundError,PermissionError):
+                io_ass_dir = io_dir+thisAsset+"/"
+                # check shut down command
+                if os.path.exists(io_ass_dir+'SD'):
+                    print(thisAsset+" Shutting down")
+                    os.remove(io_ass_dir+'SD')
+                    run = False
+                    time.sleep(5*np.random.rand(1))
                 time.sleep(.01)
             # update file extension
             if success:
@@ -1942,7 +1964,9 @@ def fetch(lists, trader, directory_MT5,
                 
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, results, direction)
             
-    # end of while 1
+    # end of while run
+    budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
+    return budget
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               trader, results, running_assets, ass2index_mapping, lists,
@@ -2057,6 +2081,73 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         ###################### End of Trader ###########################
         event_idx += 1
     
+    # get intermediate results
+    budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
+    # get statistics
+#    perEntries = 0
+#    if trader.n_entries>0:
+#        per_net_success = trader.net_successes/trader.n_entries
+#        average_loss = np.abs(trader.average_loss)/(trader.n_entries-trader.net_successes)
+#        per_gross_success = trader.gross_successes/trader.n_entries
+#        perSL = trader.stoplosses/trader.n_entries
+#        ROI_per_entry = 100*trader.tROI_live/trader.n_entries
+#    else:
+#        per_net_success = 0.0
+#        average_loss = 0.0
+#        per_gross_success = 0.0
+#        perSL = 0.0
+#        ROI_per_entry = 0.0
+#        
+#    GROI = trader.gross_earnings/trader.init_budget
+#    earnings = trader.budget-trader.init_budget
+#    ROI = earnings/trader.init_budget
+#    budget = trader.budget
+#    
+#    out = ("\n"+str([AllAssets[str(ass)] for ass in running_assets])[1:-1]+
+#           ":\nGROI = {0:.3f}% ".format(100*GROI)+"ROI = {0:.3f}%".format(100*ROI)+
+#           " Sum GROI = {0:.3f}%".format(100*trader.tGROI_live)+
+#           " Sum ROI = {0:.3f}%".format(100*trader.tROI_live)+
+#          " Final budget {0:.2f}E".format(trader.budget)+
+#          " Earnings {0:.2f}E".format(earnings)+
+#          " per earnings {0:.3f}%".format(100*(
+#                  trader.budget-trader.init_budget)/trader.init_budget)+
+#          " ROI per position {0:.3f}%".format(ROI_per_entry))
+#    write_log(out, trader.log_file)
+#    write_log(out, trader.log_summary)
+#    print(out)
+#    out = ("Number entries "+str(trader.n_entries)+
+#           " per entries {0:.2f}%".format(100*perEntries)+
+#           " per net success "+"{0:.3f}%".format(100*per_net_success)+
+#          " per gross success "+"{0:.3f}%".format(100*per_gross_success)+
+#          " av loss {0:.3f}%".format(100*average_loss)+
+#          " per sl {0:.3f}%".format(100*perSL))
+#    write_log(out, trader.log_file)
+#    write_log(out, trader.log_summary)
+#    print(out)
+#    out = "DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins"
+#    write_log(out, trader.log_file)
+#    write_log(out, trader.log_summary)
+#    print(out)
+#    
+#    results.update_weekly_results(GROI, earnings, ROI, trader.n_entries, trader.stoplosses,
+#                                  trader.tGROI_live, trader.tROI_live, trader.net_successes,
+#                                  average_loss, trader.average_win, trader.gross_successes)
+#    # TODO: update badget
+##    init_budget = trader.budget
+#        
+#    out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+
+#           "Total ROI = {0:.3f}% ".format(results.total_ROI)+
+#           "Sum GROI = {0:.3f}% ".format(results.sum_GROI)+
+#           "Sum ROI = {0:.3f}%".format(results.sum_ROI)+
+#           " Accumulated earnings {0:.2f}E\n".format(results.total_earnings))
+#    print(out)
+#    write_log(out, trader.log_summary)
+#    write_log(out, trader.log_file)
+    
+    return budget
+
+def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
+    """  """
     # get statistics
     #t_entries = trader.n_pos_opened+trader.n_pos_extended
     perEntries = 0
@@ -2713,9 +2804,9 @@ def launch():
     import datetime as dt
     import time
     
-    synchroned_run = True
+    synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    running_assets = assets#[12,7,14]
+    running_assets = [12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
         disp = Process(target=run, args=[running_assets,start_time])

@@ -67,7 +67,7 @@ def train_RNN(*ins):
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
             # sleep random time up to 10 seconds if any file is being used
@@ -173,7 +173,7 @@ def train_RNN(*ins):
         if f_feats_tsf != None:
             stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory, f_feats_tsf,
                                        load_from_stats_file=True)
-            print(stats_tsf)
+            #print(stats_tsf)
         else:
             stats_tsf = []
         if if_build_IO:
@@ -280,7 +280,7 @@ def train_RNN(*ins):
     if f_feats_tsf != None:
         f_feats_tsf.close()
     # release lock
-    if len(ins)>0:
+    if 0:#len(ins)>0:
         os.remove(filename_prep_IO+'.flag')
     
     if if_build_IO:

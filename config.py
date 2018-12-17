@@ -94,7 +94,7 @@ def configuration(*ins):
         IO_results_name = IDresults
         startFrom = -1
         endAt = -1
-        save_journal = True
+        save_journal = False
         
         # feature-specific configuration
         save_stats = True

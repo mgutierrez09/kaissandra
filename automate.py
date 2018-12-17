@@ -38,7 +38,7 @@ if __name__=='__main__':
     if_get_features = False
     if_train = True
     if_test = True
-    its = 5
+    its = 20
     configs = ['CTESTTSFRESH1']
     configs_list = []
     # load configuration files
