@@ -1020,66 +1020,67 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-    numberNetwors = 10
-    list_IDresults = ['100287Nov09NTI','100287Nov09NTI','100285Nov09NTI',
-                      '100285Nov09NTI','100287Nov09NTI','100285Nov09NTI',
-                      '100287Nov09NTI','100285Nov09NTI','100287Nov09NTI',
-                      '100285Nov09NTI']#
-    list_IDgre = list_IDresults#['100287Nov09','100286Nov09','100285Nov09']
-    list_name = ['87_6_2','87_6_3','85_16_3','85_16_2','87_6_1','85_16_1',
-                 '87_6_0','85_16_0','87_6_4','85_16_4']
-    list_epoch_gre = [6,6,16,16,6,16,6,16,6,16]
-    list_epoch_journal = [6,6,16,16,6,16,6,16,6,16]
-    list_t_index = [2,3,3,2,1,1,0,0,4,4]
-    list_w_str = ["55" for i in range(numberNetwors)]
-    list_use_GRE = [True for i in range(numberNetwors)]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
-    list_lb_mc_op = [.5 for i in range(numberNetwors)]
-    list_lb_md_op = [.8 for i in range(numberNetwors)]
-    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.6 for i in range(numberNetwors)]
-    list_ub_mc_op = [1 for i in range(numberNetwors)]
-    list_ub_md_op = [1 for i in range(numberNetwors)]
-    list_ub_mc_ext = [1 for i in range(numberNetwors)]
-    list_ub_md_ext = [1 for i in range(numberNetwors)]
-    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    numberNetwors = 10
+#    list_IDresults = ['100287Nov09NTI','100287Nov09NTI','100285Nov09NTI',
+#                      '100285Nov09NTI','100287Nov09NTI','100285Nov09NTI',
+#                      '100287Nov09NTI','100285Nov09NTI','100287Nov09NTI',
+#                      '100285Nov09NTI']#
+#    list_IDgre = list_IDresults#['100287Nov09','100286Nov09','100285Nov09']
+#    list_name = ['87_6_2','87_6_3','85_16_3','85_16_2','87_6_1','85_16_1',
+#                 '87_6_0','85_16_0','87_6_4','85_16_4']
+#    list_epoch_gre = [6,6,16,16,6,16,6,16,6,16]
+#    list_epoch_journal = [6,6,16,16,6,16,6,16,6,16]
+#    list_t_index = [2,3,3,2,1,1,0,0,4,4]
+#    list_w_str = ["55" for i in range(numberNetwors)]
+#    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
+#    list_lb_mc_op = [.5 for i in range(numberNetwors)]
+#    list_lb_md_op = [.8 for i in range(numberNetwors)]
+#    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.6 for i in range(numberNetwors)]
+#    list_ub_mc_op = [1 for i in range(numberNetwors)]
+#    list_ub_md_op = [1 for i in range(numberNetwors)]
+#    list_ub_mc_ext = [1 for i in range(numberNetwors)]
+#    list_ub_md_ext = [1 for i in range(numberNetwors)]
+#    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    list_groi_limit = [-.1 for i in range(numberNetwors)]
+#    list_thr_tp = [1000 for i in range(numberNetwors)]
+#    list_fix_spread = [False for i in range(numberNetwors)]
+#    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
+#    list_if_dir_change_close = [False for i in range(numberNetwors)]
+#    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+    
+    
+    numberNetwors = 1
+    list_IDresults = ['100277NEWO']#
+    list_IDgre = ['100277NEWO']
+    list_name = ['277_19_2']
+    list_epoch_gre = [19]
+    list_epoch_journal = [19]
+    list_use_GRE = [True]
+    list_weights = [np.array([.5,.5])]
+    list_w_str = ['55']
+    list_margin_ext = ['variable']
+    list_t_index = [3]
+    list_lb_mc_op = [.6]
+    list_lb_md_op = [.8]
+    list_lb_mc_ext = [.5]
+    list_lb_md_ext = [.6]
+    list_ub_mc_op = [1]
+    list_ub_md_op = [1]
+    list_ub_mc_ext = [1]
+    list_ub_md_ext = [1]
+    list_thr_sl = [1000]
+    list_thr_tp = [1000]
     list_groi_limit = [-.1 for i in range(numberNetwors)]
-    list_thr_tp = [1000 for i in range(numberNetwors)]
-    list_fix_spread = [False for i in range(numberNetwors)]
-    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
-    list_if_dir_change_close = [False for i in range(numberNetwors)]
-    list_if_dir_change_extend = [False for i in range(numberNetwors)]
-    
-    
-#    numberNetwors = 1
-#    list_IDresults = ['100287Nov09NTI']#
-#    list_IDgre = ['100287Nov09NTI']
-#    list_name = ['87_06']
-#    list_epoch_gre = [6]
-#    list_epoch_journal = [6]
-#    list_use_GRE = [True]
-#    list_weights = [np.array([.5,.5])]
-#    list_w_str = ['55']
-#    list_margin_ext = ['variable']
-#    list_t_index = [2]
-#    list_lb_mc_op = [.6]
-#    list_lb_md_op = [.8]
-#    list_lb_mc_ext = [.5]
-#    list_lb_md_ext = [.6]
-#    list_ub_mc_op = [1]
-#    list_ub_md_op = [1]
-#    list_ub_mc_ext = [1]
-#    list_ub_md_ext = [1]
-#    list_thr_sl = [1000]
-#    list_thr_tp = [1000]
-#    list_fix_spread = [False]
-#    list_fixed_spread_pips = [4]
-#    list_max_lots_per_pos = [.1]
-#    list_flexible_lot_ratio = [False]
-#    list_if_dir_change_close = [False]
-#    list_if_dir_change_extend = [False]
+    list_fix_spread = [False]
+    list_fixed_spread_pips = [4]
+    list_max_lots_per_pos = [.1]
+    list_flexible_lot_ratio = [False]
+    list_if_dir_change_close = [False]
+    list_if_dir_change_extend = [False]
     
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -1094,7 +1095,7 @@ if __name__ == '__main__':
                           if_dir_change_extend=list_if_dir_change_extend[i], 
                           name=list_name[i],use_GRE=list_use_GRE[i],
                           t_index=list_t_index[i],IDr=list_IDresults[i],
-                          IDgre=list_IDgre[i],
+                          IDgre=list_IDgre[i],lim_groi=list_groi_limit[i],
                           epoch=str(list_epoch_gre[i]),weights=list_weights[i]) 
                           for i in range(len(list_t_index))]
     

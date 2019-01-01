@@ -30,7 +30,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('CCOMPTS')
+        config = configuration('C0302NEWO')
     # Feed retrocompatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -294,18 +294,17 @@ def train_RNN(*ins):
     if if_build_IO:
         f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
         f_IO.close()
-    
     # print percent of samps per level
-    if not if_build_IO:
+    else:
         # get ass_IO_ass from disk
         f_IO = h5py.File(filename_IO,'r')
         ass_IO_ass = f_IO.attrs.get("ass_IO_ass")
         f_IO.close()
     # get total number of samps
     m_t = ass_IO_ass[-1]
+    print("Samples to RNN: "+str(m_t))
     if if_build_IO:
-        print("Samples to RNN: "+str(m_t)+".\nPercent per level:"+
-              str(totalSampsPerLevel/m_t))
+        print("Percent per level:"+str(totalSampsPerLevel/m_t))
     # reset graph
     tf.reset_default_graph()
     # start session

@@ -442,5 +442,5 @@ class modelRNN(object):
             # end of for epoch in range(epochStart,epochStart+self._num_epochs):
         except KeyboardInterrupt:
             f_IO.close()
-            end()
+            raise KeyboardInterrupt
     

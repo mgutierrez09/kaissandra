@@ -212,6 +212,501 @@ def get_features(*ins):
         os.remove(filename_raw+'.flag')
         os.remove(filename_prep_IO+'.flag')
 
+def init_ema_variations(data, SymbolVar, nExS, mW):
+    """ Init EMA vector for variation-based features.
+    Args:
+        - data (Data object): data info.
+    Return:
+        - em (np array): initialized EMA vector. """
+    # init exponetial means
+    em = np.zeros((data.lbd.shape))+SymbolVar[0]
+    for i in range(nExS-mW):
+        em = data.lbd*em+(1-data.lbd)*SymbolVar[i]
+        
+    return em
+
+def init_parsar(data, firstSymbol):
+    """ Init ParSar object.
+    Args:
+        - data (Data object): data-related parameters.
+        - firstSymbol (float): first symbol value (bid, variation, ...).
+    Return:
+        - ParSar (ParSar object): initialized ParSar structure. """
+    class ParSar:
+        oldSARh = firstSymbol+np.zeros((len(data.parsars)))
+        oldSARl = firstSymbol+np.zeros((len(data.parsars)))
+        HP = np.zeros((len(data.parsars)))
+        LP = 100000+np.zeros((len(data.parsars)))
+        stepAF = 0.02
+        AFH = stepAF+np.zeros((len(data.parsars)))
+        AFL = stepAF+np.zeros((len(data.parsars)))
+        maxAF = np.array(data.parsars)*stepAF
+    
+    return ParSar
+
+def update_parsar(data, parsar, min_value, max_value, thisPeriodVariations):
+    """ Update ParSar values and structure.
+    Args:
+        - parsar (ParSar object): structure with current values of Par Sar.
+        - min_value (int): min value of current window.
+        - max_value (int): max value of current window
+        - thisPeriodVariations (np array): variation values of current period.
+    Return:
+        - parsar (ParSar object): updated structure with current values of Par Sar.
+        - parSARhigh (np vector): current high par sar values.
+        - parSARlow (np vector): current low par sar values."""
+    thisParSARhigh = np.zeros((len(data.parsars)))
+    thisParSARlow = np.zeros((len(data.parsars)))
+    for ps in range(len(data.parsars)):
+        parsar.HP[ps] = np.max([max_value,parsar.HP[ps]])
+        parsar.LP[ps] = np.min([min_value,parsar.LP[ps]])
+        thisParSARhigh[ps] = parsar.oldSARh[ps]+parsar.AFH[ps]*(parsar.HP[ps]-parsar.oldSARh[ps])
+        thisParSARlow[ps] = parsar.oldSARl[ps]-parsar.AFL[ps]*(parsar.oldSARl[ps]-parsar.LP[ps])
+        if thisParSARhigh[ps]<parsar.HP[ps]:
+            parsar.AFH[ps] = np.min([parsar.AFH[ps]+parsar.stepAF,parsar.maxAF[ps]])
+            parsar.LP[ps] = np.min(thisPeriodVariations)
+        if thisParSARlow[ps]>parsar.LP[ps]:
+            parsar.AFL[ps] = np.min([parsar.AFH[ps]+parsar.stepAF,parsar.maxAF[ps]])
+            parsar.HP[ps] = np.max(thisPeriodVariations)
+        parsar.oldSARh[ps] = thisParSARhigh[ps]
+        parsar.oldSARl[ps] = thisParSARlow[ps]
+            
+    return parsar, thisParSARhigh, thisParSARlow
+
+def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE, m):
+    """
+    Function that calculates features from raw data in per batches
+    Args:
+        - data
+        - features
+        - DateTime
+        - SymbolBid
+    Returns:
+        - features
+    """    
+    tic = time.time()
+    # init scalars
+    
+    secsInDay = 86400.0
+    var_feat_keys_manual = data.var_feat_keys
+    em = init_ema_variations(data, SymbolVar, nExS, mW)
+    n_feats_tsfresh = data.n_feats_tsfresh
+    features_tsfresh = data.feature_keys_tsfresh
+    
+    parSar = init_parsar(data, SymbolVar[0])
+    
+    batch_size = 10000000
+    par_batches = int(np.ceil(m/batch_size))
+    l_index = 0
+    # loop over batched
+    for b in range(par_batches):
+        # get m
+        m_i = np.min([batch_size, m-b*batch_size])
+        
+        # init structures
+        tsf = np.zeros((m_i, n_feats_tsfresh))
+        EMA = np.zeros((m_i, em.shape[0]))
+        variations = np.zeros((m_i))
+        variance = np.zeros((m_i))
+        maxValue = np.zeros((m_i))
+        minValue = np.zeros((m_i))
+        timeInterval = np.zeros((m_i))
+        timeSecs = np.zeros((m_i))
+        parSARhigh = np.zeros((m_i, len(data.parsars)))
+        parSARlow = np.zeros((m_i, len(data.parsars)))
+ 
+        for mm in range(m_i):
+            
+            startIndex = l_index+mm*mW
+            endIndex = startIndex+nExS
+            thisPeriod = range(startIndex,endIndex)
+            thisPeriodVariations = SymbolVar[thisPeriod]
+            newBidsIndex = range(endIndex-mW,endIndex)
+            
+            # tsfresh features
+            c = 0
+            for f in features_tsfresh:
+                params = data.AllFeatures[str(f)]
+                n_new_feats = params[-1]
+                params = data.AllFeatures[str(f)]
+                feats = feval(params[0],thisPeriodVariations,params[1:])
+                n_new_feats = params[-1]
+                tsf[mm,c:c+n_new_feats] = feats
+                c += n_new_feats
+                    
+            
+            condition_ema = 69 in var_feat_keys_manual or 70 in var_feat_keys_manual or 71 in var_feat_keys_manual\
+                or 72 in var_feat_keys_manual or 73 in var_feat_keys_manual or 74 in var_feat_keys_manual\
+                or 75 in var_feat_keys_manual
+            if condition_ema:
+                for i in newBidsIndex:
+                    em = data.lbd*em+(1-data.lbd)*SymbolVar[i]
+            if 77 in var_feat_keys_manual:
+                t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                timeInterval[mm] = (te-t0).seconds/nExS
+            if 68 in var_feat_keys_manual:
+                variations[mm] = SymbolVar[thisPeriod[-1]]
+            if condition_ema:
+                EMA[mm,:] = em
+            if 76 in var_feat_keys_manual:
+                variance[mm] = np.var(thisPeriodVariations)
+            if 83 in var_feat_keys_manual:
+                maxValue[mm] = np.max(thisPeriodVariations)
+            if 84 in var_feat_keys_manual:
+                minValue[mm] = np.min(thisPeriodVariations)
+            if 82 in var_feat_keys_manual:
+                timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/secsInDay
+            condition_parsar = 78 in var_feat_keys_manual or 79 in var_feat_keys_manual \
+                or 80 in var_feat_keys_manual or 81 in var_feat_keys_manual
+            if condition_parsar:
+                parSar, parSARhigh[mm,:], parSARlow[mm,:] = update_parsar\
+                    (data, parSar, minValue[mm], maxValue[mm], thisPeriodVariations)
+            
+        # end of for mm in range(m_i):
+        l_index = startIndex+mW
+        #print(l_index)
+        toc = time.time()
+        print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+        # update features vector
+        init_idx = b*batch_size
+        end_idx = b*batch_size+m_i
+        
+        epsilon = 1e-10
+        nF = 0
+        features[init_idx:end_idx,nF:n_feats_tsfresh] = tsf
+        nF += n_feats_tsfresh
+        if 68 in var_feat_keys_manual:
+            features[init_idx:end_idx,nF] = variations
+            nF += 1
+        if condition_ema:
+            features[init_idx:end_idx,nF:nF+data.lbd.shape[0]] = EMA
+            nF += data.lbd.shape[0]
+        if 76 in var_feat_keys_manual:
+            logVar = 10*np.log10(variance/data.std_var+1e-10)
+            features[init_idx:end_idx,nF] = logVar
+            nF += 1
+        if 77 in var_feat_keys_manual:
+            logInt = 10*np.log10(timeInterval/data.std_time+0.01)
+            features[init_idx:end_idx,nF] = logInt
+            nF += 1
+        if condition_parsar:
+            for ps in range(len(data.parsars)):
+                features[init_idx:end_idx,nF] = parSARhigh[:,ps]
+                nF += 1
+                features[init_idx:end_idx,nF] = parSARlow[:,ps]
+                nF += 1
+        if 82 in var_feat_keys_manual:
+            features[init_idx:end_idx,nF] = timeSecs
+            nF += 1
+        if 83 in var_feat_keys_manual:
+            features[init_idx:end_idx,nF] = maxValue
+            nF += 1
+        if 84 in var_feat_keys_manual:
+            features[init_idx:end_idx,nF] = minValue
+            nF += 1
+        if 85 in var_feat_keys_manual:
+            features[init_idx:end_idx,nF] = np.sign(minValue)*np.log(np.abs(minValue)+epsilon)-\
+                    np.sign(maxValue)*np.log(np.abs(maxValue)+epsilon)
+            nF += 1
+        condition_varOema = 86 in var_feat_keys_manual or 87 in var_feat_keys_manual\
+            or 88 in var_feat_keys_manual or 89 in var_feat_keys_manual or 90 in var_feat_keys_manual\
+            or 91 in var_feat_keys_manual or 92 in var_feat_keys_manual
+        if condition_varOema:
+            for i in range(data.lbd.shape[0]):          
+                features[init_idx:end_idx,nF] = np.sign(variations)*np.log(np.abs(variations)+epsilon)-\
+                    np.sign(EMA[:,i])*np.log(np.abs(EMA[:,i])+epsilon)
+                nF += 1
+            
+    return features
+
+def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directory, 
+                     separators_directory, ass, save_stats):
+    """  """
+    data = Data(var_feat_keys=var_feat_keys, feature_keys_tsfresh=feature_keys_tsfresh)
+    f_raw = h5py.File(filename_raw,'r')
+    thisAsset = data.AllAssets[str(ass)]
+    print(thisAsset)
+    nExS = data.nEventsPerStat
+    mW = data.movingWindow
+    nF = len(data.var_feat_keys)+data.n_feats_tsfresh
+    
+    group_raw = f_raw[thisAsset]
+    
+    filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'test.hdf5')
+    file_features = h5py.File(filename_features,'a')
+    filename_returns = (feats_var_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'test.hdf5')
+    file_returns = h5py.File(filename_returns,'a')
+    filename_symbols = (feats_var_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
+                            str(data.nEventsPerStat)+'test.hdf5')
+    file_symbols = h5py.File(filename_symbols,'a')
+    
+    if save_stats:
+        filename_stats = (feats_var_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+'_nE'+
+                                str(data.nEventsPerStat)+'test.hdf5')
+        file_stats = h5py.File(filename_stats,'a')
+        stats = {"means_in":0.0,
+                 "stds_in":0.0,
+                 "means_out":0.0,
+                 "stds_out":0.0,
+                 "m_in":0,
+                 "m_out":0}
+
+    # load separators
+    separators = load_separators(data, thisAsset, separators_directory, from_txt=1)
+    
+    for s in range(0,len(separators)-1,2):
+        
+        nE = separators.index[s+1]-separators.index[s]+1
+        # check if number of events is not enough to build two features and one return
+        if nE-data.nEventsPerStat>=2*data.nEventsPerStat:
+            print(thisAsset+" s {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+                          ". From "+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
+            
+            DateTime = group_raw["DateTime"][separators.index[s]:separators.index[s+1]+1]
+            SymbolBid = group_raw["SymbolBid"][separators.index[s]:separators.index[s+1]+1]
+            SymbolAsk = group_raw["SymbolAsk"][separators.index[s]:separators.index[s+1]+1]
+            
+            SymbolVar = SymbolBid[nExS:]-SymbolBid[:-nExS]
+            
+            nE = SymbolVar.shape[0]
+            
+            init_date, end_date = get_init_end_dates(separators, s)
+            
+            group_name = get_group_name(thisAsset, init_date, end_date)
+            
+            m_in, m_out = get_io_number_samples(nE, nExS, mW)
+            
+            features, exist_feats = retrieve_features_structure(file_features, group_name, m_in, nF)        
+    
+            if not exist_feats:
+                features = get_features_from_var_raw(data, features, DateTime[nExS:], SymbolVar, nExS, mW, nE, m_in)
+
+                stats_feats = calculate_stats_from_var_feats(features)
+
+                save_stats_fn(file_features, group_name, stats_feats)
+
+            else:
+                print("Features already exist")
+                stats_feats = retrieve_stats(file_features, group_name)
+            
+            returns, exist_rets = retrieve_returns_structure(file_returns, group_name, m_out, len(data.lookAheadVector))
+    
+            if not exist_rets:
+                returns = get_returns(data, returns, SymbolBid, nE, nExS, mW, m_in)
+
+                stats_rets = calculate_stats_from_returns(returns)
+
+                save_stats_fn(file_returns, group_name, stats_rets)
+            else:
+                print("Returns already exist")
+                stats_rets = retrieve_stats(file_returns, group_name)
+                
+            DT, B, A, exist_symbs = retrieve_symbols_structure(file_symbols, group_name, m_out, len(data.lookAheadVector))
+    
+            if not exist_symbs:
+                DT, B, A = get_symbols(data, DT, B, A, DateTime, SymbolBid, SymbolAsk, nE, nExS, mW, m_in)
+
+            else:
+                print("Symbols already exist")
+            
+            if save_stats:
+                stats["means_in"] += m_in*stats_feats['means']
+                stats["stds_in"] += m_in*stats_feats['stds']
+                stats["means_out"] += m_out*stats_rets['means']
+                stats["stds_out"] += m_out*stats_rets['stds']
+                stats["m_in"] += m_in
+                stats["m_out"] += m_out
+
+        else:
+            print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(int(s/2),int(len(separators)/2-1)))
+    
+    if save_stats:
+        stats["means_in"] = stats["means_in"]/stats["m_in"]
+        stats["stds_in"] = stats["stds_in"]/stats["m_in"]
+        stats["means_out"] = stats["means_out"]/stats["m_out"]
+        stats["stds_out"] = stats["stds_out"]/stats["m_out"]
+        
+        file_stats.attrs.create("means_in", stats["means_in"], dtype=float)
+        file_stats.attrs.create("stds_in", stats["stds_in"], dtype=float)
+        file_stats.attrs.create("means_out", stats["means_out"], dtype=float)
+        file_stats.attrs.create("stds_out", stats["stds_out"], dtype=float)
+        file_stats.attrs.create("m_in", stats["m_in"], dtype=int)
+        file_stats.attrs.create("m_out", stats["m_out"], dtype=int)
+        
+        print("\tStats saved")
+        
+        file_stats.close()
+    
+    file_features.close()
+    file_returns.close()
+    file_symbols.close()
+    f_raw.close()
+    
+    return None
+
+def calculate_stats_from_var_feats(features):
+    """  """
+    nF = features.shape[1]
+    stats = {}
+    stats["means"] = np.zeros((1,nF))
+    stats["stds"] = np.zeros((1,nF))
+    stats["m"] = features.shape[0]
+    
+    print("\t getting means and stds from features")
+    # loop over channels
+    stats["means"][0,:] = np.mean(features,axis=0,keepdims=1)
+    stats["stds"][0,:] = np.std(features,axis=0,keepdims=1)
+    
+    return stats
+
+def get_returns(data, returns, symbols, nE, nExS, mW, m_in):
+    """
+    Function that obtains the outputs from raw data.
+    Args:
+        - data:
+        - DateTime:
+        - SymbolBid:
+        - SymbolAsk:
+    Returns:
+        - outputs:
+        - ret_idx:
+    """
+    initRange = int(nExS/mW)
+    
+    np_00 = initRange*data.movingWindow-1
+    np_e0 = m_in*data.movingWindow-1
+    
+    indexOrigins = [i for i in range(np_00,np_e0,data.movingWindow)]
+
+    for nr in range(len(data.lookAheadVector)):
+        unp_0e = int(initRange*data.movingWindow+np.floor(data.nEventsPerStat*data.lookAheadVector[nr])-2)
+        unp_ee = int(np.min([m_in*data.movingWindow+np.floor(
+                data.nEventsPerStat*data.lookAheadVector[nr])-2,nE]))
+        indexEnds = [i for i in range(unp_0e,unp_ee,data.movingWindow)]
+        #fill ends wth last value
+        for i in range(len(indexEnds),len(indexOrigins)):
+            indexEnds.append(nE-1)
+        returns[:,nr] = symbols[indexEnds]-symbols[indexOrigins]
+    
+    return returns
+
+def get_symbols(data, DT, B, A, DateTime, SymbolBid, SymbolAsk, nE, nExS, mW, m_in):
+    """  """
+    initRange = int(nExS/mW)
+    
+    np_00 = initRange*data.movingWindow-1
+    np_e0 = m_in*data.movingWindow-1
+    
+    indexOrigins = [i for i in range(np_00,np_e0,data.movingWindow)]
+    DT[:,0] = DateTime[indexOrigins]
+    B[:,0] = SymbolBid[indexOrigins]
+    A[:,0] = SymbolAsk[indexOrigins]
+    for nr in range(len(data.lookAheadVector)):
+        unp_0e = int(initRange*data.movingWindow+np.floor(data.nEventsPerStat*data.lookAheadVector[nr])-2)
+        unp_ee = int(np.min([m_in*data.movingWindow+np.floor(
+                data.nEventsPerStat*data.lookAheadVector[nr])-2,nE]))
+        indexEnds = [i for i in range(unp_0e,unp_ee,data.movingWindow)]
+        #fill ends wth last value
+        for i in range(len(indexEnds),len(indexOrigins)):
+            indexEnds.append(nE-1)
+        DT[:,nr+1] = DateTime[indexEnds]
+        B[:,nr+1] = SymbolBid[indexEnds]
+        A[:,nr+1] = SymbolAsk[indexEnds]
+        
+    return DT, B, A
+def calculate_stats_from_returns(returns):
+    """  """
+    nR = returns.shape[1]
+    stats = {}
+    stats["means"] = np.zeros((1,nR))
+    stats["stds"] = np.zeros((1,nR))
+    stats["m"] = returns.shape[0]
+    
+    print("\t getting means and stds from returns")
+    # get output stats
+    stats["stds"] = np.std(returns,axis=0)
+    stats["means"] = np.mean(returns,axis=0)
+    
+    return stats
+
+def retrieve_features_structure(file_features, group_name, m_in, nF):
+    """ Retrieve features structure """
+    
+    if group_name not in file_features:
+        group = file_features.create_group(group_name)
+        features = group.create_dataset("features", (m_in,nF),dtype=float)
+        exist = False
+    else:
+        features = file_features[group_name]["features"]
+        exist = True
+    
+    return features, exist
+
+def retrieve_returns_structure(file_returns, group_rets_name, m_out, nR):
+    """  """
+    if group_rets_name not in file_returns:
+        group_rets = file_returns.create_group(group_rets_name)
+        returns = group_rets.create_dataset("returns", (m_out,nR),dtype=float)
+        exist = False
+    else:
+        returns = file_returns[group_rets_name]["returns"]
+        exist = True
+    
+    return returns, exist
+    
+def retrieve_symbols_structure(file_symbs, group_symbs_name, m_out, nR):
+    """  """
+    if group_symbs_name not in file_symbs:
+        group_symbs = file_symbs.create_group(group_symbs_name)
+        DT = group_symbs.create_dataset("DT", (m_out,nR+1),dtype='S19')
+        B = group_symbs.create_dataset("B", (m_out,nR+1),dtype=float)
+        A = group_symbs.create_dataset("A", (m_out,nR+1),dtype=float)
+        exist = False
+    else:
+        DT = file_symbs[group_symbs_name]["DT"]
+        B = file_symbs[group_symbs_name]["B"]
+        A = file_symbs[group_symbs_name]["A"]
+        exist = True
+    
+    return DT, B, A, exist
+
+def save_stats_fn(file, group_name, stats):
+    """  """
+    file[group_name].attrs.create("means", stats['means'], dtype=float)
+    file[group_name].attrs.create("stds", stats['stds'], dtype=float)
+    file[group_name].attrs.create("m", stats['m'], dtype=int)
+    
+def retrieve_stats(file, group_name):
+    """  """
+    stats = {}
+    stats['means'] = file[group_name].attrs.get("means")
+    stats['stds'] = file[group_name].attrs.get("stds")
+    stats['m'] = file[group_name].attrs.get("m")
+    return stats
+
+# Helper functions
+def get_init_end_dates(separators, s):
+    """  """
+    init_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+    end_date = dt.datetime.strftime(dt.datetime.strptime(
+               separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+    return init_date, end_date
+
+def get_group_name(thisAsset, init_date, end_date):
+    """ Geat group name in HDF5 file containing the features vector """
+    return thisAsset+'/'+init_date+end_date+'/'
+
+def get_io_number_samples(nE, nExS, mW):
+    """  """
+    # number of features and number of returns
+    m_in = int(np.floor((nE/nExS-1)*nExS/mW)+1)
+    m_out = int(m_in-nExS/mW)
+    return m_in, m_out
+
 def print_file_groups():
     """ Print groups of HDF5 file """
     data=Data(movingWindow=200,

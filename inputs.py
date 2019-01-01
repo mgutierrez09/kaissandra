@@ -157,7 +157,7 @@ class Data:
     average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
     std_var = 0.1
     std_time = 0.1
-    lookAheadVector=[.1,.2,.5,1,2,5,10]
+    lookAheadVector=[.1,.2,.5,1]
     parsars = [20,2]
     
     def __init__(self, movingWindow=100,nEventsPerStat=1000,lB=1200,
@@ -167,12 +167,14 @@ class Data:
                  assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
                  max_var=10, feature_keys_tsfresh=[],#[i for i in range(37,68)]
                  noVarFeatsManual=[8,9,12,17,18,21,23,24,25,26,27,28,29],
-                 trsfresh_from_variations=True):
+                 trsfresh_from_variations=True,
+                 var_feat_keys=[]):
         
         self.movingWindow = movingWindow
         self.nEventsPerStat = nEventsPerStat
         
         self.feature_keys_manual = feature_keys_manual
+        self.var_feat_keys = var_feat_keys
         self.n_feats_manual = len(self.feature_keys_manual)
         self.feature_keys_tsfresh = feature_keys_tsfresh
         self.lB = lB
@@ -1213,9 +1215,11 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     for i in range(chunks):
         # this batch length
         batch = np.min([samp_remaining,aloc])
+        init_idx_rets = nChannels+offset+seq_len-1
+        end_idx_rets = nChannels+offset+batch+2*seq_len-1
         # create support numpy vectors to speed up iterations
         v_support = variations_normed_new[offset:offset+batch+seq_len, :, :]
-        r_support = returns[nChannels+offset+2:nChannels+offset+batch+seq_len+2, data.lookAheadIndex]
+        r_support = returns[init_idx_rets:end_idx_rets, data.lookAheadIndex]
 #        if len(stats_manual)>0:
 #            tag = '_m_'
 #        else:
@@ -1225,11 +1229,11 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         # we only take here the entry time index, and later at DTA building the 
         # exit time index is derived from the entry time and the number of events to
         # look ahead
-        i_support = ret_idx[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
+        i_support = ret_idx[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
         if all_info:
-            dt_support = dts[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
-            b_support = bids[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
-            a_support = asks[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
+            dt_support = dts[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
+            b_support = bids[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
+            a_support = asks[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
         # update remaining samps to proceed
         samp_remaining = samp_remaining-batch
         # init formatted input and output
@@ -1252,12 +1256,12 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
                 cc += 1
             # due to substraction of features for variation, output gets the 
             # feature one entry later
-            O_i[nI,:,0] = r_support[nI:nI+seq_len]
-            I_i[nI,:,:] = i_support[nI:nI+seq_len,:]
+            O_i[nI,:,0] = r_support[nI]
+            I_i[nI,:,:] = i_support[nI,:]
             if all_info:
-                D_i[nI,:,:] = dt_support[nI:nI+seq_len,:]
-                B_i[nI,:,:] = b_support[nI:nI+seq_len,:]
-                A_i[nI,:,:] = a_support[nI:nI+seq_len,:]
+                D_i[nI,:,:] = dt_support[nI,:]
+                B_i[nI,:,:] = b_support[nI,:]
+                A_i[nI,:,:] = a_support[nI,:]
         
         
         # normalize output
@@ -1297,6 +1301,135 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     IO['X'] = X
     IO['Y'] = Y
     IO['I'] = I
+    IO['pointer'] = pointer
+    if all_info:
+        IO['D'] = D
+        IO['B'] = B
+        IO['A'] = A
+    
+    return IO, totalSampsPerLevel
+
+def build_IO_from_variations(file_temp, data, model, feats_var ,features_tsf, 
+                             returns, symbols, stats_manual, stats_in, stats_out,
+                             IO, totalSampsPerLevel, s, nE, thisAsset):
+    """
+    Function that builds RNN inputs/outputs pairs from data contained in a HDF5 file.
+    """
+    nExS = data.nEventsPerStat
+    mW = data.movingWindow
+    # total number of possible channels
+    nChannels = int(nExS/mW)
+    # sequence length
+    seq_len = model.seq_len#int((data.lB-data.nEventsPerStat)/data.movingWindow)
+    # samples allocation per batch
+    aloc = 2**20
+    # extract means and stats
+    means_in = stats_in['means']
+    stds_in = stats_in['stds']
+    stds_out = stats_out['stds']
+    # add dateTimes, bids and asks if are included in file
+    all_info = 0
+    if 'D' in IO:
+        all_info = 1
+        dts = symbols['DT']
+        bids = symbols['B']
+        asks = symbols['A']
+        
+        D = IO['D']
+        B = IO['B']
+        A = IO['A']
+
+    # extract IO structures
+    X = IO['X']
+    Y = IO['Y']
+    I = IO['I']
+    pointer = IO['pointer']
+    
+    feats_var_normed = np.minimum(np.maximum((feats_var-means_in)/\
+                     stds_in,-data.max_var),data.max_var)
+    # get some scalars
+    nSamps = feats_var_normed.shape[0]
+    samp_remaining = nSamps-nChannels-seq_len-1
+    chunks = int(np.ceil(samp_remaining/aloc))
+    # init counter of samps processed
+    offset = 0
+    # loop over chunks
+    for i in range(chunks):
+        # this batch length
+        batch = np.min([samp_remaining,aloc])
+        # create support numpy vectors to speed up iterations
+        v_support = feats_var_normed[offset:offset+batch+seq_len, :]
+        r_support = returns[nChannels+offset+2:nChannels+offset+batch+seq_len+2, data.lookAheadIndex]
+#        if len(stats_manual)>0:
+#            tag = '_m_'
+#        else:
+#            tag = '_a_'
+#        save_as_matfile(thisAsset+tag+str(int(s/2)),thisAsset+tag+str(int(s/2)),v_support)
+#        raise KeyboardInterrupt
+        # we only take here the entry time index, and later at DTA building the 
+        # exit time index is derived from the entry time and the number of events to
+        # look ahead
+        if all_info:
+            dt_support = dts[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
+            b_support = bids[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
+            a_support = asks[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
+        # update remaining samps to proceed
+        samp_remaining = samp_remaining-batch
+        # init formatted input and output
+        X_i = np.zeros((batch, seq_len, model.nFeatures))
+        # real-valued output
+        O_i = np.zeros((batch, seq_len, 1))
+        
+        D_i = np.chararray((batch, seq_len, 2),itemsize=19)
+        B_i = np.zeros((batch, seq_len, 2))
+        A_i = np.zeros((batch, seq_len, 2))
+        
+        for nI in range(batch):
+            # get input
+            X_i[nI,:,:] = v_support[nI:nI+seq_len, :]            
+            # due to substraction of features for variation, output gets the 
+            # feature one entry later
+            O_i[nI,:,0] = r_support[nI:nI+seq_len]
+            if all_info:
+                D_i[nI,:,:] = dt_support[nI:nI+seq_len,:]
+                B_i[nI,:,:] = b_support[nI:nI+seq_len,:]
+                A_i[nI,:,:] = a_support[nI:nI+seq_len,:]
+        
+        # normalize output
+        O_i = O_i/stds_out[0,data.lookAheadIndex]#stdO#
+        # update counters
+        offset = offset+batch
+        # get decimal and binary outputs
+        Y_i, y_dec = _build_bin_output(model, O_i, batch)
+        # get samples per level
+        for l in range(model.size_output_layer):
+            totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
+        # resize IO structures
+        X.resize((pointer+batch, seq_len, model.nFeatures))
+        Y.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
+        I.resize((pointer+batch, seq_len, 2))
+        # update IO structures
+        X[pointer:pointer+batch,:,:] = X_i
+        Y[pointer:pointer+batch,:,:] = Y_i
+        if all_info:
+            # resize
+            D.resize((pointer+batch, seq_len, 2))
+            B.resize((pointer+batch, seq_len, 2))
+            A.resize((pointer+batch, seq_len, 2))
+            # update
+            D[pointer:pointer+batch,:,:] = D_i
+            B[pointer:pointer+batch,:,:] = B_i
+            A[pointer:pointer+batch,:,:] = A_i
+#        save_as_matfile('X_h_n_'+str(int(s/2)),'X_h_n'+str(int(s/2)),X_i)
+#        save_as_matfile('O_h_n_'+str(int(s/2)),'O_h_n'+str(int(s/2)),O_i)
+        
+        # uodate pointer
+        pointer += batch
+        #print(pointer)
+    # end of for i in range(chunks):
+    # update dictionary
+    IO['X'] = X
+    IO['Y'] = Y
     IO['pointer'] = pointer
     if all_info:
         IO['D'] = D
