@@ -29,14 +29,15 @@ entry_ask_column = 'Ai'
 exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
-verbose_RNN = True
+verbose_RNN = False
 verbose_trader = True
 test = False
-run_back_test = False
+run_back_test = True
 spread_ban = True
 ban_only_if_open = False # not in use
 
-data_dir = 'D:/SDC/py/Data_DL3/'#'D:/SDC/py/Data_aws_5/'#
+
+data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
 io_dir = '../RNN/IOlive/'
@@ -1391,7 +1392,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
           
                 # set countdown to enter market
                 if condition:
-                    list_time_to_entry[sc][t_index].append(t_index)
+                    list_time_to_entry[sc][t_index].append(0)#model.seq_len-t_indexes[t_index]-1
                     list_list_soft_tildes[sc][t_index].append(soft_tilde_t[0,:])
                     if verbose_RNN:
                         out = thisAsset+netName+" ToBe sent DateTime "+\
@@ -1467,8 +1468,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                                                        [t_index],prob_mg,axis=0)
                 
                 # wait for output to come
-                if listCountPos[sc]>nChannels+model.seq_len+t_indexes[t_index]-1:
-                                
+                if listCountPos[sc]>nChannels+model.seq_len-1:#t_t=2:listCountPos[sc]>nChannels+model.seq_len-1
                     Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c]
                              )/stds_out[0,data.lookAheadIndex]
                     countOut+=1
@@ -1477,7 +1477,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             abs(Output_i)*model.outputGain),-(model.size_output_layer
                                -1)/2),(model.size_output_layer-1)/2)).astype(int)
                                 
-                    look_back_index = -nChannels-t_indexes[t_index]-1
+                    look_back_index = -nChannels-model.seq_len+2#-nChannels-t_indexes[t_index]-1
+#                    print("look_back_index")
+#                    print(look_back_index)
                     # compare prediction with actual output 
                     pred = list_Ylive[sc][t_index][look_back_index]
                     p_mc = list_Pmc_live[sc][t_index][look_back_index]
@@ -2326,20 +2328,12 @@ def run(running_assets, start_time):
     
     
     
-    dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
+    dateTest = ['2018.03.09']#['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
 
     ### TEMP: this data has to be included in list_data and deleted 
 #    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
 #              dateTest = dateTest,feature_keys_tsfresh=[])
     
-    list_data = [Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
-              dateTest = dateTest,feature_keys_tsfresh=[]),
-    
-                Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
-              dateTest = dateTest,feature_keys_tsfresh=[]),
-                
-                Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
-              dateTest = dateTest,feature_keys_tsfresh=[])]
     
     # flow control variables
 #    max_loop_time = [0]
@@ -2348,23 +2342,26 @@ def run(running_assets, start_time):
     
     AllAssets = Data().AllAssets
     
-    numberNetworks = 2
-    IDweights = ["000287","000285"]
-    IDresults = ['100287Nov09NTI','100285Nov09NTI']
-    list_name = ['87_6','85_16']
-    IDepoch = ["6","16"]
-    netNames = ["87","85"]
-    list_t_indexs = [[0,1,2,3],[0,1,2,3]]
-    phase_shifts = [2,2]
-    delays = [0,0]
-    mWs = [100,100]
-    nExSs = [1000,1000]
-    lBs = [1300,1300]
-    list_w_str = ["55","55"]
-    model_dict = {'size_hidden_layer':[200,100],
-                  'L':[3,3],
+    numberNetworks = 1
+    IDweights = ['000277NEWO']
+    IDresults = ['100277NEWO']
+    lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
+    list_name = ['77_27']
+    IDepoch = ['27']
+    netNames = ['27']
+    list_t_indexs = [[1]]
+    phase_shifts = [1]
+    delays = [0]
+    mWs = [100]
+    nExSs = [1000]
+    lBs = [1200]
+    list_w_str = ["55"]
+    model_dict = {'size_hidden_layer':[100],
+                  'L':[3],
                   'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[.6,.6]}
+                  'outputGain':[.6]}
+    list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
+              dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
 #    numberNetworks = 1
 #    IDweights = ["000287"]
 #    IDresults = ['100287Nov09']
@@ -2545,9 +2542,9 @@ def run(running_assets, start_time):
                                 L=model_dict['L'][i],
                                 size_output_layer=model_dict['size_output_layer'][i],
                                 outputGain=model_dict['outputGain'][i],
-                                IDgraph=IDweights[i]+IDepoch[i]) \
+                                IDgraph=IDweights[i]+IDepoch[i],
+                                lID=lIDs[i]) \
                                 for i in range(numberNetworks)]
-        
 #        list_models = [modelRNN(list_data[0],
 #                                size_hidden_layer=200,
 #                                L=3,
@@ -2804,13 +2801,14 @@ def launch():
     import datetime as dt
     import time
     
-    synchroned_run = False
+    synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    running_assets = [12,7,14]
+    running_assets = assets#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
-        disp = Process(target=run, args=[running_assets,start_time])
-        disp.start()
+        run(running_assets,start_time)
+#        disp = Process(target=run, args=[running_assets,start_time])
+#        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
             disp = Process(target=run_carefully, args=[running_assets[ass_idx:ass_idx+1],start_time])

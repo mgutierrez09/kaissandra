@@ -465,7 +465,7 @@ class Trader:
     
     def check_secondary_contition_for_opening(self):
         
-        margin = 0.0
+        margin = 0.5
         if strategys[name2str_map[self.next_candidate.strategy]].fix_spread:
             second_condition_open = (self.next_candidate!= None and 
                                      self.next_candidate.p_mc>=strategys[
@@ -563,9 +563,9 @@ class Trader:
                          self.next_candidate.p_mc, self.next_candidate.p_md, 
                          int(np.abs(self.next_candidate.bet)-1))>margin and 
                          100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
-            out = "lim GROI: "+str(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
-            print(out)
-            self.write_log(out)
+            #out = "lim GROI: "+str(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
+            #print(out)
+            #self.write_log(out)
 #             and
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
@@ -1056,14 +1056,14 @@ if __name__ == '__main__':
     numberNetwors = 1
     list_IDresults = ['100277NEWO']#
     list_IDgre = ['100277NEWO']
-    list_name = ['277_19_2']
+    list_name = ['277NEWO_19_2']
     list_epoch_gre = [19]
     list_epoch_journal = [19]
     list_use_GRE = [True]
     list_weights = [np.array([.5,.5])]
     list_w_str = ['55']
     list_margin_ext = ['variable']
-    list_t_index = [3]
+    list_t_index = [2]
     list_lb_mc_op = [.6]
     list_lb_md_op = [.8]
     list_lb_mc_ext = [.5]
@@ -1114,7 +1114,7 @@ if __name__ == '__main__':
                             "/" for i in range(len(list_t_index))]
         list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
                              str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                             "e"+str(list_epoch_journal[i])+".txt" 
+                             "e"+str(list_epoch_journal[i])+".csv" 
                              for i in range(len(list_t_index))]
         entry_time_column = 'DT1'#'Entry Time
         exit_time_column = 'DT2'#'Exit Time
@@ -1357,7 +1357,7 @@ if __name__ == '__main__':
                             #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+Assets[event_idx].decode("utf-8")+" Primary condition fulfilled")
                             curr_GROI, _, _ = trader.get_rois(ass_idx, date_time='', roi_ratio=1)
                             # update GROI limit for extension
-                            trader.update_groi_limit(ass_idx, curr_GROI)
+                            #trader.update_groi_limit(ass_idx, curr_GROI)
                             if trader.check_secondary_condition_for_extention(
                                     ass_idx, curr_GROI):
                                 # include third condition for thresholds
@@ -1984,3 +1984,33 @@ if __name__ == '__main__':
 #Total entries 1154 per entries 0.97 percent gross success 59.45% percent nett success 52.60% average loss 8.67p average win 9.25p RR 1 to 1.18
 #DONE. Total time: 185.07 mins
 #Results file: 181211111952results.p
+
+#wGRE=[.5,.5] fix invest to .1 vol epoch 19 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI adaptive GROI lim=-.1%
+#Total GROI = 19.877% Total ROI = 2.420% Sum GROI = 20.241% Sum ROI = 2.413% Accumulated earnings 241.30E
+#Total entries 1038 per entries 5.72 percent gross success 63.39% percent nett success 50.39% average loss 6.45p average win 6.81p RR 1 to 1.07
+#DONE. Total time: 50.79 mins
+#Results file: 190104103458results.p
+
+#wGRE=[.5,.5] fix invest to .1 vol epoch 19 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1%
+#Total GROI = 19.960% Total ROI = 2.473% Sum GROI = 20.338% Sum ROI = 2.470% Accumulated earnings 246.97E
+#Total entries 1032 per entries 5.69 percent gross success 63.95% percent nett success 50.58% average loss 6.52p average win 6.84p RR 1 to 1.07
+#DONE. Total time: 63.10 mins
+#Results file: 190104112919results.p
+    
+#wGRE=[.5,.5] fix invest to .1 vol epoch 27 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% 
+#Total GROI = 21.300% Total ROI = 2.975% Sum GROI = 21.673% Sum ROI = 2.978% Accumulated earnings 297.80E
+#Total entries 1121 per entries 7.08 percent gross success 62.18% percent nett success 51.12% average loss 7.06p average win 7.27p RR 1 to 1.08
+#DONE. Total time: 58.36 mins
+#Results file: 190104142004results.p
+
+#wGRE=[.5,.5] fix invest to .1 vol epoch 27 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% margin open .5p
+#Total GROI = 18.187% Total ROI = 7.308% Sum GROI = 18.974% Sum ROI = 7.520% Accumulated earnings 752.00E
+#Total entries 667 per entries 4.21 percent gross success 66.72% percent nett success 55.17% average loss 7.00p average win 7.73p RR 1 to 1.36
+#DONE. Total time: 51.35 mins
+#Results file: 190104154708results.p
+
+#wGRE=[.5,.5] fix invest to .1 vol epoch 19 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% margin open .5p
+#Total GROI = 13.552% Total ROI = 4.029% Sum GROI = 13.877% Sum ROI = 4.085% Accumulated earnings 408.53E
+#Total entries 514 per entries 2.83 percent gross success 66.15% percent nett success 53.50% average loss 6.79p average win 7.39p RR 1 to 1.25
+#DONE. Total time: 59.25 mins
+#Results file: 190104164854results.p

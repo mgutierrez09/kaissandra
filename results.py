@@ -13,7 +13,8 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import sqlite3
-import h5py
+import time
+#import h5py
 #import matplotlib.pyplot as plt
 import scipy.io as sio
 
@@ -46,7 +47,7 @@ def init_TR(resultsDir,ID,t_index,thr_mc,save_results):
         if os.path.exists(resultsDir+ID+"/t"+str(t_index)+"/")==False:
             os.mkdir(resultsDir+ID+"/t"+str(t_index)+"/")
         
-        filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"_results.txt"
+        filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"_results.csv"
         
         if not os.path.exists(filename):
             TRdf = pd.DataFrame()
@@ -60,7 +61,7 @@ def init_TR(resultsDir,ID,t_index,thr_mc,save_results):
 def save_results_v20(TRdf, t_index, thr_mc, epoch, lastTrained, save_results=0, resultsDir="",ID=""):
     
     if save_results:
-        filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"_results.txt"
+        filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"_results.csv"
         # format table
         if epoch==lastTrained:#TRdf.shape[0]==1:
             TRdf["epoch"] = TRdf["epoch"].astype(int).fillna(0)
@@ -79,7 +80,14 @@ def save_results_v20(TRdf, t_index, thr_mc, epoch, lastTrained, save_results=0, 
         #print("TR saved")
         #print(TRdf)
         #TRdf = TRdf.drop_duplicates(subset='tGROI')
-        TRdf.to_csv(filename,sep='\t',float_format='%.3f',index_label='index')
+        success = 0
+        while not success:
+            try:
+                TRdf.to_csv(filename,sep='\t',float_format='%.3f',index_label='index')
+                success = 1
+            except PermissionError:
+                print("WARNING! PermissionError. Close programs using "+filename)
+                time.sleep(1)
     
     return None
 
@@ -151,7 +159,7 @@ def get_last_saved_epoch(resultsDir, ID, t_index):
     """
     <DocString>
     """
-    filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"_results.txt"
+    filename = resultsDir+ID+"/t"+str(t_index)+"/"+ID+"t"+str(t_index)+"_results.csv"
     if os.path.exists(filename):
         TR = pd.read_csv(filename,sep='\t',index_col="index")
         last_saved_epoch = TR.epoch.iloc[-1]
@@ -162,9 +170,9 @@ def get_last_saved_epoch(resultsDir, ID, t_index):
 def save_best_results(BR_GROI, BR_ROI, BR_sharpe, resultsDir, ID, save_results):
     
     if save_results:
-        filename_GROIs = resultsDir+ID+"/"+ID+"_BR_GROI.txt"
-        filename_ROIs = resultsDir+ID+"/"+ID+"_BR_ROI.txt"
-        filename_sharpes = resultsDir+ID+"/"+ID+"_BR_sharpe.txt"
+        filename_GROIs = resultsDir+ID+"/"+ID+"_BR_GROI.csv"
+        filename_ROIs = resultsDir+ID+"/"+ID+"_BR_ROI.csv"
+        filename_sharpes = resultsDir+ID+"/"+ID+"_BR_sharpe.csv"
         
         
         if os.path.exists(filename_ROIs):
@@ -477,7 +485,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                                     if os.path.exists(journal_dir)==False:
                                         os.mkdir(journal_dir)
                                     
-                                    journal_id = IDresults+"t"+str(t_index)+"mc"+str(thr_mc)+"md"+str(thr_md)+"e"+str(epoch)+".txt"
+                                    journal_id = IDresults+"t"+str(t_index)+"mc"+str(thr_mc)+"md"+str(thr_md)+"e"+str(epoch)+".csv"
                                     Journal.to_csv(journal_dir+'J'+journal_id,sep='\t')#float_format='%.3f'
                                     log_journal.to_csv(journal_dir+'LG'+journal_id,sep='\t',float_format='%.3f')
                                     log_journal.sort_values(by=['DateTime']).to_csv(journal_dir+'LGS'+journal_id,float_format='%.3f')
@@ -624,7 +632,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
         #                            AD_resume[0,thr_idx] = 2/3*AccDir+1/3*AccDirA
                                     #print(thr_idx)
                                     #if t<model.seq_len:
-                                    AD_resumes[t,map_idx2thr[thr_idx],0] = 2/3*AccDir+1/3*AccDirA#max(1.7/3*(AccDir-.5)+1.3/3*(AccDirA-.33), 0)#
+                                    AD_resumes[t,map_idx2thr[thr_idx],0] = max(1.7/3*(AccDir-.5)+1.3/3*(AccDirA-.33), 0)#2/3*AccDir+1/3*AccDirA#
                                     thr_idx += 1
                                 else:
                                     print("eROIpp for mc between "+
@@ -827,10 +835,10 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     GROI_vector = np.array([])
     avGROI = 0.0 # average GROI for all trades happening concurrently and for the
                # same asset
-    if Journal.shape[0]>0:
-        log=log.append({'DateTime':Journal[DT1].iloc[0],
-                        'Message':Journal['Asset'].iloc[0]+" open" },
-                        ignore_index=True)
+#    if Journal.shape[0]>0:
+#        log=log.append({'DateTime':Journal[DT1].iloc[0],
+#                        'Message':Journal['Asset'].iloc[0]+" open" },
+#                        ignore_index=True)
     
     e = 0
     for e in range(1,Journal.shape[0]):
@@ -842,9 +850,9 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
         sameAss = Journal['Asset'].iloc[e] == Journal['Asset'].iloc[e-1] 
         if sameAss and extendExitMarket:# and sameDir:
             #print("continue")
-            log=log.append({'DateTime':Journal[DT1].iloc[e],
-                            'Message':Journal['Asset'].iloc[e]+
-                            " extended" },ignore_index=True)
+#            log=log.append({'DateTime':Journal[DT1].iloc[e],
+#                            'Message':Journal['Asset'].iloc[e]+
+#                            " extended" },ignore_index=True)
             n_pos_extended += 1
             this_pos_extended += 1
             avGROI += Journal['GROI'].iloc[e]
@@ -879,17 +887,17 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
             
             fNSP = fNSP+((GROI-fixed_spread_ratios)>0)*1
                 
-            log=log.append({'DateTime':Journal[DT2].iloc[e-1],'Message':" Close "+
-                            Journal['Asset'].iloc[e-1]+
-                            " entry bid {0:.4f}".format(Journal[B1].iloc[eInit])+
-                            " exit bid {0:.4f}".format(Journal[B2].iloc[e-1])+
-                            " GROI {0:.4f}% ".format(100*GROI)+
-                            " ROI {0:.4f}% ".format(100*ROI)+" tGROI {0:.4f}% ".format(100*rGROI)},
-                            ignore_index=True)
-            
-            log=log.append({'DateTime':Journal[DT1].iloc[e],
-                            'Message':Journal['Asset'].iloc[e]+
-                            " open" },ignore_index=True)
+#            log=log.append({'DateTime':Journal[DT2].iloc[e-1],'Message':" Close "+
+#                            Journal['Asset'].iloc[e-1]+
+#                            " entry bid {0:.4f}".format(Journal[B1].iloc[eInit])+
+#                            " exit bid {0:.4f}".format(Journal[B2].iloc[e-1])+
+#                            " GROI {0:.4f}% ".format(100*GROI)+
+#                            " ROI {0:.4f}% ".format(100*ROI)+" tGROI {0:.4f}% ".format(100*rGROI)},
+#                            ignore_index=True)
+#            
+#            log=log.append({'DateTime':Journal[DT1].iloc[e],
+#                            'Message':Journal['Asset'].iloc[e]+
+#                            " open" },ignore_index=True)
             n_pos_opned += 1
 
             eInit = e
@@ -920,12 +928,12 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
         if ROI>0:
             net_succ_counter += 1
         
-        log = log.append({'DateTime':Journal[DT2].iloc[eInit],
-                          'Message':Journal['Asset'].iloc[eInit]+
-                          " close GROI {0:.4f}% ".format(100*GROI)+
-                          " ROI {0:.4f}% ".format(100*ROI)+
-                          " tGROI {0:.4f}% ".format(100*rGROI) },
-                          ignore_index=True)
+#        log = log.append({'DateTime':Journal[DT2].iloc[eInit],
+#                          'Message':Journal['Asset'].iloc[eInit]+
+#                          " close GROI {0:.4f}% ".format(100*GROI)+
+#                          " ROI {0:.4f}% ".format(100*ROI)+
+#                          " tGROI {0:.4f}% ".format(100*rGROI) },
+#                          ignore_index=True)
     
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
@@ -1159,8 +1167,8 @@ def merge_t_index_results(results_dir, IDr_m1, IDr_m2):
     t_index_dir2 = results_dir+IDr_m2+'/t'+str(t_index)+'/'
     while os.path.exists(t_index_dir1) and os.path.exists(t_index_dir2):
         #print(t_index_dir1)
-        filename1 = t_index_dir1+IDr_m1+'t'+str(t_index)+'_results.txt'
-        filename2 = t_index_dir2+IDr_m2+'t'+str(t_index)+'_results.txt'
+        filename1 = t_index_dir1+IDr_m1+'t'+str(t_index)+'_results.csv'
+        filename2 = t_index_dir2+IDr_m2+'t'+str(t_index)+'_results.csv'
         if os.path.exists(filename1) and os.path.exists(filename2):
 #            print(filename1)
 #            print(filename2)
