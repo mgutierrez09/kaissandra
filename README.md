@@ -1,6 +1,6 @@
 # Kaissandra
-[![Build Status]()
-[![Documentation Status]()
+[![Build Status](aa)
+[![Documentation Status](bb)
 
 * This is the readme.
 
