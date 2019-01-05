@@ -30,7 +30,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0302NEWO')
+        config = configuration('C0277INVO')
     # Feed retrocompatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]

@@ -17,7 +17,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'C0302NEWO'
+        config_name = 'C0277INVO'
         config_filename = config_directory+config_name+config_extension
         
         # data parameters
@@ -61,8 +61,8 @@ def configuration(*ins):
 #                '2018.03.19','2018.03.20']
         
         
-        movingWindow = 200
-        nEventsPerStat = 2000
+        movingWindow = 100
+        nEventsPerStat = 1000
         lB = int(nEventsPerStat+movingWindow*2)
         assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
         channels = [0]
@@ -75,7 +75,7 @@ def configuration(*ins):
         # general parameters
         if_build_IO = True
         from_stats_file = True
-        IDweights = '000302NEWO'
+        IDweights = '000277INVO'
         
         hdf5_directory = 'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
@@ -86,13 +86,13 @@ def configuration(*ins):
         size_output_layer=5
         keep_prob_dropout=1
         miniBatchSize=32
-        outputGain=1
+        outputGain=.6
         commonY=3
         lR0=0.0001
-        num_epochs=1
+        num_epochs=20
         
         # test-specific parameters
-        IDresults = '100302NEWO'
+        IDresults = '100277INVO'
         IO_results_name = IDresults
         startFrom = -1
         endAt = -1
@@ -100,7 +100,7 @@ def configuration(*ins):
         
         # feature-specific configuration
         save_stats = True
-        load_features_from = 'tsfresh' # {manual, tsfresh}
+        load_features_from = 'manual' # {manual, tsfresh}
         build_partial_raw = False
         
         # add parameters to config dictionary
