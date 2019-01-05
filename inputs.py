@@ -1252,7 +1252,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
             cc = 0
             for r in range(nC):
                 # get input
-                X_i[nI,:,cc*nF:(cc+1)*nF] = v_support[nI+seq_len:nI:-1, :, r]
+                v_s_s = v_support[nI:nI+seq_len, :, r]
+                X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s[::-1,:]#v_support[nI+seq_len-1:nI-1:-1, :, r]#[nI:nI+seq_len, :, r]
                 cc += 1
             # due to substraction of features for variation, output gets the 
             # feature one entry later
