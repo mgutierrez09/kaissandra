@@ -20,7 +20,7 @@ from simulateTrader import load_in_memory
 from inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
 from RNN import modelRNN
 import shutil
-
+from local_config import *
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -38,11 +38,11 @@ ban_only_if_open = False # not in use
 
 
 data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
-directory_MT5 = ("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
-                     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
+directory_MT5 = local_vars.directory_MT5#("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
+                #     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
 io_dir = '../RNN/IOlive/'
 ADsDir = "../RNN/results/"
-hdf5_directory = 'D:/SDC/py/HDF5/'#'../HDF5/'#
+hdf5_directory = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'#'../HDF5/'#
 
 init_budget = 10000.0
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
