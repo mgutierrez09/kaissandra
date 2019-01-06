@@ -2356,10 +2356,10 @@ def run(running_assets, start_time):
     nExSs = [1000,1000]
     lBs = [1200,1200]
     list_w_str = ['55','55']
-    model_dict = {'size_hidden_layer':[100],
-                  'L':[3],
+    model_dict = {'size_hidden_layer':[100,100],
+                  'L':[3,3],
                   'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[.6]}
+                  'outputGain':[.6,.6]}
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
               dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
 #    numberNetworks = 1
