@@ -2342,20 +2342,20 @@ def run(running_assets, start_time):
     
     AllAssets = Data().AllAssets
     
-    numberNetworks = 1
-    IDweights = ['000277NEWO']
-    IDresults = ['100277NEWO']
+    numberNetworks = 2
+    IDweights = ['000277NEWO','000277NEWO']
+    IDresults = ['100277NEWO','100277NEWO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['77_27']
-    IDepoch = ['27']
-    netNames = ['27']
-    list_t_indexs = [[1]]
-    phase_shifts = [1]
-    delays = [0]
-    mWs = [100]
-    nExSs = [1000]
-    lBs = [1200]
-    list_w_str = ["55"]
+    list_name = ['77_27','77_19']
+    IDepoch = ['27','19']
+    netNames = ['27','19']
+    list_t_indexs = [[0,1,2],[0,1,2]]
+    phase_shifts = [5,5]
+    delays = [0,0]
+    mWs = [100,100]
+    nExSs = [1000,1000]
+    lBs = [1200,1200]
+    list_w_str = ['55','55']
     model_dict = {'size_hidden_layer':[100],
                   'L':[3],
                   'size_output_layer':[5 for i in range(numberNetworks)],
