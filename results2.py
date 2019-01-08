@@ -92,7 +92,7 @@ def save_results_v20(TRdf, t_index, thr_mc, epoch, lastTrained, save_results=0, 
     return None
 
 def print_results_v20(TRdf, results, epoch, thr_md, thr_mc, t_index, save_results = 0):
-    
+    """  """
     print("Epoch = "+str(epoch)+". Time index = "+str(t_index)+
           ". Threshold MC = "+str(thr_mc)+". Threshold MD = "+str(thr_md))
     if thr_md==.5 and thr_mc==.5:
@@ -167,6 +167,18 @@ def get_last_saved_epoch(resultsDir, ID, t_index):
         last_saved_epoch = -1
     return last_saved_epoch
 
+def get_last_saved_epoch2(resultsDir, ID, t_index):
+    """
+    <DocString>
+    """
+    filename = resultsDir+ID+"/results.csv"
+    if os.path.exists(filename):
+        TR = pd.read_csv(filename,sep='\t',index_col="index")
+        last_saved_epoch = TR.epoch.iloc[-1]
+    else:
+        last_saved_epoch = -1
+    return last_saved_epoch
+
 def save_best_results(BR_GROI, BR_ROI, BR_sharpe, resultsDir, ID, save_results):
     
     if save_results:
@@ -194,6 +206,611 @@ def save_best_results(BR_GROI, BR_ROI, BR_sharpe, resultsDir, ID, save_results):
         BR_sharpe.to_csv(filename_sharpes,sep='\t',float_format='%.3f')
     
     return None
+
+def get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc):
+    """  """
+#    y_mc = (t_y[:,0]>thr_mc) & (t_y[:,0]<=ub_mc) # non-zeros market change bits
+#    y_md_down = y_mc & (t_y[:,1]>t_y[:,2]) # non-zeros market direction down
+    
+    # extract non-zeros (y_c0>0.5)
+    y_mc = (t_y[:,0]>thr_mc) & (t_y[:,0]<=ub_mc)
+    ys = {'y_mc':y_mc, # non-zeros market change bits
+          'y_md_down':y_mc & (t_y[:,1]>t_y[:,2]), # non-zeros market direction down
+          'y_md_up':y_mc & (t_y[:,1]<t_y[:,2]), # non-zeros market direction up
+          'y_mc_tilde':(t_soft_tilde[:,0]>thr_mc) & (t_soft_tilde[:,0]<=ub_mc), # predicted non-zeros market change bits
+          'probs_mc':t_soft_tilde[:,0]}
+    return ys
+
+def get_md_vectors(t_soft_tilde, t_y, ys_mc, size_output_layer, thr_md, ub_md):
+    """  """
+    y_dec_md_tilde = np.argmax(t_soft_tilde[:,1:3], 1)-1# predicted dec out
+    y_md_down_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,1]>thr_md) & (t_soft_tilde[:,1]<=ub_md)
+    y_md_up_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,2]>=thr_md) & (t_soft_tilde[:,2]<=ub_md)
+    y_md_tilde = y_md_down_tilde | y_md_up_tilde
+    y_dec_md_tilde = y_dec_md_tilde-(y_dec_md_tilde-1)*(-1)+2
+    y_dec_md = np.argmax(t_y[:,3:], 1)-(size_output_layer-1)/2 # real output in decimal
+    ys_md = {# non-zeros market direction down ([y_md1,y_md2]=10)
+             'y_md_down_tilde':y_md_down_tilde,
+             # non-zeros market direction down ([y_md1,y_md2]=10)
+             'y_md_up_tilde':y_md_up_tilde,
+             'y_md_tilde':y_md_tilde, #non-zeros market direction up ([y_c1,y_c2]=01)
+             'nz_indexes':ys_mc['y_mc'] & y_md_tilde, # non-zero indexes index
+             'y_md_down_intersect':ys_mc['y_md_down'] & y_md_down_tilde, # indicates up bits (y_c2) correctly predicted
+             'y_md_up_intersect':ys_mc['y_md_up'] & y_md_up_tilde, # indicates up bits (y_c2) correctly predicted
+             'y_dec_md':y_dec_md, # real output in decimal
+             'y_dec_md_tilde':y_dec_md_tilde, 
+             'y_dec_mg':np.argmax(t_y[:,3:], 1)-(size_output_layer-1)/2,
+             'y_dec_mg_tilde':np.argmax(t_soft_tilde[:,3:], 1)-(size_output_layer-1)/2,
+             # difference between y and y_tilde {0=no error, 1=error in mc. 2=error in md}
+             'diff_y_y_tilde':np.abs(np.sign(y_dec_md_tilde)-np.sign(y_dec_md)),
+             'probs_md':np.maximum(t_soft_tilde[:,2],t_soft_tilde[:,1])
+            }
+    
+#    y_md_down_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,1]>thr_md) & (t_soft_tilde[:,1]<=ub_md)
+#    # non-zeros market direction up ([y_c1,y_c2]=01)
+#    y_md_up_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,2]>=thr_md) & (t_soft_tilde[:,2]<=ub_md)
+#    # make it randon
+#    #y_md_rand = np.random.rand(m)
+#    #y_md_down_tilde = y_mc_tilde & (y_md_rand<(1-thr_md))
+#    #y_md_up_tilde = y_mc_tilde & (y_md_rand>=thr_md)
+#    # up and down indexes
+#    y_md_tilde = y_md_down_tilde | y_md_up_tilde
+#    nz_indexes = ys_mc['y_mc'] & y_md_tilde # non-zero indexes index
+#    y_md_down_intersect = ys_mc['y_md_down'] & y_md_down_tilde # indicates down bits (y_c1) correctly predicted
+#    y_md_up_intersect = ys_mc['y_md_up'] & y_md_up_tilde # indicates up bits (y_c2) correctly predicted
+#    y_dec_md = np.argmax(t_y[:,3:], 1)-(size_output_layer-1)/2 # real output in decimal
+#    y_dec_md_tilde = np.argmax(t_soft_tilde[:,1:3], 1)-1 # predicted dec out
+#    y_dec_md_tilde = y_dec_md_tilde-(y_dec_md_tilde-1)*(-1)+2
+#    # market gain
+#    #y_mdg_down_tilde = y_md_down_tilde & y_down_tg
+#    #y_mdg_up_tilde = y_md_up_tilde & y_up_tg
+#    #y_mdg_tilde = y_mdg_down_tilde | y_mdg_up_tilde
+#    #nz_mdg_indexes = y_mc & y_mdg_tilde
+#    # y in decimal for MG
+#    y_dec_mg = np.argmax(t_y[y_md_tilde,3:], 1)-(size_output_layer-1)/2
+#    y_dec_mg_tilde = np.argmax(t_soft_tilde[y_md_tilde,3:], 1)-(size_output_layer-1)/2
+#    
+#    # difference between y and y_tilde {0=no error, 1=error in mc. 2=error in md}
+#    diff_y_y_tilde = np.abs(np.sign(y_dec_md_tilde[y_md_tilde])-np.sign(y_dec_md[y_md_tilde]))
+#    probs_md = np.maximum(t_soft_tilde[y_md_tilde,2],t_soft_tilde[y_md_tilde,1])
+    
+    return ys_md
+
+def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index):
+    """  """
+    print("Epoch = "+str(epoch)+". Time index = "+str(t_index)+
+          ". Threshold MC = "+str(thr_mc)+". Threshold MD = "+str(thr_md))
+    if thr_md==.5 and thr_mc==.5:
+        print("J_test = "+str(J_test)+", J_train = "+
+              str(J_train)+", Accuracy="+str(results["Acc"]))
+    #print("".format())
+    print("RD = {0:d} ".format(results["RD"])+
+           "NZ = {0:d} ".format(results["NZ"])+
+           "NZA = {0:d} ".format(results["NZA"])+
+           "pNZ = {0:.3f}% ".format(results["pNZ"])+
+           "pNZA = {0:.3f}% ".format(results["pNZA"])+
+           "AD = {0:.2f}% ".format(results["AD"])+
+           "ADA = {0:.2f}% ".format(results["ADA"])+
+           "NO = {0:d} ".format(results["NO"])+
+           "GSP = {0:.2f}% ".format(results["GSP"])+
+           "NSP = {0:.2f}%".format(results["NSP"]))
+
+    #print(". AccDirA = {2:.2f}%".format(results["NZA"],results["accDirectionAll"]))
+    print("SI2 = {0:.2f}% ".format(results["SI2"])+
+          "SI = {0:.2f}% ".format(results["SI"])+
+          "eGROI = {0:.2f}% ".format(results["eGROI"])+
+          "eROI = {0:.2f}% ".format(results["eROI"])+
+          "eROI1 = {0:.2f}% ".format(results["eROI2"])+
+          "eROI2 = {0:.2f}%".format(results["eROI1"]))
+    return None
+
+
+def get_results_entries():
+    """  """
+    results_entries = ['epoch','t_index','thr_mc','thr_md','AD','ADA','GSP','NSP','NO',
+                       'NZ','NZA','RD','NSP.5','NSP1','NSP2','NSP3',
+                       'NSP4','NSP5','SI.5','SI1','SI2','SI3','SI4','SI5','SI',
+                       'eGROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
+                       'eROI5','eROI','pNZ','pNZA','tGROI','tROI','eRl1',
+                       'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2']
+    return results_entries
+
+def get_costs_entries():
+    """  """
+    return ['epoch','J_train','J_test']
+    
+def init_results_dir(resultsDir, IDresults):
+    """  """
+    filedir = resultsDir+IDresults+'/'
+    results_filename = resultsDir+IDresults+'/results.csv'
+    costs_filename = resultsDir+IDresults+'/costs.csv'
+    if not os.path.exists(filedir):
+        os.makedirs(filedir)
+    if not os.path.exists(results_filename):
+        pd.DataFrame(columns = get_results_entries()).to_csv(results_filename, 
+                            mode="w",index=False,sep='\t')
+    if not os.path.exists(costs_filename):
+        pd.DataFrame(columns = get_costs_entries()).to_csv(costs_filename, 
+                            mode="w",index=False,sep='\t')
+        
+    return results_filename, costs_filename
+
+def init_results_struct(epoch, thr_mc, thr_md, t_index):
+    """  """
+    results = {}
+    results['epoch'] = epoch
+    results['t_index'] = t_index
+    results['thr_mc'] = thr_mc
+    results['thr_md'] = thr_md
+    return results
+
+def get_basic_results_struct(ys_mc, ys_md, results, Journal, m):
+    """  """
+    # market change accuracy
+    results['Acc'] = 1-np.sum(np.abs(ys_mc['y_mc']^ys_mc['y_mc_tilde']))/m 
+    results['NZA'] = np.sum(ys_md['y_md_tilde']) # number of non-zeros all
+    results['NZ'] = np.sum(ys_md['nz_indexes']) # Number of non-zeros
+    results['RD'] =  np.sum(ys_md['y_md_down_intersect'])+\
+        np.sum(ys_md['y_md_up_intersect']) # right direction
+    #a=p
+    if results['NZ']>0:
+        results['AD'] = 100*results['RD']/results['NZ'] # accuracy direction
+    else:
+        results['AD'] = 0
+    if results['NZA']>0:
+        results['ADA'] = 100*results['RD']/results['NZA'] # accuracy direction all
+    else:
+        results['ADA'] = 0
+    results['pNZ'] = 100*results['NZ']/m # percent of non-zeros
+    results['pNZA'] = 100*results['NZA']/m # percent of non-zeros all
+    results['tGROI'] = Journal['GROI'].sum()
+    results['tROI'] = Journal['ROI'].sum()
+    return results
+
+def save_journal_fn(journal, journal_dir, journal_id):
+    """ save journal in disk """
+    journal.index.name = 'index'
+    if not os.path.exists(journal_dir):
+        os.mkdirs(journal_dir)
+    success = 0
+    while not success:
+        try:
+            journal.to_csv(journal_dir+journal_id,sep='\t')
+            success = 1
+        except PermissionError:
+            print("WARNING! PermissionError. Close programs using "+journal_dir+journal_id)
+            time.sleep(1)
+    
+    return None
+
+def save_results_fn(filename, results):
+    """ save results in disc as pandas data frame """
+    df = pd.DataFrame(results, index=[0])\
+        [pd.DataFrame(columns = get_results_entries()).columns.tolist()]
+    success = 0
+    while not success:
+        try:
+            df.to_csv(filename, mode='a', header=False, index=False, sep='\t')
+            success = 1
+        except PermissionError:
+            print("WARNING! PermissionError. Close programs using "+filename)
+            time.sleep(1)
+    return None
+
+def save_costs(costs_filename, entries):
+    """  """
+    costs_entries = get_costs_entries()
+    dict_costs = {}
+    for c in range(len(costs_entries)):
+        dict_costs[costs_entries[c]] = entries[c]
+    
+    df = pd.DataFrame(dict_costs, index=[0])\
+        [pd.DataFrame(columns = costs_entries).columns.tolist()]
+    success = 0
+    while not success:
+        try:
+            df.to_csv(costs_filename, mode='a', header=False, index=False, sep='\t')
+            success = 1
+        except PermissionError:
+            print("WARNING! PermissionError. Close programs using "+costs_filename)
+            time.sleep(1)
+    return None
+
+def get_zero_result_dict(crt):
+    """  """
+    result_dict = {}
+    for key in crt.keys():
+        result_dict[key] = 0.0
+    return result_dict
+
+def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
+    """  """
+    sr = {}
+    if mc<thresholds_mc[-1]:
+        crt_mc = CR_t[mc+1][md]
+    else:
+        crt_mc = get_zero_result_dict(CR_t[mc][md])
+    if md<thresholds_md[-1]:
+        crt_md = CR_t[mc][md+1]
+    else:
+        crt_md = get_zero_result_dict(CR_t[mc][md])  
+    if md==thresholds_md[-1] and mc==thresholds_mc[-1]:
+        crt_mcd = get_zero_result_dict(CR_t[mc][md])  
+    else:
+        crt_mcd = CR_t[mc+1][md+1]
+        
+    for key in CR_t[mc][md].keys():
+        sr[key] = CR_t[mc][md][key]-crt_mc[key]-crt_md[key]+crt_mcd[key]
+    return sr
+
+def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
+                 costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10):
+    """ Get results after for one epoch.
+    Args:
+        - 
+    Return:
+        - """
+    results_filename, costs_filename = init_results_dir(resultsDir, IDresults)
+    m = y.shape[0]
+    n_days = len(data.dateTest)
+    thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
+    thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
+    granularity = 1/resolution
+    J_train = costs[IDweights+str(epoch)]
+    # cum results per t_index and mc/md combination
+    CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
+    # single results (results per MCxMD)
+    SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
+    # Journals
+    J = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
+    # to acces CR: CR[t][mc][md]
+    # loop over t_indexes
+    for t_index in range(model.seq_len):
+        # init results dictionary
+        
+        if t_index==model.seq_len:
+            # get MRC from all indexes
+            pass
+        else:
+            t_soft_tilde = soft_tilde[:,t_index,:]
+            t_y = y[:,t_index,:]
+        # loop over market change thresholds
+        for mc in range(len(thresholds_mc)):
+            thr_mc = thresholds_mc[mc]
+            # upper bound
+            ub_mc = 1#thr_mc+granularity
+            ys_mc = get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc)
+            # extract non-zeros (y_c0>0.5)
+#            y_mc = (t_y[:,0]>thr_mc) & (t_y[:,0]<=ub_mc) # non-zeros market change bits
+#            y_md_down = y_mc & (t_y[:,1]>t_y[:,2]) # non-zeros market direction down
+#            y_md_up = y_mc & (t_y[:,1]<t_y[:,2]) # non-zeros market direction up
+#            y_mc_tilde = (t_soft_tilde[:,0]>thr_mc) & (t_soft_tilde[:,0]<=ub_mc) # predicted non-zeros market change bits
+#            probs_mc = t_soft_tilde[:,0]
+            # loop over market direction thresholds
+            for md in range(len(thresholds_md)):
+                thr_md = thresholds_mc[md]
+                results = init_results_struct(epoch, thr_mc, thr_md, t_index)
+                # upper bound
+                ub_md = 1#thr_md+granularity
+                ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, model.size_output_layer, thr_md, ub_md)
+#                # non-zeros market direction down ([y_md1,y_md2]=10)
+#                y_md_down_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,1]>thr_md) & (t_soft_tilde[:,1]<=ub_md)
+#                # non-zeros market direction up ([y_c1,y_c2]=01)
+#                y_md_up_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,2]>=thr_md) & (t_soft_tilde[:,2]<=ub_md)
+#                # make it randon
+#                #y_md_rand = np.random.rand(m)
+#                #y_md_down_tilde = y_mc_tilde & (y_md_rand<(1-thr_md))
+#                #y_md_up_tilde = y_mc_tilde & (y_md_rand>=thr_md)
+#                # up and down indexes
+#                y_md_tilde = y_md_down_tilde | y_md_up_tilde
+#                nz_indexes = ys_mc['y_mc'] & y_md_tilde # non-zero indexes index
+#                y_md_down_intersect = ys_mc['y_md_down'] & y_md_down_tilde # indicates down bits (y_c1) correctly predicted
+#                y_md_up_intersect = ys_mc['y_md_up'] & y_md_up_tilde # indicates up bits (y_c2) correctly predicted
+#                y_dec_md = np.argmax(t_y[:,3:], 1)-(model.size_output_layer-1)/2 # real output in decimal
+#                y_dec_md_tilde = np.argmax(t_soft_tilde[:,1:3], 1)-1 # predicted dec out
+#                y_dec_md_tilde = y_dec_md_tilde-(y_dec_md_tilde-1)*(-1)+2
+#                # market gain
+#                #y_mdg_down_tilde = y_md_down_tilde & y_down_tg
+#                #y_mdg_up_tilde = y_md_up_tilde & y_up_tg
+#                #y_mdg_tilde = y_mdg_down_tilde | y_mdg_up_tilde
+#                #nz_mdg_indexes = y_mc & y_mdg_tilde
+#                # y in decimal for MG
+#                y_dec_mg = np.argmax(t_y[y_md_tilde,3:], 1)-(model.size_output_layer-1)/2
+#                y_dec_mg_tilde = np.argmax(t_soft_tilde[y_md_tilde,3:], 1)-(model.size_output_layer-1)/2
+#                
+#                # difference between y and y_tilde {0=no error, 1=error in mc. 2=error in md}
+#                diff_y_y_tilde = np.abs(np.sign(y_dec_md_tilde[y_md_tilde])-np.sign(y_dec_md[y_md_tilde]))
+#                probs_md = np.maximum(t_soft_tilde[y_md_tilde,2],t_soft_tilde[y_md_tilde,1])
+                
+                
+                
+                # extract DTA structure for t_index
+                DTAt = DTA.iloc[::model.seq_len,:]
+                # get journal
+                Journal = get_journal(DTAt.iloc[ys_md['y_md_tilde']], 
+                                      ys_md['y_dec_mg_tilde'][ys_md['y_md_tilde']], ys_md['y_dec_mg'][ys_md['y_md_tilde']],
+                                      ys_md['diff_y_y_tilde'][ys_md['y_md_tilde']], 
+                                      ys_mc['probs_mc'][ys_md['y_md_tilde']], 
+                                      ys_md['probs_md'][ys_md['y_md_tilde']])
+                ## calculate KPIs
+                results = get_basic_results_struct(ys_mc, ys_md, results, Journal, m)
+                # get results with extensions
+                res_ext = get_extended_results(Journal, 
+                                               model.size_output_layer,
+                                               n_days)
+                results.update(res_ext)
+                # update cumm results list
+                CR[t_index][mc][md] = results
+                J[t_index][mc][md] = Journal
+                # print results
+                print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index)
+                # save results
+                save_results_fn(results_filename, results)
+                # save fuction cost
+                save_costs(costs_filename, epoch, J_test, J_train)
+            # end of for thr_md in thresholds_md:
+            print('')
+        # end of for thr_mc in thresholds_mc:
+        if save_journal:
+            journal_dir = resultsDir+IDresults+"/T"+str(t_index)+"/"
+            journal_id = "J"+str(t_index)+".csv"
+            save_journal_fn(J[t_index][0][0], journal_dir, journal_id, IDresults, t_index)
+        
+    # end of for t_index in range(model.seq_len+1):
+    
+    # get results per MCxMD entry
+#    for t_index in range(model.seq_len+1):
+#        for mc in thresholds_mc:
+#            for md in thresholds_md:
+#                SR[t_index][mc][md] = get_single_result(CR[t_index], mc, md, 
+#                                                        thresholds_mc, 
+#                                                        thresholds_md)
+    return None
+
+def get_journal(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
+    """
+    Calculates trading journal given predictions.
+    Args:
+        - DTA: DataFrame containing Entry and Exit times, Bid and Ask.
+        - y_dec_tilde: estimated output in decimal values.
+        - y_dec: real output in decimal values.
+        - diff: vector difference between real and estimated.
+        - probs: probabilties vector of estimates.
+    Returns:
+        - Journal: DataFrame with info of each transaction.
+    """
+    #print("Getting journal...")
+#    columns = ['DTi','DTo','Bi','Bo','Ai','Ao',
+#                                    'Spread','GROI','ROI','Bet','Outcome',
+#                                    'Diff','P_mc','P_md']
+    Journal = pd.DataFrame()
+    #Journal = DTA
+    Journal['Asset'] = DTA['Asset'].iloc[:]
+    Journal['DTi'] = DTA['DT1'].iloc[:]
+    Journal['DTo'] = DTA['DT2'].iloc[:]
+    Journal['Bi'] = DTA['B1'].iloc[:]
+    Journal['Bo'] = DTA['B2'].iloc[:]
+    Journal['Ai'] = DTA['A1'].iloc[:]
+    Journal['Ao'] = DTA['A2'].iloc[:]
+    
+    
+    grossROIs = np.sign(y_dec_tilde)*(DTA["B2"]-DTA["B1"])/DTA["B1"]
+    spreads =  (DTA["A2"]-DTA["B2"])/DTA["B1"]
+    tROIs = grossROIs-spreads
+    
+    Journal['Spread'] = 100*spreads
+    Journal['GROI'] = 100*grossROIs
+    Journal['ROI'] = 100*tROIs
+    Journal['Bet'] = y_dec_tilde.astype(int)
+    Journal['Outcome'] = y_dec.astype(int)
+    Journal['Diff'] = diff.astype(int)
+    Journal['P_mc'] = probs_mc
+    Journal['P_md'] = probs_md
+    
+#    Journal['GROI'] = Journal['GROI'].astype(float)
+#    Journal['Spread'] = Journal['Spread'].astype(float)
+#    Journal['ROI'] = Journal['ROI'].astype(float)
+    
+    #Journal.index = range(Journal.shape[0])
+
+    return Journal
+
+def unroll_param(struct, param, name, extentions):
+    """ unroll vectorian parameters and save in structure """
+    for p in range(len(extentions)):
+        struct[name+extentions[p]] = param[p]
+    return struct
+
+def build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel, 
+                              rSampsXlevel, successes):
+    """  """
+    res_w_ext = {'eGROI':eGROI,
+                'eROI':eROI,
+                'GSP':successes[1],
+                'NSP':successes[2],
+                'NO':successes[0],
+                'sharpe':sharpe,
+                'SI':SI,
+                #'rROIxLevel':rROIxLevel,
+                #'rSampsXlevel':rSampsXlevel,
+                #'log':log,
+                #'varRet':varRet,
+                #'successes':successes
+                }
+    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,0], 'eRl', ['1','2'])
+    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,1], 'eGl', ['1','2'])
+    res_w_ext = unroll_param(res_w_ext, rSampsXlevel[:,1], 'NOl', ['1','2'])
+    res_w_ext = unroll_param(res_w_ext, eROIs, 'eROI', ['.5','1','2','3','4','5'])
+    res_w_ext = unroll_param(res_w_ext, successes[3], 'NSP', ['.5','1','2','3','4','5'])
+    res_w_ext = unroll_param(res_w_ext, SIs, 'SI', ['.5','1','2','3','4','5'])
+    
+    return res_w_ext
+
+def get_extended_results(Journal, size_output_layer, n_days):
+    """
+    Function that calculates real ROI, GROI, spread...
+    """
+    
+#    if 'DT1' in Journal.columns:
+#        DT1 = 'DT1'
+#        DT2 = 'DT2'
+#        #A1 = 'A1'
+#        A2 = 'A2'
+#        B1 = 'B1'
+#        B2 = 'B2'
+#    else:
+    DT1 = 'DTi'
+    DT2 = 'DTo'
+    A2 = 'Ao'
+    B1 = 'Bi'
+    B2 = 'Bo'
+    
+    log = pd.DataFrame(columns=['DateTime','Message'])
+    
+    # Add GROI and ROI with real spreads
+    eGROI = 0.0
+    eROI = 0.0
+    eInit = 0#
+    n_pos_opned = 1
+    n_pos_extended = 0
+    gross_succ_counter = 0
+    net_succ_counter = 0
+    this_pos_extended = 0
+
+    rROIxLevel = np.zeros((int(size_output_layer-1),3))
+    rSampsXlevel = np.zeros((int(size_output_layer-1),2))
+        
+    fixed_spread_ratios = np.array([0.00005,0.0001,0.0002,0.0003,0.0004,0.0005])
+    # fixed ratio success percent
+    NSPs = np.zeros((fixed_spread_ratios.shape[0]))
+    eROIs = np.zeros((fixed_spread_ratios.shape))
+    ROI_vector = np.array([])
+    GROI_vector = np.array([])
+    avGROI = 0.0 # average GROI for all trades happening concurrently and for the
+               # same asset
+#    if Journal.shape[0]>0:
+#        log=log.append({'DateTime':Journal[DT1].iloc[0],
+#                        'Message':Journal['Asset'].iloc[0]+" open" },
+#                        ignore_index=True)
+    
+    e = 0
+    for e in range(1,Journal.shape[0]):
+
+        oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
+        newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e],"%Y.%m.%d %H:%M:%S")
+
+        extendExitMarket = (newEntryTime-oldExitTime<=dt.timedelta(0))
+        sameAss = Journal['Asset'].iloc[e] == Journal['Asset'].iloc[e-1] 
+        if sameAss and extendExitMarket:# and sameDir:
+            #print("continue")
+#            log=log.append({'DateTime':Journal[DT1].iloc[e],
+#                            'Message':Journal['Asset'].iloc[e]+
+#                            " extended" },ignore_index=True)
+            n_pos_extended += 1
+            this_pos_extended += 1
+            avGROI += Journal['GROI'].iloc[e]
+            level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
+            rSampsXlevel[level,0] += 1
+        else:
+            
+            thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]                
+            GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[e-1]-Journal[B1].iloc[eInit])/Journal[B1].iloc[eInit]
+            eGROI += GROI
+            avGROI += Journal['GROI'].iloc[e]
+            ROI = GROI-thisSpread
+            
+            ROI_vector = np.append(ROI_vector,ROI)
+            GROI_vector = np.append(GROI_vector,GROI)
+            eROI += ROI
+            eROIs = eROIs+GROI-fixed_spread_ratios
+            level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
+            rROIxLevel[level,0] += 100*ROI
+            rROIxLevel[level,1] += 100*GROI
+            rROIxLevel[level,2] += avGROI/this_pos_extended
+            rSampsXlevel[level,0] += 1
+            rSampsXlevel[level,1] += 1
+            avGROI = 0.0
+            this_pos_extended = 0
+            
+            if GROI>0:
+                gross_succ_counter += 1
+            if ROI>0:
+                net_succ_counter += 1
+            
+            NSPs = NSPs+((GROI-fixed_spread_ratios)>0)*1
+                
+#            log=log.append({'DateTime':Journal[DT2].iloc[e-1],'Message':" Close "+
+#                            Journal['Asset'].iloc[e-1]+
+#                            " entry bid {0:.4f}".format(Journal[B1].iloc[eInit])+
+#                            " exit bid {0:.4f}".format(Journal[B2].iloc[e-1])+
+#                            " GROI {0:.4f}% ".format(100*GROI)+
+#                            " ROI {0:.4f}% ".format(100*ROI)+" tGROI {0:.4f}% ".format(100*rGROI)},
+#                            ignore_index=True)
+#            
+#            log=log.append({'DateTime':Journal[DT1].iloc[e],
+#                            'Message':Journal['Asset'].iloc[e]+
+#                            " open" },ignore_index=True)
+            n_pos_opned += 1
+
+            eInit = e
+        # end of if (sameAss and extendExitMarket):
+    # end of for e in range(1,Journal.shape[0]):
+    
+    if Journal.shape[0]>0:
+        thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
+        GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
+                    ].iloc[eInit])/Journal[B1].iloc[-1]
+        eGROI += GROI
+        avGROI += Journal['GROI'].iloc[e]
+        
+        ROI = GROI-thisSpread
+        ROI_vector = np.append(ROI_vector,ROI)
+        GROI_vector = np.append(GROI_vector,GROI)
+        eROI += ROI
+        eROIs = eROIs+GROI-fixed_spread_ratios
+        level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
+        rROIxLevel[level,0] += 100*ROI
+        rROIxLevel[level,1] += 100*GROI
+        rROIxLevel[level,2] += avGROI/this_pos_extended
+        rSampsXlevel[level,0] += 1
+        rSampsXlevel[level,1] += 1
+        
+        if GROI>0:
+            gross_succ_counter += 1
+        if ROI>0:
+            net_succ_counter += 1
+        
+#        log = log.append({'DateTime':Journal[DT2].iloc[eInit],
+#                          'Message':Journal['Asset'].iloc[eInit]+
+#                          " close GROI {0:.4f}% ".format(100*GROI)+
+#                          " ROI {0:.4f}% ".format(100*ROI)+
+#                          " tGROI {0:.4f}% ".format(100*rGROI) },
+#                          ignore_index=True)
+    
+    gross_succ_per = gross_succ_counter/n_pos_opned
+    net_succ_per = net_succ_counter/n_pos_opned
+    NSPs = NSPs/n_pos_opned
+    successes = [n_pos_opned, 100*gross_succ_per, 100*net_succ_per, 100*NSPs]
+    #varRet = [100000*np.var(ROI_vector), 100000*np.var(GROI_vector)]
+    
+    n_bets = ROI_vector.shape[0]
+    if np.var(ROI_vector)>0:
+        sharpe = np.sqrt(n_bets)*np.mean(ROI_vector)/np.sqrt(np.var(ROI_vector))
+    else:
+        sharpe = 0.0
+
+    #rROI = rGROI-rSpread
+    #results['NO']*(results['NSP2p']/100-.5)
+    # Success index per spread level
+    SIs = n_pos_opned*(NSPs-.5)
+    SI = n_pos_opned*(net_succ_per-.5)
+    eGROI = 100*eGROI
+    eROI = 100*eROI
+    eROIs = 100*eROIs
+    res_w_ext = build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, 
+                                          rROIxLevel, rSampsXlevel, successes)
+    
+    return res_w_ext
 
 def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
                  costs, epoch, resultsDir, lastTrained, save_journal=False):
@@ -374,6 +991,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
             # loop over market change probability thresholds
             i_t_mc = 0
             for thr_mc in thresholds_mc:
+                
                 TRdf = init_TR(resultsDir,IDresults,t_index,thr_mc,save_results)
                 
                 if save_journal:
@@ -388,14 +1006,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                     
                 for ub_mc in upper_bound_mc:
                     # extract non-zeros (y_c0>0.5)
-                    
                     y_mc = (t_y[:,0]>thr_mc) & (t_y[:,0]<=ub_mc) # non-zeros market change bits
-                    print(np.sum(t_y[:,0]))
-                    print(np.sum(y_mc))
-                    print(np.sum(t_y[:,0]>thr_mc))
-                    print(np.sum(t_y[:,0]<=ub_mc))
-                    print(np.sum(t_y[:,1]>t_y[:,2]))
-                    a=p
                     y_md_down = y_mc & (t_y[:,1]>t_y[:,2]) # non-zeros market direction down
                     y_md_up = y_mc & (t_y[:,1]<t_y[:,2]) # non-zeros market direction up
                     y_mc_tilde = (t_soft_tilde[:,0]>thr_mc) & (t_soft_tilde[:,0]<=ub_mc)# predicted non-zeros market change bits
@@ -450,9 +1061,6 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                             Acc = 1-np.sum(np.abs(y_mc^y_mc_tilde))/m # market change accuracy
                             NZA = np.sum(y_md_tilde) # number of non-zeros all
                             NZ = np.sum(nz_indexes) # Number of non-zeros
-                            print(np.sum(y_md_down_intersect))
-                            print(np.sum(y_md_up_intersect))
-                            a=p
                             RD =  np.sum(y_md_down_intersect)+np.sum(y_md_up_intersect) # right direction
                             AccDir = RD/NZ # accuracy direction
                             AccDirA = RD/NZA # accuracy direction all
@@ -793,7 +1401,7 @@ def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread
     else:
         Journal = Journal[(Journal.P_mc>mc_thr) & (Journal.P_md>md_thr) & (Journal.Spread<spread_thr)]
             
-    rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes = get_real_ROI(5, Journal, n_days, fixed_spread=fixed_spread)
+    rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, varRet, successes = get_real_ROI_old(5, Journal, n_days, fixed_spread=fixed_spread)
     
 
     print("Sharpe = {0:.3f} rRl1 = {1:.4f}% rRl2 = {2:.4f}% rGROI = {3:.4f}% rROI = {4:.4f}%".format(
@@ -801,7 +1409,7 @@ def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread
     
     return None
 
-def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
+def get_real_ROI_old(size_output_layer, Journal, n_days, fixed_spread=0):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -809,14 +1417,13 @@ def get_real_ROI(size_output_layer, Journal, n_days, fixed_spread=0):
     if 'DT1' in Journal.columns:
         DT1 = 'DT1'
         DT2 = 'DT2'
-        A1 = 'A1'
+        #A1 = 'A1'
         A2 = 'A2'
         B1 = 'B1'
         B2 = 'B2'
     else:
         DT1 = 'Entry Time'
         DT2 = 'Exit Time'
-        A1 = 'Ai'
         A2 = 'Ao'
         B1 = 'Bi'
         B2 = 'Bo'
@@ -1003,7 +1610,7 @@ def getJournal_v20(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md,
     
     if get_real:
         [rGROI, rROI, fROIs, sharpe_ratio, rROIxLevel, rSampsXlevel, log, 
-         varRet, successes] = get_real_ROI(size_output_layer, 
+         varRet, successes] = get_real_ROI_old(size_output_layer, 
                                            Journal, n_days, 
                                            fixed_spread=fixed_spread)
         
@@ -1146,10 +1753,10 @@ def merge_best_result_files(results_dir, IDr_m1, IDr_m2):
     # loop over best cases
     for case in best_cases:
         filename1 = IDr_m1+'_BR_'+case+'.txt'
-        filename2 = IDr_m2+'_BR_'+case+'.txt'
+        #filename2 = IDr_m2+'_BR_'+case+'.txt'
         
         df1 = pd.read_csv(results_dir+IDr_m1+'/'+filename1, sep='\t')
-        df2 = pd.read_csv(results_dir+IDr_m2+'/'+filename2,sep='\t')
+        #df2 = pd.read_csv(results_dir+IDr_m2+'/'+filename2,sep='\t')
         
 #        print(df1)
 #        print(df2)

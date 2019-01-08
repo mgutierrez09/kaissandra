@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0277INVO')
+        config = configuration('C0287INVO')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -332,7 +332,7 @@ def test_RNN(*ins):
     with tf.Session() as sess:
         # run test RNN
         print("IDresults: "+IDresults)
-        model.test(sess, data, IDresults, IDweights, 
+        model.test2(sess, data, IDresults, IDweights, 
                    alloc, 1, 'test', startFrom=startFrom,
                    IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                    save_journal=save_journal, endAt=endAt)

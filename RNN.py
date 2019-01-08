@@ -17,6 +17,7 @@ import os
 import pandas as pd
 #import matplotlib.pyplot as plt
 from results import evaluate_RNN,save_best_results,get_last_saved_epoch
+from results2 import get_results, get_last_saved_epoch2
 
 class trainData:
     def __init__(self,X,Y):
@@ -351,6 +352,69 @@ class modelRNN(object):
             # save best results
             #save_best_results(BR_ROIs, BR_sharpes, resultsDir, IDresults, save_results)
 
+        return None
+    
+    def test2(self, sess, data, IDresults, IDweights, alloc, save_results, 
+             trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
+             save_journal=False, endAt=-1):
+        """ 
+        Test RNN network with y_c bits
+        """
+        self._sess = sess
+        
+        self._init_parameters()
+        self._compute_loss()
+        self._saver = tf.train.Saver(max_to_keep = None) # define save object
+        
+        resultsDir = "../RNN/results/"
+        
+        #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
+        if endAt==-1:
+            lastTrained = int(sorted(os.listdir("../RNN/weights/"+IDweights+"/"))[-2])
+        else:
+            lastTrained = endAt
+        
+        # load train cost function evaluations
+        costs = {}
+        if os.path.exists("../RNN/weights/"+IDweights+"/cost.p"):
+            costs = pickle.load( open( "../RNN/weights/"+IDweights+"/cost.p", "rb" ))
+        else:
+            pass
+        
+        # load IO info
+        filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
+        f_IO = h5py.File(filename_IO,'r')
+        #X_test = f_IO['X'][:]
+        Y_test = f_IO['Y'][:]
+        
+        n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
+        
+        if startFrom == -1:
+            startFrom = get_last_saved_epoch2(resultsDir, IDresults, self.seq_len)+1
+        # load models and test them
+        for epoch in range(startFrom,lastTrained+1):
+
+            self._load_graph(IDweights,epoch)
+            print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
+#            J_train = self._loss.eval()
+            softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
+            for chunck in range(n_chunks):
+                print("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+                # build input/output data
+                test_data_feed = {
+                    self._inputs: f_IO['X'][chunck*alloc:(chunck+1)*alloc],
+                    self._target: f_IO['Y'][chunck*alloc:(chunck+1)*alloc],
+                    self._dropout: 1.0
+                }
+                J_test, smo = self._sess.run([self._error,self._pred], test_data_feed)
+                
+                softMaxOut = np.append(softMaxOut,smo,axis=0)
+                #print(softMaxOut.shape)
+            print("Getting results")
+            get_results(data, self, Y_test, DTA, IDresults, IDweights, 
+                        J_test, softMaxOut, save_results, costs, epoch, 
+                        resultsDir, lastTrained, save_journal=save_journal)
+            
         return None
     
     def train(self, sess, nChunks, ID='', logFile='',IDIO='', data_format='', filename_IO='', aloc=2**17):
