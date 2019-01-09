@@ -7,6 +7,7 @@ Created on Sun Oct 21 17:03:11 2018
 
 import pickle
 import os
+from local_config import local_vars
 
 config_directory = '../config/'
 config_extension = ".config"
@@ -17,7 +18,7 @@ def configuration(*ins):
     <DocString>
     """
     if len(ins)==0:
-        config_name = 'CTESTNR'
+        config_name = 'C0310INVO'
         config_filename = config_directory+config_name+config_extension
 #        [                                               '2018.03.09',
 #                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
@@ -61,9 +62,9 @@ def configuration(*ins):
 #                '2018.03.19','2018.03.20']
         
         
-        movingWindow = 100
-        nEventsPerStat = 1000
-        lB = int(nEventsPerStat+movingWindow*2)
+        movingWindow = 200
+        nEventsPerStat = 2000
+        lB = int(nEventsPerStat+movingWindow*3)
         assets = [1]#[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
         channels = [0]
         max_var = 10
@@ -75,9 +76,9 @@ def configuration(*ins):
         # general parameters
         if_build_IO = True
         from_stats_file = True
-        IDweights = '000277INVO'
+        IDweights = '000310INVO'
         
-        hdf5_directory = 'D:/SDC/py/HDF5/'
+        hdf5_directory = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'
         IO_directory = '../RNN/IO/'
         
         # model parameters
@@ -92,10 +93,10 @@ def configuration(*ins):
         num_epochs=20
         
         # test-specific parameters
-        IDresults = '1TESTNR'
+        IDresults = '100310INVO'
         IO_results_name = IDresults
-        startFrom = 23
-        endAt = 23
+        startFrom = -1
+        endAt = -1
         save_journal = False
         
         # feature-specific configuration
@@ -153,6 +154,8 @@ def configuration(*ins):
                   "Pass name as an arg if you want to load it")
     else:
         config_filename = config_directory+ins[0]+".config"
+        if not os.path.exists():
+            os.mkdir(config_directory)
         if os.path.exists(config_filename):
             config = pickle.load( open( config_filename, "rb" ))
             print("Config file "+ins[0]+" loaded from disk")

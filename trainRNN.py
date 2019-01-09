@@ -63,6 +63,8 @@ def train_RNN(*ins):
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
+    if not os.path.exists():
+        os.mkdir(IO_directory)
     # init hdf5 files
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')

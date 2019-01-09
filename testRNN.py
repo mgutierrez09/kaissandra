@@ -68,6 +68,8 @@ def test_RNN(*ins):
     #IO_results_name = config['IO_results_name']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
+    if not os.path.exists():
+        os.mkdir(IO_directory)
     
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+

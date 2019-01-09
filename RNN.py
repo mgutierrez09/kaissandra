@@ -380,7 +380,6 @@ class modelRNN(object):
             costs = pickle.load( open( "../RNN/weights/"+IDweights+"/cost.p", "rb" ))
         else:
             pass
-        
         # load IO info
         filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
         f_IO = h5py.File(filename_IO,'r')
@@ -391,9 +390,12 @@ class modelRNN(object):
         
         if startFrom == -1:
             startFrom = get_last_saved_epoch2(resultsDir, IDresults, self.seq_len)+1
+        import math
         # load models and test them
         for epoch in range(startFrom,lastTrained+1):
-
+            if math.isnan(costs[IDweights+str(epoch)]):
+                print("J_train=NaN BREAK!")
+                break
             self._load_graph(IDweights,epoch)
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
