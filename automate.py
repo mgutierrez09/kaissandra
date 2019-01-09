@@ -39,13 +39,15 @@ if __name__=='__main__':
     if_train = True
     if_test = True
     its = 20
-    configs = ['CTESTTSFRESH1']
+    configs = ['C0310INVO']
     configs_list = []
     # load configuration files
     for config_name in configs:
         configs_list.append(configuration(config_name))
     # run train/test
     for config in configs_list:
+        # set automation-specific config fields
+        config['num_epochs'] = 1
         run_train_test(config, its, if_train, if_test, if_get_features)
         # parallelize
 #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
