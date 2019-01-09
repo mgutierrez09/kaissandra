@@ -146,6 +146,8 @@ def configuration(*ins):
         
         # save config file for later use
         if not os.path.exists(config_filename):
+            if not os.path.exists(config_directory):
+                os.mkdir(config_directory)
             pickle.dump( config, open( config_filename, "wb" ))
             print(config)
             print("Config file "+config_filename+" saved")
@@ -154,8 +156,7 @@ def configuration(*ins):
                   "Pass name as an arg if you want to load it")
     else:
         config_filename = config_directory+ins[0]+".config"
-        if not os.path.exists():
-            os.mkdir(config_directory)
+        
         if os.path.exists(config_filename):
             config = pickle.load( open( config_filename, "rb" ))
             print("Config file "+ins[0]+" loaded from disk")

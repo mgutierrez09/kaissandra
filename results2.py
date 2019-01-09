@@ -170,7 +170,7 @@ def get_basic_results_struct(ys_mc, ys_md, results, Journal, m):
     results['tROI'] = Journal['ROI'].sum()
     return results
 
-def save_journal_fn(journal, journal_dir, journal_id):
+def save_journal_fn(journal, journal_dir, journal_id, ext):
     """ save journal in disk """
     journal.index.name = 'index'
     if not os.path.exists(journal_dir):
@@ -178,10 +178,10 @@ def save_journal_fn(journal, journal_dir, journal_id):
     success = 0
     while not success:
         try:
-            journal.to_csv(journal_dir+journal_id,sep='\t')
+            journal.to_csv(journal_dir+journal_id+ext,sep='\t')
             success = 1
         except PermissionError:
-            print("WARNING! PermissionError. Close programs using "+journal_dir+journal_id)
+            print("WARNING! PermissionError. Close programs using "+journal_dir+journal_id+ext)
             time.sleep(1)
     
     return None
@@ -345,16 +345,16 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
                 print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index)
                 # save results
                 save_results_fn(results_filename, results)
+                # save journal
+                if save_journal:
+                    journal_dir = resultsDir+IDresults+'/journal/'
+                    journal_id = 'J_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)
+                    ext = '.csv'
+                    save_journal_fn(J[t_index][0][0], journal_dir, journal_id, ext)
                 
             # end of for thr_md in thresholds_md:
             print('')
         # end of for thr_mc in thresholds_mc:
-        
-        if save_journal:
-            journal_dir = resultsDir+IDresults+"/T"+str(t_index)+"/"
-            journal_id = "J"+str(t_index)+".csv"
-            save_journal_fn(J[t_index][0][0], journal_dir, journal_id, IDresults, t_index)
-        
     # end of for t_index in range(model.seq_len+1):
     # extract best result this epoch
     save_best_results(epoch, results_filename, resultsDir, IDresults)
