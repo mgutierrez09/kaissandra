@@ -174,7 +174,7 @@ def save_journal_fn(journal, journal_dir, journal_id, ext):
     """ save journal in disk """
     journal.index.name = 'index'
     if not os.path.exists(journal_dir):
-        os.mkdirs(journal_dir)
+        os.makedirs(journal_dir)
     success = 0
     while not success:
         try:
@@ -250,15 +250,13 @@ def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
 
 def get_best_results_list():
     """ get list containing the entries to get the best results from """
-    return ['eGROI','eROI','eROI.5','eROI.5','eROI1','eROI2','eROI3','eROI4',
+    return ['eGROI','eROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
            'eROI5','SI','SI.5','SI1','SI2','SI3','SI4','SI5']
     
-
-def save_best_results(epoch, results_filename, resultsDir, IDresults):
+def get_best_results(TR, results_filename, resultsDir, IDresults, save=1):
     """  """
     best_results_list = get_best_results_list()
-    TR = pd.read_csv(results_filename+'.csv', sep='\t')
-    TR = TR[TR.epoch==epoch]
+    
     best_dir = resultsDir+IDresults+'/best/'
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
@@ -268,10 +266,23 @@ def save_best_results(epoch, results_filename, resultsDir, IDresults):
             pd.DataFrame(columns = get_results_entries()).to_csv(best_filename, 
                         mode="w",index=False,sep='\t')
         idx = TR[b].idxmax()
-        df = pd.DataFrame(TR.loc[idx:idx])
-        df.to_csv(best_filename, mode='a', header=False, index=False, sep='\t')
-        print("Best "+b+"="+str(TR[b].loc[idx])+" t_index="+str(TR['t_index'].loc[idx])+
-              " thr_mc="+str(TR['thr_mc'].loc[idx])+" thr_md="+str(TR['thr_md'].loc[idx]))
+        if save:
+            df = pd.DataFrame(TR.loc[idx:idx])
+            success = 0
+            while not success:
+                try:
+                    df.to_csv(best_filename, mode='a', header=False, index=False, sep='\t')
+                    success = 1
+                except PermissionError:
+                    print("WARNING! PermissionError. Close programs using "+
+                          best_filename)
+                    time.sleep(1)
+        
+        print("Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+
+              " t_index "+str(TR['t_index'].loc[idx])+
+              " thr_mc "+str(TR['thr_mc'].loc[idx])+
+              " thr_md "+str(TR['thr_md'].loc[idx])+
+              " epoch "+str(TR['epoch'].loc[idx]))
     return None
 
 def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
@@ -292,8 +303,6 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
     CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # single results (results per MCxMD)
     SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
-    # Journals
-    J = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # to acces CR: CR[t][mc][md]
     # save fuction cost
     save_costs(costs_filename, [epoch, J_test, J_train])
@@ -336,11 +345,11 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
                 res_ext, log = get_extended_results(Journal,
                                                model.size_output_layer,
                                                n_days, resultsDir, IDresults,
-                                               epoch, t_index, thr_mc, thr_md)
+                                               epoch, t_index, thr_mc, thr_md,
+                                               get_positions=save_journal)
                 results.update(res_ext)
                 # update cumm results list
                 CR[t_index][mc][md] = results
-                J[t_index][mc][md] = Journal
                 # print results
                 print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index)
                 # save results
@@ -350,14 +359,16 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
                     journal_dir = resultsDir+IDresults+'/journal/'
                     journal_id = 'J_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)
                     ext = '.csv'
-                    save_journal_fn(J[t_index][0][0], journal_dir, journal_id, ext)
+                    save_journal_fn(Journal, journal_dir, journal_id, ext)
                 
             # end of for thr_md in thresholds_md:
             print('')
         # end of for thr_mc in thresholds_mc:
     # end of for t_index in range(model.seq_len+1):
     # extract best result this epoch
-    save_best_results(epoch, results_filename, resultsDir, IDresults)
+    TR = pd.read_csv(results_filename+'.csv', sep='\t')
+    TR = TR[TR.epoch==epoch]
+    get_best_results(TR, results_filename, resultsDir, IDresults)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:
@@ -366,7 +377,7 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
 #                                                        thresholds_mc, 
 #                                                        thresholds_md)
     print("Time={0:.2f}".format(time.time()-tic)+" secs")
-    return None
+    return results_filename
 
 def get_journal(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
     """
@@ -478,8 +489,18 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
         if not os.path.exists(positions_dir):
             os.mkdir(positions_dir)
         #if not os.path.exists(positions_dir+positions_filename):
-        pd.DataFrame(columns=columns_positions).to_csv(positions_dir+
+        success = 0
+        while not success:
+            try:
+                pd.DataFrame(columns=columns_positions).to_csv(positions_dir+
                         positions_filename, mode="w",index=False,sep='\t')
+                success = 1
+            except PermissionError:
+                print("WARNING! PermissionError. Close programs using "+positions_dir+
+                        positions_filename)
+                time.sleep(1)
+
+        
     # Add GROI and ROI with real spreads
     eGROI = 0.0
     eROI = 0.0
@@ -556,9 +577,9 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
             
             NSPs = NSPs+((GROI-fixed_spread_ratios)>0)
             if get_positions:
-                this_list = [Journal['Asset'].iloc[e],Journal[DT1].iloc[eInit][:11],
-                                 Journal[DT1].iloc[eInit][12:],Journal[DT2].iloc[e][:11],
-                                 Journal[DT2].iloc[e][12:],100*GROI,100*ROI,
+                this_list = [Journal['Asset'].iloc[e-1],Journal[DT1].iloc[eInit][:10],
+                                 Journal[DT1].iloc[eInit][11:],Journal[DT2].iloc[e-1][:10],
+                                 Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
                                  100*thisSpread,this_pos_extended]
                 for l in range(len(this_list)):
                     list_pos[l].append(this_list[l])
@@ -573,6 +594,7 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
                                 " ROI {0:.4f}% ".format(100*ROI)+
                                 " tGROI {0:.4f}% ".format(100*eGROI)},
                                 ignore_index=True)
+                # WARNING!! Might be e-1. To be checked!!
                 log=log.append({'DateTime':Journal[DT1].iloc[e],
                                 'Message':Journal['Asset'].iloc[e]+
                                 " open" },ignore_index=True)
@@ -598,7 +620,8 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
         level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
         rROIxLevel[level,0] += 100*ROI
         rROIxLevel[level,1] += 100*GROI
-        rROIxLevel[level,2] += avGROI/this_pos_extended
+        if this_pos_extended>0:
+            rROIxLevel[level,2] += avGROI/this_pos_extended
         rSampsXlevel[level,0] += 1
         rSampsXlevel[level,1] += 1
         
@@ -614,9 +637,9 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
                               " TGROI {0:.4f}% ".format(100*eGROI) },
                               ignore_index=True)
         if get_positions:
-                this_list = [Journal['Asset'].iloc[e],Journal[DT1].iloc[eInit][:11],
-                                 Journal[DT1].iloc[eInit][12:],Journal[DT2].iloc[e][:11],
-                                 Journal[DT2].iloc[e][12:],100*GROI,100*ROI,
+                this_list = [Journal['Asset'].iloc[e-1], Journal[DT1].iloc[eInit][:10],
+                                 Journal[DT1].iloc[eInit][11:], Journal[DT2].iloc[e-1][:10],
+                                 Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
                                  100*thisSpread,this_pos_extended]
                 for l in range(len(this_list)):
                     list_pos[l].append(this_list[l])
@@ -633,8 +656,17 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
                     'ext':list_pos[8]}
         df = pd.DataFrame(dict_pos)\
             [pd.DataFrame(columns = columns_positions).columns.tolist()]
-        df.to_csv(positions_dir+positions_filename, mode='a', 
+        success = 0
+        while not success:
+            try:
+                df.to_csv(positions_dir+positions_filename, mode='a', 
                   header=False, index=False, sep='\t',float_format='%.4f')
+                success = 1
+            except PermissionError:
+                print("WARNING! PermissionError. Close programs using "+
+                      positions_dir+positions_filename)
+                time.sleep(1)
+        
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
     NSPs = NSPs/n_pos_opned

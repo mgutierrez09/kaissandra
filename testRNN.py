@@ -22,7 +22,7 @@ from inputs import (Data,
                     load_manual_features,
                     load_tsf_features,
                     load_returns)
-from config import configuration
+from config import retrieve_config
 
 def test_RNN(*ins):
     """
@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = configuration('C0287INVO')
+        config = retrieve_config('C0287INVO')
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -68,7 +68,7 @@ def test_RNN(*ins):
     #IO_results_name = config['IO_results_name']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
-    if not os.path.exists():
+    if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+

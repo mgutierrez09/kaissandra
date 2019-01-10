@@ -20,7 +20,7 @@ from inputs import (Data,
                     load_returns,
                     load_manual_features,
                     load_tsf_features)
-from config import configuration
+from config import retrieve_config
 
 
 def train_RNN(*ins):
@@ -30,7 +30,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C0287INVO')
+        config = retrieve_config('C0287INVO')
     # Feed retrocompatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -63,7 +63,7 @@ def train_RNN(*ins):
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']
     IO_directory = config['IO_directory']
-    if not os.path.exists():
+    if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     # init hdf5 files
     filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+

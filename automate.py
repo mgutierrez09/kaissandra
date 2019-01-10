@@ -9,7 +9,7 @@ import time
 from multiprocessing import Process
 from trainRNN import train_RNN
 from testRNN import test_RNN
-from config import configuration
+from config import retrieve_config
 from features import get_features
 
 def run_train_test(config, its, if_train, if_test, if_get_features):
@@ -43,7 +43,7 @@ if __name__=='__main__':
     configs_list = []
     # load configuration files
     for config_name in configs:
-        configs_list.append(configuration(config_name))
+        configs_list.append(retrieve_config(config_name))
     # run train/test
     for config in configs_list:
         # set automation-specific config fields

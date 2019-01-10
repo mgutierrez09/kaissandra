@@ -17,7 +17,7 @@ import os
 import pandas as pd
 #import matplotlib.pyplot as plt
 from results import evaluate_RNN,save_best_results,get_last_saved_epoch
-from results2 import get_results, get_last_saved_epoch2
+from results2 import get_results, get_last_saved_epoch2, get_best_results
 
 class trainData:
     def __init__(self,X,Y):
@@ -413,9 +413,13 @@ class modelRNN(object):
                 softMaxOut = np.append(softMaxOut,smo,axis=0)
                 #print(softMaxOut.shape)
             print("Getting results")
-            get_results(data, self, Y_test, DTA, IDresults, IDweights, 
+            results_filename = get_results(data, self, Y_test, DTA, IDresults, IDweights, 
                         J_test, softMaxOut, save_results, costs, epoch, 
                         resultsDir, lastTrained, save_journal=save_journal)
+        
+        TR = pd.read_csv(results_filename+'.csv', sep='\t')
+        print("\nThe very best:")
+        get_best_results(TR, results_filename, resultsDir, IDresults)
             
         return None
     
