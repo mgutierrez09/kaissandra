@@ -24,7 +24,7 @@ def configuration(*ins):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'C0310INVO'
+        config_name = 'C0288INVO'
     
     config_filename = config_directory+config_name+config_extension
     
@@ -74,11 +74,11 @@ def configuration(*ins):
     if 'movingWindow' in entries:
         movingWindow = entries['movingWindow']
     else:
-        movingWindow = 200
+        movingWindow = 100
     if 'nEventsPerStat' in entries:
         nEventsPerStat = entries['nEventsPerStat']
     else:
-        nEventsPerStat = 2000
+        nEventsPerStat = 1000
     if 'lB' in entries:
         lB = entries['lB']
     else:
@@ -124,7 +124,7 @@ def configuration(*ins):
     if 'IDweights' in entries:
         IDweights = entries['IDweights']
     else:
-        IDweights = '000310INVO'
+        IDweights = '00'+config_name[1:]
     
     if 'hdf5_directory' in entries:
         hdf5_directory = entries['hdf5_directory']
@@ -177,7 +177,7 @@ def configuration(*ins):
     if 'IDresults' in entries:
         IDresults = entries['IDresults']
     else:
-        IDresults = '100310INVO'
+        IDresults = '10'+config_name[1:]#'100310INVO'
     if 'IO_results_name' in entries:
         IO_results_name = entries['IO_results_name']
     else:

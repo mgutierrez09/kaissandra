@@ -2350,7 +2350,7 @@ def run(running_assets, start_time):
     IDepoch = ['27','19']
     netNames = ['27','19']
     list_t_indexs = [[0,1,2],[0,1,2]]
-    phase_shifts = [5,5]
+    phase_shifts = [0,0]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0]

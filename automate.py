@@ -39,7 +39,7 @@ if __name__=='__main__':
     if_train = True
     if_test = True
     its = 20
-    configs = ['C0310INVO']
+    configs = ['C0288INVO']
     configs_list = []
     # load configuration files
     for config_name in configs:

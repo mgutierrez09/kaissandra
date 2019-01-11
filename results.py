@@ -390,12 +390,6 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                     # extract non-zeros (y_c0>0.5)
                     
                     y_mc = (t_y[:,0]>thr_mc) & (t_y[:,0]<=ub_mc) # non-zeros market change bits
-                    print(np.sum(t_y[:,0]))
-                    print(np.sum(y_mc))
-                    print(np.sum(t_y[:,0]>thr_mc))
-                    print(np.sum(t_y[:,0]<=ub_mc))
-                    print(np.sum(t_y[:,1]>t_y[:,2]))
-                    a=p
                     y_md_down = y_mc & (t_y[:,1]>t_y[:,2]) # non-zeros market direction down
                     y_md_up = y_mc & (t_y[:,1]<t_y[:,2]) # non-zeros market direction up
                     y_mc_tilde = (t_soft_tilde[:,0]>thr_mc) & (t_soft_tilde[:,0]<=ub_mc)# predicted non-zeros market change bits
@@ -450,9 +444,6 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                             Acc = 1-np.sum(np.abs(y_mc^y_mc_tilde))/m # market change accuracy
                             NZA = np.sum(y_md_tilde) # number of non-zeros all
                             NZ = np.sum(nz_indexes) # Number of non-zeros
-                            print(np.sum(y_md_down_intersect))
-                            print(np.sum(y_md_up_intersect))
-                            a=p
                             RD =  np.sum(y_md_down_intersect)+np.sum(y_md_up_intersect) # right direction
                             AccDir = RD/NZ # accuracy direction
                             AccDirA = RD/NZA # accuracy direction all

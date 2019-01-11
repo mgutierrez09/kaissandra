@@ -295,9 +295,7 @@ def test_RNN(*ins):
             f_prep_IO.flush()
         if f_feats_tsf != None:
             f_feats_tsf.flush()
-        
-        
-    
+
         #print("Total time:"+str(np.floor(time.time()-ticTotal))+"s")
     # end of for ass in data.assets:
     
@@ -334,10 +332,17 @@ def test_RNN(*ins):
     with tf.Session() as sess:
         # run test RNN
         print("IDresults: "+IDresults)
-        model.test2(sess, data, IDresults, IDweights, 
-                   alloc, 1, 'test', startFrom=startFrom,
-                   IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
-                   save_journal=save_journal, endAt=endAt)
+        # TEMP: GRE calculation not implemented in test2 yet. Use old test
+        if save_journal:
+            model.test(sess, data, IDresults, IDweights, 
+                       alloc, 1, 'test', startFrom=startFrom,
+                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
+                       save_journal=save_journal, endAt=endAt)
+        else:
+            model.test2(sess, data, IDresults, IDweights, 
+                       alloc, 1, 'test', startFrom=startFrom,
+                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
+                       save_journal=save_journal, endAt=endAt)
         
 if __name__=='__main__':
     test_RNN()

@@ -420,8 +420,9 @@ def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE,
             
     return features
 
+# Wrapper over features extraction for one asset
 def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directory, 
-                     separators_directory, ass, save_stats):
+                     separators_directory, ass, save_stats, save_stats_in_stats):
     """  """
     data = Data(var_feat_keys=var_feat_keys, feature_keys_tsfresh=feature_keys_tsfresh)
     f_raw = h5py.File(filename_raw,'r')
@@ -434,19 +435,19 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
     group_raw = f_raw[thisAsset]
     
     filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
-                            str(data.nEventsPerStat)+'test.hdf5')
+                            str(data.nEventsPerStat)+'.hdf5')
     file_features = h5py.File(filename_features,'a')
     filename_returns = (feats_var_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
-                            str(data.nEventsPerStat)+'test.hdf5')
+                            str(data.nEventsPerStat)+'.hdf5')
     file_returns = h5py.File(filename_returns,'a')
     filename_symbols = (feats_var_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
-                            str(data.nEventsPerStat)+'test.hdf5')
+                            str(data.nEventsPerStat)+'.hdf5')
     file_symbols = h5py.File(filename_symbols,'a')
     
     if save_stats:
         filename_stats = (feats_var_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+'_nE'+
-                                str(data.nEventsPerStat)+'test.hdf5')
-        file_stats = h5py.File(filename_stats,'a')
+                                str(data.nEventsPerStat)+'.p')
+        #file_stats = h5py.File(filename_stats,'a')
         stats = {"means_in":0.0,
                  "stds_in":0.0,
                  "means_out":0.0,
@@ -462,14 +463,14 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
         nE = separators.index[s+1]-separators.index[s]+1
         # check if number of events is not enough to build two features and one return
         if nE-data.nEventsPerStat>=2*data.nEventsPerStat:
-            print(thisAsset+" s {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+            print("\t"+" s {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
                           ". From "+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
             
             DateTime = group_raw["DateTime"][separators.index[s]:separators.index[s+1]+1]
             SymbolBid = group_raw["SymbolBid"][separators.index[s]:separators.index[s+1]+1]
             SymbolAsk = group_raw["SymbolAsk"][separators.index[s]:separators.index[s+1]+1]
             
-            SymbolVar = SymbolBid[nExS:]-SymbolBid[:-nExS]
+            SymbolVar = SymbolBid[nExS-1:]-SymbolBid[:-(nExS-1)]
             
             nE = SymbolVar.shape[0]
             
@@ -489,7 +490,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
                 save_stats_fn(file_features, group_name, stats_feats)
 
             else:
-                print("Features already exist")
+                print("\tFeatures already exist")
                 stats_feats = retrieve_stats(file_features, group_name)
             
             returns, exist_rets = retrieve_returns_structure(file_returns, group_name, m_out, len(data.lookAheadVector))
@@ -501,7 +502,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
 
                 save_stats_fn(file_returns, group_name, stats_rets)
             else:
-                print("Returns already exist")
+                print("\tReturns already exist")
                 stats_rets = retrieve_stats(file_returns, group_name)
                 
             DT, B, A, exist_symbs = retrieve_symbols_structure(file_symbols, group_name, m_out, len(data.lookAheadVector))
@@ -510,7 +511,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
                 DT, B, A = get_symbols(data, DT, B, A, DateTime, SymbolBid, SymbolAsk, nE, nExS, mW, m_in)
 
             else:
-                print("Symbols already exist")
+                print("\tSymbols already exist")
             
             if save_stats:
                 stats["means_in"] += m_in*stats_feats['means']
@@ -529,16 +530,25 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
         stats["means_out"] = stats["means_out"]/stats["m_out"]
         stats["stds_out"] = stats["stds_out"]/stats["m_out"]
         
-        file_stats.attrs.create("means_in", stats["means_in"], dtype=float)
-        file_stats.attrs.create("stds_in", stats["stds_in"], dtype=float)
-        file_stats.attrs.create("means_out", stats["means_out"], dtype=float)
-        file_stats.attrs.create("stds_out", stats["stds_out"], dtype=float)
-        file_stats.attrs.create("m_in", stats["m_in"], dtype=int)
-        file_stats.attrs.create("m_out", stats["m_out"], dtype=int)
+        # group for stats in features file
+        group_feats = file_features[thisAsset]
+        group_feats.attrs.create("means_in", stats["means_in"], dtype=float)
+        group_feats.attrs.create("stds_in", stats["stds_in"], dtype=float)
+        group_feats.attrs.create("m_in", stats["m_in"], dtype=int)
         
-        print("\tStats saved")
+        # group for stats in returns file
+        group_returns = file_returns[thisAsset]
+        group_returns.attrs.create("means_out", stats["means_out"], dtype=float)
+        group_returns.attrs.create("stds_out", stats["stds_out"], dtype=float)
+        group_returns.attrs.create("m_out", stats["m_out"], dtype=int)        
+        print("\tStats saved in stats file")
         
-        file_stats.close()
+        # group for stats in stats file
+        if save_stats_in_stats:
+            pickle.dump( stats, open( filename_stats, "wb" ))     
+            print("\tStats saved in stats file")
+        
+        #file_stats.close()
     
     file_features.close()
     file_returns.close()
