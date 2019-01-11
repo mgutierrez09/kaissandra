@@ -1116,7 +1116,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
 
 def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct,
              stats_manual,stats_tsf,stats_output,IO,totalSampsPerLevel, 
-             s, nE, thisAsset):
+             s, nE, thisAsset, inverse_load):
     """
     Function that builds X and Y from data contained in a HDF5 file.
     """
@@ -1253,7 +1253,10 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
             for r in range(nC):
                 # get input
                 v_s_s = v_support[nI:nI+seq_len, :, r]
-                X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s[::-1,:]#v_support[nI+seq_len-1:nI-1:-1, :, r]#[nI:nI+seq_len, :, r]
+                if inverse_load:
+                    X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s[::-1,:]#[nI:nI+seq_len, :, r]
+                else:
+                    X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s
                 cc += 1
             # due to substraction of features for variation, output gets the 
             # feature one entry later
@@ -1311,7 +1314,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     return IO, totalSampsPerLevel
 
 # Function Build IO from var
-def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, returns, calculate_roi):
+def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, 
+                      features, returns, symbols, calculate_roi):
     # total number of possible channels
     nExS = data.nEventsPerStat
     mW = data.movingWindow
@@ -1331,10 +1335,7 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, retu
     print("m_out")
     print(m_out)
     # add dateTimes, bids and asks if are included in file
-    all_info = 0
     if calculate_roi:
-        raise NotImplemented
-        all_info = 1
         dts = symbols['DT']
         bids = symbols['B']
         asks = symbols['A']
@@ -1403,7 +1404,6 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, retu
                 A_i[nI,:] = a_support[nI,:]
 
         # normalize output
-        #a=1
         O_i = O_i/stds_out[data.lookAheadIndex]
         # update counters
         offset = offset+batch

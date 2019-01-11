@@ -20,7 +20,7 @@ from simulateTrader import load_in_memory
 from inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
 from RNN import modelRNN
 import shutil
-from local_config import *
+from local_config import local_vars
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -50,8 +50,8 @@ init_budget = 10000.0
 
 class Results:
         
-    def __init__(self, IDresults, IDepoch, list_t_indexs, list_w_str, start_time, 
-                 dir_results_trader):
+    def __init__(self, IDresults, IDepoch, list_t_indexs, 
+                 list_w_str, start_time, dir_results_trader):
         """ Init Results attributs """
         self.total_GROI = 0.0
         self.GROIs_week = np.array([])
@@ -421,7 +421,8 @@ class Trader:
                 os.makedirs(self.ban_currencies_dir)
         # results tracking
         if not os.path.exists(self.log_positions_soll):
-            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
+            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,\
+                Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions_soll)
             if not run_back_test:
                 write_log(resultsInfoHeader, self.log_positions_ist)
@@ -584,34 +585,9 @@ class Trader:
                               self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
         else:
-#            previous_p_mc = self.list_opened_positions[self.\
-#                                            map_ass_idx2pos_idx[ass_id]].p_mc
-#            previous_p_md = self.list_opened_positions[self.\
-#                                            map_ass_idx2pos_idx[ass_id]].p_md
-#            sum_previous_p = previous_p_mc+previous_p_md
-#            sum_p = self.next_candidate.p_mc+self.next_candidate.p_md
-#            previous_idx_mc = self.list_opened_positions[self.\
-#                                            map_ass_idx2pos_idx[ass_id]].idx_mc
-#            previous_idx_md = self.list_opened_positions[self.\
-#                                            map_ass_idx2pos_idx[ass_id]].idx_md
-                                                         
-            #print("currGROI: "+str(100*curr_GROI))
             condition_extension= (self.next_candidate.profitability>margin and 
                                   100*curr_GROI>=-.1)
             
-            #condition_extension = list_extend[ass_idx]
-            #list_extend[ass_idx] = int(round(.2*np.random.rand(1)[0]))
-#              
-# sum_p-base condition for extension:
-#           # 
-# idx_mc/md-based condition for extension:
-#                                                                       and 
-#                            self.next_candidate.idx_mc>=previous_idx_mc and
-#                            self.next_candidate.idx_md>=previous_idx_md
-# p_mc/md-based condition for extension_
-#                                                                           and 
-#                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
-#                              self.next_candidate.p_md>=previous_p_md-.05
         return condition_extension
 
     def update_stoploss(self, idx, bid):
@@ -1575,30 +1551,47 @@ def flush_asset(lists, ass_idx, bid):
     list_data = lists['list_data']
     nNets = len(phase_shifts)
     
-    lists['inits'][ass_idx] = [[False for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['listFillingXs'][ass_idx] = [[True for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['listCountPoss'][ass_idx] = [[0 for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['countOutss'][ass_idx] = [[np.zeros((int(nChans[nn]*phase_shifts[nn]))).astype(int) 
-                    for t in list_t_indexs[nn]] 
-                    for nn in range(nNets)]
+    lists['inits'][ass_idx] = [[False for ps in range(phase_shifts[nn])] \
+         for nn in range(nNets)]
+    lists['listFillingXs'][ass_idx] = [[True for ps in range(phase_shifts[nn])] \
+         for nn in range(nNets)]
+    lists['listCountPoss'][ass_idx] = [[0 for ps in range(phase_shifts[nn])] \
+         for nn in range(nNets)]
+    lists['countOutss'][ass_idx] = [[np.zeros((int(nChans[nn]*\
+        phase_shifts[nn]))).astype(int) for t in list_t_indexs[nn]] 
+        for nn in range(nNets)]
     lists['EOFs'][ass_idx] = [pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk'], 
-                          index=range(int(nChans[nn]*phase_shifts[nn]))) 
-             for nn in range(nNets)]
-    lists['list_list_X_i'][ass_idx] = [[np.zeros((1, int((lBs[nn]-nExSs[nn])/mWs[nn]+1), list_data[nn].nFeatures)) for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_listAllFeatsLive'][ass_idx] = [[np.zeros((list_data[nn].nFeatures,0)) for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_listFeaturesLive'][ass_idx] = [[None for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_listParSarStruct'][ass_idx] = [[None for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_listEM'][ass_idx] = [[np.zeros((list_data[nn].lbd.shape))+bid for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_list_Ylive'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_list_Pmc_live'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_list_Pmd_live'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)]
-    lists['list_list_Pmg_live'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+        index=range(int(nChans[nn]*phase_shifts[nn]))) 
+        for nn in range(nNets)]
+    lists['list_list_X_i'][ass_idx] = [[np.zeros((1, int((lBs[nn]-nExSs[nn])/\
+         mWs[nn]+1), list_data[nn].nFeatures)) for ps in range(phase_shifts[nn])] 
+         for nn in range(nNets)]
+    lists['list_listAllFeatsLive'][ass_idx] = [[np.zeros((list_data[nn].nFeatures,0)) \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_listFeaturesLive'][ass_idx] = [[None for ps in range(phase_shifts[nn])] \
+         for nn in range(nNets)]
+    lists['list_listParSarStruct'][ass_idx] = [[None for ps in range(phase_shifts[nn])] \
+         for nn in range(nNets)]
+    lists['list_listEM'][ass_idx] = [[np.zeros((list_data[nn].lbd.shape))+bid \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_list_Ylive'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_list_Pmc_live'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_list_Pmd_live'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_list_Pmg_live'][ass_idx] = [[[np.zeros((0,)) for t in list_t_indexs[nn]] \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
     # init condition vector to open market
     #condition = np.zeros((model.seq_len))
-    lists['list_list_time_to_entry'][ass_idx] = [[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] # list tracking times to entry the market
-    lists['list_list_list_soft_tildes'][ass_idx] = [[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_list_time_to_entry'][ass_idx] = [[[[]  for t in list_t_indexs[nn]] \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)] # list tracking times to entry the market
+    lists['list_list_list_soft_tildes'][ass_idx] = [[[[]  for t in list_t_indexs[nn]] \
+         for ps in range(phase_shifts[nn])] for nn in range(nNets)]
     # upper diagonal matrix containing latest weight values
-    lists['list_list_weights_matrix'][ass_idx] = [[np.zeros((int((lBs[nn]-nExSs[nn])/mWs[nn]+1),int((lBs[nn]-nExSs[nn])/mWs[nn]+1))) for ps in range(phase_shifts[nn])] for nn in range(nNets)]
+    lists['list_list_weights_matrix'][ass_idx] = [[np.zeros((int((lBs[nn]-nExSs[nn])/\
+         mWs[nn]+1),int((lBs[nn]-nExSs[nn])/mWs[nn]+1))) for ps in range(phase_shifts[nn])] \
+         for nn in range(nNets)]
     print("Flushed")
     return lists
 
@@ -1876,22 +1869,6 @@ def fetch(lists, trader, directory_MT5,
 
             # check if asset has been banned from outside
             if os.path.exists(trader.ban_currencies_dir+trader.start_time+thisAsset):
-#                out = thisAsset+" flag ban found"
-#                print(out)
-#                trader.write_log(out)
-#                if not ban_only_if_open or trader.is_opened(ass_id):
-#                    lists = flush_asset(lists, ass_idx, 0.0)
-#                    out = thisAsset+" flushed"
-#                    print(out)
-#                    trader.write_log(out)
-#                    if trader.is_opened(ass_id):
-#                        send_close_command(thisAsset)
-#                else:
-#                    out = thisAsset+" NOT flushed"
-#                    print(out)
-#                    trader.write_log(out)
-#                os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
-                
                 fh = open(trader.ban_currencies_dir+trader.start_time+thisAsset,"r")
                 message = fh.read()
                 fh.close()
@@ -1964,7 +1941,8 @@ def fetch(lists, trader, directory_MT5,
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
                 
-                lists = trader.ban_currencies(lists, thisAsset, DateTime, results, direction)
+                lists = trader.ban_currencies(lists, thisAsset, DateTime, 
+                                              results, direction)
             
     # end of while run
     budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
@@ -2085,66 +2063,6 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     
     # get intermediate results
     budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
-    # get statistics
-#    perEntries = 0
-#    if trader.n_entries>0:
-#        per_net_success = trader.net_successes/trader.n_entries
-#        average_loss = np.abs(trader.average_loss)/(trader.n_entries-trader.net_successes)
-#        per_gross_success = trader.gross_successes/trader.n_entries
-#        perSL = trader.stoplosses/trader.n_entries
-#        ROI_per_entry = 100*trader.tROI_live/trader.n_entries
-#    else:
-#        per_net_success = 0.0
-#        average_loss = 0.0
-#        per_gross_success = 0.0
-#        perSL = 0.0
-#        ROI_per_entry = 0.0
-#        
-#    GROI = trader.gross_earnings/trader.init_budget
-#    earnings = trader.budget-trader.init_budget
-#    ROI = earnings/trader.init_budget
-#    budget = trader.budget
-#    
-#    out = ("\n"+str([AllAssets[str(ass)] for ass in running_assets])[1:-1]+
-#           ":\nGROI = {0:.3f}% ".format(100*GROI)+"ROI = {0:.3f}%".format(100*ROI)+
-#           " Sum GROI = {0:.3f}%".format(100*trader.tGROI_live)+
-#           " Sum ROI = {0:.3f}%".format(100*trader.tROI_live)+
-#          " Final budget {0:.2f}E".format(trader.budget)+
-#          " Earnings {0:.2f}E".format(earnings)+
-#          " per earnings {0:.3f}%".format(100*(
-#                  trader.budget-trader.init_budget)/trader.init_budget)+
-#          " ROI per position {0:.3f}%".format(ROI_per_entry))
-#    write_log(out, trader.log_file)
-#    write_log(out, trader.log_summary)
-#    print(out)
-#    out = ("Number entries "+str(trader.n_entries)+
-#           " per entries {0:.2f}%".format(100*perEntries)+
-#           " per net success "+"{0:.3f}%".format(100*per_net_success)+
-#          " per gross success "+"{0:.3f}%".format(100*per_gross_success)+
-#          " av loss {0:.3f}%".format(100*average_loss)+
-#          " per sl {0:.3f}%".format(100*perSL))
-#    write_log(out, trader.log_file)
-#    write_log(out, trader.log_summary)
-#    print(out)
-#    out = "DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins"
-#    write_log(out, trader.log_file)
-#    write_log(out, trader.log_summary)
-#    print(out)
-#    
-#    results.update_weekly_results(GROI, earnings, ROI, trader.n_entries, trader.stoplosses,
-#                                  trader.tGROI_live, trader.tROI_live, trader.net_successes,
-#                                  average_loss, trader.average_win, trader.gross_successes)
-#    # TODO: update badget
-##    init_budget = trader.budget
-#        
-#    out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+
-#           "Total ROI = {0:.3f}% ".format(results.total_ROI)+
-#           "Sum GROI = {0:.3f}% ".format(results.sum_GROI)+
-#           "Sum ROI = {0:.3f}%".format(results.sum_ROI)+
-#           " Accumulated earnings {0:.2f}E\n".format(results.total_earnings))
-#    print(out)
-#    write_log(out, trader.log_summary)
-#    write_log(out, trader.log_file)
     
     return budget
 
@@ -2251,19 +2169,36 @@ def init_network_structures(lists, nNets, nAssets):
     list_listFeaturesLive = [[[None for ps in range(phase_shifts[nn])] 
                                for nn in range(nNets)] 
                                for ass in range(nAssets)]
-    list_listParSarStruct = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-    list_listEM = [[[None for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+    list_listParSarStruct = [[[None for ps in range(phase_shifts[nn])] \
+        for nn in range(nNets)] for ass in range(nAssets)]
+    list_listEM = [[[None for ps in range(phase_shifts[nn])] \
+        for nn in range(nNets)] for ass in range(nAssets)]
     # network outputs
-    list_list_Ylive = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-    list_list_Pmc_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-    list_list_Pmd_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
-    list_list_Pmg_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+    list_list_Ylive = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] 
+        for ps in range(phase_shifts[nn])] for nn in range(nNets)] 
+        for ass in range(nAssets)]
+    list_list_Pmc_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] 
+        for ps in range(phase_shifts[nn])] for nn in range(nNets)] 
+        for ass in range(nAssets)]
+    list_list_Pmd_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] 
+        for ps in range(phase_shifts[nn])] for nn in range(nNets)] 
+        for ass in range(nAssets)]
+    list_list_Pmg_live = [[[[np.zeros((0,)) for t in list_t_indexs[nn]] 
+        for ps in range(phase_shifts[nn])] for nn in range(nNets)] 
+        for ass in range(nAssets)]
     # init condition vector to open market
     #condition = np.zeros((model.seq_len))
-    list_list_time_to_entry = [[[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)] # list tracking times to entry the market
-    list_list_list_soft_tildes = [[[[[]  for t in list_t_indexs[nn]] for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+    list_list_time_to_entry = [[[[[]  for t in list_t_indexs[nn]] 
+        for ps in range(phase_shifts[nn])] for nn in range(nNets)] 
+        for ass in range(nAssets)] # list tracking times to entry the market
+    list_list_list_soft_tildes = [[[[[]  for t in list_t_indexs[nn]] 
+        for ps in range(phase_shifts[nn])] for nn in range(nNets)] 
+        for ass in range(nAssets)]
     # upper diagonal matrix containing latest weight values
-    list_list_weights_matrix = [[[np.zeros((int((lBs[nn]-nExSs[nn])/mWs[nn]+1),int((lBs[nn]-nExSs[nn])/mWs[nn]+1))) for ps in range(phase_shifts[nn])] for nn in range(nNets)] for ass in range(nAssets)]
+    list_list_weights_matrix = [[[np.zeros((int((lBs[nn]-nExSs[nn])/mWs[nn]+1),\
+        int((lBs[nn]-nExSs[nn])/mWs[nn]+1))) for ps in range(phase_shifts[nn])] \
+        for nn in range(nNets)] for ass in range(nAssets)]
+    
     return (inits,listFillingXs,listCountPoss,countOutss,EOFs,list_list_X_i,
             list_listAllFeatsLive,list_listFeaturesLive,list_listParSarStruct,
             list_listEM,list_list_Ylive,list_list_Pmc_live,list_list_Pmd_live,

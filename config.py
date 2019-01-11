@@ -125,6 +125,10 @@ def configuration(*ins):
         IDweights = entries['IDweights']
     else:
         IDweights = '00'+config_name[1:]
+    if 'inverse_load' in entries:
+        inverse_load = entries['inverse_load']
+    else:
+        inverse_load = True
     
     if 'hdf5_directory' in entries:
         hdf5_directory = entries['hdf5_directory']
@@ -239,6 +243,7 @@ def configuration(*ins):
               'IO_results_name':IO_results_name,
               'hdf5_directory':hdf5_directory,
               'IO_directory':IO_directory,
+              'inverse_load':inverse_load,
               
               'IDresults':IDresults,
               'startFrom':startFrom,

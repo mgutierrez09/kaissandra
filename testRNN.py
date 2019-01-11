@@ -34,6 +34,7 @@ def test_RNN(*ins):
     else:
         # test reset git
         config = retrieve_config('C0287INVO')
+    # add compatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
     else:
@@ -42,6 +43,10 @@ def test_RNN(*ins):
         feature_keys_tsfresh = []
     else:
         feature_keys_tsfresh = config['feature_keys_tsfresh']
+    if 'inverse_load' in config:
+        inverse_load = config['config']
+    else:
+        inverse_load = True
     
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
@@ -260,7 +265,8 @@ def test_RNN(*ins):
                                                                   stats_output,
                                                                   IO, 
                                                                   totalSampsPerLevel, 
-                                                                  s, nE, thisAsset)
+                                                                  s, nE, thisAsset, 
+                                                                  inverse_load)
                             # close temp file
                             file_temp.close()
                             os.remove(file_temp_name)

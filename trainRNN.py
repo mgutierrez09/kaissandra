@@ -48,6 +48,10 @@ def train_RNN(*ins):
         trsfresh_from_variations = config['trsfresh_from_variations']
     else:
         trsfresh_from_variations = False
+    if 'inverse_load' in config:
+        inverse_load = config['config']
+    else:
+        inverse_load = True
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -240,7 +244,8 @@ def train_RNN(*ins):
                                                                       stats_output,
                                                                       IO, 
                                                                       totalSampsPerLevel, 
-                                                                      s, nE, thisAsset)
+                                                                      s, nE, thisAsset, 
+                                                                      inverse_load)
                                 # close temp file
                                 file_temp.close()
                                 os.remove(file_temp_name)
