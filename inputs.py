@@ -1403,6 +1403,7 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, retu
                 A_i[nI,:] = a_support[nI,:]
 
         # normalize output
+        #a=1
         O_i = O_i/stds_out[data.lookAheadIndex]
         # update counters
         offset = offset+batch
