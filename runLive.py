@@ -586,7 +586,7 @@ class Trader:
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
         else:
             condition_extension= (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=-.1)
+                                  100*curr_GROI>=-.02)
             
         return condition_extension
 
@@ -2284,7 +2284,7 @@ def run(running_assets, start_time):
     list_name = ['77_27','77_19']
     IDepoch = ['27','19']
     netNames = ['27','19']
-    list_t_indexs = [[0,1,2],[0,1,2]]
+    list_t_indexs = [[2],[2]]
     phase_shifts = [0,0]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
