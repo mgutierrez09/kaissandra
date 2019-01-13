@@ -24,7 +24,7 @@ def configuration(*ins):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'C0288INVO'
+        config_name = 'C0289STRO'
     
     config_filename = config_directory+config_name+config_extension
     
@@ -128,7 +128,7 @@ def configuration(*ins):
     if 'inverse_load' in entries:
         inverse_load = entries['inverse_load']
     else:
-        inverse_load = True
+        inverse_load = False
     
     if 'hdf5_directory' in entries:
         hdf5_directory = entries['hdf5_directory']

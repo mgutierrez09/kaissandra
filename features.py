@@ -273,7 +273,7 @@ def update_parsar(data, parsar, min_value, max_value, thisPeriodVariations):
             
     return parsar, thisParSARhigh, thisParSARlow
 
-def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE, m):
+def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE, m, thisAsset):
     """
     Function that calculates features from raw data in per batches
     Args:
@@ -288,6 +288,7 @@ def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE,
     # init scalars
     
     secsInDay = 86400.0
+    nE = SymbolVar.shape[0]
     var_feat_keys_manual = data.var_feat_keys
     em = init_ema_variations(data, SymbolVar, nExS, mW)
     n_feats_tsfresh = data.n_feats_tsfresh
@@ -314,60 +315,66 @@ def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE,
         timeSecs = np.zeros((m_i))
         parSARhigh = np.zeros((m_i, len(data.parsars)))
         parSARlow = np.zeros((m_i, len(data.parsars)))
- 
-        for mm in range(m_i):
-            
-            startIndex = l_index+mm*mW
-            endIndex = startIndex+nExS
-            thisPeriod = range(startIndex,endIndex)
-            thisPeriodVariations = SymbolVar[thisPeriod]
-            newBidsIndex = range(endIndex-mW,endIndex)
-            
-            # tsfresh features
-            c = 0
-            for f in features_tsfresh:
-                params = data.AllFeatures[str(f)]
-                n_new_feats = params[-1]
-                params = data.AllFeatures[str(f)]
-                feats = feval(params[0],thisPeriodVariations,params[1:])
-                n_new_feats = params[-1]
-                tsf[mm,c:c+n_new_feats] = feats
-                c += n_new_feats
-                    
-            
-            condition_ema = 69 in var_feat_keys_manual or 70 in var_feat_keys_manual or 71 in var_feat_keys_manual\
-                or 72 in var_feat_keys_manual or 73 in var_feat_keys_manual or 74 in var_feat_keys_manual\
-                or 75 in var_feat_keys_manual
-            if condition_ema:
-                for i in newBidsIndex:
-                    em = data.lbd*em+(1-data.lbd)*SymbolVar[i]
-            if 77 in var_feat_keys_manual:
-                t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
-                te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
-                timeInterval[mm] = (te-t0).seconds/nExS
-            if 68 in var_feat_keys_manual:
-                variations[mm] = SymbolVar[thisPeriod[-1]]
-            if condition_ema:
-                EMA[mm,:] = em
-            if 76 in var_feat_keys_manual:
-                variance[mm] = np.var(thisPeriodVariations)
-            if 83 in var_feat_keys_manual:
-                maxValue[mm] = np.max(thisPeriodVariations)
-            if 84 in var_feat_keys_manual:
-                minValue[mm] = np.min(thisPeriodVariations)
-            if 82 in var_feat_keys_manual:
-                timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/secsInDay
-            condition_parsar = 78 in var_feat_keys_manual or 79 in var_feat_keys_manual \
-                or 80 in var_feat_keys_manual or 81 in var_feat_keys_manual
-            if condition_parsar:
-                parSar, parSARhigh[mm,:], parSARlow[mm,:] = update_parsar\
-                    (data, parSar, minValue[mm], maxValue[mm], thisPeriodVariations)
+        try:
+            for mm in range(m_i):
+                
+                startIndex = l_index+mm*mW
+                endIndex = startIndex+nExS
+                if endIndex==nE:
+                    print(thisAsset+"! endIndex==nE")
+                thisPeriod = range(startIndex,endIndex)
+                thisPeriodVariations = SymbolVar[thisPeriod]
+                newBidsIndex = range(endIndex-mW,endIndex)
+                
+                # tsfresh features
+                c = 0
+                for f in features_tsfresh:
+                    params = data.AllFeatures[str(f)]
+                    n_new_feats = params[-1]
+                    params = data.AllFeatures[str(f)]
+                    feats = feval(params[0],thisPeriodVariations,params[1:])
+                    n_new_feats = params[-1]
+                    tsf[mm,c:c+n_new_feats] = feats
+                    c += n_new_feats
+                        
+                
+                condition_ema = 69 in var_feat_keys_manual or 70 in var_feat_keys_manual or 71 in var_feat_keys_manual\
+                    or 72 in var_feat_keys_manual or 73 in var_feat_keys_manual or 74 in var_feat_keys_manual\
+                    or 75 in var_feat_keys_manual
+                if condition_ema:
+                    for i in newBidsIndex:
+                        em = data.lbd*em+(1-data.lbd)*SymbolVar[i]
+                if 77 in var_feat_keys_manual:
+                    t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                    te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                    timeInterval[mm] = (te-t0).seconds/nExS
+                if 68 in var_feat_keys_manual:
+                    variations[mm] = SymbolVar[thisPeriod[-1]]
+                if condition_ema:
+                    EMA[mm,:] = em
+                if 76 in var_feat_keys_manual:
+                    variance[mm] = np.var(thisPeriodVariations)
+                if 83 in var_feat_keys_manual:
+                    maxValue[mm] = np.max(thisPeriodVariations)
+                if 84 in var_feat_keys_manual:
+                    minValue[mm] = np.min(thisPeriodVariations)
+                if 82 in var_feat_keys_manual:
+                    timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/secsInDay
+                condition_parsar = 78 in var_feat_keys_manual or 79 in var_feat_keys_manual \
+                    or 80 in var_feat_keys_manual or 81 in var_feat_keys_manual
+                if condition_parsar:
+                    parSar, parSARhigh[mm,:], parSARlow[mm,:] = update_parsar\
+                        (data, parSar, minValue[mm], maxValue[mm], thisPeriodVariations)
+        except IndexError:
+            print("IndexError @ asset "+thisAsset+" mm "+str(mm)+" thisPeriod[-1] "+str(thisPeriod[-1])+
+                  " b "+str(b))
+            raise IndexError
             
         # end of for mm in range(m_i):
         l_index = startIndex+mW
         #print(l_index)
         toc = time.time()
-        print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+        print("\t\t"+thisAsset+" mm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
         # update features vector
         init_idx = b*batch_size
         end_idx = b*batch_size+m_i
@@ -458,19 +465,20 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
     # load separators
     separators = load_separators(data, thisAsset, separators_directory, from_txt=1)
     
-    for s in range(0,len(separators)-1,2):
+    for s in range(0,len(separators)-1,2):#len(separators)-1
         
         nE = separators.index[s+1]-separators.index[s]+1
         # check if number of events is not enough to build two features and one return
         if nE-data.nEventsPerStat>=2*data.nEventsPerStat:
-            print("\t"+" s {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+            print("\t"+thisAsset+" s {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
                           ". From "+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
             
             DateTime = group_raw["DateTime"][separators.index[s]:separators.index[s+1]+1]
             SymbolBid = group_raw["SymbolBid"][separators.index[s]:separators.index[s+1]+1]
             SymbolAsk = group_raw["SymbolAsk"][separators.index[s]:separators.index[s+1]+1]
-            
-            SymbolVar = SymbolBid[nExS-1:]-SymbolBid[:-(nExS-1)]
+            init_i = nExS-1
+            end_i = -(nExS-1)
+            SymbolVar = SymbolBid[init_i:]-SymbolBid[:end_i]
             
             nE = SymbolVar.shape[0]
             
@@ -480,10 +488,12 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
             
             m_in, m_out = get_io_number_samples(nE, nExS, mW)
             
-            features, exist_feats = retrieve_features_structure(file_features, group_name, m_in, nF)        
+            features, exist_feats = retrieve_features_structure(file_features, group_name, m_in, nF)
     
             if not exist_feats:
-                features = get_features_from_var_raw(data, features, DateTime[nExS:], SymbolVar, nExS, mW, nE, m_in)
+                features = get_features_from_var_raw(data, features, DateTime[init_i:], 
+                                                     SymbolVar, nExS, mW, 
+                                                     nE, m_in, thisAsset)
 
                 stats_feats = calculate_stats_from_var_feats(features)
 
@@ -492,9 +502,18 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
             else:
                 print("\tFeatures already exist")
                 stats_feats = retrieve_stats(file_features, group_name)
+                # check that stats are not noneType
+                if type(stats_feats['means'])==type(None) or type(stats_feats['stds'])==type(None):
+                    print("WARNING! Stats None. Running feats over")
+                    features = get_features_from_var_raw(data, features, DateTime[init_i:], 
+                                                     SymbolVar, nExS, mW, 
+                                                     nE, m_in, thisAsset)
+
+                    stats_feats = calculate_stats_from_var_feats(features)
+                    save_stats_fn(file_features, group_name, stats_feats)
             
             returns, exist_rets = retrieve_returns_structure(file_returns, group_name, m_out, len(data.lookAheadVector))
-    
+            
             if not exist_rets:
                 returns = get_returns(data, returns, SymbolBid, nE, nExS, mW, m_in)
 
@@ -504,7 +523,6 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
             else:
                 print("\tReturns already exist")
                 stats_rets = retrieve_stats(file_returns, group_name)
-                
             DT, B, A, exist_symbs = retrieve_symbols_structure(file_symbols, group_name, m_out, len(data.lookAheadVector))
     
             if not exist_symbs:
@@ -541,12 +559,12 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
         group_returns.attrs.create("means_out", stats["means_out"], dtype=float)
         group_returns.attrs.create("stds_out", stats["stds_out"], dtype=float)
         group_returns.attrs.create("m_out", stats["m_out"], dtype=int)        
-        print("\tStats saved in stats file")
+        print("\tStats saved in HDF5 file")
         
         # group for stats in stats file
         if save_stats_in_stats:
             pickle.dump( stats, open( filename_stats, "wb" ))     
-            print("\tStats saved in stats file")
+            print("\tStats saved in pickle file")
         
         #file_stats.close()
     
@@ -554,6 +572,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
     file_returns.close()
     file_symbols.close()
     f_raw.close()
+    print(thisAsset+" DONE")
     
     return None
 

@@ -44,7 +44,7 @@ def test_RNN(*ins):
     else:
         feature_keys_tsfresh = config['feature_keys_tsfresh']
     if 'inverse_load' in config:
-        inverse_load = config['config']
+        inverse_load = config['inverse_load']
     else:
         inverse_load = True
     
