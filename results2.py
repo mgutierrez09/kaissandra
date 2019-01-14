@@ -253,19 +253,24 @@ def get_best_results_list():
     return ['eGROI','eROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
            'eROI5','SI','SI.5','SI1','SI2','SI3','SI4','SI5']
     
-def get_best_results(TR, results_filename, resultsDir, IDresults, save=1):
+def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     """  """
     best_results_list = get_best_results_list()
     
     best_dir = resultsDir+IDresults+'/best/'
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
+    file = open(best_dir+'best.txt',"w")
+    file.close()
+    file = open(best_dir+'best.txt',"a")
     for b in best_results_list:
         best_filename = best_dir+'best_'+b+'.csv'
         if not os.path.exists(best_filename):
             pd.DataFrame(columns = get_results_entries()).to_csv(best_filename, 
                         mode="w",index=False,sep='\t')
         idx = TR[b].idxmax()
+        # reset file
+        
         if save:
             df = pd.DataFrame(TR.loc[idx:idx])
             success = 0
@@ -278,15 +283,21 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=1):
                           best_filename)
                     time.sleep(1)
         
-        print("Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+
-              " t_index "+str(TR['t_index'].loc[idx])+
-              " thr_mc "+str(TR['thr_mc'].loc[idx])+
-              " thr_md "+str(TR['thr_md'].loc[idx])+
-              " epoch "+str(TR['epoch'].loc[idx]))
+        
+        out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
+              " t_index "+str(TR['t_index'].loc[idx])+\
+              " thr_mc "+str(TR['thr_mc'].loc[idx])+\
+              " thr_md "+str(TR['thr_md'].loc[idx])+\
+              " epoch "+str(TR['epoch'].loc[idx])
+        print(out)
+        
+        file.write(out+"\n")
+    file.close()
     return None
 
 def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
-                 costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10):
+                 costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10,
+                 from_var=False):
     """ Get results after for one epoch.
     Args:
         - 
@@ -331,7 +342,10 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
                 ub_md = 1#thr_md+granularity
                 ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, model.size_output_layer, thr_md, ub_md)
                 # extract DTA structure for t_index
-                DTAt = DTA.iloc[::model.seq_len,:]
+                if from_var == True:
+                    DTAt = DTA.iloc[:,:]
+                else:
+                    DTAt = DTA.iloc[::model.seq_len,:]
                 # get journal
                 Journal = get_journal(DTAt.iloc[ys_md['y_md_tilde']], 
                                       ys_md['y_dec_mg_tilde'], 

@@ -356,7 +356,7 @@ class modelRNN(object):
     
     def test2(self, sess, data, IDresults, IDweights, alloc, save_results, 
              trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
-             save_journal=False, endAt=-1):
+             save_journal=False, endAt=-1, from_var=True):
         """ 
         Test RNN network with y_c bits
         """
@@ -415,7 +415,8 @@ class modelRNN(object):
             print("Getting results")
             results_filename = get_results(data, self, Y_test, DTA, IDresults, IDweights, 
                         J_test, softMaxOut, save_results, costs, epoch, 
-                        resultsDir, lastTrained, save_journal=save_journal)
+                        resultsDir, lastTrained, save_journal=save_journal,
+                        from_var=from_var)
         
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
         print("\nThe very best:")

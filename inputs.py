@@ -175,6 +175,7 @@ class Data:
         
         self.feature_keys_manual = feature_keys_manual
         self.var_feat_keys = var_feat_keys
+        self.n_feats_var = len(self.var_feat_keys)
         self.n_feats_manual = len(self.feature_keys_manual)
         self.feature_keys_tsfresh = feature_keys_tsfresh
         self.lB = lB
@@ -184,7 +185,7 @@ class Data:
         self.channels = channels
         
         self.lbd=1-1/(self.nEventsPerStat*self.average_over)
-        self.feature_keys = feature_keys_manual+feature_keys_tsfresh
+        self.feature_keys = feature_keys_manual+feature_keys_tsfresh+var_feat_keys
         self.nFeatures = len(self.feature_keys)
         self.dateTest = dateTest
         self.assets = assets
@@ -1637,6 +1638,62 @@ def build_DTA(data, D, B, A, ass_IO_ass):
             DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
             DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
             DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+            DTA_i['Asset'] = thisAsset
+    #        print(DTA_i['DT1'].iloc[0])
+    #        print(DTA_i['DT1'].iloc[-1])
+            # append DTA this asset to all DTAs
+            DTA = DTA.append(DTA_i,ignore_index=True)
+        last_ass_IO_ass = ass_IO_ass[ass_index]
+        ass_index += 1
+    # end of for ass in data.assets:
+    return DTA
+
+def build_DTA_from_var(data, D, B, A, ass_IO_ass):
+    """
+    Function that builds structure based on IO to later get Journal and ROIs.
+    Args:
+        - data
+        - I: structure containing indexes
+        - ass_IO_ass: asset to IO assignment
+    """
+    # init columns
+    columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
+    # init DTA
+    DTA = pd.DataFrame()
+    # init hdf5 file with raw data
+    
+
+    ass_index = 0
+    last_ass_IO_ass = 0
+    # loop over assets
+    for ass in data.assets:
+        # get this asset's name
+        thisAsset = data.AllAssets[str(ass)]
+        print(thisAsset)
+        # init DTA for this asset
+        DTA_i = pd.DataFrame(columns = columns)
+#        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+#        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+        # fill DTA_i up
+        DTA_i['DT1'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],0].reshape((-1))
+        if DTA_i.shape[0]>0:
+            DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+            print(DTA_i['DT1'].iloc[0])
+            print(DTA_i['DT1'].iloc[-1])
+            if DTA_i['DT1'].iloc[0][:10] not in data.dateTest:
+                print("WARNING!!! DTA_i['DT1'].iloc[0][:10] not in data.dateTest")
+            #assert(DTA_i['DT1'].iloc[0][:10] in data.dateTest)
+#            assert(DTA_i['DT1'].iloc[-1][:10] in data.dateTest)
+            if DTA_i['DT1'].iloc[-1][:10] not in data.dateTest:
+                print("WARNING!!! DTA_i['DT1'].iloc[-1][:10] not in data.dateTest")
+            #DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+            DTA_i['B1'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],0].reshape((-1))
+            DTA_i['A1'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],0].reshape((-1))
+            
+            DTA_i['DT2'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],1].reshape((-1))
+            DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
+            DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],1].reshape((-1))
+            DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],1].reshape((-1))
             DTA_i['Asset'] = thisAsset
     #        print(DTA_i['DT1'].iloc[0])
     #        print(DTA_i['DT1'].iloc[-1])
