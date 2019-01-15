@@ -33,25 +33,25 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
         if if_test:
             test_RNN(config)
 
-if __name__=='__main__':
-    # init config
-    if_get_features = False
-    if_train = True
-    if_test = True
-    its = 20
-    configs = ['C0310INV0']
+#if __name__=='__main__':
+# init config
+if_get_features = False
+if_train = True
+if_test = True
+its = 20
+configs = ['C0310INV0']
     
-    configs_list = []
-    # load configuration files
-    for config_name in configs:
-        configs_list.append(retrieve_config(config_name))
+configs_list = []
+ # load configuration files
+for config_name in configs:
+    configs_list.append(retrieve_config(config_name))
     # run train/test
-    for config in configs_list:
-        # set automation-specific config fields
-        config['num_epochs'] = 1
-        config['startFrom'] = -1
-        config['endAt'] = -1
-        run_train_test(config, its, if_train, if_test, if_get_features)
+for config in configs_list:
+    # set automation-specific config fields
+   config['num_epochs'] = 1
+   config['startFrom'] = -1
+   config['endAt'] = -1
+   run_train_test(config, its, if_train, if_test, if_get_features)
         # parallelize
 #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
 #        disp.start()
