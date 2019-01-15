@@ -51,6 +51,10 @@ def test_RNN(*ins):
         weights_directory = config['weights_directory']
     else:
         weights_directory = "../RNN/weights/"
+    if 'results_directory' in config:
+        results_directory = config['results_directory']
+    else:
+        results_directory = '../RNN/results/'
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -348,8 +352,8 @@ def test_RNN(*ins):
                        IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         else:
-            model.test2(sess, dateTest, IDresults, IDweights, 
-                       alloc, 'test', weights_directory, filename_IO,
+            model.test2(sess, dateTest, IDresults, IDweights, alloc, 
+                        'test', weights_directory, filename_IO, results_directory,
                        startFrom=startFrom, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         
