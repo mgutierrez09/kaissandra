@@ -200,17 +200,17 @@ class modelRNN(object):
         
         return epoch+1
     
-    def _save_graph(self,ID,epoch_cost,epoch):
+    def _save_graph(self, ID, epoch_cost, epoch, weights_directory):
         """ <DocString> """
         cost = {}
-        if os.path.exists("../RNN/weights/"+ID+"/")==False:
-            os.mkdir("../RNN/weights/"+ID+"/")
-        if os.path.exists("../RNN/weights/"+ID+"/cost.p"):
+        if os.path.exists(weights_directory+ID+"/")==False:
+            os.mkdir(weights_directory+ID+"/")
+        if os.path.exists(weights_directory+ID+"/cost.p"):
             cost = pickle.load( open( "../RNN/weights/"+ID+"/cost.p", "rb" ))
         cost[ID+str(epoch)] = epoch_cost
-        pickle.dump(cost, open( "../RNN/weights/"+ID+"/cost.p", "wb" ))
+        pickle.dump(cost, open( weights_directory+ID+"/cost.p", "wb" ))
         strEpoch = "{0:06d}".format(epoch)
-        save_path = self._saver.save(self._sess, "../RNN/weights/"+ID+"/"+
+        save_path = self._saver.save(self._sess, weights_directory+ID+"/"+
                                      strEpoch+"/"+strEpoch)
         
         print("Parameters saved")
@@ -240,7 +240,7 @@ class modelRNN(object):
         return softMaxOut
     
     def test(self, sess, data, IDresults, IDweights, alloc, save_results, 
-             trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
+             trainOrTest, filename_IO, startFrom=-1, IDIO='', data_format='', DTA=[], 
              save_journal=False, endAt=-1):
         """ 
         Test RNN network with y_c bits
@@ -354,8 +354,9 @@ class modelRNN(object):
 
         return None
     
-    def test2(self, sess, data, IDresults, IDweights, alloc, save_results, 
-             trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], 
+    def test2(self, sess, dateTest, IDresults, IDweights, alloc, save_results,
+              weights_directory, filename_IO, resultsDir,
+             startFrom=-1, data_format='', DTA=[], 
              save_journal=False, endAt=-1, from_var=False):
         """ 
         Test RNN network with y_c bits
@@ -366,22 +367,21 @@ class modelRNN(object):
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
         
-        resultsDir = "../RNN/results/"
         
         #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
         if endAt==-1:
-            lastTrained = int(sorted(os.listdir("../RNN/weights/"+IDweights+"/"))[-2])
+            lastTrained = int(sorted(os.listdir(weights_directory+IDweights+"/"))[-2])
         else:
             lastTrained = endAt
         
         # load train cost function evaluations
         costs = {}
-        if os.path.exists("../RNN/weights/"+IDweights+"/cost.p"):
-            costs = pickle.load( open( "../RNN/weights/"+IDweights+"/cost.p", "rb" ))
+        if os.path.exists(weights_directory+IDweights+"/cost.p"):
+            costs = pickle.load( open( weights_directory+IDweights+"/cost.p", "rb" ))
         else:
             pass
         # load IO info
-        filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
+        #filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
         f_IO = h5py.File(filename_IO,'r')
         #X_test = f_IO['X'][:]
         Y_test = f_IO['Y'][:]
@@ -413,7 +413,7 @@ class modelRNN(object):
                 softMaxOut = np.append(softMaxOut,smo,axis=0)
                 #print(softMaxOut.shape)
             print("Getting results")
-            results_filename = get_results(data, self, Y_test, DTA, IDresults, IDweights, 
+            results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
                         J_test, softMaxOut, save_results, costs, epoch, 
                         resultsDir, lastTrained, save_journal=save_journal,
                         from_var=from_var)
@@ -424,7 +424,9 @@ class modelRNN(object):
             
         return None
     
-    def train(self, sess, nChunks, ID='', logFile='',IDIO='', data_format='', filename_IO='', aloc=2**17):
+    def train(self, sess, nChunks, weights_directory,
+              ID='', logFile='',IDIO='', data_format='', 
+              filename_IO='', aloc=2**17):
         """ Call to train.
         args: train_data, train object defined in sets.
         args: test_data, test data defined in sets.
@@ -509,7 +511,7 @@ class modelRNN(object):
                   " Total time training: "+"{0:.2f}".format(np.floor(toc-ticT)/60)+"m")
     
                 if ID!='':
-                    self._save_graph(ID,epoch_cost,epoch)
+                    self._save_graph(ID, epoch_cost, epoch, weights_directory)
             # end of for epoch in range(epochStart,epochStart+self._num_epochs):
         except KeyboardInterrupt:
             f_IO.close()

@@ -295,7 +295,7 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     file.close()
     return None
 
-def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
+def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
                  costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10,
                  from_var=False):
     """ Get results after for one epoch.
@@ -305,7 +305,7 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
         - """
     results_filename, costs_filename = init_results_dir(resultsDir, IDresults)
     m = y.shape[0]
-    n_days = len(data.dateTest)
+    n_days = len(dateTest)
     thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
     thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
     granularity = 1/resolution
@@ -857,7 +857,8 @@ def merge_results(IDr_m1, IDr_m2, IDr_merged):
         - IDr_merged (string): ID of merged results
     Return:
         - None """
-    results_dir = '../RNN/results/'
+    from local_config import local_vars
+    results_dir = local_vars.results_directory
 #    if os.path.exists(results_dir):
 #        raise ValueError("Results directory already exists")
     # merge best results

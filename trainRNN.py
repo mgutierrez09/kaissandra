@@ -44,14 +44,14 @@ def train_RNN(*ins):
         from_stats_file = config['from_stats_file']
     else:
         from_stats_file = True
-    if 'trsfresh_from_variations' in config:
-        trsfresh_from_variations = config['trsfresh_from_variations']
-    else:
-        trsfresh_from_variations = False
     if 'inverse_load' in config:
         inverse_load = config['inverse_load']
     else:
         inverse_load = True
+    if 'weights_directory' in config:
+        weights_directory = config['weights_directory']
+    else:
+        weights_directory = "../RNN/weights/"
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -61,8 +61,7 @@ def train_RNN(*ins):
               channels=config['channels'],
               max_var=config['max_var'],
               feature_keys_manual=feature_keys_manual,
-              feature_keys_tsfresh=feature_keys_tsfresh,
-              trsfresh_from_variations=trsfresh_from_variations)
+              feature_keys_tsfresh=feature_keys_tsfresh)
     # init structures
     IDweights = config['IDweights']
     hdf5_directory = config['hdf5_directory']
@@ -316,7 +315,8 @@ def train_RNN(*ins):
     tf.reset_default_graph()
     # start session
     with tf.Session() as sess:    
-        model.train(sess, int(np.ceil(m_t/aloc)), ID=IDweights, IDIO=IDweights, 
+        model.train(sess, int(np.ceil(m_t/aloc)), weights_directory, 
+                    ID=IDweights, IDIO=IDweights, 
                     data_format='hdf5', filename_IO=filename_IO, aloc=aloc)
         
 if __name__ == "__main__":
