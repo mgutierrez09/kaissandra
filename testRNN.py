@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = retrieve_config('C0288INVO')
+        config = retrieve_config('C0289STRO')
     # add compatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -340,7 +340,7 @@ def test_RNN(*ins):
         print("IDresults: "+IDresults)
         # TEMP: GRE calculation not implemented in test2 yet. Use old test
         if save_journal:
-            model.test(sess, data, IDresults, IDweights, 
+            model.test2(sess, data, IDresults, IDweights, 
                        alloc, 1, 'test', startFrom=startFrom,
                        IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)

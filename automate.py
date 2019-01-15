@@ -40,6 +40,7 @@ if __name__=='__main__':
     if_test = True
     its = 20
     configs = ['C0289STRO']
+    
     configs_list = []
     # load configuration files
     for config_name in configs:
@@ -48,6 +49,8 @@ if __name__=='__main__':
     for config in configs_list:
         # set automation-specific config fields
         config['num_epochs'] = 1
+        config['startFrom'] = -1
+        config['endAt'] = -1
         run_train_test(config, its, if_train, if_test, if_get_features)
         # parallelize
 #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
