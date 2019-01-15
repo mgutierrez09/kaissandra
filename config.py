@@ -283,7 +283,7 @@ def retrieve_config(config_name):
         config = pickle.load( open( config_filename, "rb" ))
         print("Config file "+config_filename+" loaded from disk")
     else:
-        raise OSError("ERROR config file "+config_name+" does not exist")
+        raise OSError("ERROR config file "+config_filename+" does not exist")
     return config
 
 def get_config(config_name):
