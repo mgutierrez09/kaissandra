@@ -21,7 +21,7 @@ from inputs import (Data,
                     load_manual_features,
                     load_tsf_features)
 from config import retrieve_config
-
+from local_config import local_vars
 
 def train_RNN(*ins):
     """  """
@@ -51,7 +51,7 @@ def train_RNN(*ins):
     if 'weights_directory' in config:
         weights_directory = config['weights_directory']
     else:
-        weights_directory = "../RNN/weights/"
+        weights_directory = local_vars.weights_directory
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],

@@ -40,8 +40,8 @@ ban_only_if_open = False # not in use
 data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
 directory_MT5 = local_vars.directory_MT5#("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                 #     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
-io_dir = '../RNN/IOlive/'
-ADsDir = "../RNN/results/"
+io_dir = local_vars.io_dir
+ADsDir = local_vars.ADsDir
 hdf5_directory = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'#'../HDF5/'#
 
 init_budget = 10000.0
@@ -336,7 +336,7 @@ class Strategy():
 class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
-                 AllAssets, log_file, results_dir="../RNN/resultsLive/back_test/trader/", 
+                 AllAssets, log_file, results_dir="", 
                  start_time=''):
         
         self.list_opened_positions = []
@@ -2228,9 +2228,9 @@ def run(running_assets, start_time):
 
     # directories
     if run_back_test:
-        dir_results = "../RNN/resultsLive/back_test/"    
+        dir_results = local_vars.RNN_dir+"resultsLive/back_test/"    
     else:
-        dir_results = "../RNN/resultsLive/live/"
+        dir_results = local_vars.RNN_dir+"resultsLive/live/"
     dir_results_trader = dir_results+"trader/"
     
     log_file = dir_results+start_time+'_log.log'
@@ -2456,7 +2456,7 @@ def run(running_assets, start_time):
     ################# Trader #############################
     
     
-    strategies = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
+    strategies = [Strategy(direct=local_vars.ADsDir,thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                           fixed_spread_pips=list_fixed_spread_pips[i], 
                           max_lots_per_pos=list_max_lots_per_pos[i], 

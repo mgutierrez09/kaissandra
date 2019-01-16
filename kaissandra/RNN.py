@@ -18,6 +18,7 @@ import os
 #import matplotlib.pyplot as plt
 from results import evaluate_RNN,save_best_results,get_last_saved_epoch
 from results2 import get_results, get_last_saved_epoch2, get_best_results
+from local_config import local_vars
 
 class trainData:
     def __init__(self,X,Y):
@@ -180,13 +181,13 @@ class modelRNN(object):
     def _load_graph(self,ID,epoch,live=""):
         """ <DocString> """
         # Create placeholders
-        if os.path.exists("../RNN/weights/"+ID+"/"):
+        if os.path.exists(local_vars.weights_directory+ID+"/"):
             if epoch == -1:# load last
                 # get last saved epoch
-                epoch = int(sorted(os.listdir("../RNN/weights/"+ID+"/"))[-2])
+                epoch = int(sorted(os.listdir(local_vars.weights_directory+ID+"/"))[-2])
             
             strEpoch = "{0:06d}".format(epoch)
-            self._saver.restore(self._sess, "../RNN/weights/"+ID+"/"+
+            self._saver.restore(self._sess, local_vars.weights_directory+ID+"/"+
                                 strEpoch+"/"+strEpoch)
             #print("var : %s" % self.var.eval())
             print("Parameters loaded. Epoch "+str(epoch))
@@ -206,7 +207,7 @@ class modelRNN(object):
         if os.path.exists(weights_directory+ID+"/")==False:
             os.mkdir(weights_directory+ID+"/")
         if os.path.exists(weights_directory+ID+"/cost.p"):
-            cost = pickle.load( open( "../RNN/weights/"+ID+"/cost.p", "rb" ))
+            cost = pickle.load( open( local_vars.weights_directory+ID+"/cost.p", "rb" ))
         cost[ID+str(epoch)] = epoch_cost
         pickle.dump(cost, open( weights_directory+ID+"/cost.p", "wb" ))
         strEpoch = "{0:06d}".format(epoch)
@@ -245,29 +246,30 @@ class modelRNN(object):
         """ 
         Test RNN network with y_c bits
         """
+        import pandas as pd
         self._sess = sess
         
         self._init_parameters()
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
         
-        resultsDir = "../RNN/results/"
+        resultsDir = local_vars.results_directory
         
         #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
         if endAt==-1:
-            lastTrained = int(sorted(os.listdir("../RNN/weights/"+IDweights+"/"))[-2])
+            lastTrained = int(sorted(os.listdir(local_vars.weights_directory+IDweights+"/"))[-2])
         else:
             lastTrained = endAt
         
         # load train cost function evaluations
         costs = {}
-        if os.path.exists("../RNN/weights/"+IDweights+"/cost.p"):
-            costs = pickle.load( open( "../RNN/weights/"+IDweights+"/cost.p", "rb" ))
+        if os.path.exists(local_vars.weights_directory+IDweights+"/cost.p"):
+            costs = pickle.load( open( local_vars.weights_directory+IDweights+"/cost.p", "rb" ))
         else:
             pass
         
         # load IO info
-        filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
+        #filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
         f_IO = h5py.File(filename_IO,'r')
         #X_test = f_IO['X'][:]
         Y_test = f_IO['Y'][:]
@@ -361,6 +363,7 @@ class modelRNN(object):
         """ 
         Test RNN network with y_c bits
         """
+        import pandas as pd
         self._sess = sess
         
         self._init_parameters()
