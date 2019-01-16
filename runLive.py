@@ -2286,20 +2286,21 @@ def run(running_assets, start_time):
     AllAssets = Data().AllAssets
     
     numberNetworks = 1
-    IDweights = ['000289STRO']
-    IDresults = ['100289STRO']
+    IDweights = ['000288INVO']#['000289STRO']
+    IDresults = ['100288INVO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['89_4']
-    IDepoch = ['4']
-    netNames = ['4']
-    list_t_indexs = [[2]]
+    list_name = ['10_2']#['89_4']
+    IDepoch = ['10']
+    netNames = ['28810']
+    list_t_indexs = [[0]]
+    list_inv_out = [True]
     phase_shifts = [1]
-    list_thr_sl = [20 for i in range(numberNetworks)]
+    list_thr_sl = [1000 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0]
     mWs = [100]
     nExSs = [1000]
-    lBs = [1300]
+    lBs = [1300]#[1300]
     list_w_str = ['55']
     model_dict = {'size_hidden_layer':[100],
                   'L':[3],
@@ -2433,7 +2434,7 @@ def run(running_assets, start_time):
     # init non-variation features
     list_nonVarFeats = [np.intersect1d(list_data[nn].noVarFeats,list_data[nn].feature_keys_manual) for nn in range(nNets)]
     list_nonVarIdx = [np.zeros((len(list_nonVarFeats[nn]))).astype(int) for nn in range(nNets)]
-    list_inv_out = [False, False]
+    
     
     for nn in range(nNets):
         nv = 0

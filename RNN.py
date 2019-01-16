@@ -14,7 +14,7 @@ import time
 import h5py
 import datetime as dt
 import os
-import pandas as pd
+#import pandas as pd
 #import matplotlib.pyplot as plt
 from results import evaluate_RNN,save_best_results,get_last_saved_epoch
 from results2 import get_results, get_last_saved_epoch2, get_best_results
