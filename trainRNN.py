@@ -77,6 +77,9 @@ def train_RNN(*ins):
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     print(filename_IO)
+    print(separators_directory)
+    print(filename_features_tsf)
+    print(filename_prep_IO)
     if 0:#len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
@@ -157,6 +160,7 @@ def train_RNN(*ins):
     # array containing bids means
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
+    print(data.assets)
     for ass in data.assets:
         thisAsset = data.AllAssets[str(ass)]
         
