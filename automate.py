@@ -33,7 +33,6 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
         if if_test:
             test_RNN(config)
 
-#if __name__=='__main__':
 def automate(*ins):
     # init config
     if_get_features = False
@@ -61,3 +60,7 @@ def automate(*ins):
     #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
     #        disp.start()
     #        time.sleep(1)
+
+if __name__=='__main__':
+    import pandas as pd
+    automate(['C3012INVO'])
