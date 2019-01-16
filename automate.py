@@ -34,25 +34,30 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
             test_RNN(config)
 
 #if __name__=='__main__':
-# init config
-if_get_features = False
-if_train = True
-if_test = True
-its = 20
-configs = ['C0310INV0']
-    
-configs_list = []
- # load configuration files
-for config_name in configs:
-    configs_list.append(retrieve_config(config_name))
-    # run train/test
-for config in configs_list:
-    # set automation-specific config fields
-   config['num_epochs'] = 1
-   config['startFrom'] = -1
-   config['endAt'] = -1
-   run_train_test(config, its, if_train, if_test, if_get_features)
-        # parallelize
-#        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
-#        disp.start()
-#        time.sleep(1)
+def automate(*ins):
+    # init config
+    if_get_features = False
+    if_train = True
+    if_test = True
+    its = 20
+    # retrieve list of config file names to run automatelly
+    if len(ins)>0:
+        configs = ins[0]
+    else:
+        configs = ['C0310INV0']
+        
+    configs_list = []
+     # load configuration files
+    for config_name in configs:
+        configs_list.append(retrieve_config(config_name))
+        # run train/test
+    for config in configs_list:
+        # set automation-specific config fields
+       config['num_epochs'] = 1
+       config['startFrom'] = -1
+       config['endAt'] = -1
+       run_train_test(config, its, if_train, if_test, if_get_features)
+            # parallelize
+    #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
+    #        disp.start()
+    #        time.sleep(1)
