@@ -347,8 +347,9 @@ def test_RNN(*ins):
         print("IDresults: "+IDresults)
         # TEMP: GRE calculation not implemented in test2 yet. Use old test
         if save_journal:
-            model.test2(sess, data, IDresults, IDweights, 
-                       alloc, 'test', startFrom=startFrom,
+            model.test(sess, data, IDresults, IDweights, 
+                       alloc, True, 
+                       'test', filename_IO, startFrom=startFrom,
                        IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         else:
