@@ -108,10 +108,10 @@ def train_RNN(*ins):
     else:
         f_feats_tsf = None
         
-    if os.path.exists(filename_IO) and len(ins)>0:
-        if_build_IO = False
-    else:
-        if_build_IO = config['if_build_IO']
+#    if os.path.exists(filename_IO) and len(ins)>0:
+#        if_build_IO = False
+#    else:
+    if_build_IO = config['if_build_IO']
     # create model
     model=modelRNN(data,
                        size_hidden_layer=config['size_hidden_layer'],
