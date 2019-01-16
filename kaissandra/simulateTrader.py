@@ -1054,16 +1054,17 @@ if __name__ == '__main__':
     
     
     numberNetwors = 2
-    list_IDresults = ['100277NEWO','100277NEWO']#
-    list_IDgre = ['100277NEWO','100277NEWO']
-    list_name = ['277NEWO_27_2','277NEWO_19_2']
-    list_epoch_gre = [27,19]
-    list_epoch_journal = [27,19]
+    list_IDresults = ['100287INVO','100287INVO']#
+    list_IDgre = ['100287INVO','100287INVO']
+    list_name = ['287NEWO_2_0','277NEWO_4_1']
+    list_epoch_gre = [2,4]
+    list_epoch_journal = [2,4]
     list_use_GRE = [True for i in range(numberNetwors)]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
-    list_w_str = ["55" for i in range(numberNetwors)]
+    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+    list_w_str = ["01" for i in range(numberNetwors)]
     list_margin_ext = ['variable']
-    list_t_index = [2,2]
+    list_t_index = [0,1]
+    list_spreads_range = [[0,5],[5,1000]]
     list_lb_mc_op = [.5 for i in range(numberNetwors)]
     list_lb_md_op = [.8 for i in range(numberNetwors)]
     list_lb_mc_ext = [.5 for i in range(numberNetwors)]
@@ -1085,7 +1086,7 @@ if __name__ == '__main__':
     strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                           fixed_spread_pips=list_fixed_spread_pips[i], 
-                          max_lots_per_pos=list_max_lots_per_pos[i], 
+                          max_lots_per_pos=list_max_lots_per_pos[i],
                           flexible_lot_ratio=list_flexible_lot_ratio[i], 
                           lb_mc_op=list_lb_mc_op[i], lb_md_op=list_lb_md_op[i], 
                           lb_mc_ext=list_lb_mc_ext[i], lb_md_ext=list_lb_md_ext[i], 
@@ -2014,3 +2015,9 @@ if __name__ == '__main__':
 #Total entries 514 per entries 2.83 percent gross success 66.15% percent nett success 53.50% average loss 6.79p average win 7.39p RR 1 to 1.25
 #DONE. Total time: 59.25 mins
 #Results file: 190104164854results.p
+
+#wGRE=[.5,.5] fix invest to .1 vol epoch 2/4 t_index 0/1 IDr 100287INVO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% margin open .5p
+#Total GROI = 7.754% Total ROI = 0.156% Sum GROI = 7.769% Sum ROI = 0.137% Accumulated earnings 13.70E
+#Total entries 383 per entries 1.79 percent gross success 64.75% percent nett success 51.96% average loss 6.82p average win 6.38p RR 1 to 1.01
+#DONE. Total time: 106.16 mins
+#Results file: 190111114825results.p

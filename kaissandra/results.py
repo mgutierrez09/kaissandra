@@ -374,7 +374,6 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
             # loop over market change probability thresholds
             i_t_mc = 0
             for thr_mc in thresholds_mc:
-                
                 TRdf = init_TR(resultsDir,IDresults,t_index,thr_mc,save_results)
                 
                 if save_journal:
@@ -389,6 +388,7 @@ def evaluate_RNN(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, 
                     
                 for ub_mc in upper_bound_mc:
                     # extract non-zeros (y_c0>0.5)
+                    
                     y_mc = (t_y[:,0]>thr_mc) & (t_y[:,0]<=ub_mc) # non-zeros market change bits
                     y_md_down = y_mc & (t_y[:,1]>t_y[:,2]) # non-zeros market direction down
                     y_md_up = y_mc & (t_y[:,1]<t_y[:,2]) # non-zeros market direction up

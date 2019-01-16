@@ -167,7 +167,6 @@ class Data:
                  assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
                  max_var=10, feature_keys_tsfresh=[],#[i for i in range(37,68)]
                  noVarFeatsManual=[8,9,12,17,18,21,23,24,25,26,27,28,29],
-                 trsfresh_from_variations=True,
                  var_feat_keys=[]):
         
         self.movingWindow = movingWindow
@@ -175,6 +174,7 @@ class Data:
         
         self.feature_keys_manual = feature_keys_manual
         self.var_feat_keys = var_feat_keys
+        self.n_feats_var = len(self.var_feat_keys)
         self.n_feats_manual = len(self.feature_keys_manual)
         self.feature_keys_tsfresh = feature_keys_tsfresh
         self.lB = lB
@@ -184,14 +184,11 @@ class Data:
         self.channels = channels
         
         self.lbd=1-1/(self.nEventsPerStat*self.average_over)
-        self.feature_keys = feature_keys_manual+feature_keys_tsfresh
+        self.feature_keys = feature_keys_manual+feature_keys_tsfresh+var_feat_keys
         self.nFeatures = len(self.feature_keys)
         self.dateTest = dateTest
         self.assets = assets
-        if not trsfresh_from_variations:
-            self.noVarFeats = noVarFeatsManual+feature_keys_tsfresh
-        else:
-            self.noVarFeats = noVarFeatsManual
+        self.noVarFeats = noVarFeatsManual
         self.lookAheadIndex = lookAheadIndex
         self.max_var = max_var
         self.n_feats_tsfresh = self._get_n_feats_tsfresh()#76
@@ -1116,7 +1113,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
 
 def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct,
              stats_manual,stats_tsf,stats_output,IO,totalSampsPerLevel, 
-             s, nE, thisAsset):
+             s, nE, thisAsset, inverse_load):
     """
     Function that builds X and Y from data contained in a HDF5 file.
     """
@@ -1252,7 +1249,11 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
             cc = 0
             for r in range(nC):
                 # get input
-                X_i[nI,:,cc*nF:(cc+1)*nF] = v_support[nI+seq_len:nI:-1, :, r]
+                v_s_s = v_support[nI:nI+seq_len, :, r]
+                if inverse_load:
+                    X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s[::-1,:]#[nI:nI+seq_len, :, r]
+                else:
+                    X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s
                 cc += 1
             # due to substraction of features for variation, output gets the 
             # feature one entry later
@@ -1309,32 +1310,33 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     
     return IO, totalSampsPerLevel
 
-def build_IO_from_variations(file_temp, data, model, feats_var ,features_tsf, 
-                             returns, symbols, stats_manual, stats_in, stats_out,
-                             IO, totalSampsPerLevel, s, nE, thisAsset):
-    """
-    Function that builds RNN inputs/outputs pairs from data contained in a HDF5 file.
-    """
+# Function Build IO from var
+def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, 
+                      returns, symbols, calculate_roi):
+    # total number of possible channels
     nExS = data.nEventsPerStat
     mW = data.movingWindow
-    # total number of possible channels
     nChannels = int(nExS/mW)
     # sequence length
     seq_len = model.seq_len#int((data.lB-data.nEventsPerStat)/data.movingWindow)
     # samples allocation per batch
     aloc = 2**20
     # extract means and stats
-    means_in = stats_in['means']
-    stds_in = stats_in['stds']
-    stds_out = stats_out['stds']
+    means_in = stats['means_in']
+    stds_in = stats['stds_in']
+    #m_in = stats['m_in']
+    stds_out = stats['stds_out']
+    #m_out = stats['m_out']
+    #print("m_in")
+    #print(m_in)
+    #print("m_out")
+    #print(m_out)
     # add dateTimes, bids and asks if are included in file
-    all_info = 0
-    if 'D' in IO:
-        all_info = 1
+    if calculate_roi:
         dts = symbols['DT']
         bids = symbols['B']
         asks = symbols['A']
-        
+
         D = IO['D']
         B = IO['B']
         A = IO['A']
@@ -1342,61 +1344,61 @@ def build_IO_from_variations(file_temp, data, model, feats_var ,features_tsf,
     # extract IO structures
     X = IO['X']
     Y = IO['Y']
-    I = IO['I']
+    #I = IO['I']
     pointer = IO['pointer']
-    
-    feats_var_normed = np.minimum(np.maximum((feats_var-means_in)/\
-                     stds_in,-data.max_var),data.max_var)
+
+    feats_var_normed = np.minimum(np.maximum((features-means_in)/\
+                         stds_in,-data.max_var),data.max_var)
     # get some scalars
     nSamps = feats_var_normed.shape[0]
-    samp_remaining = nSamps-nChannels-seq_len-1
+    samp_remaining = nSamps-2*nChannels-seq_len+1
     chunks = int(np.ceil(samp_remaining/aloc))
     # init counter of samps processed
     offset = 0
     # loop over chunks
     for i in range(chunks):
         # this batch length
-        batch = np.min([samp_remaining,aloc])
+        batch = np.min([samp_remaining, aloc])
         # create support numpy vectors to speed up iterations
         v_support = feats_var_normed[offset:offset+batch+seq_len, :]
-        r_support = returns[nChannels+offset+2:nChannels+offset+batch+seq_len+2, data.lookAheadIndex]
-#        if len(stats_manual)>0:
-#            tag = '_m_'
-#        else:
-#            tag = '_a_'
-#        save_as_matfile(thisAsset+tag+str(int(s/2)),thisAsset+tag+str(int(s/2)),v_support)
-#        raise KeyboardInterrupt
+        # get init and end indexes for returns
+        init_idx_rets = nChannels+offset+seq_len-1
+        end_idx_rets = nChannels+offset+batch+seq_len-1#+2*seq_len-1
+        r_support = returns[init_idx_rets:end_idx_rets, data.lookAheadIndex]
+        assert(r_support.shape[0]==end_idx_rets-init_idx_rets)
         # we only take here the entry time index, and later at DTA building the 
         # exit time index is derived from the entry time and the number of events to
         # look ahead
-        if all_info:
-            dt_support = dts[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
-            b_support = bids[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
-            a_support = asks[nChannels+offset+2:nChannels+offset+batch+seq_len+2, [0,data.lookAheadIndex+1]]
+        if calculate_roi:
+            dt_support = dts[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
+            b_support = bids[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
+            a_support = asks[init_idx_rets:end_idx_rets, [0,data.lookAheadIndex+1]]
         # update remaining samps to proceed
         samp_remaining = samp_remaining-batch
         # init formatted input and output
-        X_i = np.zeros((batch, seq_len, model.nFeatures))
+        X_i = np.zeros((batch, seq_len, features.shape[1]))
         # real-valued output
-        O_i = np.zeros((batch, seq_len, 1))
-        
-        D_i = np.chararray((batch, seq_len, 2),itemsize=19)
-        B_i = np.zeros((batch, seq_len, 2))
-        A_i = np.zeros((batch, seq_len, 2))
-        
+        O_i = np.zeros((batch, seq_len, 1))    
+        if calculate_roi:
+            # last dimension is to incorporate in and out symbols
+            D_i = np.chararray((batch, 2),itemsize=19)
+            B_i = np.zeros((batch, 2))
+            A_i = np.zeros((batch, 2))
+
         for nI in range(batch):
             # get input
-            X_i[nI,:,:] = v_support[nI:nI+seq_len, :]            
+            v_s_s = v_support[nI:nI+seq_len, :]
+            X_i[nI,:,:] = v_s_s[::-1,:]#v_support[nI:nI+seq_len, :]            
             # due to substraction of features for variation, output gets the 
             # feature one entry later
-            O_i[nI,:,0] = r_support[nI:nI+seq_len]
-            if all_info:
-                D_i[nI,:,:] = dt_support[nI:nI+seq_len,:]
-                B_i[nI,:,:] = b_support[nI:nI+seq_len,:]
-                A_i[nI,:,:] = a_support[nI:nI+seq_len,:]
-        
+            O_i[nI,:,0] = r_support[nI]
+            if calculate_roi:
+                D_i[nI,:] = dt_support[nI,:]
+                B_i[nI,:] = b_support[nI,:]
+                A_i[nI,:] = a_support[nI,:]
+
         # normalize output
-        O_i = O_i/stds_out[0,data.lookAheadIndex]#stdO#
+        O_i = O_i/stds_out[data.lookAheadIndex]
         # update counters
         offset = offset+batch
         # get decimal and binary outputs
@@ -1405,33 +1407,31 @@ def build_IO_from_variations(file_temp, data, model, feats_var ,features_tsf,
         for l in range(model.size_output_layer):
             totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
         # resize IO structures
-        X.resize((pointer+batch, seq_len, model.nFeatures))
+        X.resize((pointer+batch, seq_len,features.shape[1]))
         Y.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
-        I.resize((pointer+batch, seq_len, 2))
         # update IO structures
         X[pointer:pointer+batch,:,:] = X_i
         Y[pointer:pointer+batch,:,:] = Y_i
-        if all_info:
+        if calculate_roi:
             # resize
-            D.resize((pointer+batch, seq_len, 2))
-            B.resize((pointer+batch, seq_len, 2))
-            A.resize((pointer+batch, seq_len, 2))
+            D.resize((pointer+batch, 2))
+            B.resize((pointer+batch, 2))
+            A.resize((pointer+batch, 2))
             # update
-            D[pointer:pointer+batch,:,:] = D_i
-            B[pointer:pointer+batch,:,:] = B_i
-            A[pointer:pointer+batch,:,:] = A_i
-#        save_as_matfile('X_h_n_'+str(int(s/2)),'X_h_n'+str(int(s/2)),X_i)
-#        save_as_matfile('O_h_n_'+str(int(s/2)),'O_h_n'+str(int(s/2)),O_i)
-        
+            D[pointer:pointer+batch,:] = D_i
+            B[pointer:pointer+batch,:] = B_i
+            A[pointer:pointer+batch,:] = A_i
+    #        save_as_matfile('X_h_n_'+str(int(s/2)),'X_h_n'+str(int(s/2)),X_i)
+    #        save_as_matfile('O_h_n_'+str(int(s/2)),'O_h_n'+str(int(s/2)),O_i)
+
         # uodate pointer
         pointer += batch
-        #print(pointer)
     # end of for i in range(chunks):
     # update dictionary
     IO['X'] = X
     IO['Y'] = Y
     IO['pointer'] = pointer
-    if all_info:
+    if calculate_roi:
         IO['D'] = D
         IO['B'] = B
         IO['A'] = A
@@ -1502,6 +1502,62 @@ def build_DTA(data, D, B, A, ass_IO_ass):
             DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
             DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
             DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+            DTA_i['Asset'] = thisAsset
+    #        print(DTA_i['DT1'].iloc[0])
+    #        print(DTA_i['DT1'].iloc[-1])
+            # append DTA this asset to all DTAs
+            DTA = DTA.append(DTA_i,ignore_index=True)
+        last_ass_IO_ass = ass_IO_ass[ass_index]
+        ass_index += 1
+    # end of for ass in data.assets:
+    return DTA
+
+def build_DTA_from_var(data, D, B, A, ass_IO_ass):
+    """
+    Function that builds structure based on IO to later get Journal and ROIs.
+    Args:
+        - data
+        - I: structure containing indexes
+        - ass_IO_ass: asset to IO assignment
+    """
+    # init columns
+    columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
+    # init DTA
+    DTA = pd.DataFrame()
+    # init hdf5 file with raw data
+    
+
+    ass_index = 0
+    last_ass_IO_ass = 0
+    # loop over assets
+    for ass in data.assets:
+        # get this asset's name
+        thisAsset = data.AllAssets[str(ass)]
+        print(thisAsset)
+        # init DTA for this asset
+        DTA_i = pd.DataFrame(columns = columns)
+#        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+#        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+        # fill DTA_i up
+        DTA_i['DT1'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],0].reshape((-1))
+        if DTA_i.shape[0]>0:
+            DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+            print(DTA_i['DT1'].iloc[0])
+            print(DTA_i['DT1'].iloc[-1])
+            if DTA_i['DT1'].iloc[0][:10] not in data.dateTest:
+                print("WARNING!!! DTA_i['DT1'].iloc[0][:10] not in data.dateTest")
+            #assert(DTA_i['DT1'].iloc[0][:10] in data.dateTest)
+#            assert(DTA_i['DT1'].iloc[-1][:10] in data.dateTest)
+            if DTA_i['DT1'].iloc[-1][:10] not in data.dateTest:
+                print("WARNING!!! DTA_i['DT1'].iloc[-1][:10] not in data.dateTest")
+            #DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+            DTA_i['B1'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],0].reshape((-1))
+            DTA_i['A1'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],0].reshape((-1))
+            
+            DTA_i['DT2'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],1].reshape((-1))
+            DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
+            DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],1].reshape((-1))
+            DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],1].reshape((-1))
             DTA_i['Asset'] = thisAsset
     #        print(DTA_i['DT1'].iloc[0])
     #        print(DTA_i['DT1'].iloc[-1])
@@ -1660,3 +1716,223 @@ def load_stats_tsf(data, thisAsset, root_directory, features_file, load_from_sta
     stats_file.close()
     #features_file.close()
     return stats_tsf
+
+def build_IO_from_var_wrapper(*ins):
+    """ Wrapper function to build RNN input/output for train/test around
+    assets and chuncks """
+    # Train/Test RNN
+    from RNN import modelRNN
+    from features import get_init_end_dates, get_group_name
+    from config import retrieve_config
+    
+    tOt = ins[0]
+    if len(ins)>1:
+        config = ins[1]
+    else:
+        config = retrieve_config('C0400')
+    
+    data=Data(movingWindow=config['movingWindow'],
+              nEventsPerStat=config['nEventsPerStat'],
+              lB=config['lB'], 
+              dateTest=config['dateTest'],
+              assets=config['assets'],
+              channels=config['channels'],
+              max_var=config['max_var'],
+              feature_keys_manual=config['feature_keys_manual'],
+              feature_keys_tsfresh=config['feature_keys_tsfresh'],
+              var_feat_keys=config['var_feat_keys'])
+    
+    model=modelRNN(data,
+                   size_hidden_layer=config['size_hidden_layer'],
+                   L=config['L'],
+                   size_output_layer=config['size_output_layer'],
+                   keep_prob_dropout=config['keep_prob_dropout'],
+                   miniBatchSize=config['miniBatchSize'],
+                   outputGain=config['outputGain'],
+                   commonY=config['commonY'],
+                   lR0=config['lR0'],
+                   num_epochs=config['num_epochs'])
+    
+    #tOt = 'te' # tr->train te->test
+    if tOt == 'tr':
+        calculate_roi = False
+    else:
+        calculate_roi = True
+    if_build_IO = config['if_build_IO']
+    from_stats_file = config['from_stats_file']
+    
+    IDweights = config['IDweights']
+    IO_results_name = config['IO_results_name']
+    hdf5_directory = config['hdf5_directory']
+    feats_var_directory = hdf5_directory+'feats_var/'
+    IO_directory = config['IO_directory']
+    if tOt=='tr':
+        filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
+    else:
+        filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
+    separators_directory = hdf5_directory+'separators/'
+    nExS = data.nEventsPerStat
+    # if IO structures have to be built 
+    if if_build_IO:
+        # init dictionary containing IO structures
+        IO = {}
+        # open IO file for writting
+        f_IO = h5py.File(filename_IO,'w')
+        # init IO data sets
+        X = f_IO.create_dataset('X',
+                                (0, model.seq_len, model.nFeatures), 
+                                maxshape=(None,model.seq_len, model.nFeatures), 
+                                dtype=float)
+        Y = f_IO.create_dataset('Y',
+                                (0,model.seq_len,model.commonY+model.size_output_layer),
+                                maxshape=(None,model.seq_len,model.commonY+
+                                model.size_output_layer),
+                                dtype=float)
+        if calculate_roi:
+            D = f_IO.create_dataset('D', (0,2),
+                                        maxshape=(None,2),dtype='S19')
+            B = f_IO.create_dataset('B', (0,2),
+                                        maxshape=(None,2),dtype=float)
+            A = f_IO.create_dataset('A', (0,2),
+                                        maxshape=(None,2),dtype=float)
+            IO['D'] = D
+            IO['B'] = B
+            IO['A'] = A
+        # attributes to track asset-IO belonging
+        ass_IO_ass = np.zeros((len(data.assets))).astype(int)
+        # structure that tracks the number of samples per level
+        totalSampsPerLevel = np.zeros((model.size_output_layer))
+        # save IO structures in dictionary
+        IO['X'] = X
+        IO['Y'] = Y
+        IO['pointer'] = 0
+        
+    for ass_idx, ass in enumerate(data.assets):
+        thisAsset = data.AllAssets[str(ass)]
+        print(str(ass)+" "+thisAsset)
+        #thisAsset = 'EURUSD'
+        # load separators
+        separators = load_separators(data, 
+                                     thisAsset, 
+                                     separators_directory, 
+                                     tOt='tr', 
+                                     from_txt=1)
+    
+        filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
+                                    str(data.nEventsPerStat)+'.hdf5')
+        file_features = h5py.File(filename_features,'r')
+        filename_returns = (feats_var_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
+                                    str(data.nEventsPerStat)+'.hdf5')
+        file_returns = h5py.File(filename_returns,'r')
+        filename_symbols = (feats_var_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
+                                    str(data.nEventsPerStat)+'.hdf5')
+        file_symbols = h5py.File(filename_symbols,'r')
+        filename_stats = (feats_var_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+'_nE'+
+                                        str(data.nEventsPerStat)+'.p')
+        # init or load total stats
+        if not from_stats_file:
+            stats = {}
+            # load stats in
+            stats["means_in"] = file_features[thisAsset].attrs.get("means_in")
+            stats["stds_in"] = file_features[thisAsset].attrs.get("stds_in")
+            stats["m_in"] = file_features[thisAsset].attrs.get("m_in")
+            # load stats out
+            stats["means_out"] = file_returns[thisAsset].attrs.get("means_out")
+            stats["stds_out"] = file_returns[thisAsset].attrs.get("stds_out")
+            stats["m_out"] = file_returns[thisAsset].attrs.get("m_out")
+        elif from_stats_file:
+            stats = pickle.load( open( filename_stats, "rb" ))
+    
+        if if_build_IO:
+            for s in range(0,len(separators)-1,2):#
+                print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
+                      ". From "+separators.DateTime.iloc[s]+" to "+
+                      separators.DateTime.iloc[s+1])
+    
+                # number of events within this separator chunk
+                nE = separators.index[s+1]-separators.index[s]+1
+                # get first day after separator
+                day_s = separators.DateTime.iloc[s][0:10]
+                # check if number of events is not enough to build two features and one return
+                if nE-nExS>=2*nExS:
+                    if (tOt == 'tr' and (day_s not in data.dateTest and day_s<=data.dateTest[-1])) or \
+                        (tOt == 'te' and (day_s in data.dateTest and day_s<=data.dateTest[-1])):
+                        # init and end dates
+                        init_date, end_date = get_init_end_dates(separators, s)
+                        #print("init_date")
+                        #print(init_date)
+                        #print("end_date")
+                        #print(end_date)
+                        # get group name
+                        group_name = get_group_name(thisAsset, init_date, end_date)
+                        #print("group_name")
+                        #print(group_name)
+                        # load features
+                        if group_name in file_features:
+                            features = file_features[group_name]["features"]
+                        else:
+                            raise ValueError(group_name+" not in "+filename_features)
+                        #print("features")
+                        #print(features)
+                        # load returns
+                        if group_name in file_returns:
+                            returns = file_returns[group_name]["returns"]
+                        else:
+                            raise ValueError(group_name+" not in "+filename_features)
+                        #print(returns)
+                        # load Symbols if calculate_roi is true
+                        #TODO: Implement Symbol loading for test
+                        if calculate_roi:
+                            DT = file_symbols[group_name]["DT"]
+                            B = file_symbols[group_name]["B"]
+                            A = file_symbols[group_name]["A"]
+                            # build dict w. symbols
+                            symbols = {'DT':DT,
+                                      'B':B,
+                                      'A':A}
+                        else:
+                            symbols = {}
+                        # build IO
+                        IO, totalSampsPerLevel = build_IO_from_var(data, model, stats, 
+                                                                   IO, totalSampsPerLevel, 
+                                                                   features, returns, 
+                                                                   symbols, calculate_roi)
+                        #print(totalSampsPerLevel)
+                    else:
+                        print("\tNot in the set. Skipped.")
+    
+                else:
+                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
+                        int(s/2),int(len(separators)/2-1)))
+            # end of for s in range(0,len(separators)-1,2):
+        if if_build_IO:
+            ass_IO_ass[ass_idx] = IO['pointer']
+            #print("\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+
+            #          ". Total time:"+str(np.floor(time.time()-ticTotal))+"s")
+    # end of for ass_idx, ass in enumerate(data.assets):
+    if if_build_IO:
+        print("Samples to RNN: "+str(max(ass_IO_ass))+".\nPercent per level:"+
+                str(totalSampsPerLevel/max(ass_IO_ass)))
+        f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
+        
+        
+        if calculate_roi:
+            print("Building DTA...")
+            DTA = build_DTA_from_var(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
+            pickle.dump( DTA, open( IO_directory+"DTA"+"_"+IO_results_name+".p", "wb" ))
+            f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
+        else:
+            DTA = None
+        f_IO.close()
+    else:
+        if calculate_roi:
+            DTA = pickle.load( open( IO_directory+"DTA"+"_"+IO_results_name+".p", "rb" ))
+        else:
+            DTA = None
+        # get ass_IO_ass from disk
+        f_IO = h5py.File(filename_IO,'r')
+        ass_IO_ass = f_IO.attrs.get("ass_IO_ass")
+        f_IO.close()
+    
+    m_t = max(ass_IO_ass)
+    return model, m_t, filename_IO, DTA

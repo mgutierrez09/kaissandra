@@ -9,7 +9,7 @@ import time
 from multiprocessing import Process
 from trainRNN import train_RNN
 from testRNN import test_RNN
-from config import configuration
+from config import retrieve_config
 from features import get_features
 
 def run_train_test(config, its, if_train, if_test, if_get_features):
@@ -33,21 +33,34 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
         if if_test:
             test_RNN(config)
 
-if __name__=='__main__':
+def automate(*ins):
     # init config
     if_get_features = False
     if_train = True
     if_test = True
     its = 20
-    configs = ['CTESTTSFRESH1']
+    # retrieve list of config file names to run automatelly
+    if len(ins)>0:
+        configs = ins[0]
+    else:
+        configs = ['C0310INVO']
+        
     configs_list = []
-    # load configuration files
+     # load configuration files
     for config_name in configs:
-        configs_list.append(configuration(config_name))
-    # run train/test
+        configs_list.append(retrieve_config(config_name))
+        # run train/test
     for config in configs_list:
-        run_train_test(config, its, if_train, if_test, if_get_features)
-        # parallelize
-#        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
-#        disp.start()
-#        time.sleep(1)
+        # set automation-specific config fields
+       config['num_epochs'] = 1
+       config['startFrom'] = -1
+       config['endAt'] = -1
+       run_train_test(config, its, if_train, if_test, if_get_features)
+            # parallelize
+    #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
+    #        disp.start()
+    #        time.sleep(1)
+
+if __name__=='__main__':
+    import pandas as pd
+    automate(['C3012INVO'])
