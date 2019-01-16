@@ -277,7 +277,7 @@ def configuration(*ins):
 
 def retrieve_config(config_name):
     """  """
-    config_filename = config_name+'.config'#'../config/'+config_name+'.config'#
+    config_filename = '../config/'+config_name+'.config'#
         
     if os.path.exists(config_filename):
         config = pickle.load( open( config_filename, "rb" ))
