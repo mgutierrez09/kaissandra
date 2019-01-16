@@ -447,6 +447,18 @@ def unroll_param(struct, param, name, extentions):
         struct[name+extentions[p]] = param[p]
     return struct
 
+def unroll_dictionary(dictionary):
+    """  """
+    unrolled_dictionary = {}
+    for k in dictionary.keys():
+        if type(dictionary[k])==list:
+            print("List length: "+str(len(dictionary[k]))+". Unrolling")
+            unrolled_dictionary = unroll_param(unrolled_dictionary, dictionary[k], k, ['.'+str(i) for i in range(len(dictionary[k]))])
+        else:
+            print(k+" No list key. Add to unrolled dict. ")
+            unrolled_dictionary[k] = dictionary[k]
+    return unrolled_dictionary
+
 def build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel, 
                               rSampsXlevel, successes, mSpread):
     """  """

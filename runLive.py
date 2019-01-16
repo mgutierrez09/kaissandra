@@ -32,7 +32,7 @@ exit_bid_column = 'Bo'
 verbose_RNN = True
 verbose_trader = True
 test = False
-run_back_test = False
+run_back_test = True
 spread_ban = True
 ban_only_if_open = False # not in use
 
@@ -336,7 +336,7 @@ class Strategy():
 class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
-                 AllAssets, results_dir="../RNN/resultsLive/back_test/trader/", 
+                 AllAssets, log_file, results_dir="../RNN/resultsLive/back_test/trader/", 
                  start_time=''):
         
         self.list_opened_positions = []
@@ -402,7 +402,8 @@ class Trader:
                 tag = '_BT_'
             else:
                 tag = '_LI_'
-            self.log_file = self.results_dir+start_time+tag+"trader.log"
+            self.log_file_trader = self.results_dir+start_time+tag+"trader.log"
+            self.log_file = log_file
             self.log_positions_soll = self.results_dir+start_time+tag+"positions_soll.log"
             self.log_positions_ist = self.results_dir+start_time+tag+"positions_ist.log"
             self.log_summary = self.results_dir+start_time+tag+"summary.log"
@@ -934,7 +935,7 @@ class Trader:
                    "Strategy "+strategy_name)
             if verbose_trader:
                 print("\r"+out)
-            self.write_log(out)
+            write_log(out, self.log_file)
             
             position = Position(new_entry, self.strategies[new_entry['network_index']])
             
@@ -1024,7 +1025,7 @@ class Trader:
         Write in log file
         """
         if self.save_log:
-            file = open(self.log_file,"a")
+            file = open(self.log_file_trader,"a")
             file.write(log+"\n")
             file.close()
         return None
@@ -1234,7 +1235,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
                   list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_dir, 
-                  results_file, model, data, log_file, nonVarIdx):
+                  results_file, model, data, log_file, nonVarIdx, list_inv_out):
     """
     <DocString>
     """
@@ -1286,7 +1287,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
     if listAllFeatsLive[sc].shape[1]>nChannels:
         
         # Shift old samples forward and leave space for new one
-        list_X_i[sc][0,:-1,:] = list_X_i[sc][0,1:,:]
+        if not list_inv_out:
+            list_X_i[sc][0,:-1,:] = list_X_i[sc][0,1:,:]
+        else:
+            list_X_i[sc][0,1:,:] = list_X_i[sc][0,:-1,:]
         variationLive = np.zeros((data.nFeatures,len(data.channels)))
         for r in range(len(data.channels)):
             variationLive[:,r] = listAllFeatsLive[sc][:,-1]-\
@@ -1296,7 +1300,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             varNormed = np.minimum(np.maximum((variationLive.T-\
                 means_in[data.channels[r],:])/stds_in[data.channels[r],:],-10),10)
             # copy new entry in last pos of X
-            list_X_i[sc][0,-1,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
+            if not list_inv_out:
+                list_X_i[sc][0,-1,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
+            else:
+                list_X_i[sc][0,0,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
             
         #delete old infos
         listAllFeatsLive[sc] = listAllFeatsLive[sc][:,-100:]
@@ -1453,9 +1460,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             abs(Output_i)*model.outputGain),-(model.size_output_layer
                                -1)/2),(model.size_output_layer-1)/2)).astype(int)
                                 
-                    look_back_index = -nChannels-model.seq_len+2#-nChannels-t_indexes[t_index]-1
-#                    print("look_back_index")
-#                    print(look_back_index)
+                    look_back_index = -nChannels-1#model.seq_len+3#+2#-nChannels-t_indexes[t_index]-1
+                    #print("look_back_index")
+                    #print(look_back_index)
                     # compare prediction with actual output 
                     pred = list_Ylive[sc][t_index][look_back_index]
                     p_mc = list_Pmc_live[sc][t_index][look_back_index]
@@ -1657,7 +1664,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_models'][nn],
                                        lists['list_data'][nn], 
                                        log_file, 
-                                       lists['list_nonVarIdx'][nn])
+                                       lists['list_nonVarIdx'][nn],
+                                       lists['list_inv_out'][nn])
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -2277,26 +2285,26 @@ def run(running_assets, start_time):
     
     AllAssets = Data().AllAssets
     
-    numberNetworks = 2
-    IDweights = ['000277NEWO','000277NEWO']
-    IDresults = ['100277NEWO','100277NEWO']
+    numberNetworks = 1
+    IDweights = ['000289STRO']
+    IDresults = ['100289STRO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['77_27','77_19']
-    IDepoch = ['27','19']
-    netNames = ['27','19']
-    list_t_indexs = [[2],[2]]
-    phase_shifts = [5,5]
+    list_name = ['89_4']
+    IDepoch = ['4']
+    netNames = ['4']
+    list_t_indexs = [[2]]
+    phase_shifts = [1]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0]
-    mWs = [100,100]
-    nExSs = [1000,1000]
-    lBs = [1200,1200]
-    list_w_str = ['55','55']
-    model_dict = {'size_hidden_layer':[100,100],
-                  'L':[3,3],
+    mWs = [100]
+    nExSs = [1000]
+    lBs = [1300]
+    list_w_str = ['55']
+    model_dict = {'size_hidden_layer':[100],
+                  'L':[3],
                   'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[.6,.6]}
+                  'outputGain':[.6]}
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
               dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
 #    numberNetworks = 1
@@ -2425,6 +2433,7 @@ def run(running_assets, start_time):
     # init non-variation features
     list_nonVarFeats = [np.intersect1d(list_data[nn].noVarFeats,list_data[nn].feature_keys_manual) for nn in range(nNets)]
     list_nonVarIdx = [np.zeros((len(list_nonVarFeats[nn]))).astype(int) for nn in range(nNets)]
+    list_inv_out = [False, False]
     
     for nn in range(nNets):
         nv = 0
@@ -2596,11 +2605,12 @@ def run(running_assets, start_time):
                 lists['list_models'] = list_models
                 lists['list_data'] = list_data
                 lists['list_nonVarIdx'] = list_nonVarIdx
+                lists['list_inv_out'] = list_inv_out
     #             init trader
     #            trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), init_budget=init_budget)
                 trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
-                                results_dir=dir_results_trader, 
+                                log_file, results_dir=dir_results_trader, 
                                 start_time=start_time)
                 if not os.path.exists(trader.log_file):
                     write_log(out, trader.log_file)
@@ -2685,10 +2695,11 @@ def run(running_assets, start_time):
             lists['list_models'] = list_models
             lists['list_data'] = list_data
             lists['list_nonVarIdx'] = list_nonVarIdx
+            lists['list_inv_out'] = list_inv_out
             # init trader
             trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
-                                results_dir=dir_results_trader, 
+                                log_file, results_dir=dir_results_trader, 
                                 start_time=start_time)
             # launch fetcher
             fetch(lists, trader, directory_MT5, 
@@ -2736,9 +2747,9 @@ def launch():
     import datetime as dt
     import time
     
-    synchroned_run = False
+    synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    running_assets = assets#[12,7,14]
+    running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
         run(running_assets,start_time)

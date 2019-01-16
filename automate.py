@@ -44,7 +44,7 @@ def automate(*ins):
     if len(ins)>0:
         configs = ins[0]
     else:
-        configs = ['C0310INV0']
+        configs = ['C0310INVO']
         
     configs_list = []
      # load configuration files
