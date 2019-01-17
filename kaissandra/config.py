@@ -7,7 +7,7 @@ Created on Sun Oct 21 17:03:11 2018
 
 import pickle
 import os
-from local_config import local_vars
+from kaissandra.local_config import local_vars
 
 config_extension = ".config"
 

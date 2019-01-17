@@ -37,12 +37,12 @@ spread_ban = True
 ban_only_if_open = False # not in use
 
 
-data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
+data_dir = local_vars.data_dir
 directory_MT5 = local_vars.directory_MT5#("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                 #     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
 io_dir = local_vars.io_dir
 ADsDir = local_vars.ADsDir
-hdf5_directory = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'#'../HDF5/'#
+hdf5_directory = local_vars.hdf5_directory
 
 init_budget = 10000.0
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')

@@ -14,6 +14,14 @@ import datetime as dt
 import pickle
 import scipy.io as sio
 import os
+import tensorflow as tf
+
+from kaissandra.local_config import local_vars
+from kaissandra.config import retrieve_config
+from kaissandra.RNN import modelRNN
+from kaissandra.features import get_init_end_dates, get_group_name
+#import importlib
+#importlib.reload(mod)
 
 class Data:
     
@@ -429,7 +437,7 @@ def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNi
 
 def save_as_matfile(filename,varname,var):
     
-    sio.savemat("../MATLAB/"+filename+'.mat', {varname:var})
+    sio.savemat(local_vars.matlab_file+filename+'.mat', {varname:var})
     print('MAT file saved')
     
     return None
@@ -1721,9 +1729,6 @@ def build_IO_from_var_wrapper(*ins):
     """ Wrapper function to build RNN input/output for train/test around
     assets and chuncks """
     # Train/Test RNN
-    from RNN import modelRNN
-    from features import get_init_end_dates, get_group_name
-    from config import retrieve_config
     
     tOt = ins[0]
     if len(ins)>1:
@@ -1763,9 +1768,10 @@ def build_IO_from_var_wrapper(*ins):
     
     IDweights = config['IDweights']
     IO_results_name = config['IO_results_name']
-    hdf5_directory = config['hdf5_directory']
+    hdf5_directory = local_vars.hdf5_directory
     feats_var_directory = hdf5_directory+'feats_var/'
-    IO_directory = config['IO_directory']
+    IO_directory = local_vars.IO_directory
+    
     if tOt=='tr':
         filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     else:
@@ -1936,3 +1942,75 @@ def build_IO_from_var_wrapper(*ins):
     
     m_t = max(ass_IO_ass)
     return model, m_t, filename_IO, DTA
+
+def build_and_train(*ins):
+    """  """
+    # Train
+    
+    
+    if len(ins)>0:
+        config = ins[0]
+    else:
+        config = retrieve_config('C0400')
+    
+    model, m_t, filename_IO, _ = build_IO_from_var_wrapper('tr', config)
+    # reset graph
+    alloc = 2**20
+    tf.reset_default_graph()
+    # start session
+    with tf.Session() as sess:    
+        model.train(sess, int(np.ceil(m_t/alloc)), local_vars.weights_directory,
+                    ID=config['IDweights'], IDIO=config['IDweights'], 
+                    data_format='hdf5', filename_IO=filename_IO, aloc=alloc)
+        
+def build_and_test(*ins):
+    """  """
+    
+    
+    if len(ins)>0:
+        config = ins[0]
+    else:
+        config = retrieve_config('C0400')
+        
+    
+    weights_directory = local_vars.weights_directory
+
+    results_directory = local_vars.results_directory
+    
+    model, m_t, filename_IO, DTA = build_IO_from_var_wrapper('te', config)
+    
+    alloc = 200000
+    # reset graph
+    tf.reset_default_graph()
+    # start session
+    with tf.Session() as sess:
+        # run test RNN
+        print("IDresults: "+config['IDresults'])
+        
+        model.test2(sess, config['dateTest'], config['IDresults'], config['IDweights'], 
+                    alloc, 'test', weights_directory, filename_IO, results_directory,
+                    startFrom=config['startFrom'], data_format='hdf5', DTA=DTA, 
+                    save_journal=config['save_journal'], endAt=config['endAt'], from_var=True)
+    print("DONE")
+    
+def run_train_test(config, its, if_train, if_test):
+    """
+    run train/test alternatively
+    """
+    # loop over iteratuibs
+    for it in range(its):
+        print("Iteration {0:d} of {1:d}".format(it,its-1))
+        # control build_IO
+        if it>0 and config['if_build_IO']:
+            config['if_build_IO'] = False
+        if if_train:
+            print("IDweights: "+config['IDweights'])
+        if if_test:
+            print("IDresults: "+config['IDresults'])
+        # launch train
+        if if_train:
+            # here we should check if the HDF5 file is used
+            build_and_train(config)
+        # launch test
+        if if_test:
+            build_and_test(config)

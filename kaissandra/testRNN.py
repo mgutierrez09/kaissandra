@@ -11,9 +11,10 @@ import tensorflow as tf
 import h5py
 import pickle
 import os
-from RNN import modelRNN
-from local_config import local_vars
-from inputs import (Data, 
+
+from kaissandra.RNN import modelRNN
+from kaissandra.local_config import local_vars
+from kaissandra.inputs import (Data, 
                     load_separators, 
                     build_DTA, 
                     build_IO,
@@ -23,7 +24,7 @@ from inputs import (Data,
                     load_manual_features,
                     load_tsf_features,
                     load_returns)
-from config import retrieve_config
+from kaissandra.config import retrieve_config
 
 def test_RNN(*ins):
     """
@@ -50,7 +51,6 @@ def test_RNN(*ins):
         inverse_load = True
 
     weights_directory = local_vars.weights_directory
-    results_directory = local_vars.results_directory
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -249,11 +249,11 @@ def test_RNN(*ins):
                     # check if the separator chuck belongs to the training/test set
                     if day_s in data.dateTest:
                         try:
-                            file_temp_name = ('../RNN/IO/temp_test_build'+
+                            file_temp_name = (local_vars.IO_directory+'temp_test_build'+
                                               str(np.random.randint(10000))+
                                               '.hdf5')
                             while os.path.exists(file_temp_name):
-                                file_temp_name = ('../RNN/IO/temp_test_build'+
+                                file_temp_name = (local_vars.IO_directory+'temp_test_build'+
                                                   str(np.random.randint(10000))+
                                                   '.hdf5')
                             file_temp = h5py.File(file_temp_name,'w')

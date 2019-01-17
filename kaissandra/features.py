@@ -13,9 +13,10 @@ import pickle
 import pandas as pd
 import datetime as dt
 from scipy.stats import linregress
-from scipy.signal import cwt, find_peaks_cwt, ricker, welch
-from inputs import Data, load_separators, get_features_results_stats_from_raw
-from config import configuration
+from scipy.signal import cwt, find_peaks_cwt, ricker
+
+#from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw
+from kaissandra.config import configuration
 
 
 def get_features(*ins):

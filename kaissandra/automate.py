@@ -62,5 +62,4 @@ def automate(*ins):
     #        time.sleep(1)
 
 if __name__=='__main__':
-    import pandas as pd
     automate(['C3012INVO'])

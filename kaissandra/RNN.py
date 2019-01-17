@@ -16,9 +16,9 @@ import datetime as dt
 import os
 #import pandas as pd
 #import matplotlib.pyplot as plt
-from results import evaluate_RNN,save_best_results,get_last_saved_epoch
-from results2 import get_results, get_last_saved_epoch2, get_best_results
-from local_config import local_vars
+from kaissandra.results import evaluate_RNN,save_best_results,get_last_saved_epoch
+from kaissandra.results2 import get_results, get_last_saved_epoch2, get_best_results
+from kaissandra.local_config import local_vars
 
 class trainData:
     def __init__(self,X,Y):

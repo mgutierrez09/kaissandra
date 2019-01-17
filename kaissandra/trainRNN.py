@@ -10,8 +10,9 @@ import h5py
 import numpy as np
 import os
 import tensorflow as tf
-from RNN import modelRNN
-from inputs import (Data, 
+
+from kaissandra.RNN import modelRNN
+from kaissandra.inputs import (Data, 
                     load_separators, 
                     build_IO, 
                     load_stats_manual,
@@ -20,8 +21,8 @@ from inputs import (Data,
                     load_returns,
                     load_manual_features,
                     load_tsf_features)
-from config import retrieve_config
-from local_config import local_vars
+from kaissandra.config import retrieve_config
+from kaissandra.local_config import local_vars
 
 def train_RNN(*ins):
     """  """
