@@ -245,6 +245,7 @@ class modelRNN(object):
         """ 
         Test RNN network with y_c bits
         """
+        import pandas as pd
         self._sess = sess
         
         self._init_parameters()
@@ -361,6 +362,7 @@ class modelRNN(object):
         """ 
         Test RNN network with y_c bits
         """
+        import pandas as pd
         self._sess = sess
         
         self._init_parameters()
