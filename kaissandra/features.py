@@ -432,6 +432,7 @@ def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE,
 def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directory, 
                      separators_directory, ass, save_stats, save_stats_in_stats):
     """  """
+    from kaissandra.inputs import load_separators, Data
     data = Data(var_feat_keys=var_feat_keys, feature_keys_tsfresh=feature_keys_tsfresh)
     f_raw = h5py.File(filename_raw,'r')
     thisAsset = data.AllAssets[str(ass)]

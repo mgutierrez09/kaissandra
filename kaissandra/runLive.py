@@ -2304,8 +2304,8 @@ def run(running_assets, start_time):
     IDweights = ['000288INVO']#['000289STRO']
     IDresults = ['100288INVO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['10_2']#['89_4']
-    IDepoch = ['10']
+    list_name = ['7_0']#['89_4']
+    IDepoch = ['7']
     netNames = ['28810']
     list_t_indexs = [[0]]
     list_inv_out = [True]
@@ -2339,7 +2339,7 @@ def run(running_assets, start_time):
     
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
-    list_entry_strategy = ['gre' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
     list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]}]#[2]# in pips
     list_priorities = [[0]]
     list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
