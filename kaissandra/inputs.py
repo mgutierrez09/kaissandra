@@ -1975,8 +1975,6 @@ def build_and_test(*ins):
     
     weights_directory = local_vars.weights_directory
 
-    results_directory = local_vars.results_directory
-    
     model, m_t, filename_IO, DTA = build_IO_from_var_wrapper('te', config)
     
     alloc = 200000
@@ -1987,10 +1985,11 @@ def build_and_test(*ins):
         # run test RNN
         print("IDresults: "+config['IDresults'])
         
-        model.test2(sess, config['dateTest'], config['IDresults'], config['IDweights'], 
-                    alloc, 'test', weights_directory, filename_IO, results_directory,
+        model.test2(sess, config['dateTest'], config['IDresults'], 
+                    config['IDweights'], alloc,weights_directory, filename_IO,
                     startFrom=config['startFrom'], data_format='hdf5', DTA=DTA, 
-                    save_journal=config['save_journal'], endAt=config['endAt'], from_var=True)
+                    save_journal=config['save_journal'], endAt=config['endAt'], 
+                    from_var=True)
     print("DONE")
     
 def run_train_test(config, its, if_train, if_test):

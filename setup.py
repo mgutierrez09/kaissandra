@@ -2,5 +2,8 @@ import sys
 import os
 
 path = os.getcwd()+'\\'
-sys.path.insert(0, path)
-print(path+" added to python path")
+if path not in sys.path:
+    sys.path.insert(0, path)
+    print(path+" added to python path")
+else:
+    print(path+" already added to python path")

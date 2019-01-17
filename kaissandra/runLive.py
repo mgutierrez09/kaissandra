@@ -207,8 +207,9 @@ class Strategy():
                  flexible_lot_ratio=False, lb_mc_op=0.6, lb_md_op=0.6, 
                  lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, 
                  ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
-                 if_dir_change_extend=False, name='',t_indexs=[3],use_GRE=False,
-                 IDr=None,epoch='11',weights=np.array([0,1])):
+                 if_dir_change_extend=False, name='',t_indexs=[3],entry_strategy='gre',
+                 IDr=None,epoch='11',weights=np.array([0,1]),info_spread_ranges={},
+                 priorities=[0]):
         
         self.name = name
         self.dir_origin = direct
@@ -235,11 +236,12 @@ class Strategy():
         self.if_dir_change_extend = if_dir_change_extend
         
         # load GRE
-        self.use_GRE = use_GRE
+        self.entry_strategy = entry_strategy
         self.IDr = IDr
         self.epoch = epoch
         self.t_indexs = t_indexs
         self.weights = weights
+        self.priorities = priorities
         
         self._load_GRE()
         
@@ -247,7 +249,7 @@ class Strategy():
         """ Load strategy efficiency matrix GRE """
         # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
         #int((model.size_output_layer-1)/2))
-        if self.use_GRE:
+        if self.entry_strategy=='gre':
             assert(np.sum(self.weights)==1)
             allGREs = pickle.load( open( self.dir_origin+self.IDr+
                                         "/GRE_e"+self.epoch+".p", "rb" ))
@@ -327,10 +329,11 @@ class Strategy():
     
     def get_profitability(self, t, p_mc, p_md, level):
         """ get profitability for a t_index, prob and output level """
-        if self.use_GRE:
+        if self.entry_strategy=='gre':
             return self.GRE[t, self._get_idx(p_mc), self._get_idx(p_md), level]
         else:
-            return None
+            # here it represents a priority
+            return self.priorities[t]
         
  
 class Trader:
@@ -542,26 +545,30 @@ class Trader:
     def count_one_event(self, idx):
         self.list_count_events[self.map_ass_idx2pos_idx[idx]] += 1
     
-    def check_contition_for_opening(self):
+    def check_contition_for_opening(self, t):
         '''
         '''
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
         margin = 0.0
-        if this_strategy.fix_spread and not this_strategy.use_GRE:
+        if this_strategy.fix_spread and not this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate.p_mc>=this_strategy.lb_mc_op and \
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and \
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and not this_strategy.use_GRE:
+        elif not this_strategy.fix_spread and not this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate!= None and \
                               e_spread<this_strategy.fixed_spread_ratio and \
                               self.next_candidate.p_mc>=this_strategy.lb_mc_op and 
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and 
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and this_strategy.use_GRE:
+        elif not this_strategy.fix_spread and this_strategy.entry_strategy=='gre':
             condition_open = self.next_candidate.profitability>e_spread+margin
+        elif this_strategy.entry_strategy=='spread_ranges':
+            condition_open= self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
+                e_spread<=this_strategy.info_spread_ranges['sp'][t]
         else:
             #print("ERROR: fix_spread cannot be fixed if GRE is in use")
             raise ValueError("fix_spread cannot be fixed if GRE is in use")
@@ -575,19 +582,24 @@ class Trader:
         
         
 
-    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI):
+    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI, t):
         '''
         '''
         this_strategy = self.next_candidate.strategy
         margin = 0.5
-        if not this_strategy.use_GRE:
+        if this_strategy.entry_strategy=='fixed_thr':
             condition_extension = (self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
                               self.next_candidate.p_md>=this_strategy.lb_md_ext and
                               self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
-        else:
-            condition_extension= (self.next_candidate.profitability>margin and 
+        elif this_strategy.entry_strategy=='gre':
+            condition_extension = (self.next_candidate.profitability>margin and 
                                   100*curr_GROI>=-.02)
+        elif this_strategy.entry_strategy=='spread_ranges':
+            condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
+        else:
+            raise ValueError("Wrong entry strategy")
             
         return condition_extension
 
@@ -897,6 +909,7 @@ class Trader:
                         s_p_md = p_md
                         s_Y_tilde = Y_tilde
                         s_network_index = network_index
+                        s_t = t
                     # end of for t in range(len(inputs[nn][i])):
             # end of for i in range(len(inputs[nn])-1):
         # end of for nn in range(len(inputs)):
@@ -914,6 +927,7 @@ class Trader:
         new_entry['Deadline'] = s_deadline
         new_entry['network_index'] = s_network_index
         new_entry['profitability'] = s_prof
+        new_entry['t'] = s_t
         
         return new_entry
     
@@ -922,6 +936,7 @@ class Trader:
         <DocString>
         '''
         new_entry = self.select_new_entry(inputs, thisAsset)
+        t = new_entry['t']
         strategy_name = self.strategies[new_entry['network_index']].name
         # check for opening/extension in order of expected returns
         if 1:
@@ -946,7 +961,7 @@ class Trader:
             # open market
             if not self.is_opened(ass_id):
                 # check if condition for opening is met
-                condition_open = self.check_contition_for_opening()
+                condition_open = self.check_contition_for_opening(t)
                 if condition_open:
                     # assign budget
                     lots = self.assign_lots(new_entry[entry_time_column])
@@ -965,7 +980,7 @@ class Trader:
                         print("\r"+out)
                         self.write_log(out)
                         # check swap of resources
-                        if self.next_candidate.strategy.use_GRE:
+                        if self.next_candidate.strategy.entry_strategy=='gre':
 #                             and self.check_resources_swap()
                             # TODO: Check propertly function of swapinng
                             # lauch swap of resourves
@@ -980,7 +995,7 @@ class Trader:
                 # check for extension
                 if self.check_primary_condition_for_extention(ass_id):
                     curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
-                    if self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI):    
+                    if self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t):    
                         # include third condition for thresholds
                         # extend deadline
                         if not run_back_test:
@@ -2324,7 +2339,9 @@ def run(running_assets, start_time):
     
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
-    list_use_GRE = [True for i in range(numberNetworks)]
+    list_entry_strategy = ['gre' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]}]#[2]# in pips
+    list_priorities = [[0]]
     list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
     list_lb_mc_op = [.5 for i in range(numberNetworks)]
     list_lb_md_op = [.8 for i in range(numberNetworks)]
@@ -2467,9 +2484,11 @@ def run(running_assets, start_time):
                           ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
                           if_dir_change_close=list_if_dir_change_close[i], 
                           if_dir_change_extend=list_if_dir_change_extend[i], 
-                          name=list_name[i],t_indexs=list_t_indexs[i],use_GRE=list_use_GRE[i],
-                          IDr=IDresults[i],epoch=IDepoch[i],
-                          weights=list_weights[i]) for i in range(numberNetworks)]
+                          name=list_name[i],t_indexs=list_t_indexs[i],
+                          entry_strategy=list_entry_strategy[i],IDr=IDresults[i],
+                          epoch=IDepoch[i],weights=list_weights[i],
+                          info_spread_ranges=list_spread_ranges[i],
+                          priorities=list_priorities[i]) for i in range(numberNetworks)]
     
     
     results = Results(IDresults, IDepoch, list_t_indexs, list_w_str, start_time,
