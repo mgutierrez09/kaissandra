@@ -295,7 +295,7 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     file.close()
     return None
 
-def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
+def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tilde,
                  costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10,
                  from_var=False):
     """ Get results after for one epoch.

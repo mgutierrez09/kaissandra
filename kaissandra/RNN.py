@@ -356,8 +356,8 @@ class modelRNN(object):
 
         return None
     
-    def test2(self, sess, dateTest, IDresults, IDweights, alloc, save_results,
-              weights_directory, filename_IO, resultsDir,
+    def test2(self, sess, dateTest, IDresults, IDweights, alloc,
+              weights_directory, filename_IO,
              startFrom=-1, data_format='', DTA=[], 
              save_journal=False, endAt=-1, from_var=False):
         """ 
@@ -365,7 +365,7 @@ class modelRNN(object):
         """
         import pandas as pd
         self._sess = sess
-        
+        results_directory = local_vars.results_directory
         self._init_parameters()
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
@@ -392,7 +392,7 @@ class modelRNN(object):
         n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
         
         if startFrom == -1:
-            startFrom = get_last_saved_epoch2(resultsDir, IDresults, self.seq_len)+1
+            startFrom = get_last_saved_epoch2(results_directory, IDresults, self.seq_len)+1
         import math
         # load models and test them
         for epoch in range(startFrom,lastTrained+1):
@@ -417,13 +417,13 @@ class modelRNN(object):
                 #print(softMaxOut.shape)
             print("Getting results")
             results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
-                        J_test, softMaxOut, save_results, costs, epoch, 
-                        resultsDir, lastTrained, save_journal=save_journal,
+                        J_test, softMaxOut, costs, epoch, 
+                        results_directory, lastTrained, save_journal=save_journal,
                         from_var=from_var)
         
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
         print("\nThe very best:")
-        get_best_results(TR, results_filename, resultsDir, IDresults)
+        get_best_results(TR, results_filename, results_directory, IDresults)
             
         return None
     

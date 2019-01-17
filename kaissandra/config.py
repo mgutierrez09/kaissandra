@@ -9,7 +9,6 @@ import pickle
 import os
 from local_config import local_vars
 
-config_directory = '../config/'
 config_extension = ".config"
 
 
@@ -26,7 +25,7 @@ def configuration(*ins):
     else:
         config_name = 'C0289STRO'
     
-    config_filename = config_directory+config_name+config_extension
+    config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
         if 'dateTest' in entries:
@@ -126,23 +125,6 @@ def configuration(*ins):
             inverse_load = entries['inverse_load']
         else:
             inverse_load = False
-        if 'weights_directory' in entries:
-            weights_directory = entries['weights_directory']
-        else:
-            weights_directory = local_vars.weights_directory 
-        if 'results_directory' in entries:
-            results_directory = entries['results_directory']
-        else:
-            results_directory = local_vars.results_directory 
-        
-        if 'hdf5_directory' in entries:
-            hdf5_directory = entries['hdf5_directory']
-        else:
-            hdf5_directory = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'
-        if 'IO_directory' in entries:
-            IO_directory = entries['IO_directory']
-        else:
-            IO_directory = local_vars.IO_directory
         
         # model parameters
         if 'size_hidden_layer' in entries:
@@ -246,11 +228,7 @@ def configuration(*ins):
                   'from_stats_file':from_stats_file,
                   'IDweights':IDweights,
                   'IO_results_name':IO_results_name,
-                  'hdf5_directory':hdf5_directory,
-                  'IO_directory':IO_directory,
                   'inverse_load':inverse_load,
-                  'weights_directory':weights_directory,
-                  'results_directory':results_directory,
                   
                   'IDresults':IDresults,
                   'startFrom':startFrom,
@@ -263,8 +241,8 @@ def configuration(*ins):
     
         # save config file for later use
     
-        if not os.path.exists(config_directory):
-            os.mkdir(config_directory)
+        if not os.path.exists(local_vars.config_directory):
+            os.mkdir(local_vars.config_directory)
         pickle.dump( config, open( config_filename, "wb" ))
         print(config)
         print("Config file "+config_filename+" saved")
@@ -277,20 +255,20 @@ def configuration(*ins):
 
 def retrieve_config(config_name):
     """  """
-    config_filename = '../config/'+config_name+'.config'#
+    config_dir_filename = local_vars.config_directory+config_name+'.config'#
         
-    if os.path.exists(config_filename):
-        config = pickle.load( open( config_filename, "rb" ))
-        print("Config file "+config_filename+" loaded from disk")
+    if os.path.exists(config_dir_filename):
+        config = pickle.load( open( config_dir_filename, "rb" ))
+        print("Config file "+config_dir_filename+" loaded from disk")
     else:
-        raise OSError("ERROR config file "+config_filename+" does not exist")
+        raise OSError("ERROR config file "+config_dir_filename+" does not exist")
     return config
 
 def get_config(config_name):
     """
     
     """
-    config_filename = config_directory+config_name+config_extension
+    config_filename = local_vars.config_directory+config_name+config_extension
     if os.path.exists(config_filename):
         config = pickle.load( open( config_filename, "rb" ))
         return config
@@ -300,7 +278,7 @@ def get_config(config_name):
 
 def save_config(config):
     """  """
-    config_filename = config_directory+config['config_name']+config_extension
+    config_filename = local_vars.config_directory+config['config_name']+config_extension
     if not os.path.exists(config_filename):
         pickle.dump( config, open( config_filename, "wb" ))
         print("Config file "+config_filename+" saved")
@@ -310,7 +288,7 @@ def save_config(config):
 
 def print_config(config_name):
     """ Print configuration file """
-    config_filename = config_directory+config_name+config_extension
+    config_filename = local_vars.config_directory+config_name+config_extension
     if os.path.exists(config_filename):
         config = pickle.load( open( config_filename, "rb" ))
         print(config)
@@ -321,7 +299,7 @@ def print_config(config_name):
 
 def delete_config(config_name):
     """ Delete configuration file from disk """
-    config_filename = config_directory+config_name+config_extension
+    config_filename = local_vars.config_directory+config_name+config_extension
     os.remove(config_filename)
     print("Config file "+config_name+" deleted")
     
@@ -329,7 +307,7 @@ def modify_config(config_name,key,value):
     """
     
     """
-    config_filename = config_directory+config_name+config_extension
+    config_filename = local_vars.config_directory+config_name+config_extension
     if os.path.exists(config_filename):
         config = pickle.load( open( config_filename, "rb" ))
         if key in config:

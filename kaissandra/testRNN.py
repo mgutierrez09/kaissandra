@@ -12,6 +12,7 @@ import h5py
 import pickle
 import os
 from RNN import modelRNN
+from local_config import local_vars
 from inputs import (Data, 
                     load_separators, 
                     build_DTA, 
@@ -33,7 +34,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = retrieve_config('C0288INVO')
+        config = retrieve_config('CTESTNR')
     # add compatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -47,14 +48,9 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = True
-    if 'weights_directory' in config:
-        weights_directory = config['weights_directory']
-    else:
-        weights_directory = "../RNN/weights/"
-    if 'results_directory' in config:
-        results_directory = config['results_directory']
-    else:
-        results_directory = '../RNN/results/'
+
+    weights_directory = local_vars.weights_directory
+    results_directory = local_vars.results_directory
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -78,8 +74,8 @@ def test_RNN(*ins):
     else:
         IO_results_name = config['IO_results_name']
     #IO_results_name = config['IO_results_name']
-    hdf5_directory = config['hdf5_directory']
-    IO_directory = config['IO_directory']
+    hdf5_directory = local_vars.hdf5_directory
+    IO_directory = local_vars.IO_directory
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     
@@ -324,12 +320,12 @@ def test_RNN(*ins):
     if if_build_IO:
         print("Building DTA...")
         DTA = build_DTA(data, IO['D'], IO['B'], IO['A'], ass_IO_ass)
-        pickle.dump( DTA, open( "../RNN/IO/DTA"+"_"+IO_results_name+".p", "wb" ))
+        pickle.dump( DTA, open( IO_directory+"DTA"+"_"+IO_results_name+".p", "wb" ))
         f_IO.attrs.create('ass_IO_ass', ass_IO_ass, dtype=int)
         f_IO.close()
     else:
         # get ass_IO_ass from disk
-        DTA = pickle.load( open( "../RNN/IO/DTA"+"_"+IO_results_name+".p", "rb" ))
+        DTA = pickle.load( open( IO_directory+"DTA"+"_"+IO_results_name+".p", "rb" ))
         f_IO = h5py.File(filename_IO,'r')
         ass_IO_ass = f_IO.attrs.get("ass_IO_ass")
         f_IO.close()
@@ -347,14 +343,18 @@ def test_RNN(*ins):
         print("IDresults: "+IDresults)
         # TEMP: GRE calculation not implemented in test2 yet. Use old test
         if save_journal:
-            model.test(sess, data, IDresults, IDweights, 
-                       alloc, True, 
-                       'test', filename_IO, startFrom=startFrom,
-                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
+#            model.test(sess, data, IDresults, IDweights, 
+#                       alloc, True, 
+#                       'test', filename_IO, startFrom=startFrom,
+#                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
+#                       save_journal=save_journal, endAt=endAt)
+            model.test2(sess, dateTest, IDresults, IDweights, alloc,
+                         weights_directory, filename_IO,
+                       startFrom=startFrom, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         else:
-            model.test2(sess, dateTest, IDresults, IDweights, alloc, 
-                        'test', weights_directory, filename_IO, results_directory,
+            model.test2(sess, dateTest, IDresults, IDweights, alloc,
+                         weights_directory, filename_IO,
                        startFrom=startFrom, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         

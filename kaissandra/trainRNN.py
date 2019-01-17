@@ -30,7 +30,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = retrieve_config('C0288INVO')
+        config = retrieve_config('CTESTNR')
     # Feed retrocompatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -48,10 +48,8 @@ def train_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = True
-    if 'weights_directory' in config:
-        weights_directory = config['weights_directory']
-    else:
-        weights_directory = local_vars.weights_directory
+        
+    weights_directory = local_vars.weights_directory
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -64,8 +62,8 @@ def train_RNN(*ins):
               feature_keys_tsfresh=feature_keys_tsfresh)
     # init structures
     IDweights = config['IDweights']
-    hdf5_directory = config['hdf5_directory']
-    IO_directory = config['IO_directory']
+    hdf5_directory = local_vars.hdf5_directory
+    IO_directory = local_vars.IO_directory
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     # init hdf5 files
@@ -227,9 +225,9 @@ def train_RNN(*ins):
                         if 1:
                             
                             try:
-                                file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                                file_temp_name = local_vars.IO_directory+'temp_train_build'+str(np.random.randint(10000))+'.hdf5'
                                 while os.path.exists(file_temp_name):
-                                    file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                                    file_temp_name = IO_directory+'temp_train_build'+str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
                                 IO, totalSampsPerLevel = build_IO(file_temp, 
                                                                       data, 
