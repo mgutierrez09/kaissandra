@@ -35,7 +35,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = retrieve_config('CTESTNR')
+        config = retrieve_config('C0277NEWO')
     # add compatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -48,7 +48,7 @@ def test_RNN(*ins):
     if 'inverse_load' in config:
         inverse_load = config['inverse_load']
     else:
-        inverse_load = True
+        inverse_load = False
 
     weights_directory = local_vars.weights_directory
     # create data structure

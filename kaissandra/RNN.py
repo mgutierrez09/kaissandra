@@ -364,6 +364,7 @@ class modelRNN(object):
         Test RNN network with y_c bits
         """
         import pandas as pd
+        from tqdm import tqdm
         self._sess = sess
         results_directory = local_vars.results_directory
         self._init_parameters()
@@ -403,8 +404,8 @@ class modelRNN(object):
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
             softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
-            for chunck in range(n_chunks):
-                print("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+            for chunck in tqdm(range(n_chunks)):
+                #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
                 # build input/output data
                 test_data_feed = {
                     self._inputs: f_IO['X'][chunck*alloc:(chunck+1)*alloc],
@@ -434,6 +435,7 @@ class modelRNN(object):
         args: train_data, train object defined in sets.
         args: test_data, test data defined in sets.
         """
+        from tqdm import tqdm
         self._sess = sess
         print("ID = "+ID)
         self._init_parameters()
@@ -481,7 +483,7 @@ class modelRNN(object):
                     train_data = trainData(X_train, Y_train)
                     self._n_batches = int(np.ceil(train_data.m/self.miniBatchSize))
                     
-                    for mB in range(self._n_batches):
+                    for mB in tqdm(range(self._n_batches),mininterval=1):
                         #print(self._batch_size)
                         this_mB = range(mB*self.miniBatchSize,np.min([train_data.m,(mB+1)*self.miniBatchSize]))
                         #print(this_mB)
