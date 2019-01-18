@@ -260,9 +260,10 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     best_dir = resultsDir+IDresults+'/best/'
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
-    file = open(best_dir+'best.txt',"w")
-    file.close()
-    file = open(best_dir+'best.txt',"a")
+    if not save:
+        file = open(best_dir+'best.txt',"w")
+        file.close()
+        file = open(best_dir+'best.txt',"a")
     for b in best_results_list:
         best_filename = best_dir+'best_'+b+'.csv'
         if not os.path.exists(best_filename):
@@ -290,9 +291,10 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
               " thr_md "+str(TR['thr_md'].loc[idx])+\
               " epoch "+str(TR['epoch'].loc[idx])
         print(out)
-        
-        file.write(out+"\n")
-    file.close()
+        if not save:
+            file.write(out+"\n")
+    if not save:
+        file.close()
     return None
 
 def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tilde,
@@ -382,7 +384,7 @@ def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tild
     # extract best result this epoch
     TR = pd.read_csv(results_filename+'.csv', sep='\t')
     TR = TR[TR.epoch==epoch]
-    get_best_results(TR, results_filename, resultsDir, IDresults)
+    get_best_results(TR, results_filename, resultsDir, IDresults, save=1)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:
