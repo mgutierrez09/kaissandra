@@ -298,14 +298,15 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     return None
 
 def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tilde,
-                 costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10,
+                 costs, epoch, resultsDir, lastTrained, results_filename,
+                 costs_filename, save_journal=False, resolution=10,
                  from_var=False):
     """ Get results after for one epoch.
     Args:
         - 
     Return:
         - """
-    results_filename, costs_filename = init_results_dir(resultsDir, IDresults)
+    #results_filename, costs_filename = init_results_dir(resultsDir, IDresults)
     m = y.shape[0]
     n_days = len(dateTest)
     thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]

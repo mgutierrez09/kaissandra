@@ -35,7 +35,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = retrieve_config('C0277NEWO')
+        config = retrieve_config('C0288INVO')
     # add compatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]

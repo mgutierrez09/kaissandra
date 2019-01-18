@@ -17,7 +17,7 @@ import os
 #import pandas as pd
 #import matplotlib.pyplot as plt
 from kaissandra.results import evaluate_RNN,save_best_results,get_last_saved_epoch
-from kaissandra.results2 import get_results, get_last_saved_epoch2, get_best_results
+from kaissandra.results2 import get_results, get_last_saved_epoch2, get_best_results, init_results_dir
 from kaissandra.local_config import local_vars
 
 class trainData:
@@ -395,6 +395,7 @@ class modelRNN(object):
         if startFrom == -1:
             startFrom = get_last_saved_epoch2(results_directory, IDresults, self.seq_len)+1
         import math
+        results_filename, costs_filename = init_results_dir(results_directory, IDresults)
         # load models and test them
         for epoch in range(startFrom,lastTrained+1):
             if math.isnan(costs[IDweights+str(epoch)]):
@@ -419,7 +420,8 @@ class modelRNN(object):
             print("Getting results")
             results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
                         J_test, softMaxOut, costs, epoch, 
-                        results_directory, lastTrained, save_journal=save_journal,
+                        results_directory, lastTrained, results_filename,
+                        costs_filename, save_journal=save_journal,
                         from_var=from_var)
         
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
