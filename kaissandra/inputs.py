@@ -1770,6 +1770,8 @@ def build_IO_from_var_wrapper(*ins):
     IO_results_name = config['IO_results_name']
     hdf5_directory = local_vars.hdf5_directory
     feats_var_directory = hdf5_directory+'feats_var/'
+    feats_tsf_directory = hdf5_directory+'feats_tsf/'
+    returns_directory = hdf5_directory+'returns/'
     IO_directory = local_vars.IO_directory
     
     if tOt=='tr':
@@ -1827,10 +1829,10 @@ def build_IO_from_var_wrapper(*ins):
         filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
                                     str(data.nEventsPerStat)+'.hdf5')
         file_features = h5py.File(filename_features,'r')
-        filename_returns = (feats_var_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
+        filename_returns = (returns_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
                                     str(data.nEventsPerStat)+'.hdf5')
         file_returns = h5py.File(filename_returns,'r')
-        filename_symbols = (feats_var_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
+        filename_symbols = (returns_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
                                     str(data.nEventsPerStat)+'.hdf5')
         file_symbols = h5py.File(filename_symbols,'r')
         filename_stats = (feats_var_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+'_nE'+
@@ -1839,9 +1841,12 @@ def build_IO_from_var_wrapper(*ins):
         if not from_stats_file:
             stats = {}
             # load stats in
-            stats["means_in"] = file_features[thisAsset].attrs.get("means_in")
-            stats["stds_in"] = file_features[thisAsset].attrs.get("stds_in")
+            stats["means_man_in"] = file_features[thisAsset].attrs.get("means_in")
+            stats["stds_man_in"] = file_features[thisAsset].attrs.get("stds_in")
             stats["m_in"] = file_features[thisAsset].attrs.get("m_in")
+            # load stats tsf
+            stats["means_stf_in"] = file_features[thisAsset].attrs.get("means_in")
+            stats["stds_stf_in"] = file_features[thisAsset].attrs.get("stds_in")
             # load stats out
             stats["means_out"] = file_returns[thisAsset].attrs.get("means_out")
             stats["stds_out"] = file_returns[thisAsset].attrs.get("stds_out")

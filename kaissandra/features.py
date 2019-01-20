@@ -429,8 +429,9 @@ def get_features_from_var_raw(data, features, DateTime, SymbolVar, nExS, mW, nE,
     return features
 
 # Wrapper over features extraction for one asset
-def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directory, 
-                     separators_directory, ass, save_stats, save_stats_in_stats):
+def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_directory, 
+            returns_directory, separators_directory, ass, save_stats, save_stats_in_stats, 
+            type_feats):
     """  """
     from kaissandra.inputs import load_separators, Data
     data = Data(var_feat_keys=var_feat_keys, feature_keys_tsfresh=feature_keys_tsfresh)
@@ -443,18 +444,18 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_var_directo
     
     group_raw = f_raw[thisAsset]
     
-    filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
+    filename_features = (feats_directory+thisAsset+'_feats_'+type_feats+'_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'.hdf5')
     file_features = h5py.File(filename_features,'a')
-    filename_returns = (feats_var_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
+    filename_returns = (returns_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'.hdf5')
     file_returns = h5py.File(filename_returns,'a')
-    filename_symbols = (feats_var_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
+    filename_symbols = (returns_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'.hdf5')
     file_symbols = h5py.File(filename_symbols,'a')
     
     if save_stats:
-        filename_stats = (feats_var_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+'_nE'+
+        filename_stats = (feats_directory+thisAsset+'_stats_'+type_feats+'_mW'+str(data.movingWindow)+'_nE'+
                                 str(data.nEventsPerStat)+'.p')
         #file_stats = h5py.File(filename_stats,'a')
         stats = {"means_in":0.0,

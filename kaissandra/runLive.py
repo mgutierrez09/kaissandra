@@ -32,7 +32,7 @@ exit_bid_column = 'Bo'
 verbose_RNN = True
 verbose_trader = True
 test = False
-run_back_test = True
+run_back_test = False
 spread_ban = True
 ban_only_if_open = False # not in use
 
@@ -242,6 +242,7 @@ class Strategy():
         self.t_indexs = t_indexs
         self.weights = weights
         self.priorities = priorities
+        self.info_spread_ranges = info_spread_ranges
         
         self._load_GRE()
         
@@ -548,15 +549,16 @@ class Trader:
     def check_contition_for_opening(self, t):
         '''
         '''
+        
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
         margin = 0.0
-        if this_strategy.fix_spread and not this_strategy.entry_strategy=='fixed_thr':
+        if this_strategy.fix_spread and this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate.p_mc>=this_strategy.lb_mc_op and \
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and \
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and not this_strategy.entry_strategy=='fixed_thr':
+        elif not this_strategy.fix_spread and this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate!= None and \
                               e_spread<this_strategy.fixed_spread_ratio and \
                               self.next_candidate.p_mc>=this_strategy.lb_mc_op and 
@@ -951,7 +953,7 @@ class Trader:
             if verbose_trader:
                 print("\r"+out)
             write_log(out, self.log_file)
-            
+            #self.write_log(out)
             position = Position(new_entry, self.strategies[new_entry['network_index']])
             
             self.add_new_candidate(position)
@@ -1981,7 +1983,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     print("Fetcher lauched")
     # number of events per file
     n_files = 10
-    n_samps_buffer = 100
+    n_samps_buffer = 20
     init_row = ['d',0.0,0.0]
     fileIDs = [0 for ass in range(nAssets)]
     buffers = [pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
@@ -2300,27 +2302,27 @@ def run(running_assets, start_time):
     
     AllAssets = Data().AllAssets
     
-    numberNetworks = 1
-    IDweights = ['000288INVO']#['000289STRO']
-    IDresults = ['100288INVO']
+    numberNetworks = 3
+    IDweights = ['000288INVO','000288INVO','000288INVO']#['000289STRO']
+    IDresults = ['100288INVO','000288INVO','000288INVO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['7_0']#['89_4']
-    IDepoch = ['7']
-    netNames = ['28810']
-    list_t_indexs = [[0]]
-    list_inv_out = [True]
-    phase_shifts = [1]
-    list_thr_sl = [1000 for i in range(numberNetworks)]
+    list_name = ['7_0','10_0','4_0']#['89_4']
+    IDepoch = ['7','10','4']
+    netNames = ['28807','28810','28804']
+    list_t_indexs = [[0],[0],[0]]
+    list_inv_out = [True,True,True]
+    phase_shifts = [5,5,5]
+    list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
-    delays = [0,0]
-    mWs = [100]
-    nExSs = [1000]
-    lBs = [1300]#[1300]
-    list_w_str = ['55']
-    model_dict = {'size_hidden_layer':[100],
-                  'L':[3],
+    delays = [0,0,0]
+    mWs = [100,100,100]
+    nExSs = [1000,1000,1000]
+    lBs = [1300,1300,1300]#[1300]
+    list_w_str = ['55','55','55']
+    model_dict = {'size_hidden_layer':[100,100,100],
+                  'L':[3,3,3],
                   'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[.6]}
+                  'outputGain':[.6,.6,.6]}
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
               dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
 #    numberNetworks = 1
@@ -2340,8 +2342,8 @@ def run(running_assets, start_time):
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]}]#[2]# in pips
-    list_priorities = [[0]]
+    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_priorities = [[1],[2],[0]]
     list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
     list_lb_mc_op = [.5 for i in range(numberNetworks)]
     list_lb_md_op = [.8 for i in range(numberNetworks)]
