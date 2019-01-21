@@ -444,7 +444,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_directory,
     
     group_raw = f_raw[thisAsset]
     
-    filename_features = (feats_directory+thisAsset+'_feats_'+type_feats+'_mW'+str(data.movingWindow)+'_nE'+
+    filename_features = (feats_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'.hdf5')
     file_features = h5py.File(filename_features,'a')
     filename_returns = (returns_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
@@ -494,6 +494,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_directory,
             features, exist_feats = retrieve_features_structure(file_features, group_name, m_in, nF)
     
             if not exist_feats:
+                print("\t\t"+thisAsset+" Getting features from raw data")
                 features = get_features_from_var_raw(data, features, DateTime[init_i:], 
                                                      SymbolVar, nExS, mW, 
                                                      nE, m_in, thisAsset)

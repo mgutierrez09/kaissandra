@@ -2311,6 +2311,9 @@ def run(running_assets, start_time):
     netNames = ['28807','28810','28804']
     list_t_indexs = [[0],[0],[0]]
     list_inv_out = [True,True,True]
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_priorities = [[1],[2],[0]]
     phase_shifts = [5,5,5]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
@@ -2341,9 +2344,8 @@ def run(running_assets, start_time):
     
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
-    list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
-    list_priorities = [[1],[2],[0]]
+    
+    
     list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
     list_lb_mc_op = [.5 for i in range(numberNetworks)]
     list_lb_md_op = [.8 for i in range(numberNetworks)]

@@ -192,14 +192,15 @@ class Data:
         self.channels = channels
         
         self.lbd=1-1/(self.nEventsPerStat*self.average_over)
-        self.feature_keys = feature_keys_manual+feature_keys_tsfresh+var_feat_keys
-        self.nFeatures = len(self.feature_keys)
+        self.feature_keys = feature_keys_manual+var_feat_keys+feature_keys_tsfresh
+        
         self.dateTest = dateTest
         self.assets = assets
         self.noVarFeats = noVarFeatsManual
         self.lookAheadIndex = lookAheadIndex
         self.max_var = max_var
         self.n_feats_tsfresh = self._get_n_feats_tsfresh()#76
+        self.nFeatures = len(self.feature_keys_manual)+len(var_feat_keys)+self.n_feats_tsfresh
      
     def _get_n_feats_tsfresh(self):
         """ private function to get number of tsfresh features"""
@@ -1319,8 +1320,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     return IO, totalSampsPerLevel
 
 # Function Build IO from var
-def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, 
-                      returns, symbols, calculate_roi):
+def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, feats_var, 
+                      feats_tsf, returns, symbols, calculate_roi):
     # total number of possible channels
     nExS = data.nEventsPerStat
     mW = data.movingWindow
@@ -1329,9 +1330,22 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features,
     seq_len = model.seq_len#int((data.lB-data.nEventsPerStat)/data.movingWindow)
     # samples allocation per batch
     aloc = 2**20
-    # extract means and stats
-    means_in = stats['means_in']
-    stds_in = stats['stds_in']
+    # extract means and stats from var feats
+    means_man_in = stats['means_man_in']
+    stds_man_in = stats['stds_man_in']
+    # extract means and stats from var tsf
+    means_tsf_in = stats['means_tsf_in']
+    stds_tsf_in = stats['stds_tsf_in']
+    # merge features and stats
+    means_in = np.append(means_man_in,means_tsf_in,1)
+#    print("means_in.shape")
+#    print(means_in.shape)
+    stds_in = np.append(stds_man_in,stds_tsf_in,1)
+#    print("stds_in.shape")
+#    print(stds_in.shape)
+    features = np.append(feats_var,feats_tsf,1)
+#    print("features.shape")
+#    print(features.shape)
     #m_in = stats['m_in']
     stds_out = stats['stds_out']
     #m_out = stats['m_out']
@@ -1826,9 +1840,12 @@ def build_IO_from_var_wrapper(*ins):
                                      tOt='tr', 
                                      from_txt=1)
     
-        filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
+        filename_feats_var = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
                                     str(data.nEventsPerStat)+'.hdf5')
-        file_features = h5py.File(filename_features,'r')
+        file_feats_var = h5py.File(filename_feats_var,'r')
+        filename_feats_tsf = (feats_tsf_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
+                                    str(data.nEventsPerStat)+'.hdf5')
+        file_feats_tsf = h5py.File(filename_feats_tsf,'r')
         filename_returns = (returns_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
                                     str(data.nEventsPerStat)+'.hdf5')
         file_returns = h5py.File(filename_returns,'r')
@@ -1841,17 +1858,24 @@ def build_IO_from_var_wrapper(*ins):
         if not from_stats_file:
             stats = {}
             # load stats in
-            stats["means_man_in"] = file_features[thisAsset].attrs.get("means_in")
-            stats["stds_man_in"] = file_features[thisAsset].attrs.get("stds_in")
-            stats["m_in"] = file_features[thisAsset].attrs.get("m_in")
+            stats["means_man_in"] = file_feats_var[thisAsset].attrs.get("means_in")
+            stats["stds_man_in"] = file_feats_var[thisAsset].attrs.get("stds_in")
+            stats["m_in"] = file_feats_var[thisAsset].attrs.get("m_in")
             # load stats tsf
-            stats["means_stf_in"] = file_features[thisAsset].attrs.get("means_in")
-            stats["stds_stf_in"] = file_features[thisAsset].attrs.get("stds_in")
+            stats["means_tsf_in"] = file_feats_tsf[thisAsset].attrs.get("means_in")
+            stats["stds_tsf_in"] = file_feats_tsf[thisAsset].attrs.get("stds_in")
+#            print('stats["means_tsf_in"]')
+#            print(stats["means_tsf_in"])
+#            print('stats["stds_tsf_in"]')
+#            print(stats["means_tsf_in"].shape)
+#            print(stats["stds_tsf_in"])
+#            print(stats["stds_tsf_in"].shape)
             # load stats out
             stats["means_out"] = file_returns[thisAsset].attrs.get("means_out")
             stats["stds_out"] = file_returns[thisAsset].attrs.get("stds_out")
             stats["m_out"] = file_returns[thisAsset].attrs.get("m_out")
         elif from_stats_file:
+            raise NotImplemented("Loading stats from stats file not implemented yet")
             stats = pickle.load( open( filename_stats, "rb" ))
     
         if if_build_IO:
@@ -1879,17 +1903,23 @@ def build_IO_from_var_wrapper(*ins):
                         #print("group_name")
                         #print(group_name)
                         # load features
-                        if group_name in file_features:
-                            features = file_features[group_name]["features"]
+                        if group_name in file_feats_var:
+                            feats_var = file_feats_var[group_name]["features"]
                         else:
-                            raise ValueError(group_name+" not in "+filename_features)
-                        #print("features")
-                        #print(features)
+                            raise ValueError(group_name+" not in "+filename_feats_var)
+                        if group_name in file_feats_tsf:
+                            feats_tsf = file_feats_tsf[group_name]["features"]
+                        else:
+                            raise ValueError(group_name+" not in "+filename_feats_tsf)
+#                        print("feats_tsf[:]")
+#                        print(feats_tsf[:])
+#                        print("feats_tsf.shape")
+#                        print(feats_tsf.shape)
                         # load returns
                         if group_name in file_returns:
                             returns = file_returns[group_name]["returns"]
                         else:
-                            raise ValueError(group_name+" not in "+filename_features)
+                            raise ValueError(group_name+" not in "+filename_feats_var)
                         #print(returns)
                         # load Symbols if calculate_roi is true
                         #TODO: Implement Symbol loading for test
@@ -1906,7 +1936,7 @@ def build_IO_from_var_wrapper(*ins):
                         # build IO
                         IO, totalSampsPerLevel = build_IO_from_var(data, model, stats, 
                                                                    IO, totalSampsPerLevel, 
-                                                                   features, returns, 
+                                                                   feats_var, feats_tsf, returns, 
                                                                    symbols, calculate_roi)
                         #print(totalSampsPerLevel)
                     else:
