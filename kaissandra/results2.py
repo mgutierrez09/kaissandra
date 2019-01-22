@@ -191,7 +191,7 @@ def save_results_fn(filename, results):
     df = pd.DataFrame(results, index=[0])\
         [pd.DataFrame(columns = get_results_entries()).columns.tolist()]
     success = 0
-    df.to_csv(filename+'.txt', mode='a', header=False,float_format='%.3f', index=False, sep='\t')
+    df.to_csv(filename+'.txt', mode='a', header=False,float_format='%.2f', index=False, sep='\t')
     while not success:
         try:
             df.to_csv(filename+'.csv', mode='a', header=False, index=False, sep='\t')

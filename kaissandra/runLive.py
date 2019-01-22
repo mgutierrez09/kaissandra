@@ -31,8 +31,8 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = True
 verbose_trader = True
-test = False
-run_back_test = False
+test = True
+run_back_test = True
 spread_ban = True
 ban_only_if_open = False # not in use
 
@@ -933,15 +933,89 @@ class Trader:
         
         return new_entry
     
+    def select_next_entry(self, inputs, thisAsset):
+        """  """
+        e_spread = inputs[0][0][0][1]
+        DateTime = inputs[0][0][0][2]
+        Bi = inputs[0][0][0][3]
+        Ai = inputs[0][0][0][4]
+        e_spread_pip = e_spread/self.pip
+        #s_prof = -10000 # -infinite
+        for nn in range(len(inputs)):
+            network_index = inputs[nn][-1]
+            for i in range(len(inputs[nn])-1):
+                
+                deadline = inputs[nn][i][0][5]
+                
+                for t in range(len(inputs[nn][i])):
+                    soft_tilde = inputs[nn][i][t][0]
+                    #t_index = inputs[nn][i][t][6]
+                    #print("nn "+str(network_index)+" i "+str(i)+" t "+str(t_index))
+                    # get probabilities
+                    max_bit_md = int(np.argmax(soft_tilde[1:3]))
+                    if not max_bit_md:
+                        #Y_tilde = -1
+                        Y_tilde = np.argmax(soft_tilde[3:5])-2
+                    else:
+                        #Y_tilde = 1
+                        Y_tilde = np.argmax(soft_tilde[6:])+1
+                        
+                    p_mc = soft_tilde[0]
+                    p_md = np.max([soft_tilde[1],soft_tilde[2]])
+                    profitability = self.strategies[network_index].get_profitability(
+                            t, p_mc, p_md, int(np.abs(Y_tilde)-1))
+                    yield {entry_time_column:DateTime,
+                           'Asset':thisAsset,
+                           'Bet':Y_tilde,
+                           'P_mc':p_mc,
+                           'P_md':p_md,
+                           entry_bid_column:Bi,
+                           entry_ask_column:Ai,
+                           'E_spread':e_spread_pip,
+                           'Deadline':deadline,
+                           'network_index':network_index,
+                           'profitability':profitability,
+                           't':t}
+                    #print("profitability: "+str(profitability))
+#                    if profitability>s_prof:
+#                        s_prof = profitability
+#                        s_deadline = deadline
+#                        s_p_mc = p_mc
+#                        s_p_md = p_md
+#                        s_Y_tilde = Y_tilde
+#                        s_network_index = network_index
+#                        s_t = t
+                    # end of for t in range(len(inputs[nn][i])):
+            # end of for i in range(len(inputs[nn])-1):
+        # end of for nn in range(len(inputs)):
+        # add profitabilities
+        #print("s_prof: "+str(s_prof))
+#        new_entry = {}
+#        new_entry[entry_time_column] = DateTime
+#        new_entry['Asset'] = thisAsset
+#        new_entry['Bet'] = s_Y_tilde
+#        new_entry['P_mc'] = s_p_mc
+#        new_entry['P_md'] = s_p_md
+#        new_entry[entry_bid_column] = Bi
+#        new_entry[entry_ask_column] = Ai
+#        new_entry['E_spread'] = e_spread_pip
+#        new_entry['Deadline'] = s_deadline
+#        new_entry['network_index'] = s_network_index
+#        new_entry['profitability'] = s_prof
+#        new_entry['t'] = s_t
+        #return None
+    
     def check_new_inputs(self, inputs, thisAsset, directory_MT5_ass=''):
         '''
         <DocString>
         '''
-        new_entry = self.select_new_entry(inputs, thisAsset)
-        t = new_entry['t']
-        strategy_name = self.strategies[new_entry['network_index']].name
+        #new_entry = self.select_new_entry(inputs, thisAsset)
+        for new_entry in self.select_next_entry(inputs, thisAsset):
+            print(new_entry)
+            t = new_entry['t']
+            strategy_name = self.strategies[new_entry['network_index']].name
         # check for opening/extension in order of expected returns
-        if 1:
+        #if 1:
             out = ("New entry @ "+new_entry[entry_time_column]+" "+
                    new_entry['Asset']+
                    " P_mc {0:.3f} ".format(new_entry['P_mc'])+
@@ -952,8 +1026,8 @@ class Trader:
                    "Strategy "+strategy_name)
             if verbose_trader:
                 print("\r"+out)
-            write_log(out, self.log_file)
-            #self.write_log(out)
+            #write_log(out, self.log_file)
+            self.write_log(out)
             position = Position(new_entry, self.strategies[new_entry['network_index']])
             
             self.add_new_candidate(position)
@@ -2314,7 +2388,7 @@ def run(running_assets, start_time):
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
     list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     list_priorities = [[1],[2],[0]]
-    phase_shifts = [5,5,5]
+    phase_shifts = [1,1,1]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0,0]
@@ -2771,7 +2845,7 @@ def launch():
     import datetime as dt
     import time
     
-    synchroned_run = False
+    synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
     running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
