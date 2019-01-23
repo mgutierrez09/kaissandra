@@ -5,12 +5,14 @@ Created on Mon Oct 22 17:25:12 2018
 @author: mgutierrez
 """
 
-import time
+#import time
+import pandas as pd
 from multiprocessing import Process
-from trainRNN import train_RNN
-from testRNN import test_RNN
-from config import retrieve_config
-from features import get_features
+
+from kaissandra.trainRNN import train_RNN
+from kaissandra.testRNN import test_RNN
+from kaissandra.config import retrieve_config
+from kaissandra.features import get_features
 
 def run_train_test(config, its, if_train, if_test, if_get_features):
     """
@@ -62,5 +64,4 @@ def automate(*ins):
     #        time.sleep(1)
 
 if __name__=='__main__':
-    import pandas as pd
     automate(['C3012INVO'])
