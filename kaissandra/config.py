@@ -23,7 +23,7 @@ def configuration(*ins):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'C0289STRO'
+        config_name = 'C0317INVO'
     
     config_filename = local_vars.config_directory+config_name+config_extension
     
@@ -124,7 +124,7 @@ def configuration(*ins):
         if 'inverse_load' in entries:
             inverse_load = entries['inverse_load']
         else:
-            inverse_load = False
+            inverse_load = True
         
         # model parameters
         if 'size_hidden_layer' in entries:
@@ -146,11 +146,11 @@ def configuration(*ins):
         if 'miniBatchSize' in entries:
             miniBatchSize = entries['miniBatchSize']
         else:
-            miniBatchSize=32
+            miniBatchSize=256
         if 'outputGain' in entries:
             outputGain = entries['outputGain']
         else:
-            outputGain=.6
+            outputGain=.4
         if 'commonY' in entries:
             commonY = entries['commonY']
         else:
@@ -162,7 +162,7 @@ def configuration(*ins):
         if 'num_epochs' in entries:
             num_epochs = entries['num_epochs']
         else:
-            num_epochs=20
+            num_epochs=100
         
         # test-specific parameters
         if 'IDresults' in entries:

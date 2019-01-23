@@ -207,11 +207,7 @@ class modelRNN(object):
         if os.path.exists(weights_directory+ID+"/")==False:
             os.mkdir(weights_directory+ID+"/")
         if os.path.exists(weights_directory+ID+"/cost.p"):
-<<<<<<< HEAD:RNN.py
-            cost = pickle.load( open( "../RNN/weights/"+ID+"/cost.p", "rb" ))
-=======
             cost = pickle.load( open( local_vars.weights_directory+ID+"/cost.p", "rb" ))
->>>>>>> Dev3:kaissandra/RNN.py
         cost[ID+str(epoch)] = epoch_cost
         pickle.dump(cost, open( weights_directory+ID+"/cost.p", "wb" ))
         strEpoch = "{0:06d}".format(epoch)
@@ -360,27 +356,17 @@ class modelRNN(object):
 
         return None
     
-<<<<<<< HEAD:RNN.py
-    def test2(self, sess, dateTest, IDresults, IDweights, alloc, save_results,
-              weights_directory, filename_IO, resultsDir,
-=======
     def test2(self, sess, dateTest, IDresults, IDweights, alloc,
               weights_directory, filename_IO,
->>>>>>> Dev3:kaissandra/RNN.py
              startFrom=-1, data_format='', DTA=[], 
              save_journal=False, endAt=-1, from_var=False):
         """ 
         Test RNN network with y_c bits
         """
         import pandas as pd
-<<<<<<< HEAD:RNN.py
-        self._sess = sess
-        
-=======
         from tqdm import tqdm
         self._sess = sess
         results_directory = local_vars.results_directory
->>>>>>> Dev3:kaissandra/RNN.py
         self._init_parameters()
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
@@ -407,14 +393,9 @@ class modelRNN(object):
         n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
         
         if startFrom == -1:
-<<<<<<< HEAD:RNN.py
-            startFrom = get_last_saved_epoch2(resultsDir, IDresults, self.seq_len)+1
-        import math
-=======
             startFrom = get_last_saved_epoch2(results_directory, IDresults, self.seq_len)+1
         import math
         results_filename, costs_filename = init_results_dir(results_directory, IDresults)
->>>>>>> Dev3:kaissandra/RNN.py
         # load models and test them
         for epoch in range(startFrom,lastTrained+1):
             if math.isnan(costs[IDweights+str(epoch)]):
@@ -424,13 +405,8 @@ class modelRNN(object):
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
             softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
-<<<<<<< HEAD:RNN.py
-            for chunck in range(n_chunks):
-                print("Chunck "+str(chunck+1)+" of "+str(n_chunks))
-=======
             for chunck in tqdm(range(n_chunks)):
                 #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
->>>>>>> Dev3:kaissandra/RNN.py
                 # build input/output data
                 test_data_feed = {
                     self._inputs: f_IO['X'][chunck*alloc:(chunck+1)*alloc],
@@ -443,23 +419,14 @@ class modelRNN(object):
                 #print(softMaxOut.shape)
             print("Getting results")
             results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
-<<<<<<< HEAD:RNN.py
-                        J_test, softMaxOut, save_results, costs, epoch, 
-                        resultsDir, lastTrained, save_journal=save_journal,
-=======
                         J_test, softMaxOut, costs, epoch, 
                         results_directory, lastTrained, results_filename,
                         costs_filename, save_journal=save_journal,
->>>>>>> Dev3:kaissandra/RNN.py
                         from_var=from_var)
         
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
         print("\nThe very best:")
-<<<<<<< HEAD:RNN.py
-        get_best_results(TR, results_filename, resultsDir, IDresults)
-=======
         get_best_results(TR, results_filename, results_directory, IDresults)
->>>>>>> Dev3:kaissandra/RNN.py
             
         return None
     

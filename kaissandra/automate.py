@@ -40,13 +40,16 @@ def automate(*ins):
     if_get_features = False
     if_train = True
     if_test = True
-    its = 20
+    
     # retrieve list of config file names to run automatelly
     if len(ins)>0:
         configs = ins[0]
     else:
-        configs = ['C0310INVO']
-        
+        configs = ['C0317INVO']
+    if len(ins)>=2:
+        its = ins[1]
+    else:
+        its = 100
     configs_list = []
      # load configuration files
     for config_name in configs:
@@ -64,4 +67,5 @@ def automate(*ins):
     #        time.sleep(1)
 
 if __name__=='__main__':
-    automate(['C3012INVO'])
+    pass
+    #automate(['C3012INVO'])
