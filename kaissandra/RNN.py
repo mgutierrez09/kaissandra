@@ -14,9 +14,11 @@ import time
 import h5py
 import datetime as dt
 import os
-import pandas as pd
+#import pandas as pd
 #import matplotlib.pyplot as plt
-from ResultsManager import getResults,printResults,loadTR,getSummary,evaluate_RNN,save_best_results
+from kaissandra.results import evaluate_RNN,save_best_results,get_last_saved_epoch
+from kaissandra.results2 import get_results, get_last_saved_epoch2, get_best_results, init_results_dir
+from kaissandra.local_config import local_vars
 
 class trainData:
     def __init__(self,X,Y):
@@ -34,7 +36,7 @@ class modelRNN(object):
                  size_hidden_layer=400,
                  L=3,
                  size_output_layer=5,
-                 keep_prob_dropout=0.9,
+                 keep_prob_dropout=1,
                  miniBatchSize=32,
                  outputGain=0.5,
                  commonY=0,
@@ -49,7 +51,7 @@ class modelRNN(object):
         self._num_epochs = num_epochs
         self.size_hidden_layer = size_hidden_layer # number of hidden units per layer in RNN
         self.L = L     # number of layers in RNN
-        self.nFeatures = data.nFeatures*len(data.channels)#int(data.nFeatures*data.nEventsPerStat/data.movingWindow+data.nFeaturesAuto) # size of input image, (16x8 flattened to 128)
+        self.nFeatures = data.nFeatures*len(data.channels)
         self.lR0 = lR0 # learning rate
         self.keep_prob_dropout= keep_prob_dropout       # probability of dropout
         self.outputGain = outputGain
@@ -73,6 +75,7 @@ class modelRNN(object):
             self._launch_live_session(sess,IDgraph,lID)
         
     def _model(self):
+        """ <DocString> """
         def __cell():
             # https://github.com/tensorflow/tensorflow/blob/r1.4/tensorflow/  \
             # python/ops/rnn_cell_impl.py
@@ -88,33 +91,23 @@ class modelRNN(object):
         # Out is of dimension [batch_size, max_time, cell_state_size]
         out, self._state = tf.nn.dynamic_rnn(cell=cell, inputs=self._inputs, dtype=tf.float32)
         out = tf.reshape(out, [-1, self.size_hidden_layer])
-        
         # market change prediction
         pred_mc = tf.nn.sigmoid(tf.matmul(out, self._parameters["w_lg"]) + self._parameters["b_lg"])
-        #y_pred_sigmoid = tf.sigmoid(y_pred)
-        #x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(tf.matmul(out, self._parameters["w_lg"]) + self._parameters["b_lg"], y_)# y_ is placeholder 
         # market direction prediction
         pred_md = tf.nn.softmax(tf.matmul(out, self._parameters["w_sm2"]) + self._parameters["b_sm2"])
         # Market gain prediction
         pred_mg = tf.nn.softmax(tf.matmul(out, self._parameters["w"]) + self._parameters["b"])
-        #print(tf.reshape(pred_mc, [-1, self.seq_len, 1]))
-        #print(tf.reshape(pred_md, [-1, self.seq_len, 2]))
-        #print(tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer]))
-        
         # concatenate predictions
-        pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),tf.reshape(pred_md, [-1, self.seq_len, 2]),tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])],2)
-        #pred = tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])
-        #pred = tf.reshape(pred_mc, [-1, self.seq_len, 1])
-        #print(pred)
-        
-        #tf.reshape(pred_mc, [-1, self.seq_len, 1]), tf.reshape(pred_md, [-1, self.seq_len, 2]), tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])
+        pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),
+                          tf.reshape(pred_md, [-1, self.seq_len, 2]),
+                          tf.reshape(pred_mg, [-1, self.seq_len, 
+                                              self.size_output_layer])],2)
         return pred
         
     def _init_parameters(self):
         """ Define graph to run. """
         
         self._inputs = tf.placeholder(tf.float32, [None, self.seq_len, self.nFeatures], name="input")
-        
         self._dropout = tf.placeholder(tf.float32)
         # Define variables for final fully connected layer.
         self._parameters = {}
@@ -137,7 +130,7 @@ class modelRNN(object):
         self._parameters["b_sm2"] = b_sm2
         #self.var = tf.get_variable("var", [1])
         self._pred = self._model()
-        
+
         return None
     
     def _tf_repeat(self, repeats):
@@ -145,11 +138,12 @@ class modelRNN(object):
         Args:
     
         input: A Tensor. 1-D or higher.
-        repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
+        repeats: A list. Number of repeat for each dimension, 
+        length must be the same as the number of dimensions in input
     
         Returns:
         
-        A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
+        A Tensor. Has the same type as input. Has the shape of tensor.shape*repeats
         """
         repeated_tensor = self._target[:,:,0:1]
         for i in range(repeats-1):
@@ -158,22 +152,23 @@ class modelRNN(object):
         return repeated_tensor
         
     def _compute_loss(self):
-        
+        """ <DocString> """
         # Create model
-        
-        self._target = tf.placeholder("float", [None,self.seq_len, self.size_output_layer+self.commonY], name="target")
+        self._target = tf.placeholder("float", [None,self.seq_len, 
+                                    self.size_output_layer+self.commonY], 
+                                    name="target")
         # Define cross entropy loss.
         # first target bit for mc (market change)
-        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+(1-self._target[:,:,0:1])* -tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
+                                (1-self._target[:,:,0:1])* -
+                                tf.log(1 - self._pred[:,:,0:1]), [1, 2])
         # second and third bits for md (market direction)
-        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * tf.log(self._pred[:,:,1:3])), [1, 2])
+        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
+                                 tf.log(self._pred[:,:,1:3])), [1, 2])
         # last 5 bits for market gain output
-        loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*(self._target[:,:,3:] * tf.log(self._pred[:,:,3:])), [1, 2])
-        #loss = -tf.reduce_sum(self._target * tf.log(self._pred), [1, 2])
-        # total loss=y0*(loss+loss_md)+loss_mc
-        #loss = -tf.reduce_sum((self._target * tf.log(self._pred)), [1, 2])
-        #p * -tf.log(q) + (1 - p) * -tf.log(1 - q)
-        #loss = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred)+(1-self._target[:,:,0:1])* -tf.log(1 - self._pred), [1, 2])
+        loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
+                                 (self._target[:,:,3:] * 
+                                  tf.log(self._pred[:,:,3:])), [1, 2])
         self._loss = tf.reduce_mean(
             loss_mc+loss_md+loss_mg,
             name="loss_nll")
@@ -181,32 +176,19 @@ class modelRNN(object):
             self._loss,
             name="adam_optim")
         
-        #self._optim = tf.train.RMSPropOptimizer(self._lR0).minimize(
-        #    self._loss,
-        #    name="rmsprop_optim"
-        #)
-
-        # Use in evaluating accuracy. Gets the index with largest probability
-        # found along dim=2. Returns the error rate.
-#        neq_mc = tf.not_equal(tf.argmax(self._target[:,:,0:1], 2),tf.argmax(self._pred[:,:,0:1], 2))
-#        neq_md = tf.not_equal(tf.argmax(self._target[:,:,1:3], 2),tf.argmax(self._pred[:,:,1:3], 2))
-#        neq_mg = tf.not_equal(tf.argmax(self._target[:,:,3:], 2),tf.argmax(self._pred[:,:,3:], 2))
-        #neq = tf.not_equal(tf.argmax(self._target, 2),tf.argmax(self._pred, 2))
-        #neq = tf.not_equal(tf.argmax(self._target[:,:,0:1], 2),tf.argmax(self._pred, 2))
         self._error = self._loss
-        #self._error = tf.reduce_mean(tf.cast(neq_mg, tf.float32))+tf.reduce_mean(tf.cast(neq_mc, tf.float32))+tf.reduce_mean(tf.cast(neq_md, tf.float32))
-        
         
     def _load_graph(self,ID,epoch,live=""):
-        
+        """ <DocString> """
         # Create placeholders
-        if os.path.exists("../RNN/weights/"+ID+"/"):
+        if os.path.exists(local_vars.weights_directory+ID+"/"):
             if epoch == -1:# load last
                 # get last saved epoch
-                epoch = int(sorted(os.listdir("../RNN/weights/"+ID+"/"))[-2])
+                epoch = int(sorted(os.listdir(local_vars.weights_directory+ID+"/"))[-2])
             
             strEpoch = "{0:06d}".format(epoch)
-            self._saver.restore(self._sess, "../RNN/weights/"+ID+"/"+strEpoch+"/"+strEpoch)
+            self._saver.restore(self._sess, local_vars.weights_directory+ID+"/"+
+                                strEpoch+"/"+strEpoch)
             #print("var : %s" % self.var.eval())
             print("Parameters loaded. Epoch "+str(epoch))
             
@@ -214,43 +196,46 @@ class modelRNN(object):
             self._init_op = tf.global_variables_initializer()
             self._sess.run(self._init_op)
         else:
-            print("Error. Graph does not exist. Revise IDweights and IDepoch")
-            error()
+            raise ValueError("Graph "+ID+"E"+str(epoch)+" does not exist. Revise IDweights and IDepoch")
         
         
         return epoch+1
     
-    def _save_graph(self,ID,epoch_cost,epoch):
+    def _save_graph(self, ID, epoch_cost, epoch, weights_directory):
+        """ <DocString> """
         cost = {}
-        if os.path.exists("../RNN/weights/"+ID+"/")==False:
-            os.mkdir("../RNN/weights/"+ID+"/")
-        if os.path.exists("../RNN/weights/"+ID+"/cost.p"):
+        if os.path.exists(weights_directory+ID+"/")==False:
+            os.mkdir(weights_directory+ID+"/")
+        if os.path.exists(weights_directory+ID+"/cost.p"):
+<<<<<<< HEAD:RNN.py
             cost = pickle.load( open( "../RNN/weights/"+ID+"/cost.p", "rb" ))
+=======
+            cost = pickle.load( open( local_vars.weights_directory+ID+"/cost.p", "rb" ))
+>>>>>>> Dev3:kaissandra/RNN.py
         cost[ID+str(epoch)] = epoch_cost
-        pickle.dump(cost, open( "../RNN/weights/"+ID+"/cost.p", "wb" ))
+        pickle.dump(cost, open( weights_directory+ID+"/cost.p", "wb" ))
         strEpoch = "{0:06d}".format(epoch)
-        save_path = self._saver.save(self._sess, "../RNN/weights/"+ID+"/"+strEpoch+"/"+strEpoch)
+        save_path = self._saver.save(self._sess, weights_directory+ID+"/"+
+                                     strEpoch+"/"+strEpoch)
         
         print("Parameters saved")
         return save_path
     
     def _launch_live_session(self, sess, IDgraph, lID):
-        
-        
-        self._sess = sess
-        
+        """ <DocString> """
         IDweights = IDgraph[:lID]
-        #print(IDweights)
         epoch = IDgraph[lID:]
-        #print(epoch)
-        self._init_parameters()
-        self._saver = tf.train.Saver(max_to_keep = None)
-        self._load_graph(IDweights,int(epoch),live="y")
+        graph = tf.Graph()
+        with graph.as_default():
+            self._init_parameters()
+            self._saver = tf.train.Saver(max_to_keep = None)
+            self._sess = tf.Session()
+            self._load_graph(IDweights,int(epoch),live="y")
             
         return None
     
     def run_live_session(self, X):
-        
+        """ <DocString> """
         test_data_feed = {
             self._inputs: X,
             self._dropout: 1.0
@@ -258,211 +243,45 @@ class modelRNN(object):
         softMaxOut = self._sess.run([self._pred], test_data_feed)[0]
         
         return softMaxOut
-
-    def test(self, sess, data, IDresults, IDweights, nChunks, saveResults, 
-             trainOrTest,startFrom=-1,IDIO=""):
-        """ Used in evaluating model with test data
-        args: test_data, test data definied in sets.
-        """
-        self._sess = sess 
-        
-        self._init_parameters()
-        self._compute_loss()
-        self._saver = tf.train.Saver(max_to_keep = None) # define save object
-        
-        if trainOrTest==data.train:
-            tot = "tr"
-        else:
-            tot = "te"
-        
-        resultsDir = "../RNN/results/"
-        
-        TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
-        lastTrained = int(sorted(os.listdir("../RNN/weights/"+IDweights+"/"))[-1])
-        
-        X_test = np.zeros((0, self.seq_len, self.nFeatures))
-        Y_test = np.zeros((0,self.seq_len,self.size_output_layer))
-        DTA = pd.DataFrame()
-        
-        costs = {}
-        if os.path.exists("../RNN/weights/"+IDweights+"/cost.p"):
-            costs = pickle.load( open( "../RNN/weights/"+IDweights+"/cost.p", "rb" ))
-            
-        percents = ["90%", "80%", "70%", "60%", "50%", "40%", "30%"]
-        levels = ["L"+str(i+1) for i in range(int((self.size_output_layer-1)/2))]
-        
-        for fC in range(nChunks):
-            #print("../RNN/IO/X"+str(fC)+IDresults+tot+".p")
-            X = pickle.load(open( "../RNN/IO/X"+str(fC)+"_"+IDIO+tot+".p", "rb" ))
-            Y = pickle.load(open( "../RNN/IO/Y"+str(fC)+"_"+IDIO+tot+".p", "rb" ))
-            DTAi = pickle.load(open( "../RNN/IO/DTA"+str(fC)+"_"+IDIO+tot+".p", "rb" ))
-            #print(X)
-            X_test = np.append(X_test,X,axis=0)
-            Y_test = np.append(Y_test,Y,axis=0)
-            DTA = DTA.append(DTAi)
-        
-        test_data_feed = {
-            self._inputs: X_test,
-            self._target: Y_test,
-            self._dropout: 1.0
-        }
-        
-        Y_real = np.argmax(Y_test, 2)-(self.size_output_layer-1)/2
-        #save_as_matfile("Y","Y",Y_real)
-        # load models and test them
-        for epoch in range(lastSaved,lastTrained+1):
-
-            self._load_graph(IDweights,epoch)
-            print("Epoch "+str(epoch)+" of "+str(lastTrained))
-#            J_train = self._loss.eval()
-            J_test, softMaxOut = self._sess.run([self._error,self._pred], test_data_feed)
-            print("J test="+str(J_test))
-            # extract y_c vector, if necessary
-            if self.commonY == 0:
-                softMax = softMaxOut
-            elif self.commonY == 1:
-                softMax = softMaxOut[:,:,1:]
-            elif self.commonY == 2:
-                softMax = softMaxOut[:,:,2:]
-            else:
-                softMax = softMaxOut[:,:,3:]
-            
-            Y_tilde = np.argmax(softMaxOut, 2)-(self.size_output_layer-1)/2
-            # init alphas (weight vector for consensus)
-            alphas = np.zeros((self.seq_len))
-            # t from 0 to seq_len plus one for consensus
-            for t in range(self.seq_len+1):
-                
-                
-                t_out = self.seq_len-t
-                t_index = self.seq_len-t_out
-                
-                if t<self.seq_len:
-                    
-                    results = getResults(Y_tilde[:,-t_out], Y_real[:,-t_out], softMax[:,-t_out], 
-                                         DTA.iloc[t_index::self.seq_len,:],self.size_output_layer)
     
-                    alphas[t] = results["accDirectionAll"]
-                else:
-                    if np.sum(alphas)>0:
-                        alphas = alphas/np.sum(alphas) # calculate and normalize alpha
-                    else:
-                        alphas = 1/self.seq_len*np.ones((self.seq_len))
-                    
-                    m = Y_real.shape[0]
-                    softMax_cons = np.zeros((m-(self.seq_len-t_out-1),self.size_output_layer))
-                    for i in range(self.seq_len):
-                        softMax_cons = softMax_cons+alphas[i]*softMax[self.seq_len-i-1:m-i,i]
-                    
-                    Y_tilde_cons = np.argmax(softMax_cons, 1)-(self.size_output_layer-1)/2
-                    
-                    results = getResults(Y_tilde_cons, Y_real[t-1:,0], softMax_cons, 
-                                         DTA.iloc[t-1::self.seq_len,:],self.size_output_layer)
-                    
-                Journal = results["Journal"]
-                
-                results = getSummary(results,self.size_output_layer)
-                
-                results["J_test"] = J_test
-                if IDweights+str(epoch) in costs:
-                    results["J_train"] = costs[IDweights+str(epoch)]
-                else:
-                    results["J_train"] = 0.0
-                    
-                TR[IDresults+str(epoch)] = results
-                TR[IDresults] = epoch+1
-                pickle.dump(TR, open( resultsDir+"TR.p", "wb" ))
-                printResults(IDresults,self.size_output_layer,init=epoch,saveResults=saveResults,
-                             resultsDir=resultsDir,t_index=t_index)
-                
-                
-                if saveResults:
-                
-                    if Journal.shape[0]>0:
-                        pathJournals = resultsDir+IDresults+"/journals/"+"t"+str(t_index)+"/"
-                        
-                        if os.path.isdir(resultsDir+IDresults+"/journals/")==False:
-                            os.mkdir(resultsDir+IDresults+"/journals/")
-                        '''
-                        if os.path.isdir(resultsDir+"journals/"+IDresults+"/")==False:
-                            os.mkdir(resultsDir+"journals/"+IDresults+"/")
-                        '''
-                        if os.path.isdir(pathJournals)==False:
-                            os.mkdir(pathJournals)
-                        
-                        Journal.to_csv(pathJournals+IDresults+str(epoch)+"J"+".txt",sep='\t',float_format='%.3f')
-                        #print(results["ROIxAsset"])
-                        #print(results["Assets"])
-                        summary = pd.DataFrame(data=results["ROIxAsset"],index=results["Assets"])
-                        summary = summary.append(pd.DataFrame(data=results["ROIxLevel"],index=levels))
-                        summary = summary.append(pd.DataFrame(data=results["ROIxPercent"],index=percents))
-                        summary = summary.append(pd.DataFrame(data=[results["tROI"]],index=["Total"]))
-                        summary = summary.append(pd.DataFrame(data=[results["rROI"]],index=["Real"]))
-                        summary.columns = ["ROI"]
-                        summary.to_csv(pathJournals+IDresults+str(epoch)+"S"+".txt",sep='\t',float_format='%.4f')
-            
-            
-            print("Results updated and saved")
-            
-            # get consensus results
-            
-            
-            # Delete entry if not save
-        #if saveResults==0:
-        TR = pickle.load( open( resultsDir+"TR.p", "rb" ))
-        for epoch in range(lastSaved,lastTrained):
-            del TR[IDresults+str(epoch)]
-        del TR[IDresults]
-        pickle.dump(TR, open( resultsDir+"TR.p", "wb" ) )
-
-        return None
-    
-    def test_v10(self, sess, data, IDresults, IDweights, nChunks, save_results, 
-             trainOrTest, startFrom=-1, IDIO='', data_format='', DTA=[], save_journal=False, endAt=-1):
+    def test(self, sess, data, IDresults, IDweights, alloc, save_results, 
+             trainOrTest, filename_IO, startFrom=-1, IDIO='', data_format='', DTA=[], 
+             save_journal=False, endAt=-1):
         """ 
         Test RNN network with y_c bits
         """
+        import pandas as pd
         self._sess = sess
         
         self._init_parameters()
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
         
-        if trainOrTest==data.train:
-            tot = "tr"
-        else:
-            tot = "te"
-        
-        resultsDir = "../RNN/results/"
+        resultsDir = local_vars.results_directory
         
         #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
         if endAt==-1:
-            lastTrained = int(sorted(os.listdir("../RNN/weights/"+IDweights+"/"))[-2])
+            lastTrained = int(sorted(os.listdir(local_vars.weights_directory+IDweights+"/"))[-2])
         else:
             lastTrained = endAt
         
-        X_test = np.zeros((0, self.seq_len, self.nFeatures))
-        Y_test = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
         # load train cost function evaluations
         costs = {}
-        if os.path.exists("../RNN/weights/"+IDweights+"/cost.p"):
-            costs = pickle.load( open( "../RNN/weights/"+IDweights+"/cost.p", "rb" ))
+        if os.path.exists(local_vars.weights_directory+IDweights+"/cost.p"):
+            costs = pickle.load( open( local_vars.weights_directory+IDweights+"/cost.p", "rb" ))
         else:
             pass
         
         # load IO info
-        filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
+        #filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
         f_IO = h5py.File(filename_IO,'r')
         #X_test = f_IO['X'][:]
         Y_test = f_IO['Y'][:]
-        alloc = 500000
+        
         n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
         
         if startFrom == -1:
-            lastSaved = 0
-        else:
-            lastSaved = startFrom
-        
+            startFrom = get_last_saved_epoch(resultsDir, IDresults, self.seq_len)+1
         best_ROI = 0.0
         best_ROI_profile = pd.DataFrame() # best ROI profile
         BR_ROIs = pd.DataFrame() # best results per ROI
@@ -473,7 +292,7 @@ class modelRNN(object):
         best_sharpe_profile = pd.DataFrame() # best sharpe profile
         BR_sharpes = pd.DataFrame() # best results per sharpe ratio
         # load models and test them
-        for epoch in range(lastSaved,lastTrained+1):
+        for epoch in range(startFrom,lastTrained+1):
 
             self._load_graph(IDweights,epoch)
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
@@ -492,8 +311,20 @@ class modelRNN(object):
                 softMaxOut = np.append(softMaxOut,smo,axis=0)
                 #print(softMaxOut.shape)
             print("Getting results")
-            new_ROI, tBR_GROI, tBR_ROI, tBR_sharpe = evaluate_RNN(data, self, Y_test, DTA, IDresults, IDweights, J_test, softMaxOut, save_results,
-                 costs, epoch, resultsDir, lastTrained, save_journal=save_journal)
+            new_ROI, tBR_GROI, tBR_ROI, tBR_sharpe = evaluate_RNN(data, 
+                                                                  self, 
+                                                                  Y_test, 
+                                                                  DTA, 
+                                                                  IDresults, 
+                                                                  IDweights, 
+                                                                  J_test, 
+                                                                  softMaxOut, 
+                                                                  save_results,
+                                                                  costs, 
+                                                                  epoch, 
+                                                                  resultsDir, 
+                                                                  lastTrained, 
+                                                                  save_journal=save_journal)
             BR_GROIs = BR_GROIs.append(tBR_GROI)
             BR_ROIs = BR_ROIs.append(tBR_ROI)
             BR_sharpes = BR_sharpes.append(tBR_sharpe)
@@ -529,11 +360,117 @@ class modelRNN(object):
 
         return None
     
-    def train(self, sess, nChunks, ID='', logFile='',IDIO='', data_format='', filename_IO='', aloc=2**17):
+<<<<<<< HEAD:RNN.py
+    def test2(self, sess, dateTest, IDresults, IDweights, alloc, save_results,
+              weights_directory, filename_IO, resultsDir,
+=======
+    def test2(self, sess, dateTest, IDresults, IDweights, alloc,
+              weights_directory, filename_IO,
+>>>>>>> Dev3:kaissandra/RNN.py
+             startFrom=-1, data_format='', DTA=[], 
+             save_journal=False, endAt=-1, from_var=False):
+        """ 
+        Test RNN network with y_c bits
+        """
+        import pandas as pd
+<<<<<<< HEAD:RNN.py
+        self._sess = sess
+        
+=======
+        from tqdm import tqdm
+        self._sess = sess
+        results_directory = local_vars.results_directory
+>>>>>>> Dev3:kaissandra/RNN.py
+        self._init_parameters()
+        self._compute_loss()
+        self._saver = tf.train.Saver(max_to_keep = None) # define save object
+        
+        
+        #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
+        if endAt==-1:
+            lastTrained = int(sorted(os.listdir(weights_directory+IDweights+"/"))[-2])
+        else:
+            lastTrained = endAt
+        
+        # load train cost function evaluations
+        costs = {}
+        if os.path.exists(weights_directory+IDweights+"/cost.p"):
+            costs = pickle.load( open( weights_directory+IDweights+"/cost.p", "rb" ))
+        else:
+            pass
+        # load IO info
+        #filename_IO = '../RNN/IO/'+'IO_'+IDIO+'.hdf5'
+        f_IO = h5py.File(filename_IO,'r')
+        #X_test = f_IO['X'][:]
+        Y_test = f_IO['Y'][:]
+        
+        n_chunks = int(np.ceil(Y_test.shape[0]/alloc))
+        
+        if startFrom == -1:
+<<<<<<< HEAD:RNN.py
+            startFrom = get_last_saved_epoch2(resultsDir, IDresults, self.seq_len)+1
+        import math
+=======
+            startFrom = get_last_saved_epoch2(results_directory, IDresults, self.seq_len)+1
+        import math
+        results_filename, costs_filename = init_results_dir(results_directory, IDresults)
+>>>>>>> Dev3:kaissandra/RNN.py
+        # load models and test them
+        for epoch in range(startFrom,lastTrained+1):
+            if math.isnan(costs[IDweights+str(epoch)]):
+                print("J_train=NaN BREAK!")
+                break
+            self._load_graph(IDweights,epoch)
+            print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
+#            J_train = self._loss.eval()
+            softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
+<<<<<<< HEAD:RNN.py
+            for chunck in range(n_chunks):
+                print("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+=======
+            for chunck in tqdm(range(n_chunks)):
+                #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+>>>>>>> Dev3:kaissandra/RNN.py
+                # build input/output data
+                test_data_feed = {
+                    self._inputs: f_IO['X'][chunck*alloc:(chunck+1)*alloc],
+                    self._target: f_IO['Y'][chunck*alloc:(chunck+1)*alloc],
+                    self._dropout: 1.0
+                }
+                J_test, smo = self._sess.run([self._error,self._pred], test_data_feed)
+                
+                softMaxOut = np.append(softMaxOut,smo,axis=0)
+                #print(softMaxOut.shape)
+            print("Getting results")
+            results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
+<<<<<<< HEAD:RNN.py
+                        J_test, softMaxOut, save_results, costs, epoch, 
+                        resultsDir, lastTrained, save_journal=save_journal,
+=======
+                        J_test, softMaxOut, costs, epoch, 
+                        results_directory, lastTrained, results_filename,
+                        costs_filename, save_journal=save_journal,
+>>>>>>> Dev3:kaissandra/RNN.py
+                        from_var=from_var)
+        
+        TR = pd.read_csv(results_filename+'.csv', sep='\t')
+        print("\nThe very best:")
+<<<<<<< HEAD:RNN.py
+        get_best_results(TR, results_filename, resultsDir, IDresults)
+=======
+        get_best_results(TR, results_filename, results_directory, IDresults)
+>>>>>>> Dev3:kaissandra/RNN.py
+            
+        return None
+    
+    def train(self, sess, nChunks, weights_directory,
+              ID='', logFile='',IDIO='', data_format='', 
+              filename_IO='', aloc=2**17):
         """ Call to train.
         args: train_data, train object defined in sets.
         args: test_data, test data defined in sets.
         """
+        from tqdm import tqdm
         self._sess = sess
         print("ID = "+ID)
         self._init_parameters()
@@ -542,7 +479,7 @@ class modelRNN(object):
         #dirName = "../RNN/weights/"
         epochStart = self._load_graph(ID,-1)
         #epochStart = 0
-        print("Training from epoch "+str(epochStart)+" till "+str(epochStart+self._num_epochs))
+        print("Training from epoch "+str(epochStart)+" till "+str(epochStart+self._num_epochs-1))
         # check if data format is HDF5
         if data_format=='hdf5':
             # load IO info
@@ -581,7 +518,7 @@ class modelRNN(object):
                     train_data = trainData(X_train, Y_train)
                     self._n_batches = int(np.ceil(train_data.m/self.miniBatchSize))
                     
-                    for mB in range(self._n_batches):
+                    for mB in tqdm(range(self._n_batches),mininterval=1):
                         #print(self._batch_size)
                         this_mB = range(mB*self.miniBatchSize,np.min([train_data.m,(mB+1)*self.miniBatchSize]))
                         #print(this_mB)
@@ -614,9 +551,9 @@ class modelRNN(object):
                   " Total time training: "+"{0:.2f}".format(np.floor(toc-ticT)/60)+"m")
     
                 if ID!='':
-                    self._save_graph(ID,epoch_cost,epoch)
+                    self._save_graph(ID, epoch_cost, epoch, weights_directory)
             # end of for epoch in range(epochStart,epochStart+self._num_epochs):
         except KeyboardInterrupt:
             f_IO.close()
-            end()
+            raise KeyboardInterrupt
     

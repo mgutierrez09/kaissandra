@@ -9,18 +9,18 @@ import re
 import os
 import pandas as pd
 import datetime as dt
-from DataManager import Data
+from inputs import Data
 
 #
-destiny = 'D:/SDC/py/Data_test/'
-origin = 'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'#'E:/py/Data_DL3/'#'C:/Users/mgutierrez/Desktop/SVN root/Projects/SDC/predictForex/ex4/py/Data/'
+destiny = 'D:/SDC/py/Data_DL3/'
+origin = 'E:/py/Data_DL3/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
 data = Data()
 
 if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
 
-copyFrom = '2018.10.18 12:50:00'
+copyFrom = '2018.11.19 00:00:00'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
 
 for i in data.assets:#
@@ -68,17 +68,17 @@ for i in data.assets:#
                         #os.remove(directOrigin+fileID)
                         print("File read in unicode")
                     except :
-                        print("Skipping file")
+                        print("Skipping and deleting file")
+                        os.remove(directOrigin+fileID)
                         break
                 except :
-                    print("Skipping file")
+                    print("Skipping and deleting file")
+                    os.remove(directOrigin+fileID)
                     break
                 if not skip and newInfo.shape[0]>0:
                     newInfo.to_csv(directDestiny+fileID,float_format='%.5f',index=False)
                 else:
-                    print("Zero number of entries. Skipped")
-                #print("File copied to destiny")
+                    os.remove(directOrigin+fileID)
+                    print("Zero number of entries. Skipped and deleted")
+                    
             
-            
-            
-        

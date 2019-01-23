@@ -12,7 +12,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import datetime as dt
-from DataManager import extractSeparators_v21, Data
+from inputs import Data, extractSeparators
 
 def check_consecutive_trading_days(directory,prev_day, post_day):
     """
@@ -45,8 +45,7 @@ def check_consecutive_trading_days(directory,prev_day, post_day):
         if idx_prev_day == idx_post_day-1 or idx_prev_day == idx_post_day:
             consecutive = True
     else:
-        print("Error. Days not in trading days. Check trading days structure")
-        error()
+        raise ValueError("Days not in trading days. Check trading days structure")
     
     return consecutive
 
@@ -79,8 +78,8 @@ def check_consecutive_trading_days_from_list(list_bussines_days, prev_day, post_
         if idx_prev_day == idx_post_day-1 or idx_prev_day == idx_post_day:
             consecutive = True
     else:
-        print("Error. Days not in trading days. Check trading days structure")
-        error()
+        #print("Error. Days not in trading days. Check trading days structure")
+        raise ValueError("Days not in trading days. Check trading days structure")
     
     return consecutive
 
@@ -175,8 +174,7 @@ def find_bussines_days(data, directory_destination):
                     # check date is within init and end dates
                     ########################################
                     # WARNING!! To be tested
-                    if 1:#(date_dt>=dt.datetime.strptime(int_date,'%Y.%m.%d') and
-    #                    date_dt<dt.datetime.strptime(int_date,'%Y.%m.%d')+dt.timedelta(1)):
+                    if 1:
                             
                         # save date of first file to later check if new info is older
                         if first_file:
@@ -200,9 +198,7 @@ def find_bussines_days(data, directory_destination):
     return b_days_list
                     
 
-dateTest = (['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
-            [                                                    '2018.03.09',
+dateTest = ([                                                    '2018.03.09',
              '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
              '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
              '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -222,19 +218,41 @@ dateTest = (['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
              '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
              '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
              '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-             '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10',])
+             '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
+            ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
+             '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
+             '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
+             '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
+             '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
+             '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
+             '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
+             '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
+             '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
+             '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
+             '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
+             '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
+             '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
 
 
-data = Data(dateEnd='2018.07.13',
-             dateTest = dateTest)
+#    ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
+#             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
+
+data = Data(dateTest = dateTest)
 
 # limit the build of the HDF5 to data comprised in these dates
-#int_date = '2016.01.01'
-#end_date = '2017.08.11'
+build_partial_raw = True
+int_date = '180928'
+end_date = '181109'
+init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
+end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
 
 directory_destination = 'D:/SDC/py/HDF5/'
-hdf5_file_name = 'tradeinfo.hdf5'
-separators_directory_name = 'separators/'
+if build_partial_raw:
+    hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
+    separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
+else:
+    hdf5_file_name = 'tradeinfo.hdf5'
+    separators_directory_name = 'separators/'
 trusted_source = False
 # create directory if not exists
 if not os.path.exists(directory_destination+separators_directory_name):
@@ -283,8 +301,8 @@ for ass in data.assets:
                 # check date is within init and end dates
                 ########################################
                 # WARNING!! To be tested
-                if 1:#(date_dt>=dt.datetime.strptime(int_date,'%Y.%m.%d') and
-#                    date_dt<dt.datetime.strptime(int_date,'%Y.%m.%d')+dt.timedelta(1)):
+                if not build_partial_raw or (date_dt>=init_date_dt and
+                    date_dt<end_date_dt+dt.timedelta(1)):
                         
                     # save date of first file to later check if new info is older
                     if first_file:
@@ -402,7 +420,7 @@ for ass in data.assets:
         if tradeInfo.shape[0]>0:
             if not trusted_source:
                 # extract separators
-                this_separators = extractSeparators_v21(tradeInfo,minThresNight,minThresNight,
+                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                        bidThresDay,bidThresNight,[])
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
@@ -530,7 +548,7 @@ for ass in data.assets:
                 # update index
                 file_newer_index += 1
                 # get eparators from latest info
-                this_separators = extractSeparators_v21(tradeInfo,minThresNight,minThresNight,
+                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                        bidThresDay,bidThresNight,[])
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
@@ -596,3 +614,6 @@ for ass in data.assets:
 if os.path.exists(directory_destination+'temp.hdf5'):
     os.remove(directory_destination+'temp.hdf5')
 f.close()
+if build_partial_raw:
+    os.remove(directory_destination+hdf5_file_name)
+    print("Raw file "+directory_destination+hdf5_file_name+" deleted")
