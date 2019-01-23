@@ -1320,13 +1320,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     return IO, totalSampsPerLevel
 
 # Function Build IO from var
-<<<<<<< HEAD:inputs.py
-def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, features, 
-                      returns, symbols, calculate_roi):
-=======
 def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, feats_var, 
                       feats_tsf, returns, symbols, calculate_roi):
->>>>>>> Dev3:kaissandra/inputs.py
     # total number of possible channels
     nExS = data.nEventsPerStat
     mW = data.movingWindow
@@ -1335,11 +1330,6 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, feats_var,
     seq_len = model.seq_len#int((data.lB-data.nEventsPerStat)/data.movingWindow)
     # samples allocation per batch
     aloc = 2**20
-<<<<<<< HEAD:inputs.py
-    # extract means and stats
-    means_in = stats['means_in']
-    stds_in = stats['stds_in']
-=======
     # extract means and stats from var feats
     means_man_in = stats['means_man_in']
     stds_man_in = stats['stds_man_in']
@@ -1356,7 +1346,6 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, feats_var,
     features = np.append(feats_var,feats_tsf,1)
 #    print("features.shape")
 #    print(features.shape)
->>>>>>> Dev3:kaissandra/inputs.py
     #m_in = stats['m_in']
     stds_out = stats['stds_out']
     #m_out = stats['m_out']
@@ -1754,12 +1743,6 @@ def build_IO_from_var_wrapper(*ins):
     """ Wrapper function to build RNN input/output for train/test around
     assets and chuncks """
     # Train/Test RNN
-<<<<<<< HEAD:inputs.py
-    from RNN import modelRNN
-    from features import get_init_end_dates, get_group_name
-    from config import retrieve_config
-=======
->>>>>>> Dev3:kaissandra/inputs.py
     
     tOt = ins[0]
     if len(ins)>1:
@@ -1799,18 +1782,12 @@ def build_IO_from_var_wrapper(*ins):
     
     IDweights = config['IDweights']
     IO_results_name = config['IO_results_name']
-<<<<<<< HEAD:inputs.py
-    hdf5_directory = config['hdf5_directory']
-    feats_var_directory = hdf5_directory+'feats_var/'
-    IO_directory = config['IO_directory']
-=======
     hdf5_directory = local_vars.hdf5_directory
     feats_var_directory = hdf5_directory+'feats_var/'
     feats_tsf_directory = hdf5_directory+'feats_tsf/'
     returns_directory = hdf5_directory+'returns/'
     IO_directory = local_vars.IO_directory
     
->>>>>>> Dev3:kaissandra/inputs.py
     if tOt=='tr':
         filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     else:
@@ -1863,15 +1840,6 @@ def build_IO_from_var_wrapper(*ins):
                                      tOt='tr', 
                                      from_txt=1)
     
-<<<<<<< HEAD:inputs.py
-        filename_features = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
-                                    str(data.nEventsPerStat)+'.hdf5')
-        file_features = h5py.File(filename_features,'r')
-        filename_returns = (feats_var_directory+thisAsset+'_rets_var_mW'+str(data.movingWindow)+'_nE'+
-                                    str(data.nEventsPerStat)+'.hdf5')
-        file_returns = h5py.File(filename_returns,'r')
-        filename_symbols = (feats_var_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
-=======
         filename_feats_var = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
                                     str(data.nEventsPerStat)+'.hdf5')
         file_feats_var = h5py.File(filename_feats_var,'r')
@@ -1882,7 +1850,6 @@ def build_IO_from_var_wrapper(*ins):
                                     str(data.nEventsPerStat)+'.hdf5')
         file_returns = h5py.File(filename_returns,'r')
         filename_symbols = (returns_directory+thisAsset+'_symbols_mW'+str(data.movingWindow)+'_nE'+
->>>>>>> Dev3:kaissandra/inputs.py
                                     str(data.nEventsPerStat)+'.hdf5')
         file_symbols = h5py.File(filename_symbols,'r')
         filename_stats = (feats_var_directory+thisAsset+'_stats_mW'+str(data.movingWindow)+'_nE'+
@@ -1891,11 +1858,6 @@ def build_IO_from_var_wrapper(*ins):
         if not from_stats_file:
             stats = {}
             # load stats in
-<<<<<<< HEAD:inputs.py
-            stats["means_in"] = file_features[thisAsset].attrs.get("means_in")
-            stats["stds_in"] = file_features[thisAsset].attrs.get("stds_in")
-            stats["m_in"] = file_features[thisAsset].attrs.get("m_in")
-=======
             stats["means_man_in"] = file_feats_var[thisAsset].attrs.get("means_in")
             stats["stds_man_in"] = file_feats_var[thisAsset].attrs.get("stds_in")
             stats["m_in"] = file_feats_var[thisAsset].attrs.get("m_in")
@@ -1908,16 +1870,12 @@ def build_IO_from_var_wrapper(*ins):
 #            print(stats["means_tsf_in"].shape)
 #            print(stats["stds_tsf_in"])
 #            print(stats["stds_tsf_in"].shape)
->>>>>>> Dev3:kaissandra/inputs.py
             # load stats out
             stats["means_out"] = file_returns[thisAsset].attrs.get("means_out")
             stats["stds_out"] = file_returns[thisAsset].attrs.get("stds_out")
             stats["m_out"] = file_returns[thisAsset].attrs.get("m_out")
         elif from_stats_file:
-<<<<<<< HEAD:inputs.py
-=======
             raise NotImplemented("Loading stats from stats file not implemented yet")
->>>>>>> Dev3:kaissandra/inputs.py
             stats = pickle.load( open( filename_stats, "rb" ))
     
         if if_build_IO:
@@ -1945,14 +1903,6 @@ def build_IO_from_var_wrapper(*ins):
                         #print("group_name")
                         #print(group_name)
                         # load features
-<<<<<<< HEAD:inputs.py
-                        if group_name in file_features:
-                            features = file_features[group_name]["features"]
-                        else:
-                            raise ValueError(group_name+" not in "+filename_features)
-                        #print("features")
-                        #print(features)
-=======
                         if group_name in file_feats_var:
                             feats_var = file_feats_var[group_name]["features"]
                         else:
@@ -1965,16 +1915,11 @@ def build_IO_from_var_wrapper(*ins):
 #                        print(feats_tsf[:])
 #                        print("feats_tsf.shape")
 #                        print(feats_tsf.shape)
->>>>>>> Dev3:kaissandra/inputs.py
                         # load returns
                         if group_name in file_returns:
                             returns = file_returns[group_name]["returns"]
                         else:
-<<<<<<< HEAD:inputs.py
-                            raise ValueError(group_name+" not in "+filename_features)
-=======
                             raise ValueError(group_name+" not in "+filename_feats_var)
->>>>>>> Dev3:kaissandra/inputs.py
                         #print(returns)
                         # load Symbols if calculate_roi is true
                         #TODO: Implement Symbol loading for test
@@ -1991,11 +1936,7 @@ def build_IO_from_var_wrapper(*ins):
                         # build IO
                         IO, totalSampsPerLevel = build_IO_from_var(data, model, stats, 
                                                                    IO, totalSampsPerLevel, 
-<<<<<<< HEAD:inputs.py
-                                                                   features, returns, 
-=======
                                                                    feats_var, feats_tsf, returns, 
->>>>>>> Dev3:kaissandra/inputs.py
                                                                    symbols, calculate_roi)
                         #print(totalSampsPerLevel)
                     else:
@@ -2035,9 +1976,6 @@ def build_IO_from_var_wrapper(*ins):
         f_IO.close()
     
     m_t = max(ass_IO_ass)
-<<<<<<< HEAD:inputs.py
-    return model, m_t, filename_IO, DTA
-=======
     return model, m_t, filename_IO, DTA
 
 def build_and_train(*ins):
@@ -2110,4 +2048,3 @@ def run_train_test(config, its, if_train, if_test):
         # launch test
         if if_test:
             build_and_test(config)
->>>>>>> Dev3:kaissandra/inputs.py
