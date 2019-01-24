@@ -14,7 +14,7 @@ from kaissandra.testRNN import test_RNN
 from kaissandra.config import retrieve_config
 from kaissandra.features import get_features
 
-def run_train_test(config, its, if_train, if_test, if_get_features):
+def run_train_test(config, its, if_train, if_test, if_get_features, run_in_paralell):
     """
     
     """
@@ -32,8 +32,12 @@ def run_train_test(config, its, if_train, if_test, if_get_features):
             # here we should check if the HDF5 file is used
             train_RNN(config)
         # launch test
-        if if_test:
+        if if_test and not run_in_paralell:
             test_RNN(config)
+        elif if_test and run_in_paralell:
+            disp = Process(target=test_RNN, args=[config])
+            disp.start()
+            #time.sleep(1)
 
 def automate(*ins):
     # init config
@@ -50,6 +54,10 @@ def automate(*ins):
         its = ins[1]
     else:
         its = 100
+    if len(ins)>=3:
+        run_in_paralell = ins[2]
+    else:
+        run_in_paralell = False
     configs_list = []
      # load configuration files
     for config_name in configs:
@@ -60,7 +68,7 @@ def automate(*ins):
        config['num_epochs'] = 1
        config['startFrom'] = -1
        config['endAt'] = -1
-       run_train_test(config, its, if_train, if_test, if_get_features)
+       run_train_test(config, its, if_train, if_test, if_get_features, run_in_paralell)
             # parallelize
     #        disp = Process(target=run_train_test, args=[config, its, if_train, if_test, if_get_features])
     #        disp.start()
