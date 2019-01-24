@@ -10,7 +10,7 @@ import pandas as pd
 from multiprocessing import Process
 
 from kaissandra.trainRNN import train_RNN
-from kaissandra.testRNN import test_RNN
+from testRNN import test_RNN
 from kaissandra.config import retrieve_config
 from kaissandra.features import get_features
 

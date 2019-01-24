@@ -365,12 +365,13 @@ class modelRNN(object):
         """
         import pandas as pd
         from tqdm import tqdm
+        
+        tic = time.time()
         self._sess = sess
         results_directory = local_vars.results_directory
         self._init_parameters()
         self._compute_loss()
         self._saver = tf.train.Saver(max_to_keep = None) # define save object
-        
         
         #TR,lastSaved = loadTR(IDresults,resultsDir,saveResults,startFrom)
         if endAt==-1:
@@ -427,6 +428,7 @@ class modelRNN(object):
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
         print("\nThe very best:")
         get_best_results(TR, results_filename, results_directory, IDresults)
+        print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
             
         return None
     
