@@ -562,7 +562,7 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
     if get_positions:
         list_pos = [[] for i in columns_positions]#[None for i in range(500)]
     # skip loop if both thresholds are .5
-    if thr_mc>.5 or thr_mc>.5:
+    if thr_mc>.5 or thr_md>.5:
         end_of_loop = Journal.shape[0]
     else:
         end_of_loop = 0
