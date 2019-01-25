@@ -607,9 +607,8 @@ class Trader:
             condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
         else:
-            raise ValueError("Wrong entry strategy")
-#########################################################            
-        return False#condition_extension
+            raise ValueError("Wrong entry strategy")            
+        return condition_extension
 
     def update_stoploss(self, idx, bid):
         # update stoploss
@@ -2393,9 +2392,9 @@ def run(running_assets, start_time):
     list_t_indexs = [[0],[0],[0]]
     list_inv_out = [True,True,True]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.5,.5)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     list_priorities = [[1],[2],[0]]
-    phase_shifts = [1,1,1]
+    phase_shifts = [5,5,5]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0,0]

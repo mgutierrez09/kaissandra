@@ -64,7 +64,6 @@ class modelRNN(object):
         self.version = version
         self.RRN_type = "LSTM" #{"RNNv" for vanilla RNN,"LSTM" for long-short time memory}
         # Defined when graph built
-        self._n_batches = None
         self._dropout = None
         self._inputs = None
         self._target = None 
@@ -485,9 +484,9 @@ class modelRNN(object):
                     #plt.plot(X_train[:,0,0])
                     #print("EEOOOOO")
                     train_data = trainData(X_train, Y_train)
-                    self._n_batches = int(np.ceil(train_data.m/self.miniBatchSize))
+                    n_batches = int(np.ceil(train_data.m/self.miniBatchSize))
                     
-                    for mB in tqdm(range(self._n_batches),mininterval=1):
+                    for mB in tqdm(range(n_batches),mininterval=1):
                         #print(self._batch_size)
                         this_mB = range(mB*self.miniBatchSize,np.min([train_data.m,(mB+1)*self.miniBatchSize]))
                         #print(this_mB)
