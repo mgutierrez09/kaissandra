@@ -175,7 +175,7 @@ def test_RNN(*ins):
         IO['A'] = A
         IO['pointer'] = 0
     
-    alloc = 200000
+    alloc = 50000
     # max number of input channels
     # index asset
     ass_idx = 0

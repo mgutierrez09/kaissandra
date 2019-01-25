@@ -150,14 +150,10 @@ class Results:
               direction change, ...} """
         pass
     
-    def save_pos_evolution(self, asset, dts, bids, asks, ems):
+    def save_pos_evolution(self, filename, dts, bids, asks, ems):
         """ Save evolution of the position from opening till close """
         # format datetime for filename
-        dt_open = dt.datetime.strftime(dt.datetime.strptime(
-                        dts[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        dt_close = dt.datetime.strftime(dt.datetime.strptime(
-                        dts[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
+        
         df = pd.DataFrame({'DateTime':dts,
                            'SymbolBid':bids,
                            'SymbolAsk':asks,
@@ -167,7 +163,15 @@ class Results:
 #class stats:
 #    
 #    def __init__():
-        
+
+def get_positions_filename(asset, open_dt, close_dt):
+    """  """
+    dt_open = dt.datetime.strftime(dt.datetime.strptime(
+            open_dt,'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+    dt_close = dt.datetime.strftime(dt.datetime.strptime(
+            close_dt,'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+    filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
+    return filename
 
 class Position:
     """
@@ -424,10 +428,12 @@ class Trader:
                 os.makedirs(self.results_pos)
         if not os.path.exists(self.ban_currencies_dir):
                 os.makedirs(self.ban_currencies_dir)
+        # little pause to garantee no 2 processes access at the same time
+        time.sleep(np.random.rand())
         # results tracking
         if not os.path.exists(self.log_positions_soll):
-            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,\
-                Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
+            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
+                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,E_spread,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions_soll)
             if not run_back_test:
                 write_log(resultsInfoHeader, self.log_positions_ist)
@@ -602,8 +608,8 @@ class Trader:
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
         else:
             raise ValueError("Wrong entry strategy")
-            
-        return condition_extension
+#########################################################            
+        return False#condition_extension
 
     def update_stoploss(self, idx, bid):
         # update stoploss
@@ -742,14 +748,16 @@ class Trader:
         self.tROI_live += ROI_live
         self.tGROI_live += GROI_live
         
+        e_spread = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].e_spread
         # write output to trader summary
-        info_close = info+","+str(nett_win)+","+\
+        info_close = info+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
             str(100*self.tGROI_live)+","+str(100*self.tROI_live)
         write_log(info_close, self.log_positions_soll)
         
         # save position evolution
         #self.save_pos_evolution(ass, list_idx)
-        results.save_pos_evolution(ass, self.list_last_dt[list_idx],
+        pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], self.list_last_dt[list_idx][1])
+        results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
                                    self.list_last_bid[list_idx], 
                                    self.list_last_ask[list_idx], 
                                    self.list_EM[list_idx])
@@ -1011,7 +1019,6 @@ class Trader:
         '''
         #new_entry = self.select_new_entry(inputs, thisAsset)
         for new_entry in self.select_next_entry(inputs, thisAsset):
-            print(new_entry)
             t = new_entry['t']
             strategy_name = self.strategies[new_entry['network_index']].name
         # check for opening/extension in order of expected returns
@@ -2057,7 +2064,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     print("Fetcher lauched")
     # number of events per file
     n_files = 10
-    n_samps_buffer = 20
+    n_samps_buffer = 100
     init_row = ['d',0.0,0.0]
     fileIDs = [0 for ass in range(nAssets)]
     buffers = [pd.DataFrame(data=[init_row for i in range(n_samps_buffer)],
@@ -2386,7 +2393,7 @@ def run(running_assets, start_time):
     list_t_indexs = [[0],[0],[0]]
     list_inv_out = [True,True,True]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.5,.5)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     list_priorities = [[1],[2],[0]]
     phase_shifts = [1,1,1]
     list_thr_sl = [20 for i in range(numberNetworks)]

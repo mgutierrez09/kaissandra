@@ -503,6 +503,8 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
 #        B1 = 'B1'
 #        B2 = 'B2'
 #    else:
+    from tqdm import tqdm
+    
     DT1 = 'DTi'
     DT2 = 'DTo'
     A2 = 'Ao'
@@ -559,7 +561,12 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
     e = 0
     if get_positions:
         list_pos = [[] for i in columns_positions]#[None for i in range(500)]
-    for e in range(1,Journal.shape[0]):
+    # skip loop if both thresholds are .5
+    if thr_mc>.5 or thr_mc>.5:
+        end_of_loop = Journal.shape[0]
+    else:
+        end_of_loop = 0
+    for e in tqdm(range(1,end_of_loop),mininterval=1):
 
         oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
         newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e],"%Y.%m.%d %H:%M:%S")
@@ -633,7 +640,7 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
         # end of if (sameAss and extendExitMarket):
     # end of for e in range(1,Journal.shape[0]):
     
-    if Journal.shape[0]>0:
+    if end_of_loop>0:
         thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
         mSpread += thisSpread
         GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
