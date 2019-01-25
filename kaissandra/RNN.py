@@ -405,6 +405,7 @@ class modelRNN(object):
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
             softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
+            t_J_test = 0
             for chunck in tqdm(range(n_chunks)):
                 #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
                 # build input/output data
@@ -414,12 +415,13 @@ class modelRNN(object):
                     self._dropout: 1.0
                 }
                 J_test, smo = self._sess.run([self._error,self._pred], test_data_feed)
-                
+                t_J_test += J_test
                 softMaxOut = np.append(softMaxOut,smo,axis=0)
                 #print(softMaxOut.shape)
+            t_J_test = t_J_test/n_chunks
             print("Getting results")
             results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
-                        J_test, softMaxOut, costs, epoch, 
+                        t_J_test, softMaxOut, costs, epoch, 
                         results_directory, lastTrained, results_filename,
                         costs_filename, save_journal=save_journal,
                         from_var=from_var)
