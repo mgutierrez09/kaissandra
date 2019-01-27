@@ -31,8 +31,8 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = True
 verbose_trader = True
-test = True
-run_back_test = True
+test = False
+run_back_test = False
 spread_ban = True
 ban_only_if_open = False # not in use
 
@@ -2438,11 +2438,11 @@ def run(running_assets, start_time):
     list_t_indexs = [[1],[3],[3]]
     list_inv_out = [True,True,True]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[10],'th':[(.5,.6)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[10],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
     list_priorities = [[1],[2],[0]]
-    phase_shifts = [1,1,1]
-    list_thr_sl = [1000 for i in range(numberNetworks)]
+    phase_shifts = [5,5,5]
+    list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0,0]
     mWs = [100,100,100]
@@ -2452,7 +2452,7 @@ def run(running_assets, start_time):
     model_dict = {'size_hidden_layer':[100,100,100],
                   'L':[3,3,3],
                   'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[.6,.6,.6]}
+                  'outputGain':[1,1,1]}
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
               dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
 #    numberNetworks = 1
