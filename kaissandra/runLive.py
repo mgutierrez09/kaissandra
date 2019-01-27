@@ -158,7 +158,7 @@ class Results:
                            'SymbolBid':bids,
                            'SymbolAsk':asks,
                            'EmBid':ems})
-        df.to_csv(self.dir_positions+filename, index=False)
+        df.to_csv(self.dir_positions+filename+'.txt', index=False)
     
 #class stats:
 #    
@@ -170,7 +170,7 @@ def get_positions_filename(asset, open_dt, close_dt):
             open_dt,'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
     dt_close = dt.datetime.strftime(dt.datetime.strptime(
             close_dt,'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-    filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
+    filename = 'O'+dt_open+'C'+dt_close+asset
     return filename
 
 class Position:
@@ -351,6 +351,7 @@ class Trader:
         self.AllAssets = AllAssets
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(AllAssets))])
         self.list_count_events = []
+        self.list_count_all_events = []
         self.list_stop_losses = []
         self.list_take_profits = []
         self.list_lots_per_pos = []
@@ -361,6 +362,7 @@ class Trader:
         self.list_last_dt = []
         self.list_sl_thr_vector = []
         self.list_deadlines = []
+        self.positions_tracker = []
         
         self.journal_idx = 0
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
@@ -394,7 +396,7 @@ class Trader:
         
         # log
         self.save_log = 1
-        self.results_dir = results_dir
+        self.results_dir_trader = results_dir+'trader/'
         
         self.running_assets = running_assets
         self.ass2index_mapping = ass2index_mapping
@@ -410,22 +412,22 @@ class Trader:
                 tag = '_BT_'
             else:
                 tag = '_LI_'
-            self.log_file_trader = self.results_dir+start_time+tag+"trader.log"
+            self.log_file_trader = self.results_dir_trader+start_time+tag+"trader.log"
             self.log_file = log_file
-            self.log_positions_soll = self.results_dir+start_time+tag+"positions_soll.log"
-            self.log_positions_ist = self.results_dir+start_time+tag+"positions_ist.log"
-            self.log_summary = self.results_dir+start_time+tag+"summary.log"
-            self.results_pos = results_dir+'/positions/'+start_time+'/'
-            self.budget_file = self.results_dir+start_time+tag+"budget.log"
+            self.log_positions_soll = self.results_dir_trader+start_time+tag+"positions_soll.log"
+            self.log_positions_ist = self.results_dir_trader+start_time+tag+"positions_ist.log"
+            self.log_summary = self.results_dir_trader+start_time+tag+"summary.log"
+            self.dir_positions = results_dir+'/positions/'+start_time+'/'
+            self.budget_file = self.results_dir_trader+start_time+tag+"budget.log"
             self.ban_currencies_dir = io_dir+'/ban/'
             
         
         self.start_time = start_time
         
-        if not os.path.exists(self.results_dir):
-            os.mkdir(self.results_dir)
-        if not os.path.exists(self.results_pos):
-                os.makedirs(self.results_pos)
+        if not os.path.exists(self.results_dir_trader):
+            os.mkdir(self.results_dir_trader)
+        if not os.path.exists(self.dir_positions):
+                os.makedirs(self.dir_positions)
         if not os.path.exists(self.ban_currencies_dir):
                 os.makedirs(self.ban_currencies_dir)
         # little pause to garantee no 2 processes access at the same time
@@ -433,7 +435,7 @@ class Trader:
         # results tracking
         if not os.path.exists(self.log_positions_soll):
             resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
-                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,E_spread,stGROI,stROI"
+                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,E_spread,stoploss,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions_soll)
             if not run_back_test:
                 write_log(resultsInfoHeader, self.log_positions_ist)
@@ -460,6 +462,7 @@ class Trader:
         '''
         self.list_opened_positions.append(self.next_candidate)
         self.list_count_events.append(0)
+        self.list_count_all_events.append(0)
         self.list_lots_per_pos.append(lots)
         self.list_lots_entry.append(lots)
         self.list_last_bid.append([bid])
@@ -484,6 +487,9 @@ class Trader:
             [self.map_ass_idx2pos_idx[idx]+1:]
         self.list_count_events = self.list_count_events\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_count_events\
+            [self.map_ass_idx2pos_idx[idx]+1:]
+        self.list_count_all_events = self.list_count_all_events\
+            [:self.map_ass_idx2pos_idx[idx]]+self.list_count_all_events\
             [self.map_ass_idx2pos_idx[idx]+1:]
         self.list_stop_losses = self.list_stop_losses\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_stop_losses\
@@ -512,6 +518,10 @@ class Trader:
         self.list_deadlines = self.list_deadlines\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_deadlines\
             [self.map_ass_idx2pos_idx[idx]+1:]
+        self.positions_tracker = self.positions_tracker\
+            [:self.map_ass_idx2pos_idx[idx]]+self.positions_tracker\
+            [self.map_ass_idx2pos_idx[idx]+1:]
+            
         
         mask = self.map_ass_idx2pos_idx>self.map_ass_idx2pos_idx[idx]
         self.map_ass_idx2pos_idx[idx] = -1
@@ -549,8 +559,9 @@ class Trader:
         else:
             return False
     
-    def count_one_event(self, idx):
-        self.list_count_events[self.map_ass_idx2pos_idx[idx]] += 1
+    def count_events(self, idx, n_events):
+        self.list_count_events[self.map_ass_idx2pos_idx[idx]] += n_events
+        self.list_count_all_events[self.map_ass_idx2pos_idx[idx]] += n_events
     
     def check_contition_for_opening(self, t):
         '''
@@ -701,7 +712,7 @@ class Trader:
         
     
     def close_position(self, date_time, ass, idx, results,
-                       lot_ratio=None, partial_close=False):
+                       lot_ratio=None, partial_close=False, from_sl=0):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -748,14 +759,18 @@ class Trader:
         self.tGROI_live += GROI_live
         
         e_spread = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].e_spread
+        # check if close comes from external ban
+        if not from_sl and self.list_count_events[self.map_ass_idx2pos_idx[idx]]!=\
+            self.list_deadlines[self.map_ass_idx2pos_idx[idx]]:
+                from_sl = 2
         # write output to trader summary
         info_close = info+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
-            str(100*self.tGROI_live)+","+str(100*self.tROI_live)
+            str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
         write_log(info_close, self.log_positions_soll)
-        
+        pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+                                              self.list_last_dt[list_idx][-1])
         # save position evolution
-        #self.save_pos_evolution(ass, list_idx)
-        pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], self.list_last_dt[list_idx][1])
+        self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename)
         results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
                                    self.list_last_bid[list_idx], 
                                    self.list_last_ask[list_idx], 
@@ -819,6 +834,8 @@ class Trader:
         
         # update vector of opened positions
         self.add_position(idx, lots, DateTime, bid, ask, deadline)
+        # track position
+        self.track_position('open', DateTime)
             
         out = (DateTime+" Open "+self.list_opened_positions[-1].asset+
               " Lots {0:.1f}".format(lots)+" "+str(self.list_opened_positions[-1].bet)+
@@ -832,9 +849,52 @@ class Trader:
         
         return None
     
+    def track_position(self, event, DateTime, idx=None, groi=0.0, filename=''):
+        """ track position.
+        Args:
+            - event (str): {open, extend, close} """
+        if event=='open':
+            pos_info = {'id':0,
+                        'n_ext':0,
+                        'dts':[DateTime],
+                        '@tick#':[0],
+                        'grois':[groi],
+                        'p_mcs':[self.list_opened_positions[-1].p_mc],
+                        'p_mds':[self.list_opened_positions[-1].p_md],
+                        'levels':[self.list_opened_positions[-1].bet]}
+            #print(pos_info)
+            self.positions_tracker.append(pos_info)
+        elif event=='extend':
+            #print(self.map_ass_idx2pos_idx[idx])
+            #print(self.positions_tracker)
+            pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
+            p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
+            p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
+            bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
+            tick_counts = self.list_count_all_events[self.map_ass_idx2pos_idx[idx]]
+            pos_info['n_ext'] += 1
+            pos_info['dts'].append(DateTime)
+            pos_info['p_mcs'].append(p_mc)
+            pos_info['p_mds'].append(p_md)
+            pos_info['levels'].append(bet)
+            pos_info['grois'].append(groi)
+            pos_info['@tick#'].append(tick_counts)
+            print(pos_info)
+        elif event=='close':
+            pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
+            n_ticks = len(self.list_last_bid[self.map_ass_idx2pos_idx[idx]])
+            pos_info['dts'].append(DateTime)
+            pos_info['p_mcs'].append(None)
+            pos_info['p_mds'].append(None)
+            pos_info['levels'].append(None)
+            pos_info['grois'].append(groi)
+            pos_info['@tick#'].append(n_ticks)
+            # save in disk
+            #print(pos_info)
+            pickle.dump( pos_info, open( self.dir_positions+filename+'.p', "wb" ))
+        
     def assign_lots(self, date_time):#, date_time, ass, idx
-        '''
-        '''
+        """  """
         this_strategy = self.next_candidate.strategy
         if not this_strategy.flexible_lot_ratio:
             # update available budget
@@ -983,34 +1043,6 @@ class Trader:
                            'network_index':network_index,
                            'profitability':profitability,
                            't':t}
-                    #print("profitability: "+str(profitability))
-#                    if profitability>s_prof:
-#                        s_prof = profitability
-#                        s_deadline = deadline
-#                        s_p_mc = p_mc
-#                        s_p_md = p_md
-#                        s_Y_tilde = Y_tilde
-#                        s_network_index = network_index
-#                        s_t = t
-                    # end of for t in range(len(inputs[nn][i])):
-            # end of for i in range(len(inputs[nn])-1):
-        # end of for nn in range(len(inputs)):
-        # add profitabilities
-        #print("s_prof: "+str(s_prof))
-#        new_entry = {}
-#        new_entry[entry_time_column] = DateTime
-#        new_entry['Asset'] = thisAsset
-#        new_entry['Bet'] = s_Y_tilde
-#        new_entry['P_mc'] = s_p_mc
-#        new_entry['P_md'] = s_p_md
-#        new_entry[entry_bid_column] = Bi
-#        new_entry[entry_ask_column] = Ai
-#        new_entry['E_spread'] = e_spread_pip
-#        new_entry['Deadline'] = s_deadline
-#        new_entry['network_index'] = s_network_index
-#        new_entry['profitability'] = s_prof
-#        new_entry['t'] = s_t
-        #return None
     
     def check_new_inputs(self, inputs, thisAsset, directory_MT5_ass=''):
         '''
@@ -1084,6 +1116,9 @@ class Trader:
                             self.send_open_command(directory_MT5_ass, ass_idx)
                         self.update_position(ass_id)
                         self.n_pos_extended += 1
+                        # track position
+                        self.track_position('extend', new_entry[entry_time_column], idx=ass_idx, groi=curr_GROI)
+                        # print out
                         out = (new_entry[entry_time_column]+" Extended "+
                                thisAsset+
                            " Lots {0:.1f}".format(self.list_lots_per_pos[
@@ -1233,7 +1268,7 @@ class Trader:
                         self.list_last_dt[list_idx][-1],'%Y.%m.%d %H:%M:%S'),
                 '%y%m%d%H%M%S')
         filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
-        direct = self.results_pos
+        direct = self.dir_positions
         df = pd.DataFrame({'DateTime':self.list_last_dt[list_idx],
                            'SymbolBid':self.list_last_bid[list_idx],
                            'SymbolAsk':self.list_last_ask[list_idx],
@@ -1278,7 +1313,7 @@ class Trader:
                             
                             list_idx = self.map_ass_idx2pos_idx[ass_id]
                             bid = self.list_last_bid[list_idx][-1]
-                            self.close_position(DateTime, asset, ass_id, results)
+                            self.close_position(DateTime, asset, ass_id, results, from_sl=1)
                             lists = flush_asset(lists, ass_idx, bid)
                         else:
                             out = asset+" NOT banned due to different directions"
@@ -1331,7 +1366,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   listEM,listAllFeatsLive,list_X_i, means_in,phase_shift,stds_in, 
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
-                  list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_dir, 
+                  list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
                   results_file, model, data, log_file, nonVarIdx, list_inv_out):
     """
     <DocString>
@@ -1624,7 +1659,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
                                      columns = columnsResultInfo).columns.tolist()]
                         #if not test:
-                        resultInfo.to_csv(results_dir[t_index]+results_file[t_index],mode="a",
+                        resultInfo.to_csv(results_network[t_index]+results_file[t_index],mode="a",
                                           header=False,index=False,sep='\t',
                                           float_format='%.5f')
                         # print entry
@@ -1912,6 +1947,7 @@ def fetch(lists, trader, directory_MT5,
                 ask = buffer.SymbolAsk.iloc[-1]
                 DateTime = buffer.DateTime.iloc[-1]
                 trader.update_list_last(list_idx, DateTime, bid, ask)
+                trader.count_events(ass_id, buffer.shape[0])
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
@@ -2151,7 +2187,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # check if a position is already opened
         if trader.is_opened(ass_id):
             
-            trader.count_one_event(ass_id)
+            trader.count_events(ass_id, 1)
             stoploss_flag  = trader.is_stoploss_reached(lists, DateTime, ass_id, bid, 
                                                         trader.list_EM[list_idx][-1], 
                                                         event_idx, results)
@@ -2328,9 +2364,14 @@ def run(running_assets, start_time):
         dir_results = local_vars.RNN_dir+"resultsLive/back_test/"    
     else:
         dir_results = local_vars.RNN_dir+"resultsLive/live/"
-    dir_results_trader = dir_results+"trader/"
-    
-    log_file = dir_results+start_time+'_log.log'
+    #dir_results_trader = dir_results+"trader/"
+    dir_results_netorks = dir_results+'networks/'
+    if not os.path.exists(dir_results_netorks):
+        os.mkdir(dir_results_netorks)
+    dir_log = dir_results+'log/'
+    if not os.path.exists(dir_log):
+        os.mkdir(dir_log)
+    log_file = dir_log+start_time+'_log.log'
 #    dateTest = ([                                                   '2018.03.09',
 #                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
 #                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
@@ -2392,9 +2433,10 @@ def run(running_assets, start_time):
     list_t_indexs = [[0],[0],[0]]
     list_inv_out = [True,True,True]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[10],'th':[(.5,.5)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
     list_priorities = [[1],[2],[0]]
-    phase_shifts = [5,5,5]
+    phase_shifts = [1,1,1]
     list_thr_sl = [20 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0,0]
@@ -2470,7 +2512,7 @@ def run(running_assets, start_time):
 #    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
 #    running_assets = assets
     
-    resultsDir = [[dir_results+IDresults[nn]+"T"+
+    resultsDir = [[dir_results_netorks+IDresults[nn]+"T"+
                       str(t)+"E"+IDepoch[nn]+"/" 
                       for t in list_t_indexs[nn]] for nn in range(numberNetworks)]
     
@@ -2576,7 +2618,7 @@ def run(running_assets, start_time):
     
     
     results = Results(IDresults, IDepoch, list_t_indexs, list_w_str, start_time,
-                      dir_results_trader)
+                      dir_results)
     
     tic = time.time()
     
@@ -2714,7 +2756,7 @@ def run(running_assets, start_time):
     #            trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), init_budget=init_budget)
                 trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
-                                log_file, results_dir=dir_results_trader, 
+                                log_file, results_dir=dir_results, 
                                 start_time=start_time)
                 if not os.path.exists(trader.log_file):
                     write_log(out, trader.log_file)
@@ -2803,7 +2845,7 @@ def run(running_assets, start_time):
             # init trader
             trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
-                                log_file, results_dir=dir_results_trader, 
+                                log_file, results_dir=dir_results, 
                                 start_time=start_time)
             # launch fetcher
             fetch(lists, trader, directory_MT5, 
