@@ -849,7 +849,8 @@ class Trader:
         
         return None
     
-    def track_position(self, event, DateTime, idx=None, groi=0.0, filename=''):
+    def track_position(self, event, DateTime, idx=None, groi=0.0, 
+                       filename=''):
         """ track position.
         Args:
             - event (str): {open, extend, close} """
@@ -861,7 +862,8 @@ class Trader:
                         'grois':[groi],
                         'p_mcs':[self.list_opened_positions[-1].p_mc],
                         'p_mds':[self.list_opened_positions[-1].p_md],
-                        'levels':[self.list_opened_positions[-1].bet]}
+                        'levels':[self.list_opened_positions[-1].bet],
+                        'strategy':[self.list_opened_positions[-1].strategy.name]}
             #print(pos_info)
             self.positions_tracker.append(pos_info)
         elif event=='extend':
@@ -871,6 +873,7 @@ class Trader:
             p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
             p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
             bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
+            strategy_name = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy.name
             tick_counts = self.list_count_all_events[self.map_ass_idx2pos_idx[idx]]
             pos_info['n_ext'] += 1
             pos_info['dts'].append(DateTime)
@@ -879,6 +882,7 @@ class Trader:
             pos_info['levels'].append(bet)
             pos_info['grois'].append(groi)
             pos_info['@tick#'].append(tick_counts)
+            pos_info['strategy'].append(strategy_name)
             print(pos_info)
         elif event=='close':
             pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
@@ -889,6 +893,7 @@ class Trader:
             pos_info['levels'].append(None)
             pos_info['grois'].append(groi)
             pos_info['@tick#'].append(n_ticks)
+            pos_info['strategy'].append(None)
             # save in disk
             #print(pos_info)
             pickle.dump( pos_info, open( self.dir_positions+filename+'.p', "wb" ))
@@ -1117,7 +1122,7 @@ class Trader:
                         self.update_position(ass_id)
                         self.n_pos_extended += 1
                         # track position
-                        self.track_position('extend', new_entry[entry_time_column], idx=ass_idx, groi=curr_GROI)
+                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
                         # print out
                         out = (new_entry[entry_time_column]+" Extended "+
                                thisAsset+
@@ -2424,20 +2429,20 @@ def run(running_assets, start_time):
     AllAssets = Data().AllAssets
     
     numberNetworks = 3
-    IDweights = ['000288INVO','000288INVO','000288INVO']#['000289STRO']
-    IDresults = ['100288INVO','000288INVO','000288INVO']
+    IDweights = ['000318INVO','000318INVO','000318INVO']#['000289STRO']
+    IDresults = ['100318INVO','000318INVO','000318INVO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['7_0','10_0','4_0']#['89_4']
-    IDepoch = ['7','10','4']
-    netNames = ['28807','28810','28804']
-    list_t_indexs = [[0],[0],[0]]
+    list_name = ['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
+    IDepoch = ['15','8','22']
+    netNames = ['31815','31808','31822']
+    list_t_indexs = [[1],[3],[3]]
     list_inv_out = [True,True,True]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.5,.7)]},{'sp':[10],'th':[(.5,.5)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[10],'th':[(.5,.6)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
     list_priorities = [[1],[2],[0]]
     phase_shifts = [1,1,1]
-    list_thr_sl = [20 for i in range(numberNetworks)]
+    list_thr_sl = [1000 for i in range(numberNetworks)]
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0,0]
     mWs = [100,100,100]
