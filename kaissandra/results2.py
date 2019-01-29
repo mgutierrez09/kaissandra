@@ -363,7 +363,7 @@ def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tild
                                                model.size_output_layer,
                                                n_days, resultsDir, IDresults,
                                                epoch, t_index, thr_mc, thr_md,
-                                               get_positions=save_journal)
+                                               get_positions=save_journal,pNZA=results['pNZA'])
                 results.update(res_ext)
                 # update cumm results list
                 CR[t_index][mc][md] = results
@@ -490,7 +490,7 @@ def build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel,
 
 def get_extended_results(Journal, size_output_layer, n_days, resultsDir, 
                          IDresults, epoch, t_index, thr_mc, thr_md, 
-                         get_log=False, get_positions=False):
+                         get_log=False, get_positions=False, pNZA=0):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -562,7 +562,7 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
     if get_positions:
         list_pos = [[] for i in columns_positions]#[None for i in range(500)]
     # skip loop if both thresholds are .5
-    if thr_mc>.5 or thr_md>.5:
+    if pNZA<10:
         end_of_loop = Journal.shape[0]
     else:
         end_of_loop = 0
