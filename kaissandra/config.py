@@ -185,6 +185,10 @@ def configuration(*ins):
             save_journal = entries['save_journal']
         else:
             save_journal = False
+        if 'resolution' not in entries:
+            resolution = 10
+        else:
+            resolution = entries['resolution']
         
         # feature-specific configuration
         if 'save_stats' in entries:
@@ -234,6 +238,7 @@ def configuration(*ins):
                   'startFrom':startFrom,
                   'endAt':endAt,
                   'save_journal':save_journal,
+                  'resolution':resolution,
                   
                   'save_stats':save_stats,
                   'load_features_from':load_features_from,

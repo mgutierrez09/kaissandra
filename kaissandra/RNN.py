@@ -358,7 +358,7 @@ class modelRNN(object):
     def test2(self, sess, dateTest, IDresults, IDweights, alloc,
               weights_directory, filename_IO,
              startFrom=-1, data_format='', DTA=[], 
-             save_journal=False, endAt=-1, from_var=False):
+             save_journal=False, endAt=-1, from_var=False, resolution=10):
         """ 
         Test RNN network with y_c bits
         """
@@ -402,6 +402,7 @@ class modelRNN(object):
                 print("J_train=NaN BREAK!")
                 break
             self._load_graph(IDweights,epoch)
+            print("resolution"+str(resolution))
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
             softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
@@ -424,7 +425,7 @@ class modelRNN(object):
                         t_J_test, softMaxOut, costs, epoch, 
                         results_directory, lastTrained, results_filename,
                         costs_filename, save_journal=save_journal,
-                        from_var=from_var)
+                        from_var=from_var, resolution=resolution)
         
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
         print("\nThe very best:")

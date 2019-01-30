@@ -49,7 +49,11 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = False
-
+    if 'resolution' not in config:
+        resolution = 10
+    else:
+        resolution = config['resolution']
+    
     weights_directory = local_vars.weights_directory
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
@@ -351,13 +355,14 @@ def test_RNN(*ins):
             model.test2(sess, dateTest, IDresults, IDweights, alloc,
                          weights_directory, filename_IO,
                        startFrom=startFrom, data_format='hdf5', DTA=DTA, 
-                       save_journal=save_journal, endAt=endAt)
+                       save_journal=save_journal, endAt=endAt, resolution=resolution)
         else:
             model.test2(sess, dateTest, IDresults, IDweights, alloc,
                          weights_directory, filename_IO,
                        startFrom=startFrom, data_format='hdf5', DTA=DTA, 
-                       save_journal=save_journal, endAt=endAt)
+                       save_journal=save_journal, endAt=endAt,resolution=resolution)
         
 if __name__=='__main__':
-    test_RNN()
+    pass
+    #test_RNN()
     
