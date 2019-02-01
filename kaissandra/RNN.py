@@ -144,9 +144,9 @@ class modelRNN(object):
         
         A Tensor. Has the same type as input. Has the shape of tensor.shape*repeats
         """
-        repeated_tensor = self._target[:,:,0:1]
+        repeated_tensor = self._target[:,0:1,0:1]
         for i in range(repeats-1):
-            repeated_tensor = tf.concat([repeated_tensor,self._target[:,:,0:1]],2)
+            repeated_tensor = tf.concat([repeated_tensor,self._target[:,0:1,0:1]],2)
 
         return repeated_tensor
         
