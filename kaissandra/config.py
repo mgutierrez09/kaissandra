@@ -150,7 +150,7 @@ def configuration(*ins):
         if 'outputGain' in entries:
             outputGain = entries['outputGain']
         else:
-            outputGain=.4
+            outputGain=1
         if 'commonY' in entries:
             commonY = entries['commonY']
         else:
@@ -189,6 +189,19 @@ def configuration(*ins):
             resolution = 10
         else:
             resolution = entries['resolution']
+        if 'resolution' not in entries:
+            resolution = 10
+        else:
+            resolution = entries['resolution']
+        if 'thresholds_mc' not in entries:
+            thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
+        else:
+            thresholds_mc = entries['thresholds_mc']
+        if 'thresholds_md' not in entries:
+            thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
+        else:
+            thresholds_md = entries['thresholds_md']
+        
         
         # feature-specific configuration
         if 'save_stats' in entries:
@@ -239,6 +252,8 @@ def configuration(*ins):
                   'endAt':endAt,
                   'save_journal':save_journal,
                   'resolution':resolution,
+                  'thresholds_mc':thresholds_mc,
+                  'thresholds_md':thresholds_md,
                   
                   'save_stats':save_stats,
                   'load_features_from':load_features_from,

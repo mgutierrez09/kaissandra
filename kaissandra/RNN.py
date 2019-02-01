@@ -158,16 +158,16 @@ class modelRNN(object):
                                     name="target")
         # Define cross entropy loss.
         # first target bit for mc (market change)
-        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
-                                (1-self._target[:,:,0:1])* -
-                                tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+        loss_mc = tf.reduce_sum(self._target[:,0:1,0:1] * -tf.log(self._pred[:,0:1,0:1])+
+                                (1-self._target[:,0:1,0:1])* -
+                                tf.log(1 - self._pred[:,0:1,0:1]), [1, 2])
         # second and third bits for md (market direction)
-        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
-                                 tf.log(self._pred[:,:,1:3])), [1, 2])
+        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,0:1,1:3] * 
+                                 tf.log(self._pred[:,0:1,1:3])), [1, 2])
         # last 5 bits for market gain output
         loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
-                                 (self._target[:,:,3:] * 
-                                  tf.log(self._pred[:,:,3:])), [1, 2])
+                                 (self._target[:,0:1,3:] * 
+                                  tf.log(self._pred[:,0:1,3:])), [1, 2])
         self._loss = tf.reduce_mean(
             loss_mc+loss_md+loss_mg,
             name="loss_nll")
@@ -355,15 +355,21 @@ class modelRNN(object):
 
         return None
     
-    def test2(self, sess, dateTest, IDresults, IDweights, alloc,
-              weights_directory, filename_IO,
-             startFrom=-1, data_format='', DTA=[], 
-             save_journal=False, endAt=-1, from_var=False, resolution=10):
+    def test2(self, sess, config, alloc, filename_IO,
+             startFrom=-1, data_format='', DTA=[],  from_var=False):
         """ 
         Test RNN network with y_c bits
         """
         import pandas as pd
         from tqdm import tqdm
+        
+        IDresults = config['IDresults']
+        IDweights = config['IDweights']
+        startFrom = config['startFrom']
+        endAt = config['endAt']
+        resolution = config['resolution']
+        
+        weights_directory = local_vars.weights_directory
         
         tic = time.time()
         self._sess = sess
@@ -420,11 +426,10 @@ class modelRNN(object):
                 #print(softMaxOut.shape)
             t_J_test = t_J_test/n_chunks
             print("Getting results")
-            results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
-                        t_J_test, softMaxOut, costs, epoch, 
-                        results_directory, lastTrained, results_filename,
-                        costs_filename, save_journal=save_journal,
-                        from_var=from_var, resolution=resolution)
+            results_filename = get_results(config, self, Y_test, DTA, 
+                        t_J_test, softMaxOut, costs, epoch, lastTrained, results_filename,
+                        costs_filename,
+                        from_var=from_var)
         
         if resolution>0:
             TR = pd.read_csv(results_filename+'.csv', sep='\t')
