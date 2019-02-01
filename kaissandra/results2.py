@@ -311,7 +311,7 @@ def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tild
     n_days = len(dateTest)
     thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
     thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
-    granularity = 1/resolution
+#    granularity = 1/resolution
     J_train = costs[IDweights+str(epoch)]
     # cum results per t_index and mc/md combination
     CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
@@ -320,6 +320,7 @@ def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tild
     # to acces CR: CR[t][mc][md]
     # save fuction cost
     save_costs(costs_filename, [epoch, J_test, J_train])
+    print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()
     for t_index in range(model.seq_len):
@@ -383,9 +384,10 @@ def get_results(dateTest, model, y, DTA, IDresults, IDweights, J_test, soft_tild
         # end of for thr_mc in thresholds_mc:
     # end of for t_index in range(model.seq_len+1):
     # extract best result this epoch
-    TR = pd.read_csv(results_filename+'.csv', sep='\t')
-    TR = TR[TR.epoch==epoch]
-    get_best_results(TR, results_filename, resultsDir, IDresults, save=1)
+    if resolution>0:
+        TR = pd.read_csv(results_filename+'.csv', sep='\t')
+        TR = TR[TR.epoch==epoch]
+        get_best_results(TR, results_filename, resultsDir, IDresults, save=1)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:

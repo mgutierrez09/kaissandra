@@ -402,7 +402,6 @@ class modelRNN(object):
                 print("J_train=NaN BREAK!")
                 break
             self._load_graph(IDweights,epoch)
-            print("resolution"+str(resolution))
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
             softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
@@ -427,10 +426,11 @@ class modelRNN(object):
                         costs_filename, save_journal=save_journal,
                         from_var=from_var, resolution=resolution)
         
-        TR = pd.read_csv(results_filename+'.csv', sep='\t')
-        print("\nThe very best:")
-        get_best_results(TR, results_filename, results_directory, IDresults)
-        print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
+        if resolution>0:
+            TR = pd.read_csv(results_filename+'.csv', sep='\t')
+            print("\nThe very best:")
+            get_best_results(TR, results_filename, results_directory, IDresults)
+            print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
             
         return None
     
