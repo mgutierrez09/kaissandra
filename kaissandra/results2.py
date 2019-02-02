@@ -336,6 +336,8 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()
+    pos_dirname = ''
+    pos_filename = ''
     for t_index in range(model.seq_len):
         # init results dictionary
         
@@ -379,6 +381,8 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                 else:
                     pos_dirname = ''
                     pos_filename = ''
+                print(pos_dirname)
+                print(pos_filename)
                 # get results with extensions
                 res_ext, log = get_extended_results(Journal,
                                                     model.size_output_layer,
