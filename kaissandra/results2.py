@@ -376,6 +376,9 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                 if save_journal:
                     pos_dirname = resultsDir+IDresults+'/positions/'
                     pos_filename = 'P_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+                else:
+                    pos_dirname = ''
+                    pos_filename = ''
                 # get results with extensions
                 res_ext, log = get_extended_results(Journal,
                                                     model.size_output_layer,
