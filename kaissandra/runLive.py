@@ -2456,24 +2456,8 @@ def run(running_assets, start_time):
                   'outputGain':[1,1,1]}
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
               dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
-#    numberNetworks = 1
-#    IDweights = ["000287"]
-#    IDresults = ['100287Nov09']
-#    list_name = ['87_6']
-#    IDepoch = ["6"]
-#    netNames = ["87"]
-#    list_t_indexs = [[2]]
-#    phase_shifts = [1]
-#    delays = [0]
-#    mWs = [100]
-#    nExSs = [1000]
-#    lBs = [1300]
-#    list_w_str = ["55"]
-    
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
-    
-    
     list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
     list_lb_mc_op = [.5 for i in range(numberNetworks)]
     list_lb_md_op = [.8 for i in range(numberNetworks)]
