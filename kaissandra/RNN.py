@@ -355,15 +355,21 @@ class modelRNN(object):
 
         return None
     
-    def test2(self, sess, dateTest, IDresults, IDweights, alloc,
-              weights_directory, filename_IO,
-             startFrom=-1, data_format='', DTA=[], 
-             save_journal=False, endAt=-1, from_var=False):
+    def test2(self, sess, config, alloc, filename_IO,
+             startFrom=-1, data_format='', DTA=[],  from_var=False):
         """ 
         Test RNN network with y_c bits
         """
         import pandas as pd
         from tqdm import tqdm
+        
+        IDresults = config['IDresults']
+        IDweights = config['IDweights']
+        startFrom = config['startFrom']
+        endAt = config['endAt']
+        resolution = config['resolution']
+        
+        weights_directory = local_vars.weights_directory
         
         tic = time.time()
         self._sess = sess
@@ -420,16 +426,16 @@ class modelRNN(object):
                 #print(softMaxOut.shape)
             t_J_test = t_J_test/n_chunks
             print("Getting results")
-            results_filename = get_results(dateTest, self, Y_test, DTA, IDresults, IDweights, 
-                        t_J_test, softMaxOut, costs, epoch, 
-                        results_directory, lastTrained, results_filename,
-                        costs_filename, save_journal=save_journal,
+            results_filename = get_results(config, self, Y_test, DTA, 
+                        t_J_test, softMaxOut, costs, epoch, lastTrained, results_filename,
+                        costs_filename,
                         from_var=from_var)
         
-        TR = pd.read_csv(results_filename+'.csv', sep='\t')
-        print("\nThe very best:")
-        get_best_results(TR, results_filename, results_directory, IDresults)
-        print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
+        if resolution>0:
+            TR = pd.read_csv(results_filename+'.csv', sep='\t')
+            print("\nThe very best:")
+            get_best_results(TR, results_filename, results_directory, IDresults)
+            print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
             
         return None
     

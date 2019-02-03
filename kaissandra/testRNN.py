@@ -49,7 +49,11 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = False
-
+    if 'resolution' not in config:
+        resolution = 10
+    else:
+        resolution = config['resolution']
+    
     weights_directory = local_vars.weights_directory
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
@@ -341,23 +345,23 @@ def test_RNN(*ins):
     with tf.Session() as sess:
         # run test RNN
         print("IDresults: "+IDresults)
+        model.test2(sess, config, alloc, filename_IO, DTA=DTA)
         # TEMP: GRE calculation not implemented in test2 yet. Use old test
-        if save_journal:
-#            model.test(sess, data, IDresults, IDweights, 
-#                       alloc, True, 
-#                       'test', filename_IO, startFrom=startFrom,
-#                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
-#                       save_journal=save_journal, endAt=endAt)
-            model.test2(sess, dateTest, IDresults, IDweights, alloc,
-                         weights_directory, filename_IO,
-                       startFrom=startFrom, data_format='hdf5', DTA=DTA, 
-                       save_journal=save_journal, endAt=endAt)
-        else:
-            model.test2(sess, dateTest, IDresults, IDweights, alloc,
-                         weights_directory, filename_IO,
-                       startFrom=startFrom, data_format='hdf5', DTA=DTA, 
-                       save_journal=save_journal, endAt=endAt)
+#        if save_journal:
+#            pass
+##            model.test(sess, data, IDresults, IDweights, 
+##                       alloc, True, 
+##                       'test', filename_IO, startFrom=startFrom,
+##                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
+##                       save_journal=save_journal, endAt=endAt)
+#            
+#        else:
+#            model.test2(sess, dateTest, IDresults, IDweights, alloc,
+#                         weights_directory, filename_IO,
+#                       startFrom=startFrom, data_format='hdf5', DTA=DTA, 
+#                       save_journal=save_journal, endAt=endAt,resolution=resolution)
         
 if __name__=='__main__':
-    test_RNN()
+    pass
+    #test_RNN()
     

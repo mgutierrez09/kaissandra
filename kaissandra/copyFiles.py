@@ -12,18 +12,18 @@ import datetime as dt
 from inputs import Data
 
 #
-destiny = '../../Data/'#'D:/SDC/py/Data_DL3/'
-origin = 'C:/Users/magut/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
+destiny = 'D:/SDC/py/Data_test/'
+origin = 'D:/SDC/py/Data_aws_8/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
 data = Data()
 
 if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
 
-copyFrom = '2019.01.28 00:00:00'
+copyFrom = '2018.11.24 00:00:00'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
 
-for i in data.assets:#
+for i in data.assets:
     thisAsset = data.AllAssets[str(i)]
     print(thisAsset)
     directOrigin = origin+thisAsset+'/'
@@ -80,5 +80,3 @@ for i in data.assets:#
                 else:
                     os.remove(directOrigin+fileID)
                     print("Zero number of entries. Skipped and deleted")
-                    
-            
