@@ -30,10 +30,10 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 verbose_RNN = True
-verbose_trader = True
+verbose_trader = False
 test = False
-run_back_test = False
-spread_ban = True
+run_back_test = True
+spread_ban = False
 ban_only_if_open = False # not in use
 
 
@@ -213,7 +213,7 @@ class Strategy():
                  ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
                  if_dir_change_extend=False, name='',t_indexs=[3],entry_strategy='gre',
                  IDr=None,epoch='11',weights=np.array([0,1]),info_spread_ranges={},
-                 priorities=[0]):
+                 priorities=[0],lim_groi_ext=-.02):
         
         self.name = name
         self.dir_origin = direct
@@ -247,6 +247,7 @@ class Strategy():
         self.weights = weights
         self.priorities = priorities
         self.info_spread_ranges = info_spread_ranges
+        self.lim_groi_ext = lim_groi_ext
         
         self._load_GRE()
         
@@ -613,7 +614,7 @@ class Trader:
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
         elif this_strategy.entry_strategy=='gre':
             condition_extension = (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=-.02)
+                                  100*curr_GROI>=this_strategy.lim_groi_ext)
         elif this_strategy.entry_strategy=='spread_ranges':
             condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
@@ -1069,8 +1070,7 @@ class Trader:
                    "Strategy "+strategy_name)
             if verbose_trader:
                 print("\r"+out)
-            #write_log(out, self.log_file)
-            self.write_log(out)
+                self.write_log(out)
             position = Position(new_entry, self.strategies[new_entry['network_index']])
             
             self.add_new_candidate(position)
@@ -2354,14 +2354,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(running_assets, start_time):
+def run_carefully(config_trader, running_assets, start_time, dateTest):
     """  """
     try:
-        run(running_assets, start_time)
+        run(config_trader, running_assets, start_time, dateTest)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(running_assets, start_time):
+def run(config_trader, running_assets, start_time, dateTest):
     """  """    
     
 
@@ -2378,102 +2378,58 @@ def run(running_assets, start_time):
     if not os.path.exists(dir_log):
         os.mkdir(dir_log)
     log_file = dir_log+start_time+'_log.log'
-#    dateTest = ([                                                   '2018.03.09',
-#                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-#                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-#                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-#                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-#                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-#                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-#                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-#                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-#                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-#                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-#                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-#                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-#                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-#                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-#                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-#                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-#                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-#                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-#                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-#                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
-#               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
-#                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
-#                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
-#                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
-#                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
-#                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-#                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
-#                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-#                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
-#                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
-#                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
-#                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-#                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
-    
-    
-    
-    dateTest = ['2018.03.09']#['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
-
-    ### TEMP: this data has to be included in list_data and deleted 
-#    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
-#              dateTest = dateTest,feature_keys_tsfresh=[])
-    
-    
-    # flow control variables
-#    max_loop_time = [0]
-#    last_time_stamp = ['0']
-#    time_stamp = ['0']
     
     AllAssets = Data().AllAssets
     
-    numberNetworks = 3
-    IDweights = ['000318INVO','000318INVO','000318INVO']#['000289STRO']
-    IDresults = ['100318INVO','000318INVO','000318INVO']
-    lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
-    IDepoch = ['15','8','22']
-    netNames = ['31815','31808','31822']
-    list_t_indexs = [[1],[3],[3]]
-    list_inv_out = [True,True,True]
-    list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    numberNetworks = config_trader['numberNetworks']
+    IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
+    IDresults = config_trader['IDresults']#['100318INVO','000318INVO','000318INVO']
+    lIDs = config_trader['lIDs']#[len(IDweights[i]) for i in range(numberNetworks)]
+    list_name = config_trader['list_name']#['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
+    IDepoch = config_trader['IDepoch']#['15','8','22']
+    netNames = config_trader['netNames']#['31815','31808','31822']
+    list_t_indexs = config_trader['list_t_indexs']#[[1],[3],[3]]
+    list_inv_out = config_trader['list_inv_out']#[True,True,True]
+    list_entry_strategy = config_trader['list_entry_strategy']#['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+    list_spread_ranges = config_trader['list_spread_ranges']#[{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
-    list_priorities = [[1],[2],[0]]
-    phase_shifts = [5,5,5]
-    list_thr_sl = [20 for i in range(numberNetworks)]
-    list_thr_tp = [1000 for i in range(numberNetworks)]
-    delays = [0,0,0]
-    mWs = [100,100,100]
-    nExSs = [1000,1000,1000]
-    lBs = [1300,1300,1300]#[1300]
-    list_w_str = ['55','55','55']
-    model_dict = {'size_hidden_layer':[100,100,100],
-                  'L':[3,3,3],
-                  'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[1,1,1]}
+    list_priorities = config_trader['list_priorities']#[[1],[2],[0]]
+    phase_shifts = config_trader['phase_shifts']#[5,5,5]
+    list_thr_sl = config_trader['list_thr_sl']#[20 for i in range(numberNetworks)]
+    list_thr_tp = config_trader['list_thr_tp']#[1000 for i in range(numberNetworks)]
+    delays = config_trader['delays']#[0,0,0]
+    mWs = config_trader['mWs']#[100,100,100]
+    nExSs = config_trader['nExSs']#[1000,1000,1000]
+    lBs = config_trader['lBs']#[1300,1300,1300]#[1300]
+    list_lim_groi_ext = config_trader['list_lim_groi_ext']#[-.02 for i in range(numberNetworks)]
+    list_w_str = config_trader['list_w_str']#['55','55','55']
+    model_dict = config_trader['model_dict']#{'size_hidden_layer':[100,100,100],
+                  #'L':[3,3,3],
+                  #'size_output_layer':[5 for i in range(numberNetworks)],
+                  #'outputGain':[1,1,1]}
+    #list_data = config_trader['list_data']#[Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
+              #dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
+    #list_seq_lens = config_trader['list_seq_lens']#[int((list_data[i].lB-list_data[i].nEventsPerStat)/
+                         #list_data[i].movingWindow+1) for i in range(len(mWs))]
+    list_weights = config_trader['list_weights']#[np.array([.5,.5]) for i in range(numberNetworks)]
+    list_lb_mc_op = config_trader['list_lb_mc_op']#[.5 for i in range(numberNetworks)]
+    list_lb_md_op = config_trader['list_lb_md_op']#[.8 for i in range(numberNetworks)]
+    list_lb_mc_ext = config_trader['list_lb_mc_ext']#[.5 for i in range(numberNetworks)]
+    list_lb_md_ext = config_trader['list_lb_md_ext']#[.6 for i in range(numberNetworks)]
+    list_ub_mc_op = config_trader['list_ub_mc_op']#[1 for i in range(numberNetworks)]
+    list_ub_md_op = config_trader['list_ub_md_op']#[1 for i in range(numberNetworks)]
+    list_ub_mc_ext = config_trader['list_ub_mc_ext']#[1 for i in range(numberNetworks)]
+    list_ub_md_ext = config_trader['list_ub_md_ext']#[1 for i in range(numberNetworks)]
+    list_fix_spread = config_trader['list_fix_spread']#[False for i in range(numberNetworks)]
+    list_fixed_spread_pips = config_trader['list_fixed_spread_pips']#[4 for i in range(numberNetworks)]
+    list_max_lots_per_pos = config_trader['list_max_lots_per_pos']#[.1 for i in range(numberNetworks)]
+    list_flexible_lot_ratio = config_trader['list_flexible_lot_ratio']#[False for i in range(numberNetworks)]
+    list_if_dir_change_close = config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
+    list_if_dir_change_extend = config_trader['list_if_dir_change_extend']#[False for i in range(numberNetworks)]
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
-              dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
+                  dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
-    list_lb_mc_op = [.5 for i in range(numberNetworks)]
-    list_lb_md_op = [.8 for i in range(numberNetworks)]
-    list_lb_mc_ext = [.5 for i in range(numberNetworks)]
-    list_lb_md_ext = [.6 for i in range(numberNetworks)]
-    list_ub_mc_op = [1 for i in range(numberNetworks)]
-    list_ub_md_op = [1 for i in range(numberNetworks)]
-    list_ub_mc_ext = [1 for i in range(numberNetworks)]
-    list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_fix_spread = [False for i in range(numberNetworks)]
-    list_fixed_spread_pips = [4 for i in range(numberNetworks)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetworks)]
-    list_flexible_lot_ratio = [False for i in range(numberNetworks)]
-    list_if_dir_change_close = [False for i in range(numberNetworks)]
-    list_if_dir_change_extend = [False for i in range(numberNetworks)]
-    
     
 #    
     ADs = []
@@ -2486,21 +2442,8 @@ def run(running_assets, start_time):
                 mrc = True
         if not mrc:
             ADs.append(np.array([]))
-                
-#        if MRC[i]==True:
-#            if t_indexs[i]!=2:
-#                raise ValueError("t_indexs[i] must be 2")
-#            ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+
-#                                         IDepoch[i]+".p", "rb" )))
-#        else:
-#            ADs.append(None)
 
     nChans = (np.array(nExSs)/np.array(mWs)).astype(int).tolist()
-    
-    
-    
-#    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-#    running_assets = assets
     
     resultsDir = [[dir_results_netorks+IDresults[nn]+"T"+
                       str(t)+"E"+IDepoch[nn]+"/" 
@@ -2604,7 +2547,8 @@ def run(running_assets, start_time):
                           entry_strategy=list_entry_strategy[i],IDr=IDresults[i],
                           epoch=IDepoch[i],weights=list_weights[i],
                           info_spread_ranges=list_spread_ranges[i],
-                          priorities=list_priorities[i]) for i in range(numberNetworks)]
+                          priorities=list_priorities[i],
+                          lim_groi_ext=list_lim_groi_ext[i]) for i in range(numberNetworks)]
     
     
     results = Results(IDresults, IDepoch, list_t_indexs, list_w_str, start_time,
@@ -2625,42 +2569,6 @@ def run(running_assets, start_time):
                                 IDgraph=IDweights[i]+IDepoch[i],
                                 lID=lIDs[i]) \
                                 for i in range(numberNetworks)]
-#        list_models = [modelRNN(list_data[0],
-#                                size_hidden_layer=200,
-#                                L=3,
-#                                size_output_layer=5,
-#                                keep_prob_dropout=1,
-#                                miniBatchSize=32,
-#                                outputGain=0.6,
-#                                lR0=0.0001,
-#                                IDgraph=IDweights[0]+IDepoch[0],
-#                                sess=None),
-#                    
-#                    modelRNN(list_data[1],
-#                             size_hidden_layer=200,
-#                             L=3,
-#                             size_output_layer=5,
-#                             keep_prob_dropout=1,
-#                             miniBatchSize=32,
-#                             outputGain=0.6,
-#                             lR0=0.0001,
-#                             IDgraph=IDweights[1]+IDepoch[1],
-#                             sess=None),
-#        
-#                    modelRNN(list_data[2],
-#                             size_hidden_layer=100,
-#                             L=3,
-#                             size_output_layer=5,
-#                             keep_prob_dropout=1,
-#                             miniBatchSize=32,
-#                             outputGain=0.6,
-#                             lR0=0.0001,
-#                             IDgraph=IDweights[2]+IDepoch[2],
-#                             sess=None)
-#                    ]
-    ##########################################################
-        
-        
         if run_back_test:
             day_index = 0
             #t_journal_entries = 0
@@ -2742,8 +2650,7 @@ def run(running_assets, start_time):
                 lists['list_data'] = list_data
                 lists['list_nonVarIdx'] = list_nonVarIdx
                 lists['list_inv_out'] = list_inv_out
-    #             init trader
-    #            trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), init_budget=init_budget)
+                
                 trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
                                 log_file, results_dir=dir_results, 
@@ -2754,15 +2661,6 @@ def run(running_assets, start_time):
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
                                    end_list_index, root_dir=data_dir)
-###############################################################################
-###################################################### TEMP ###################
-###############################################################################
-#                idxs = DateTimes>=b'2018.11.15 10:00:00'
-#                DateTimes = DateTimes[idxs]
-#                SymbolBids = SymbolBids[idxs]
-#                SymbolAsks = SymbolAsks[idxs]
-#                Assets = Assets[idxs]
-#                nEvents = SymbolAsks.shape[0]
                 back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         trader, results, running_assets, 
@@ -2876,24 +2774,30 @@ def run(running_assets, start_time):
         write_log(out, trader.log_summary)
         results.save_results()
         
-def launch():
+def launch(*ins):
     # runLive in multiple processes
     from multiprocessing import Process
     from runLive import run
     import datetime as dt
     import time
+    from kaissandra.config import retrieve_config
     
+    if len(ins)>0:
+        config_trader = retrieve_config(ins[0])
+    else:
+        config_trader = retrieve_config('T0000')
     synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
+    dateTest = ['2018.03.09']
     running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
-        run(running_assets,start_time)
+        run(config_trader, running_assets, start_time, dateTest)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[running_assets[ass_idx:ass_idx+1],start_time])
+            disp = Process(target=run_carefully, args=[config_trader, running_assets[ass_idx:ass_idx+1],start_time, dateTest])
             disp.start()
             time.sleep(2)
         time.sleep(30)

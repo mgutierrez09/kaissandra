@@ -7,6 +7,8 @@ Created on Sun Oct 21 17:03:11 2018
 
 import pickle
 import os
+import numpy as np
+
 from kaissandra.local_config import local_vars
 
 config_extension = ".config"
@@ -341,7 +343,107 @@ def modify_config(config_name,key,value):
         print("Config name "+config_name+" does not exist")
         config = None
         return False
+
+def configuration_trader(*ins):
+    """ Function to generate a trader config file """
     
+    config_name = 'T0000'
+    config_filename = local_vars.config_directory+config_name+config_extension
+    
+    if not os.path.exists(config_filename):
+        numberNetworks = 3
+        IDweights = ['000318INVO','000318INVO','000318INVO']#['000289STRO']
+        IDresults = ['100318INVO','000318INVO','000318INVO']
+        lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
+        list_name = ['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
+        IDepoch = ['15','8','22']
+        netNames = ['31815','31808','31822']
+        list_t_indexs = [[1],[3],[3]]
+        list_inv_out = [True,True,True]
+        list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+        list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+        #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
+        list_priorities = [[1],[2],[0]]
+        phase_shifts = [5,5,5]
+        list_thr_sl = [20 for i in range(numberNetworks)]
+        list_thr_tp = [1000 for i in range(numberNetworks)]
+        delays = [0,0,0]
+        mWs = [100,100,100]
+        nExSs = [1000,1000,1000]
+        lBs = [1300,1300,1300]#[1300]
+        list_lim_groi_ext = [-.02 for i in range(numberNetworks)]
+        list_w_str = ['55','55','55']
+        model_dict = {'size_hidden_layer':[100,100,100],
+                      'L':[3,3,3],
+                      'size_output_layer':[5 for i in range(numberNetworks)],
+                      'outputGain':[1,1,1]}
+        
+        list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
+        list_lb_mc_op = [.5 for i in range(numberNetworks)]
+        list_lb_md_op = [.8 for i in range(numberNetworks)]
+        list_lb_mc_ext = [.5 for i in range(numberNetworks)]
+        list_lb_md_ext = [.6 for i in range(numberNetworks)]
+        list_ub_mc_op = [1 for i in range(numberNetworks)]
+        list_ub_md_op = [1 for i in range(numberNetworks)]
+        list_ub_mc_ext = [1 for i in range(numberNetworks)]
+        list_ub_md_ext = [1 for i in range(numberNetworks)]
+        list_fix_spread = [False for i in range(numberNetworks)]
+        list_fixed_spread_pips = [4 for i in range(numberNetworks)]
+        list_max_lots_per_pos = [.1 for i in range(numberNetworks)]
+        list_flexible_lot_ratio = [False for i in range(numberNetworks)]
+        list_if_dir_change_close = [False for i in range(numberNetworks)]
+        list_if_dir_change_extend = [False for i in range(numberNetworks)]
+        
+        config = {'config_name':config_name,
+                  'numberNetworks':numberNetworks,
+                  'IDweights':IDweights,
+                  'IDresults':IDresults,
+                  'lIDs':lIDs,
+                  'list_name':list_name,
+                  'IDepoch':IDepoch,
+                  'netNames':netNames,
+                  'list_t_indexs':list_t_indexs,
+                  'list_inv_out':list_inv_out,
+                  'list_entry_strategy':list_entry_strategy,
+                  'list_spread_ranges':list_spread_ranges,
+                  'list_priorities':list_priorities,
+                  'phase_shifts':phase_shifts,
+                  'list_thr_sl':list_thr_sl,
+                  'list_thr_tp':list_thr_tp,
+                  'delays':delays,
+                  'mWs':mWs,
+                  'nExSs':nExSs,
+                  'lBs':lBs,
+                  'list_lim_groi_ext':list_lim_groi_ext,
+                  'list_w_str':list_w_str,
+                  'model_dict':model_dict,
+                  'list_weights':list_weights,
+                  'list_lb_mc_op':list_lb_mc_op,
+                  'list_lb_md_op':list_lb_md_op,
+                  'list_lb_mc_ext':list_lb_mc_ext,
+                  'list_lb_md_ext':list_lb_md_ext,
+                  'list_ub_mc_op':list_ub_mc_op,
+                  'list_ub_md_op':list_ub_md_op,
+                  'list_ub_mc_ext':list_ub_mc_ext,
+                  'list_ub_md_ext':list_ub_md_ext,
+                  'list_fix_spread':list_fix_spread,
+                  'list_fixed_spread_pips':list_fixed_spread_pips,
+                  'list_max_lots_per_pos':list_max_lots_per_pos,
+                  'list_flexible_lot_ratio':list_flexible_lot_ratio,
+                  'list_if_dir_change_close':list_if_dir_change_close,
+                  'list_if_dir_change_extend':list_if_dir_change_extend
+                }
+        if not os.path.exists(local_vars.config_directory):
+            os.mkdir(local_vars.config_directory)
+        pickle.dump( config, open( config_filename, "wb" ))
+        #print(config)
+        print("Config file "+config_filename+" saved")
+    else:
+        config = pickle.load( open( config_filename, "rb" ))
+        if len(ins)>0:
+            print("WARNING! Arguments not taken into consideration")
+        print("Config file "+config_filename+" exists. Loaded from disk")
+    return config
         
 if __name__=='__main__':
     #configuration()
