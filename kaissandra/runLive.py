@@ -16,11 +16,11 @@ import pickle
 import re
 import tensorflow as tf
 #from multiprocessing import Process
-from simulateTrader import load_in_memory
-from inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
-from RNN import modelRNN
+from kaissandra.simulateTrader import load_in_memory
+from kaissandra.inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
+from kaissandra.RNN import modelRNN
 import shutil
-from local_config import local_vars
+from kaissandra.local_config import local_vars
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -32,8 +32,8 @@ exit_bid_column = 'Bo'
 verbose_RNN = True
 verbose_trader = True
 test = False
-run_back_test = False
-spread_ban = True
+run_back_test = True
+spread_ban = False
 ban_only_if_open = False # not in use
 
 
@@ -1952,7 +1952,7 @@ def fetch(lists, trader, directory_MT5,
                 ask = buffer.SymbolAsk.iloc[-1]
                 DateTime = buffer.DateTime.iloc[-1]
                 trader.update_list_last(list_idx, DateTime, bid, ask)
-                trader.count_events(ass_id, buffer.shape[0])
+                #trader.count_events(ass_idx, buffer.shape[0])
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
@@ -2414,7 +2414,7 @@ def run(running_assets, start_time):
     
     
     
-    dateTest = ['2018.03.09']#['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
+    dateTest = ['2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01']
 
     ### TEMP: this data has to be included in list_data and deleted 
 #    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
@@ -2438,7 +2438,7 @@ def run(running_assets, start_time):
     list_t_indexs = [[1],[3],[3]]
     list_inv_out = [True,True,True]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[10],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
     list_priorities = [[1],[2],[0]]
     phase_shifts = [5,5,5]
