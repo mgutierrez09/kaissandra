@@ -33,7 +33,7 @@ def test_RNN(*ins):
         config = ins[0]
     else:
         # test reset git
-        config = retrieve_config('C0287INVO')
+        config = retrieve_config('C0288INVO')
     # add compatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -47,7 +47,14 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = True
-    
+    if 'weights_directory' in config:
+        weights_directory = config['weights_directory']
+    else:
+        weights_directory = "../RNN/weights/"
+    if 'results_directory' in config:
+        results_directory = config['results_directory']
+    else:
+        results_directory = '../RNN/results/'
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -63,7 +70,7 @@ def test_RNN(*ins):
     startFrom = config['startFrom']
     endAt = config['endAt']
     save_journal = config['save_journal']
-    
+    dateTest = config['dateTest']
     IDweights = config['IDweights']
     IDresults = config['IDresults']
     if 'IO_results_name' not in config:
@@ -341,13 +348,14 @@ def test_RNN(*ins):
         # TEMP: GRE calculation not implemented in test2 yet. Use old test
         if save_journal:
             model.test(sess, data, IDresults, IDweights, 
-                       alloc, 1, 'test', startFrom=startFrom,
+                       alloc, True, 
+                       'test', filename_IO, startFrom=startFrom,
                        IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         else:
-            model.test2(sess, data, IDresults, IDweights, 
-                       alloc, 1, 'test', startFrom=startFrom,
-                       IDIO=IO_results_name, data_format='hdf5', DTA=DTA, 
+            model.test2(sess, dateTest, IDresults, IDweights, alloc, 
+                        'test', weights_directory, filename_IO, results_directory,
+                       startFrom=startFrom, data_format='hdf5', DTA=DTA, 
                        save_journal=save_journal, endAt=endAt)
         
 if __name__=='__main__':

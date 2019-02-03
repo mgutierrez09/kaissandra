@@ -18,6 +18,8 @@ import time
 #import matplotlib.pyplot as plt
 import scipy.io as sio
 
+from kaissandra.local_config import local_vars
+
 def get_last_saved_epoch2(resultsDir, ID, t_index):
     """
     <DocString>
@@ -191,7 +193,7 @@ def save_results_fn(filename, results):
     df = pd.DataFrame(results, index=[0])\
         [pd.DataFrame(columns = get_results_entries()).columns.tolist()]
     success = 0
-    df.to_csv(filename+'.txt', mode='a', header=False,float_format='%.3f', index=False, sep='\t')
+    df.to_csv(filename+'.txt', mode='a', header=False,float_format='%.2f', index=False, sep='\t')
     while not success:
         try:
             df.to_csv(filename+'.csv', mode='a', header=False, index=False, sep='\t')
@@ -253,19 +255,25 @@ def get_best_results_list():
     return ['eGROI','eROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
            'eROI5','SI','SI.5','SI1','SI2','SI3','SI4','SI5']
     
-def get_best_results(TR, results_filename, resultsDir, IDresults, save=1):
+def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     """  """
     best_results_list = get_best_results_list()
     
     best_dir = resultsDir+IDresults+'/best/'
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
+    if not save:
+        file = open(best_dir+'best.txt',"w")
+        file.close()
+        file = open(best_dir+'best.txt',"a")
     for b in best_results_list:
         best_filename = best_dir+'best_'+b+'.csv'
         if not os.path.exists(best_filename):
             pd.DataFrame(columns = get_results_entries()).to_csv(best_filename, 
                         mode="w",index=False,sep='\t')
         idx = TR[b].idxmax()
+        # reset file
+        
         if save:
             df = pd.DataFrame(TR.loc[idx:idx])
             success = 0
@@ -278,36 +286,58 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=1):
                           best_filename)
                     time.sleep(1)
         
-        print("Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+
-              " t_index "+str(TR['t_index'].loc[idx])+
-              " thr_mc "+str(TR['thr_mc'].loc[idx])+
-              " thr_md "+str(TR['thr_md'].loc[idx])+
-              " epoch "+str(TR['epoch'].loc[idx]))
+        
+        out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
+              " t_index "+str(TR['t_index'].loc[idx])+\
+              " thr_mc "+str(TR['thr_mc'].loc[idx])+\
+              " thr_md "+str(TR['thr_md'].loc[idx])+\
+              " epoch "+str(TR['epoch'].loc[idx])
+        print(out)
+        if not save:
+            file.write(out+"\n")
+    if not save:
+        file.close()
     return None
 
-def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, save_results,
-                 costs, epoch, resultsDir, lastTrained, save_journal=False, resolution=10):
-    """ Get results after for one epoch.
+def get_results(config, model, y, DTA, J_test, soft_tilde,
+                 costs, epoch, lastTrained, results_filename,
+                 costs_filename, from_var=False):
+    """ Get results after one epoch.
     Args:
         - 
     Return:
         - """
-    results_filename, costs_filename = init_results_dir(resultsDir, IDresults)
+    
+    dateTest = config['dateTest']
+    IDresults = config['IDresults']
+    IDweights = config['IDweights']
+    save_journal = config['save_journal']
+    resolution = config['resolution']
+    resultsDir = local_vars.results_directory
+    if 'thresholds_mc' not in config:
+        thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
+    else:
+        thresholds_mc = config['thresholds_mc']
+    if 'thresholds_md' not in config:
+        thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
+    else:
+        thresholds_md = config['thresholds_md']
     m = y.shape[0]
-    n_days = len(data.dateTest)
-    thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
-    thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
-    granularity = 1/resolution
+    n_days = len(dateTest)
+#    granularity = 1/resolution
     J_train = costs[IDweights+str(epoch)]
     # cum results per t_index and mc/md combination
     CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # single results (results per MCxMD)
-    SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
+    #SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # to acces CR: CR[t][mc][md]
     # save fuction cost
     save_costs(costs_filename, [epoch, J_test, J_train])
+    print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()
+    pos_dirname = ''
+    pos_filename = ''
     for t_index in range(model.seq_len):
         # init results dictionary
         
@@ -325,13 +355,16 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
             ys_mc = get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc)
             # loop over market direction thresholds
             for md in range(len(thresholds_md)):
-                thr_md = thresholds_mc[md]
+                thr_md = thresholds_md[md]
                 results = init_results_struct(epoch, thr_mc, thr_md, t_index)
                 # upper bound
                 ub_md = 1#thr_md+granularity
                 ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, model.size_output_layer, thr_md, ub_md)
                 # extract DTA structure for t_index
-                DTAt = DTA.iloc[::model.seq_len,:]
+                if from_var == True:
+                    DTAt = DTA.iloc[:,:]
+                else:
+                    DTAt = DTA.iloc[::model.seq_len,:]
                 # get journal
                 Journal = get_journal(DTAt.iloc[ys_md['y_md_tilde']], 
                                       ys_md['y_dec_mg_tilde'], 
@@ -341,12 +374,20 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
                                       ys_md['probs_md'])
                 ## calculate KPIs
                 results = get_basic_results_struct(ys_mc, ys_md, results, Journal, m)
+                # init positions dir and filename
+                if save_journal:
+                    pos_dirname = resultsDir+IDresults+'/positions/'
+                    pos_filename = 'P_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+                else:
+                    pos_dirname = ''
+                    pos_filename = ''
                 # get results with extensions
                 res_ext, log = get_extended_results(Journal,
-                                               model.size_output_layer,
-                                               n_days, resultsDir, IDresults,
-                                               epoch, t_index, thr_mc, thr_md,
-                                               get_positions=save_journal)
+                                                    model.size_output_layer,
+                                                    n_days, get_positions=save_journal,
+                                                    pNZA=results['pNZA'],
+                                                    pos_dirname=pos_dirname,
+                                                    pos_filename=pos_filename)
                 results.update(res_ext)
                 # update cumm results list
                 CR[t_index][mc][md] = results
@@ -355,7 +396,7 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
                 # save results
                 save_results_fn(results_filename, results)
                 # save journal
-                if save_journal:
+                if save_journal and (thr_mc>.5 or thr_md>.5):
                     journal_dir = resultsDir+IDresults+'/journal/'
                     journal_id = 'J_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)
                     ext = '.csv'
@@ -366,9 +407,10 @@ def get_results(data, model, y, DTA, IDresults, IDweights, J_test, soft_tilde, s
         # end of for thr_mc in thresholds_mc:
     # end of for t_index in range(model.seq_len+1):
     # extract best result this epoch
-    TR = pd.read_csv(results_filename+'.csv', sep='\t')
-    TR = TR[TR.epoch==epoch]
-    get_best_results(TR, results_filename, resultsDir, IDresults)
+    if resolution>0:
+        TR = pd.read_csv(results_filename+'.csv', sep='\t')
+        TR = TR[TR.epoch==epoch]
+        get_best_results(TR, results_filename, resultsDir, IDresults, save=1)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:
@@ -433,6 +475,18 @@ def unroll_param(struct, param, name, extentions):
         struct[name+extentions[p]] = param[p]
     return struct
 
+def unroll_dictionary(dictionary):
+    """  """
+    unrolled_dictionary = {}
+    for k in dictionary.keys():
+        if type(dictionary[k])==list:
+            print("List length: "+str(len(dictionary[k]))+". Unrolling")
+            unrolled_dictionary = unroll_param(unrolled_dictionary, dictionary[k], k, ['.'+str(i) for i in range(len(dictionary[k]))])
+        else:
+            print(k+" No list key. Add to unrolled dict. ")
+            unrolled_dictionary[k] = dictionary[k]
+    return unrolled_dictionary
+
 def build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel, 
                               rSampsXlevel, successes, mSpread):
     """  """
@@ -459,9 +513,9 @@ def build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel,
     
     return res_w_ext
 
-def get_extended_results(Journal, size_output_layer, n_days, resultsDir, 
-                         IDresults, epoch, t_index, thr_mc, thr_md, 
-                         get_log=False, get_positions=False):
+def get_extended_results(Journal, size_output_layer, n_days, get_log=False, 
+                         get_positions=False, pNZA=0,
+                         pos_dirname='', pos_filename=''):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -474,6 +528,8 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
 #        B1 = 'B1'
 #        B2 = 'B2'
 #    else:
+    from tqdm import tqdm
+    
     DT1 = 'DTi'
     DT2 = 'DTo'
     A2 = 'Ao'
@@ -484,20 +540,19 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
     # init positions
     if get_positions:
         columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread','ext']
-        positions_dir = resultsDir+IDresults+'/positions/'
-        positions_filename = 'P_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
-        if not os.path.exists(positions_dir):
-            os.mkdir(positions_dir)
+        
+        if not os.path.exists(pos_dirname):
+            os.makedirs(pos_dirname)
         #if not os.path.exists(positions_dir+positions_filename):
         success = 0
         while not success:
             try:
-                pd.DataFrame(columns=columns_positions).to_csv(positions_dir+
-                        positions_filename, mode="w",index=False,sep='\t')
+                pd.DataFrame(columns=columns_positions).to_csv(pos_dirname+
+                        pos_filename, mode="w",index=False,sep='\t')
                 success = 1
             except PermissionError:
-                print("WARNING! PermissionError. Close programs using "+positions_dir+
-                        positions_filename)
+                print("WARNING! PermissionError. Close programs using "+pos_dirname+
+                        pos_filename)
                 time.sleep(1)
 
         
@@ -530,7 +585,12 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
     e = 0
     if get_positions:
         list_pos = [[] for i in columns_positions]#[None for i in range(500)]
-    for e in range(1,Journal.shape[0]):
+    # skip loop if both thresholds are .5
+    if pNZA<10:
+        end_of_loop = Journal.shape[0]
+    else:
+        end_of_loop = 0
+    for e in tqdm(range(1,end_of_loop),mininterval=1):
 
         oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
         newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e],"%Y.%m.%d %H:%M:%S")
@@ -604,7 +664,7 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
         # end of if (sameAss and extendExitMarket):
     # end of for e in range(1,Journal.shape[0]):
     
-    if Journal.shape[0]>0:
+    if end_of_loop>0:
         thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
         mSpread += thisSpread
         GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
@@ -659,12 +719,12 @@ def get_extended_results(Journal, size_output_layer, n_days, resultsDir,
         success = 0
         while not success:
             try:
-                df.to_csv(positions_dir+positions_filename, mode='a', 
+                df.to_csv(pos_dirname+pos_filename, mode='a', 
                   header=False, index=False, sep='\t',float_format='%.4f')
                 success = 1
             except PermissionError:
                 print("WARNING! PermissionError. Close programs using "+
-                      positions_dir+positions_filename)
+                      pos_dirname+pos_filename)
                 time.sleep(1)
         
     gross_succ_per = gross_succ_counter/n_pos_opned
@@ -843,7 +903,8 @@ def merge_results(IDr_m1, IDr_m2, IDr_merged):
         - IDr_merged (string): ID of merged results
     Return:
         - None """
-    results_dir = '../RNN/results/'
+    from local_config import local_vars
+    results_dir = local_vars.results_directory
 #    if os.path.exists(results_dir):
 #        raise ValueError("Results directory already exists")
     # merge best results

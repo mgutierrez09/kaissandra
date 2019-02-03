@@ -15,7 +15,7 @@ import time
 import pandas as pd
 import datetime as dt
 import numpy as np
-from inputs import Data
+from kaissandra.inputs import Data
 import pickle
 
 #from TradingManager_v10 import write_log
@@ -1060,8 +1060,8 @@ if __name__ == '__main__':
     list_epoch_gre = [2,4]
     list_epoch_journal = [2,4]
     list_use_GRE = [True for i in range(numberNetwors)]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
-    list_w_str = ["55" for i in range(numberNetwors)]
+    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+    list_w_str = ["01" for i in range(numberNetwors)]
     list_margin_ext = ['variable']
     list_t_index = [0,1]
     list_spreads_range = [[0,5],[5,1000]]

@@ -10,8 +10,9 @@ import h5py
 import numpy as np
 import os
 import tensorflow as tf
-from RNN import modelRNN
-from inputs import (Data, 
+
+from kaissandra.RNN import modelRNN
+from kaissandra.inputs import (Data, 
                     load_separators, 
                     build_IO, 
                     load_stats_manual,
@@ -20,8 +21,8 @@ from inputs import (Data,
                     load_returns,
                     load_manual_features,
                     load_tsf_features)
-from config import retrieve_config
-
+from kaissandra.config import retrieve_config
+from kaissandra.local_config import local_vars
 
 def train_RNN(*ins):
     """  """
@@ -30,7 +31,7 @@ def train_RNN(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = retrieve_config('C0288INVO')
+        config = retrieve_config('CTESTNR')
     # Feed retrocompatibility
     if 'feature_keys_manual' not in config:
         feature_keys_manual = [i for i in range(37)]
@@ -44,14 +45,12 @@ def train_RNN(*ins):
         from_stats_file = config['from_stats_file']
     else:
         from_stats_file = True
-    if 'trsfresh_from_variations' in config:
-        trsfresh_from_variations = config['trsfresh_from_variations']
-    else:
-        trsfresh_from_variations = False
     if 'inverse_load' in config:
         inverse_load = config['inverse_load']
     else:
         inverse_load = True
+        
+    weights_directory = local_vars.weights_directory
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -61,12 +60,11 @@ def train_RNN(*ins):
               channels=config['channels'],
               max_var=config['max_var'],
               feature_keys_manual=feature_keys_manual,
-              feature_keys_tsfresh=feature_keys_tsfresh,
-              trsfresh_from_variations=trsfresh_from_variations)
+              feature_keys_tsfresh=feature_keys_tsfresh)
     # init structures
     IDweights = config['IDweights']
-    hdf5_directory = config['hdf5_directory']
-    IO_directory = config['IO_directory']
+    hdf5_directory = local_vars.hdf5_directory
+    IO_directory = local_vars.IO_directory
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     # init hdf5 files
@@ -77,7 +75,6 @@ def train_RNN(*ins):
     
     separators_directory = hdf5_directory+'separators/'
     filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
-    
     if 0:#len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
@@ -229,9 +226,9 @@ def train_RNN(*ins):
                         if 1:
                             
                             try:
-                                file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                                file_temp_name = local_vars.IO_directory+'temp_train_build'+str(np.random.randint(10000))+'.hdf5'
                                 while os.path.exists(file_temp_name):
-                                    file_temp_name = '../RNN/IO/temp_train_build'+str(np.random.randint(10000))+'.hdf5'
+                                    file_temp_name = IO_directory+'temp_train_build'+str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
                                 IO, totalSampsPerLevel = build_IO(file_temp, 
                                                                       data, 
@@ -316,7 +313,8 @@ def train_RNN(*ins):
     tf.reset_default_graph()
     # start session
     with tf.Session() as sess:    
-        model.train(sess, int(np.ceil(m_t/aloc)), ID=IDweights, IDIO=IDweights, 
+        model.train(sess, int(np.ceil(m_t/aloc)), weights_directory, 
+                    ID=IDweights, IDIO=IDweights, 
                     data_format='hdf5', filename_IO=filename_IO, aloc=aloc)
         
 if __name__ == "__main__":

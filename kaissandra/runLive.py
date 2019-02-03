@@ -16,11 +16,11 @@ import pickle
 import re
 import tensorflow as tf
 #from multiprocessing import Process
-from simulateTrader import load_in_memory
-from inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
-from RNN import modelRNN
+from kaissandra.simulateTrader import load_in_memory
+from kaissandra.inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
+from kaissandra.RNN import modelRNN
 import shutil
-from local_config import local_vars
+from kaissandra.local_config import local_vars
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -30,19 +30,19 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 verbose_RNN = True
-verbose_trader = True
+verbose_trader = False
 test = False
-run_back_test = False
-spread_ban = True
+run_back_test = True
+spread_ban = False
 ban_only_if_open = False # not in use
 
 
-data_dir = 'D:/SDC/py/Data/'#'D:/SDC/py/Data_aws_5/'#
+data_dir = local_vars.data_dir
 directory_MT5 = local_vars.directory_MT5#("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                 #     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
-io_dir = '../RNN/IOlive/'
-ADsDir = "../RNN/results/"
-hdf5_directory = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'#'../HDF5/'#
+io_dir = local_vars.io_dir
+ADsDir = local_vars.ADsDir
+hdf5_directory = local_vars.hdf5_directory
 
 init_budget = 10000.0
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
@@ -150,24 +150,28 @@ class Results:
               direction change, ...} """
         pass
     
-    def save_pos_evolution(self, asset, dts, bids, asks, ems):
+    def save_pos_evolution(self, filename, dts, bids, asks, ems):
         """ Save evolution of the position from opening till close """
         # format datetime for filename
-        dt_open = dt.datetime.strftime(dt.datetime.strptime(
-                        dts[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        dt_close = dt.datetime.strftime(dt.datetime.strptime(
-                        dts[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
+        
         df = pd.DataFrame({'DateTime':dts,
                            'SymbolBid':bids,
                            'SymbolAsk':asks,
                            'EmBid':ems})
-        df.to_csv(self.dir_positions+filename, index=False)
+        df.to_csv(self.dir_positions+filename+'.txt', index=False)
     
 #class stats:
 #    
 #    def __init__():
-        
+
+def get_positions_filename(asset, open_dt, close_dt):
+    """  """
+    dt_open = dt.datetime.strftime(dt.datetime.strptime(
+            open_dt,'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+    dt_close = dt.datetime.strftime(dt.datetime.strptime(
+            close_dt,'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+    filename = 'O'+dt_open+'C'+dt_close+asset
+    return filename
 
 class Position:
     """
@@ -207,8 +211,9 @@ class Strategy():
                  flexible_lot_ratio=False, lb_mc_op=0.6, lb_md_op=0.6, 
                  lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, 
                  ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
-                 if_dir_change_extend=False, name='',t_indexs=[3],use_GRE=False,
-                 IDr=None,epoch='11',weights=np.array([0,1])):
+                 if_dir_change_extend=False, name='',t_indexs=[3],entry_strategy='gre',
+                 IDr=None,epoch='11',weights=np.array([0,1]),info_spread_ranges={},
+                 priorities=[0],lim_groi_ext=-.02):
         
         self.name = name
         self.dir_origin = direct
@@ -235,11 +240,14 @@ class Strategy():
         self.if_dir_change_extend = if_dir_change_extend
         
         # load GRE
-        self.use_GRE = use_GRE
+        self.entry_strategy = entry_strategy
         self.IDr = IDr
         self.epoch = epoch
         self.t_indexs = t_indexs
         self.weights = weights
+        self.priorities = priorities
+        self.info_spread_ranges = info_spread_ranges
+        self.lim_groi_ext = lim_groi_ext
         
         self._load_GRE()
         
@@ -247,7 +255,7 @@ class Strategy():
         """ Load strategy efficiency matrix GRE """
         # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
         #int((model.size_output_layer-1)/2))
-        if self.use_GRE:
+        if self.entry_strategy=='gre':
             assert(np.sum(self.weights)==1)
             allGREs = pickle.load( open( self.dir_origin+self.IDr+
                                         "/GRE_e"+self.epoch+".p", "rb" ))
@@ -327,22 +335,24 @@ class Strategy():
     
     def get_profitability(self, t, p_mc, p_md, level):
         """ get profitability for a t_index, prob and output level """
-        if self.use_GRE:
+        if self.entry_strategy=='gre':
             return self.GRE[t, self._get_idx(p_mc), self._get_idx(p_md), level]
         else:
-            return None
+            # here it represents a priority
+            return self.priorities[t]
         
  
 class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
-                 AllAssets, results_dir="../RNN/resultsLive/back_test/trader/", 
+                 AllAssets, log_file, results_dir="", 
                  start_time=''):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(AllAssets))])
         self.list_count_events = []
+        self.list_count_all_events = []
         self.list_stop_losses = []
         self.list_take_profits = []
         self.list_lots_per_pos = []
@@ -353,6 +363,7 @@ class Trader:
         self.list_last_dt = []
         self.list_sl_thr_vector = []
         self.list_deadlines = []
+        self.positions_tracker = []
         
         self.journal_idx = 0
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
@@ -386,7 +397,7 @@ class Trader:
         
         # log
         self.save_log = 1
-        self.results_dir = results_dir
+        self.results_dir_trader = results_dir+'trader/'
         
         self.running_assets = running_assets
         self.ass2index_mapping = ass2index_mapping
@@ -402,27 +413,30 @@ class Trader:
                 tag = '_BT_'
             else:
                 tag = '_LI_'
-            self.log_file = self.results_dir+start_time+tag+"trader.log"
-            self.log_positions_soll = self.results_dir+start_time+tag+"positions_soll.log"
-            self.log_positions_ist = self.results_dir+start_time+tag+"positions_ist.log"
-            self.log_summary = self.results_dir+start_time+tag+"summary.log"
-            self.results_pos = results_dir+'/positions/'+start_time+'/'
-            self.budget_file = self.results_dir+start_time+tag+"budget.log"
+            self.log_file_trader = self.results_dir_trader+start_time+tag+"trader.log"
+            self.log_file = log_file
+            self.log_positions_soll = self.results_dir_trader+start_time+tag+"positions_soll.log"
+            self.log_positions_ist = self.results_dir_trader+start_time+tag+"positions_ist.log"
+            self.log_summary = self.results_dir_trader+start_time+tag+"summary.log"
+            self.dir_positions = results_dir+'/positions/'+start_time+'/'
+            self.budget_file = self.results_dir_trader+start_time+tag+"budget.log"
             self.ban_currencies_dir = io_dir+'/ban/'
             
         
         self.start_time = start_time
         
-        if not os.path.exists(self.results_dir):
-            os.mkdir(self.results_dir)
-        if not os.path.exists(self.results_pos):
-                os.makedirs(self.results_pos)
+        if not os.path.exists(self.results_dir_trader):
+            os.mkdir(self.results_dir_trader)
+        if not os.path.exists(self.dir_positions):
+                os.makedirs(self.dir_positions)
         if not os.path.exists(self.ban_currencies_dir):
                 os.makedirs(self.ban_currencies_dir)
+        # little pause to garantee no 2 processes access at the same time
+        time.sleep(np.random.rand())
         # results tracking
         if not os.path.exists(self.log_positions_soll):
-            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,\
-                Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,stGROI,stROI"
+            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
+                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,E_spread,stoploss,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions_soll)
             if not run_back_test:
                 write_log(resultsInfoHeader, self.log_positions_ist)
@@ -449,6 +463,7 @@ class Trader:
         '''
         self.list_opened_positions.append(self.next_candidate)
         self.list_count_events.append(0)
+        self.list_count_all_events.append(0)
         self.list_lots_per_pos.append(lots)
         self.list_lots_entry.append(lots)
         self.list_last_bid.append([bid])
@@ -473,6 +488,9 @@ class Trader:
             [self.map_ass_idx2pos_idx[idx]+1:]
         self.list_count_events = self.list_count_events\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_count_events\
+            [self.map_ass_idx2pos_idx[idx]+1:]
+        self.list_count_all_events = self.list_count_all_events\
+            [:self.map_ass_idx2pos_idx[idx]]+self.list_count_all_events\
             [self.map_ass_idx2pos_idx[idx]+1:]
         self.list_stop_losses = self.list_stop_losses\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_stop_losses\
@@ -501,6 +519,10 @@ class Trader:
         self.list_deadlines = self.list_deadlines\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_deadlines\
             [self.map_ass_idx2pos_idx[idx]+1:]
+        self.positions_tracker = self.positions_tracker\
+            [:self.map_ass_idx2pos_idx[idx]]+self.positions_tracker\
+            [self.map_ass_idx2pos_idx[idx]+1:]
+            
         
         mask = self.map_ass_idx2pos_idx>self.map_ass_idx2pos_idx[idx]
         self.map_ass_idx2pos_idx[idx] = -1
@@ -538,29 +560,35 @@ class Trader:
         else:
             return False
     
-    def count_one_event(self, idx):
-        self.list_count_events[self.map_ass_idx2pos_idx[idx]] += 1
+    def count_events(self, idx, n_events):
+        self.list_count_events[self.map_ass_idx2pos_idx[idx]] += n_events
+        self.list_count_all_events[self.map_ass_idx2pos_idx[idx]] += n_events
     
-    def check_contition_for_opening(self):
+    def check_contition_for_opening(self, t):
         '''
         '''
+        
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
         margin = 0.0
-        if this_strategy.fix_spread and not this_strategy.use_GRE:
+        if this_strategy.fix_spread and this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate.p_mc>=this_strategy.lb_mc_op and \
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and \
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and not this_strategy.use_GRE:
+        elif not this_strategy.fix_spread and this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate!= None and \
                               e_spread<this_strategy.fixed_spread_ratio and \
                               self.next_candidate.p_mc>=this_strategy.lb_mc_op and 
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and 
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and this_strategy.use_GRE:
+        elif not this_strategy.fix_spread and this_strategy.entry_strategy=='gre':
             condition_open = self.next_candidate.profitability>e_spread+margin
+        elif this_strategy.entry_strategy=='spread_ranges':
+            condition_open= self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
+                e_spread<=this_strategy.info_spread_ranges['sp'][t]
         else:
             #print("ERROR: fix_spread cannot be fixed if GRE is in use")
             raise ValueError("fix_spread cannot be fixed if GRE is in use")
@@ -574,20 +602,24 @@ class Trader:
         
         
 
-    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI):
+    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI, t):
         '''
         '''
         this_strategy = self.next_candidate.strategy
         margin = 0.5
-        if not this_strategy.use_GRE:
+        if this_strategy.entry_strategy=='fixed_thr':
             condition_extension = (self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
                               self.next_candidate.p_md>=this_strategy.lb_md_ext and
                               self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
+        elif this_strategy.entry_strategy=='gre':
+            condition_extension = (self.next_candidate.profitability>margin and 
+                                  100*curr_GROI>=this_strategy.lim_groi_ext)
+        elif this_strategy.entry_strategy=='spread_ranges':
+            condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
         else:
-            condition_extension= (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=-.02)
-            
+            raise ValueError("Wrong entry strategy")            
         return condition_extension
 
     def update_stoploss(self, idx, bid):
@@ -681,7 +713,7 @@ class Trader:
         
     
     def close_position(self, date_time, ass, idx, results,
-                       lot_ratio=None, partial_close=False):
+                       lot_ratio=None, partial_close=False, from_sl=0):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -727,14 +759,20 @@ class Trader:
         self.tROI_live += ROI_live
         self.tGROI_live += GROI_live
         
+        e_spread = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].e_spread
+        # check if close comes from external ban
+        if not from_sl and self.list_count_events[self.map_ass_idx2pos_idx[idx]]!=\
+            self.list_deadlines[self.map_ass_idx2pos_idx[idx]]:
+                from_sl = 2
         # write output to trader summary
-        info_close = info+","+str(nett_win)+","+\
-            str(100*self.tGROI_live)+","+str(100*self.tROI_live)
+        info_close = info+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
+            str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
         write_log(info_close, self.log_positions_soll)
-        
+        pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+                                              self.list_last_dt[list_idx][-1])
         # save position evolution
-        #self.save_pos_evolution(ass, list_idx)
-        results.save_pos_evolution(ass, self.list_last_dt[list_idx],
+        self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename)
+        results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
                                    self.list_last_bid[list_idx], 
                                    self.list_last_ask[list_idx], 
                                    self.list_EM[list_idx])
@@ -797,6 +835,8 @@ class Trader:
         
         # update vector of opened positions
         self.add_position(idx, lots, DateTime, bid, ask, deadline)
+        # track position
+        self.track_position('open', DateTime)
             
         out = (DateTime+" Open "+self.list_opened_positions[-1].asset+
               " Lots {0:.1f}".format(lots)+" "+str(self.list_opened_positions[-1].bet)+
@@ -810,9 +850,57 @@ class Trader:
         
         return None
     
+    def track_position(self, event, DateTime, idx=None, groi=0.0, 
+                       filename=''):
+        """ track position.
+        Args:
+            - event (str): {open, extend, close} """
+        if event=='open':
+            pos_info = {'id':0,
+                        'n_ext':0,
+                        'dts':[DateTime],
+                        '@tick#':[0],
+                        'grois':[groi],
+                        'p_mcs':[self.list_opened_positions[-1].p_mc],
+                        'p_mds':[self.list_opened_positions[-1].p_md],
+                        'levels':[self.list_opened_positions[-1].bet],
+                        'strategy':[self.list_opened_positions[-1].strategy.name]}
+            #print(pos_info)
+            self.positions_tracker.append(pos_info)
+        elif event=='extend':
+            #print(self.map_ass_idx2pos_idx[idx])
+            #print(self.positions_tracker)
+            pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
+            p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
+            p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
+            bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
+            strategy_name = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy.name
+            tick_counts = self.list_count_all_events[self.map_ass_idx2pos_idx[idx]]
+            pos_info['n_ext'] += 1
+            pos_info['dts'].append(DateTime)
+            pos_info['p_mcs'].append(p_mc)
+            pos_info['p_mds'].append(p_md)
+            pos_info['levels'].append(bet)
+            pos_info['grois'].append(groi)
+            pos_info['@tick#'].append(tick_counts)
+            pos_info['strategy'].append(strategy_name)
+            print(pos_info)
+        elif event=='close':
+            pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
+            n_ticks = len(self.list_last_bid[self.map_ass_idx2pos_idx[idx]])
+            pos_info['dts'].append(DateTime)
+            pos_info['p_mcs'].append(None)
+            pos_info['p_mds'].append(None)
+            pos_info['levels'].append(None)
+            pos_info['grois'].append(groi)
+            pos_info['@tick#'].append(n_ticks)
+            pos_info['strategy'].append(None)
+            # save in disk
+            #print(pos_info)
+            pickle.dump( pos_info, open( self.dir_positions+filename+'.p', "wb" ))
+        
     def assign_lots(self, date_time):#, date_time, ass, idx
-        '''
-        '''
+        """  """
         this_strategy = self.next_candidate.strategy
         if not this_strategy.flexible_lot_ratio:
             # update available budget
@@ -896,6 +984,7 @@ class Trader:
                         s_p_md = p_md
                         s_Y_tilde = Y_tilde
                         s_network_index = network_index
+                        s_t = t
                     # end of for t in range(len(inputs[nn][i])):
             # end of for i in range(len(inputs[nn])-1):
         # end of for nn in range(len(inputs)):
@@ -913,17 +1002,64 @@ class Trader:
         new_entry['Deadline'] = s_deadline
         new_entry['network_index'] = s_network_index
         new_entry['profitability'] = s_prof
+        new_entry['t'] = s_t
         
         return new_entry
+    
+    def select_next_entry(self, inputs, thisAsset):
+        """  """
+        e_spread = inputs[0][0][0][1]
+        DateTime = inputs[0][0][0][2]
+        Bi = inputs[0][0][0][3]
+        Ai = inputs[0][0][0][4]
+        e_spread_pip = e_spread/self.pip
+        #s_prof = -10000 # -infinite
+        for nn in range(len(inputs)):
+            network_index = inputs[nn][-1]
+            for i in range(len(inputs[nn])-1):
+                
+                deadline = inputs[nn][i][0][5]
+                
+                for t in range(len(inputs[nn][i])):
+                    soft_tilde = inputs[nn][i][t][0]
+                    #t_index = inputs[nn][i][t][6]
+                    #print("nn "+str(network_index)+" i "+str(i)+" t "+str(t_index))
+                    # get probabilities
+                    max_bit_md = int(np.argmax(soft_tilde[1:3]))
+                    if not max_bit_md:
+                        #Y_tilde = -1
+                        Y_tilde = np.argmax(soft_tilde[3:5])-2
+                    else:
+                        #Y_tilde = 1
+                        Y_tilde = np.argmax(soft_tilde[6:])+1
+                        
+                    p_mc = soft_tilde[0]
+                    p_md = np.max([soft_tilde[1],soft_tilde[2]])
+                    profitability = self.strategies[network_index].get_profitability(
+                            t, p_mc, p_md, int(np.abs(Y_tilde)-1))
+                    yield {entry_time_column:DateTime,
+                           'Asset':thisAsset,
+                           'Bet':Y_tilde,
+                           'P_mc':p_mc,
+                           'P_md':p_md,
+                           entry_bid_column:Bi,
+                           entry_ask_column:Ai,
+                           'E_spread':e_spread_pip,
+                           'Deadline':deadline,
+                           'network_index':network_index,
+                           'profitability':profitability,
+                           't':t}
     
     def check_new_inputs(self, inputs, thisAsset, directory_MT5_ass=''):
         '''
         <DocString>
         '''
-        new_entry = self.select_new_entry(inputs, thisAsset)
-        strategy_name = self.strategies[new_entry['network_index']].name
+        #new_entry = self.select_new_entry(inputs, thisAsset)
+        for new_entry in self.select_next_entry(inputs, thisAsset):
+            t = new_entry['t']
+            strategy_name = self.strategies[new_entry['network_index']].name
         # check for opening/extension in order of expected returns
-        if 1:
+        #if 1:
             out = ("New entry @ "+new_entry[entry_time_column]+" "+
                    new_entry['Asset']+
                    " P_mc {0:.3f} ".format(new_entry['P_mc'])+
@@ -934,8 +1070,7 @@ class Trader:
                    "Strategy "+strategy_name)
             if verbose_trader:
                 print("\r"+out)
-            self.write_log(out)
-            
+                self.write_log(out)
             position = Position(new_entry, self.strategies[new_entry['network_index']])
             
             self.add_new_candidate(position)
@@ -945,7 +1080,7 @@ class Trader:
             # open market
             if not self.is_opened(ass_id):
                 # check if condition for opening is met
-                condition_open = self.check_contition_for_opening()
+                condition_open = self.check_contition_for_opening(t)
                 if condition_open:
                     # assign budget
                     lots = self.assign_lots(new_entry[entry_time_column])
@@ -964,7 +1099,7 @@ class Trader:
                         print("\r"+out)
                         self.write_log(out)
                         # check swap of resources
-                        if self.next_candidate.strategy.use_GRE:
+                        if self.next_candidate.strategy.entry_strategy=='gre':
 #                             and self.check_resources_swap()
                             # TODO: Check propertly function of swapinng
                             # lauch swap of resourves
@@ -979,13 +1114,16 @@ class Trader:
                 # check for extension
                 if self.check_primary_condition_for_extention(ass_id):
                     curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
-                    if self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI):    
+                    if self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t):    
                         # include third condition for thresholds
                         # extend deadline
                         if not run_back_test:
                             self.send_open_command(directory_MT5_ass, ass_idx)
                         self.update_position(ass_id)
                         self.n_pos_extended += 1
+                        # track position
+                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
+                        # print out
                         out = (new_entry[entry_time_column]+" Extended "+
                                thisAsset+
                            " Lots {0:.1f}".format(self.list_lots_per_pos[
@@ -1024,7 +1162,7 @@ class Trader:
         Write in log file
         """
         if self.save_log:
-            file = open(self.log_file,"a")
+            file = open(self.log_file_trader,"a")
             file.write(log+"\n")
             file.close()
         return None
@@ -1135,7 +1273,7 @@ class Trader:
                         self.list_last_dt[list_idx][-1],'%Y.%m.%d %H:%M:%S'),
                 '%y%m%d%H%M%S')
         filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
-        direct = self.results_pos
+        direct = self.dir_positions
         df = pd.DataFrame({'DateTime':self.list_last_dt[list_idx],
                            'SymbolBid':self.list_last_bid[list_idx],
                            'SymbolAsk':self.list_last_ask[list_idx],
@@ -1180,7 +1318,7 @@ class Trader:
                             
                             list_idx = self.map_ass_idx2pos_idx[ass_id]
                             bid = self.list_last_bid[list_idx][-1]
-                            self.close_position(DateTime, asset, ass_id, results)
+                            self.close_position(DateTime, asset, ass_id, results, from_sl=1)
                             lists = flush_asset(lists, ass_idx, bid)
                         else:
                             out = asset+" NOT banned due to different directions"
@@ -1233,8 +1371,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   listEM,listAllFeatsLive,list_X_i, means_in,phase_shift,stds_in, 
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
-                  list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_dir, 
-                  results_file, model, data, log_file, nonVarIdx):
+                  list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
+                  results_file, model, data, log_file, nonVarIdx, list_inv_out):
     """
     <DocString>
     """
@@ -1286,7 +1424,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
     if listAllFeatsLive[sc].shape[1]>nChannels:
         
         # Shift old samples forward and leave space for new one
-        list_X_i[sc][0,:-1,:] = list_X_i[sc][0,1:,:]
+        if not list_inv_out:
+            list_X_i[sc][0,:-1,:] = list_X_i[sc][0,1:,:]
+        else:
+            list_X_i[sc][0,1:,:] = list_X_i[sc][0,:-1,:]
         variationLive = np.zeros((data.nFeatures,len(data.channels)))
         for r in range(len(data.channels)):
             variationLive[:,r] = listAllFeatsLive[sc][:,-1]-\
@@ -1296,7 +1437,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             varNormed = np.minimum(np.maximum((variationLive.T-\
                 means_in[data.channels[r],:])/stds_in[data.channels[r],:],-10),10)
             # copy new entry in last pos of X
-            list_X_i[sc][0,-1,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
+            if not list_inv_out:
+                list_X_i[sc][0,-1,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
+            else:
+                list_X_i[sc][0,0,r*data.nFeatures:(r+1)*data.nFeatures] = varNormed
             
         #delete old infos
         listAllFeatsLive[sc] = listAllFeatsLive[sc][:,-100:]
@@ -1453,9 +1597,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             abs(Output_i)*model.outputGain),-(model.size_output_layer
                                -1)/2),(model.size_output_layer-1)/2)).astype(int)
                                 
-                    look_back_index = -nChannels-model.seq_len+2#-nChannels-t_indexes[t_index]-1
-#                    print("look_back_index")
-#                    print(look_back_index)
+                    look_back_index = -nChannels-1#model.seq_len+3#+2#-nChannels-t_indexes[t_index]-1
+                    #print("look_back_index")
+                    #print(look_back_index)
                     # compare prediction with actual output 
                     pred = list_Ylive[sc][t_index][look_back_index]
                     p_mc = list_Pmc_live[sc][t_index][look_back_index]
@@ -1520,7 +1664,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
                                      columns = columnsResultInfo).columns.tolist()]
                         #if not test:
-                        resultInfo.to_csv(results_dir[t_index]+results_file[t_index],mode="a",
+                        resultInfo.to_csv(results_network[t_index]+results_file[t_index],mode="a",
                                           header=False,index=False,sep='\t',
                                           float_format='%.5f')
                         # print entry
@@ -1657,7 +1801,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_models'][nn],
                                        lists['list_data'][nn], 
                                        log_file, 
-                                       lists['list_nonVarIdx'][nn])
+                                       lists['list_nonVarIdx'][nn],
+                                       lists['list_inv_out'][nn])
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -1807,6 +1952,8 @@ def fetch(lists, trader, directory_MT5,
                 ask = buffer.SymbolAsk.iloc[-1]
                 DateTime = buffer.DateTime.iloc[-1]
                 trader.update_list_last(list_idx, DateTime, bid, ask)
+                if list_idx>-1:
+                    trader.count_events(ass_id, buffer.shape[0])
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
@@ -2046,7 +2193,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # check if a position is already opened
         if trader.is_opened(ass_id):
             
-            trader.count_one_event(ass_id)
+            trader.count_events(ass_id, 1)
             stoploss_flag  = trader.is_stoploss_reached(lists, DateTime, ass_id, bid, 
                                                         trader.list_EM[list_idx][-1], 
                                                         event_idx, results)
@@ -2207,131 +2354,82 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(running_assets, start_time):
+def run_carefully(config_trader, running_assets, start_time, dateTest):
     """  """
     try:
-        run(running_assets, start_time)
+        run(config_trader, running_assets, start_time, dateTest)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(running_assets, start_time):
+def run(config_trader, running_assets, start_time, dateTest):
     """  """    
     
 
     # directories
     if run_back_test:
-        dir_results = "../RNN/resultsLive/back_test/"    
+        dir_results = local_vars.RNN_dir+"resultsLive/back_test/"    
     else:
-        dir_results = "../RNN/resultsLive/live/"
-    dir_results_trader = dir_results+"trader/"
-    
-    log_file = dir_results+start_time+'_log.log'
-#    dateTest = ([                                                   '2018.03.09',
-#                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-#                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-#                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-#                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-#                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-#                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-#                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-#                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-#                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-#                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-#                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-#                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-#                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-#                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-#                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-#                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-#                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-#                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-#                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-#                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
-#               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
-#                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
-#                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
-#                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
-#                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
-#                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-#                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
-#                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-#                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
-#                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
-#                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
-#                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-#                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
-    
-    
-    
-    dateTest = ['2018.03.09']#['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16']
-
-    ### TEMP: this data has to be included in list_data and deleted 
-#    data = Data(movingWindow=100,nEventsPerStat=1000,lB=1300,
-#              dateTest = dateTest,feature_keys_tsfresh=[])
-    
-    
-    # flow control variables
-#    max_loop_time = [0]
-#    last_time_stamp = ['0']
-#    time_stamp = ['0']
+        dir_results = local_vars.RNN_dir+"resultsLive/live/"
+    #dir_results_trader = dir_results+"trader/"
+    dir_results_netorks = dir_results+'networks/'
+    if not os.path.exists(dir_results_netorks):
+        os.mkdir(dir_results_netorks)
+    dir_log = dir_results+'log/'
+    if not os.path.exists(dir_log):
+        os.mkdir(dir_log)
+    log_file = dir_log+start_time+'_log.log'
     
     AllAssets = Data().AllAssets
     
-    numberNetworks = 2
-    IDweights = ['000277NEWO','000277NEWO']
-    IDresults = ['100277NEWO','100277NEWO']
-    lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-    list_name = ['77_27','77_19']
-    IDepoch = ['27','19']
-    netNames = ['27','19']
-    list_t_indexs = [[2],[2]]
-    phase_shifts = [5,5]
-    list_thr_sl = [20 for i in range(numberNetworks)]
-    list_thr_tp = [1000 for i in range(numberNetworks)]
-    delays = [0,0]
-    mWs = [100,100]
-    nExSs = [1000,1000]
-    lBs = [1200,1200]
-    list_w_str = ['55','55']
-    model_dict = {'size_hidden_layer':[100,100],
-                  'L':[3,3],
-                  'size_output_layer':[5 for i in range(numberNetworks)],
-                  'outputGain':[.6,.6]}
+    numberNetworks = config_trader['numberNetworks']
+    IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
+    IDresults = config_trader['IDresults']#['100318INVO','000318INVO','000318INVO']
+    lIDs = config_trader['lIDs']#[len(IDweights[i]) for i in range(numberNetworks)]
+    list_name = config_trader['list_name']#['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
+    IDepoch = config_trader['IDepoch']#['15','8','22']
+    netNames = config_trader['netNames']#['31815','31808','31822']
+    list_t_indexs = config_trader['list_t_indexs']#[[1],[3],[3]]
+    list_inv_out = config_trader['list_inv_out']#[True,True,True]
+    list_entry_strategy = config_trader['list_entry_strategy']#['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+    list_spread_ranges = config_trader['list_spread_ranges']#[{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+    #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
+    list_priorities = config_trader['list_priorities']#[[1],[2],[0]]
+    phase_shifts = config_trader['phase_shifts']#[5,5,5]
+    list_thr_sl = config_trader['list_thr_sl']#[20 for i in range(numberNetworks)]
+    list_thr_tp = config_trader['list_thr_tp']#[1000 for i in range(numberNetworks)]
+    delays = config_trader['delays']#[0,0,0]
+    mWs = config_trader['mWs']#[100,100,100]
+    nExSs = config_trader['nExSs']#[1000,1000,1000]
+    lBs = config_trader['lBs']#[1300,1300,1300]#[1300]
+    list_lim_groi_ext = config_trader['list_lim_groi_ext']#[-.02 for i in range(numberNetworks)]
+    list_w_str = config_trader['list_w_str']#['55','55','55']
+    model_dict = config_trader['model_dict']#{'size_hidden_layer':[100,100,100],
+                  #'L':[3,3,3],
+                  #'size_output_layer':[5 for i in range(numberNetworks)],
+                  #'outputGain':[1,1,1]}
+    #list_data = config_trader['list_data']#[Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
+              #dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
+    #list_seq_lens = config_trader['list_seq_lens']#[int((list_data[i].lB-list_data[i].nEventsPerStat)/
+                         #list_data[i].movingWindow+1) for i in range(len(mWs))]
+    list_weights = config_trader['list_weights']#[np.array([.5,.5]) for i in range(numberNetworks)]
+    list_lb_mc_op = config_trader['list_lb_mc_op']#[.5 for i in range(numberNetworks)]
+    list_lb_md_op = config_trader['list_lb_md_op']#[.8 for i in range(numberNetworks)]
+    list_lb_mc_ext = config_trader['list_lb_mc_ext']#[.5 for i in range(numberNetworks)]
+    list_lb_md_ext = config_trader['list_lb_md_ext']#[.6 for i in range(numberNetworks)]
+    list_ub_mc_op = config_trader['list_ub_mc_op']#[1 for i in range(numberNetworks)]
+    list_ub_md_op = config_trader['list_ub_md_op']#[1 for i in range(numberNetworks)]
+    list_ub_mc_ext = config_trader['list_ub_mc_ext']#[1 for i in range(numberNetworks)]
+    list_ub_md_ext = config_trader['list_ub_md_ext']#[1 for i in range(numberNetworks)]
+    list_fix_spread = config_trader['list_fix_spread']#[False for i in range(numberNetworks)]
+    list_fixed_spread_pips = config_trader['list_fixed_spread_pips']#[4 for i in range(numberNetworks)]
+    list_max_lots_per_pos = config_trader['list_max_lots_per_pos']#[.1 for i in range(numberNetworks)]
+    list_flexible_lot_ratio = config_trader['list_flexible_lot_ratio']#[False for i in range(numberNetworks)]
+    list_if_dir_change_close = config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
+    list_if_dir_change_extend = config_trader['list_if_dir_change_extend']#[False for i in range(numberNetworks)]
     list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
-              dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
-#    numberNetworks = 1
-#    IDweights = ["000287"]
-#    IDresults = ['100287Nov09']
-#    list_name = ['87_6']
-#    IDepoch = ["6"]
-#    netNames = ["87"]
-#    list_t_indexs = [[2]]
-#    phase_shifts = [1]
-#    delays = [0]
-#    mWs = [100]
-#    nExSs = [1000]
-#    lBs = [1300]
-#    list_w_str = ["55"]
-    
+                  dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
     list_seq_lens = [int((list_data[i].lB-list_data[i].nEventsPerStat)/
                          list_data[i].movingWindow+1) for i in range(len(mWs))]
-    list_use_GRE = [True for i in range(numberNetworks)]
-    list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
-    list_lb_mc_op = [.5 for i in range(numberNetworks)]
-    list_lb_md_op = [.8 for i in range(numberNetworks)]
-    list_lb_mc_ext = [.5 for i in range(numberNetworks)]
-    list_lb_md_ext = [.6 for i in range(numberNetworks)]
-    list_ub_mc_op = [1 for i in range(numberNetworks)]
-    list_ub_md_op = [1 for i in range(numberNetworks)]
-    list_ub_mc_ext = [1 for i in range(numberNetworks)]
-    list_ub_md_ext = [1 for i in range(numberNetworks)]
-    list_fix_spread = [False for i in range(numberNetworks)]
-    list_fixed_spread_pips = [4 for i in range(numberNetworks)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetworks)]
-    list_flexible_lot_ratio = [False for i in range(numberNetworks)]
-    list_if_dir_change_close = [False for i in range(numberNetworks)]
-    list_if_dir_change_extend = [False for i in range(numberNetworks)]
-    
     
 #    
     ADs = []
@@ -2344,23 +2442,10 @@ def run(running_assets, start_time):
                 mrc = True
         if not mrc:
             ADs.append(np.array([]))
-                
-#        if MRC[i]==True:
-#            if t_indexs[i]!=2:
-#                raise ValueError("t_indexs[i] must be 2")
-#            ADs.append(pickle.load( open( resultsDir+IDresults[i]+"/AD_e"+
-#                                         IDepoch[i]+".p", "rb" )))
-#        else:
-#            ADs.append(None)
 
     nChans = (np.array(nExSs)/np.array(mWs)).astype(int).tolist()
     
-    
-    
-#    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-#    running_assets = assets
-    
-    resultsDir = [[dir_results+IDresults[nn]+"T"+
+    resultsDir = [[dir_results_netorks+IDresults[nn]+"T"+
                       str(t)+"E"+IDepoch[nn]+"/" 
                       for t in list_t_indexs[nn]] for nn in range(numberNetworks)]
     
@@ -2426,6 +2511,7 @@ def run(running_assets, start_time):
     list_nonVarFeats = [np.intersect1d(list_data[nn].noVarFeats,list_data[nn].feature_keys_manual) for nn in range(nNets)]
     list_nonVarIdx = [np.zeros((len(list_nonVarFeats[nn]))).astype(int) for nn in range(nNets)]
     
+    
     for nn in range(nNets):
         nv = 0
         for allnv in range(list_data[nn].nFeatures):
@@ -2446,7 +2532,7 @@ def run(running_assets, start_time):
     ################# Trader #############################
     
     
-    strategies = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
+    strategies = [Strategy(direct=local_vars.ADsDir,thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                           fixed_spread_pips=list_fixed_spread_pips[i], 
                           max_lots_per_pos=list_max_lots_per_pos[i], 
@@ -2457,13 +2543,16 @@ def run(running_assets, start_time):
                           ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
                           if_dir_change_close=list_if_dir_change_close[i], 
                           if_dir_change_extend=list_if_dir_change_extend[i], 
-                          name=list_name[i],t_indexs=list_t_indexs[i],use_GRE=list_use_GRE[i],
-                          IDr=IDresults[i],epoch=IDepoch[i],
-                          weights=list_weights[i]) for i in range(numberNetworks)]
+                          name=list_name[i],t_indexs=list_t_indexs[i],
+                          entry_strategy=list_entry_strategy[i],IDr=IDresults[i],
+                          epoch=IDepoch[i],weights=list_weights[i],
+                          info_spread_ranges=list_spread_ranges[i],
+                          priorities=list_priorities[i],
+                          lim_groi_ext=list_lim_groi_ext[i]) for i in range(numberNetworks)]
     
     
     results = Results(IDresults, IDepoch, list_t_indexs, list_w_str, start_time,
-                      dir_results_trader)
+                      dir_results)
     
     tic = time.time()
     
@@ -2480,42 +2569,6 @@ def run(running_assets, start_time):
                                 IDgraph=IDweights[i]+IDepoch[i],
                                 lID=lIDs[i]) \
                                 for i in range(numberNetworks)]
-#        list_models = [modelRNN(list_data[0],
-#                                size_hidden_layer=200,
-#                                L=3,
-#                                size_output_layer=5,
-#                                keep_prob_dropout=1,
-#                                miniBatchSize=32,
-#                                outputGain=0.6,
-#                                lR0=0.0001,
-#                                IDgraph=IDweights[0]+IDepoch[0],
-#                                sess=None),
-#                    
-#                    modelRNN(list_data[1],
-#                             size_hidden_layer=200,
-#                             L=3,
-#                             size_output_layer=5,
-#                             keep_prob_dropout=1,
-#                             miniBatchSize=32,
-#                             outputGain=0.6,
-#                             lR0=0.0001,
-#                             IDgraph=IDweights[1]+IDepoch[1],
-#                             sess=None),
-#        
-#                    modelRNN(list_data[2],
-#                             size_hidden_layer=100,
-#                             L=3,
-#                             size_output_layer=5,
-#                             keep_prob_dropout=1,
-#                             miniBatchSize=32,
-#                             outputGain=0.6,
-#                             lR0=0.0001,
-#                             IDgraph=IDweights[2]+IDepoch[2],
-#                             sess=None)
-#                    ]
-    ##########################################################
-        
-        
         if run_back_test:
             day_index = 0
             #t_journal_entries = 0
@@ -2596,11 +2649,11 @@ def run(running_assets, start_time):
                 lists['list_models'] = list_models
                 lists['list_data'] = list_data
                 lists['list_nonVarIdx'] = list_nonVarIdx
-    #             init trader
-    #            trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), init_budget=init_budget)
+                lists['list_inv_out'] = list_inv_out
+                
                 trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
-                                results_dir=dir_results_trader, 
+                                log_file, results_dir=dir_results, 
                                 start_time=start_time)
                 if not os.path.exists(trader.log_file):
                     write_log(out, trader.log_file)
@@ -2608,15 +2661,6 @@ def run(running_assets, start_time):
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
                                    end_list_index, root_dir=data_dir)
-###############################################################################
-###################################################### TEMP ###################
-###############################################################################
-#                idxs = DateTimes>=b'2018.11.15 10:00:00'
-#                DateTimes = DateTimes[idxs]
-#                SymbolBids = SymbolBids[idxs]
-#                SymbolAsks = SymbolAsks[idxs]
-#                Assets = Assets[idxs]
-#                nEvents = SymbolAsks.shape[0]
                 back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         trader, results, running_assets, 
@@ -2685,10 +2729,11 @@ def run(running_assets, start_time):
             lists['list_models'] = list_models
             lists['list_data'] = list_data
             lists['list_nonVarIdx'] = list_nonVarIdx
+            lists['list_inv_out'] = list_inv_out
             # init trader
             trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
-                                results_dir=dir_results_trader, 
+                                log_file, results_dir=dir_results, 
                                 start_time=start_time)
             # launch fetcher
             fetch(lists, trader, directory_MT5, 
@@ -2729,24 +2774,30 @@ def run(running_assets, start_time):
         write_log(out, trader.log_summary)
         results.save_results()
         
-def launch():
+def launch(*ins):
     # runLive in multiple processes
     from multiprocessing import Process
     from runLive import run
     import datetime as dt
     import time
+    from kaissandra.config import retrieve_config
     
-    synchroned_run = False
+    if len(ins)>0:
+        config_trader = retrieve_config(ins[0])
+    else:
+        config_trader = retrieve_config('T0000')
+    synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    running_assets = assets#[12,7,14]
+    dateTest = ['2018.03.09']
+    running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
-        run(running_assets,start_time)
+        run(config_trader, running_assets, start_time, dateTest)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[running_assets[ass_idx:ass_idx+1],start_time])
+            disp = Process(target=run_carefully, args=[config_trader, running_assets[ass_idx:ass_idx+1],start_time, dateTest])
             disp.start()
             time.sleep(2)
         time.sleep(30)
