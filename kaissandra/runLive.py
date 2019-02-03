@@ -2788,7 +2788,7 @@ def launch(*ins):
         config_trader = retrieve_config('T0000')
     synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    dateTest = ['2018.03.09']
+    dateTest = ['2018.11.12']
     running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
