@@ -2354,14 +2354,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time, dateTest):
+def run_carefully(config_trader, running_assets, start_time):
     """  """
     try:
-        run(config_trader, running_assets, start_time, dateTest)
+        run(config_trader, running_assets, start_time)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_trader, running_assets, start_time, dateTest):
+def run(config_trader, running_assets, start_time):
     """  """    
     
 
@@ -2380,7 +2380,7 @@ def run(config_trader, running_assets, start_time, dateTest):
     log_file = dir_log+start_time+'_log.log'
     
     AllAssets = Data().AllAssets
-    
+    dateTest = config_trader['dateTest']
     numberNetworks = config_trader['numberNetworks']
     IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
     IDresults = config_trader['IDresults']#['100318INVO','000318INVO','000318INVO']
@@ -2788,16 +2788,16 @@ def launch(*ins):
         config_trader = retrieve_config('T0000')
     synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
-    dateTest = ['2018.11.12']
+    
     running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
-        run(config_trader, running_assets, start_time, dateTest)
+        run(config_trader, running_assets, start_time)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[config_trader, running_assets[ass_idx:ass_idx+1],start_time, dateTest])
+            disp = Process(target=run_carefully, args=[config_trader, running_assets[ass_idx:ass_idx+1],start_time])
             disp.start()
             time.sleep(2)
         time.sleep(30)

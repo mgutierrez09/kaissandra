@@ -351,6 +351,7 @@ def configuration_trader(*ins):
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
+        dateTest = ['2018.11.12']
         numberNetworks = 3
         IDweights = ['000318INVO','000318INVO','000318INVO']#['000289STRO']
         IDresults = ['100318INVO','000318INVO','000318INVO']
@@ -395,6 +396,7 @@ def configuration_trader(*ins):
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
         
         config = {'config_name':config_name,
+                  'dateTest':dateTest,
                   'numberNetworks':numberNetworks,
                   'IDweights':IDweights,
                   'IDresults':IDresults,
