@@ -3,13 +3,16 @@
 Created on Thu Dec 13 17:18:27 2018
 
 @author: mgutierrez
+
+Module for control of system flow in online mode
 """
 
-from inputs import Data
+from kaissandra.inputs import Data
+from kaissandra.local_config import local_vars
 
-if __name__=='__main__':
-    
-    io_dir = '../RNN/IOlive/'
+def shutdown():
+    """  """
+    io_dir = local_vars.io_dir
     AllAssets = Data().AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -20,3 +23,28 @@ if __name__=='__main__':
         except FileNotFoundError:
             print("FileNotFoundError")
     
+def pause():
+    """  """
+    io_dir = local_vars.io_dir
+    AllAssets = Data().AllAssets
+    for asset_key in AllAssets:
+        asset = AllAssets[asset_key]
+        print(asset)
+        try:
+            fh = open(io_dir+asset+'/PA',"w")
+            fh.close()
+        except FileNotFoundError:
+            print("Asset not running")
+
+def resume():
+    """  """
+    io_dir = local_vars.io_dir
+    AllAssets = Data().AllAssets
+    for asset_key in AllAssets:
+        asset = AllAssets[asset_key]
+        print(asset)
+        try:
+            fh = open(io_dir+asset+'/RE',"w")
+            fh.close()
+        except FileNotFoundError:
+            print("FileNotFoundError")

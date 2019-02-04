@@ -2101,6 +2101,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     """
     <DocString>
     """
+    renew_directories(AllAssets, running_assets, directory_MT5)
     nAssets = len(running_assets)
     print("Fetcher lauched")
     # number of events per file
@@ -2205,6 +2206,23 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                 # close position
                 trader.close_position(DateTime, thisAsset, ass_id, results)
         
+        ###################### Check for control commands ##############
+        io_ass_dir = io_dir+thisAsset+"/"
+        # check shut down command
+        if os.path.exists(io_ass_dir+'SD'):
+            print(thisAsset+" Shutting down")
+            os.remove(io_ass_dir+'SD')
+            break
+        elif os.path.exists(io_ass_dir+'PA'):
+            
+            print(thisAsset+" PAUSED. Waiting for RE command...")
+            os.remove(io_ass_dir+'PA')
+            while not os.path.exists(io_ass_dir+'RE'):
+                time.sleep(np.randint(5))+5
+            os.remove(io_ass_dir+'RE')
+        elif os.path.exists(io_ass_dir+'RE'):
+            print("WARNING! RESUME command found. Send first PAUSE command")
+            os.remove(io_ass_dir+'RE')
         ###################### End of Trader ###########################
         event_idx += 1
     
@@ -2777,7 +2795,6 @@ def run(config_trader, running_assets, start_time):
 def launch(*ins):
     # runLive in multiple processes
     from multiprocessing import Process
-    from runLive import run
     import datetime as dt
     import time
     from kaissandra.config import retrieve_config
@@ -2786,8 +2803,8 @@ def launch(*ins):
         config_trader = retrieve_config(ins[0])
     else:
         config_trader = retrieve_config('T0000')
-    synchroned_run = True
-    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
+    synchroned_run = False
+    assets = [1, 2]#[1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
     
     running_assets = assets#[31]#[12,7,14]
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
