@@ -17,7 +17,7 @@ from scipy.signal import cwt, find_peaks_cwt, ricker
 
 #from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw
 from kaissandra.config import configuration
-from local_config import local_vars
+from kaissandra.local_config import local_vars
 
 def get_features(*ins):
     """  """
