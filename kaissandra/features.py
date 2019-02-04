@@ -17,10 +17,12 @@ from scipy.signal import cwt, find_peaks_cwt, ricker
 
 #from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw
 from kaissandra.config import configuration
-
+from local_config import local_vars
 
 def get_features(*ins):
     """  """
+    from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw
+    
     ticTotal = time.time()
     if len(ins)>0:
         config = ins[0]
@@ -36,7 +38,7 @@ def get_features(*ins):
     # init booleans
     save_stats = config['save_stats']  
     # init file directories
-    hdf5_directory = config['hdf5_directory']#'../HDF5/'#
+    hdf5_directory = local_vars.hdf5_directory
     # define files and directories names
     load_features_from = config['load_features_from']
     if load_features_from=='manual':

@@ -166,7 +166,7 @@ class modelRNN(object):
                                  tf.log(self._pred[:,:1,1:3])), [1, 2])
         # last 5 bits for market gain output
         loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
-                                 (self._target[:,:,3:] * 
+                                 (self._target[:,:1,3:] * 
                                   tf.log(self._pred[:,:1,3:])), [1, 2])
         self._loss = tf.reduce_mean(
             loss_mc+loss_md+loss_mg,
