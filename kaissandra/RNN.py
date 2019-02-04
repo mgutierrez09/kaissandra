@@ -144,9 +144,9 @@ class modelRNN(object):
         
         A Tensor. Has the same type as input. Has the shape of tensor.shape*repeats
         """
-        repeated_tensor = self._target[:,:,0:1]
+        repeated_tensor = self._target[:,:1,0:1]
         for i in range(repeats-1):
-            repeated_tensor = tf.concat([repeated_tensor,self._target[:,:,0:1]],2)
+            repeated_tensor = tf.concat([repeated_tensor,self._target[:,:1,0:1]],2)
 
         return repeated_tensor
         
@@ -158,16 +158,16 @@ class modelRNN(object):
                                     name="target")
         # Define cross entropy loss.
         # first target bit for mc (market change)
-        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
-                                (1-self._target[:,:,0:1])* -
-                                tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+        loss_mc = tf.reduce_sum(self._target[:,:1,0:1] * -tf.log(self._pred[:,:1,0:1])+
+                                (1-self._target[:,:1,0:1])* -
+                                tf.log(1 - self._pred[:,:1,0:1]), [1, 2])
         # second and third bits for md (market direction)
-        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
-                                 tf.log(self._pred[:,:,1:3])), [1, 2])
+        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:1,1:3] * 
+                                 tf.log(self._pred[:,:1,1:3])), [1, 2])
         # last 5 bits for market gain output
         loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
                                  (self._target[:,:,3:] * 
-                                  tf.log(self._pred[:,:,3:])), [1, 2])
+                                  tf.log(self._pred[:,:1,3:])), [1, 2])
         self._loss = tf.reduce_mean(
             loss_mc+loss_md+loss_mg,
             name="loss_nll")
