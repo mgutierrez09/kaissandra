@@ -1846,14 +1846,14 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
                 os.mkdir(directory_MT5_ass)
                 print(directory_MT5_ass+" Directiory created")
             except:
-                print(directory_MT5_ass+" Warning. Error when creating directory")
+                print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
         
         if not os.path.exists(io_ass_dir):
             try:
                 os.mkdir(io_ass_dir)
                 print(io_ass_dir+" Directiory created")
             except:
-                print(io_ass_dir+" Warning. Error when creating directory")
+                print(io_ass_dir+" Warning. Error when creating IO directory")
 
 #def start_timer(ass_idx):
 #    """  """
@@ -1886,7 +1886,6 @@ def fetch(lists, trader, directory_MT5,
     """ Fetch info coming from MT5 """
     
     nAssets = len(running_assets)
-    renew_directories(AllAssets, running_assets, directory_MT5)
     
     print("Fetcher lauched")
 
@@ -2101,7 +2100,6 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     """
     <DocString>
     """
-    renew_directories(AllAssets, running_assets, directory_MT5)
     nAssets = len(running_assets)
     print("Fetcher lauched")
     # number of events per file
@@ -2218,7 +2216,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             print(thisAsset+" PAUSED. Waiting for RE command...")
             os.remove(io_ass_dir+'PA')
             while not os.path.exists(io_ass_dir+'RE'):
-                time.sleep(np.randint(5))+5
+                time.sleep(np.random.randint(6)+5)
             os.remove(io_ass_dir+'RE')
         elif os.path.exists(io_ass_dir+'RE'):
             print("WARNING! RESUME command found. Send first PAUSE command")
@@ -2807,6 +2805,7 @@ def launch(*ins):
     assets = [1, 2]#[1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
     
     running_assets = assets#[31]#[12,7,14]
+    renew_directories(Data().AllAssets, running_assets, directory_MT5)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
         run(config_trader, running_assets, start_time)
