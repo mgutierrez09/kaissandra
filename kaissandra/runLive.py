@@ -1831,29 +1831,33 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
         directory_MT5_ass = directory_MT5+thisAsset+"/"
         io_ass_dir = io_dir+thisAsset+"/"
         
-        try:
-            shutil.rmtree(directory_MT5_ass)
-        except:
-            print(thisAsset+" Warning. Error when renewing MT5 directory")
+        if os.path.exists(io_ass_dir):
+            try:
+                shutil.rmtree(directory_MT5_ass)
+                time.sleep(1)
+            except:
+                print(thisAsset+" Warning. Error when renewing MT5 directory")
+                # TODO: Synch fetcher with current file if MT5 is recording
             
-        try:
-            shutil.rmtree(io_ass_dir)
-        except:
-            print(thisAsset+" Warning. Error when renewing IO directory")
+        #try:
+        if os.path.exists(io_ass_dir):
+            try:
+                shutil.rmtree(io_ass_dir)
+                print(io_ass_dir+" Directiory renewed")
+                time.sleep(1)
+            except:
+                print(thisAsset+" Warning. Error when renewing IO directory") 
             
         if not os.path.exists(directory_MT5_ass):
-            try:
-                os.mkdir(directory_MT5_ass)
-                print(directory_MT5_ass+" Directiory created")
-            except:
-                print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
+            #try:
+            os.mkdir(directory_MT5_ass)
+            print(directory_MT5_ass+" Directiory created")
+            #except:
+                #print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
         
         if not os.path.exists(io_ass_dir):
-            try:
-                os.mkdir(io_ass_dir)
-                print(io_ass_dir+" Directiory created")
-            except:
-                print(io_ass_dir+" Warning. Error when creating IO directory")
+            os.mkdir(io_ass_dir)
+            print(io_ass_dir+" Directiory created")
 
 #def start_timer(ass_idx):
 #    """  """
@@ -2802,9 +2806,9 @@ def launch(*ins):
     else:
         config_trader = retrieve_config('T0000')
     synchroned_run = False
-    assets = [1, 2]#[1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
+    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
     
-    running_assets = assets#[31]#[12,7,14]
+    running_assets = assets#[31]#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets, directory_MT5)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
