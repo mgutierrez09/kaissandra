@@ -533,13 +533,14 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     DT1 = 'DTi'
     DT2 = 'DTo'
     A2 = 'Ao'
+    A1 = 'Ai'
     B1 = 'Bi'
     B2 = 'Bo'
     
     log = pd.DataFrame(columns=['DateTime','Message'])
     # init positions
     if get_positions:
-        columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread','ext']
+        columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread','ext','Dir','Bi','Bo','Ai','Ao']
         
         if not os.path.exists(pos_dirname):
             os.makedirs(pos_dirname)
@@ -590,6 +591,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         end_of_loop = Journal.shape[0]
     else:
         end_of_loop = 0
+    count_dif_dir = 0
     for e in tqdm(range(1,end_of_loop),mininterval=1):
 
         oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
@@ -608,10 +610,23 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
             rSampsXlevel[level,0] += 1
         else:
-            
-            thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]  
+            direction = np.sign(Journal['Bet'].iloc[eInit])
+            Ao = Journal[A2].iloc[e-1]
+            Ai = Journal[A1].iloc[eInit]
+            Bo = Journal[B2].iloc[e-1]
+            Bi = Journal[B1].iloc[eInit]
+            if direction>0:
+                GROI = (Ao-Ai)/Ai
+                thisSpread = (Ao-Bo)/Ai
+                
+            else:
+                GROI = (Bi-Bo)/Ao
+                thisSpread = (Ao-Bo)/Ao
+            if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
+                count_dif_dir += 1
+            #thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]  
             mSpread += thisSpread
-            GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[e-1]-Journal[B1].iloc[eInit])/Journal[B1].iloc[eInit]
+            #GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[e-1]-Journal[B1].iloc[eInit])/Journal[B1].iloc[eInit]
             eGROI += GROI
             avGROI += Journal['GROI'].iloc[e]
             ROI = GROI-thisSpread
@@ -640,7 +655,9 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 this_list = [Journal['Asset'].iloc[e-1],Journal[DT1].iloc[eInit][:10],
                                  Journal[DT1].iloc[eInit][11:],Journal[DT2].iloc[e-1][:10],
                                  Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
-                                 100*thisSpread,this_pos_extended]
+                                 100*thisSpread,this_pos_extended,direction,
+                                 Bi,Bo,Ai,Ao]
+                #print(this_list)
                 for l in range(len(this_list)):
                     list_pos[l].append(this_list[l])
                 
@@ -665,10 +682,24 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     # end of for e in range(1,Journal.shape[0]):
     
     if end_of_loop>0:
-        thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
+        direction = np.sign(Journal['Bet'].iloc[eInit])
+        Ao = Journal[A2].iloc[-1]
+        Ai = Journal[A1].iloc[eInit]
+        Bo = Journal[B2].iloc[-1]
+        Bi = Journal[B1].iloc[eInit]
+        if direction>0:
+            GROI = (Ao-Ai)/Ai
+            thisSpread = (Ao-Bo)/Ai
+            
+        else:
+            GROI = (Bi-Bo)/Ao
+            thisSpread = (Ao-Bo)/Ao
+        if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
+            count_dif_dir += 1
+        #thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
         mSpread += thisSpread
-        GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
-                    ].iloc[eInit])/Journal[B1].iloc[-1]
+        #GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
+        #            ].iloc[eInit])/Journal[B1].iloc[-1]
         eGROI += GROI
         avGROI += Journal['GROI'].iloc[e]
         
@@ -700,7 +731,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 this_list = [Journal['Asset'].iloc[e-1], Journal[DT1].iloc[eInit][:10],
                                  Journal[DT1].iloc[eInit][11:], Journal[DT2].iloc[e-1][:10],
                                  Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
-                                 100*thisSpread,this_pos_extended]
+                                 100*thisSpread,this_pos_extended,direction,
+                                 Bi,Bo,Ai,Ao]
                 for l in range(len(this_list)):
                     list_pos[l].append(this_list[l])
     
@@ -713,7 +745,12 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                     'GROI':list_pos[5],
                     'ROI':list_pos[6],
                     'spread':list_pos[7],
-                    'ext':list_pos[8]}
+                    'ext':list_pos[8],
+                    'Dir':list_pos[9],
+                    'Bi':list_pos[10],
+                    'Bo':list_pos[11],
+                    'Ai':list_pos[12],
+                    'Ao':list_pos[13]}
         df = pd.DataFrame(dict_pos)\
             [pd.DataFrame(columns = columns_positions).columns.tolist()]
         success = 0
@@ -726,7 +763,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 print("WARNING! PermissionError. Close programs using "+
                       pos_dirname+pos_filename)
                 time.sleep(1)
-        
+    print("count_dif_dir")
+    print(count_dif_dir)
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
     NSPs = NSPs/n_pos_opned

@@ -617,7 +617,8 @@ class Trader:
                                   100*curr_GROI>=this_strategy.lim_groi_ext)
         elif this_strategy.entry_strategy=='spread_ranges':
             condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and \
+                100*curr_GROI>=this_strategy.lim_groi_ext
         else:
             raise ValueError("Wrong entry strategy")            
         return condition_extension
@@ -1104,8 +1105,8 @@ class Trader:
                             # TODO: Check propertly function of swapinng
                             # lauch swap of resourves
                             pass
-                            ### WARNING! With multi-process traders no swap
-                            ### supported
+                            ### WARNING! With asynched traders no swap
+                            ### possible
                             #self.initialize_resources_swap(directory_MT5_ass)
                 else:
                     pass

@@ -16,6 +16,7 @@ import pandas as pd
 import datetime as dt
 import numpy as np
 from kaissandra.inputs import Data
+from kaissandra.local_config import local_vars
 import pickle
 
 #from TradingManager_v10 import write_log
@@ -164,20 +165,20 @@ class Position:
         
 class Strategy():
     
-    def __init__(self, direct='', thr_sl=1000, lim_groi=-.1, thr_tp=1000, fix_spread=False, 
+    def __init__(self, direct='', thr_sl=1000, lim_groi_ext=-.1, thr_tp=1000, fix_spread=False, 
                  fixed_spread_pips=2, max_lots_per_pos=.1, flexible_lot_ratio=False, 
                  lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
-                 name='',use_GRE=False,t_index=3,IDr=None,IDgre=None,epoch='11',
-                 weights=np.array([0,1])):
+                 name='',t_index=3,IDr=None,IDgre=None,epoch='11',
+                 weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr'):
         
         self.name = name
         self.dir_origin = direct
         
-        self.thr_sl = thr_sl 
-        self.lim_groi = lim_groi
+        self.thr_sl = thr_sl
         self.thr_tp = thr_tp
+        self.lim_groi_ext = lim_groi_ext
         
         self.fix_spread = fix_spread
         self.pip = 0.0001
@@ -197,21 +198,23 @@ class Strategy():
         
         self.if_dir_change_close = if_dir_change_close
         self.if_dir_change_extend = if_dir_change_extend
-        
-         # load GRE
-        self.use_GRE = use_GRE
+        # strategies
+        self.entry_strategy = entry_strategy
+        # load GRE
         self.IDr = IDr
         self.IDgre = IDgre
         self.epoch = epoch
         self.t_index = t_index
         self.weights = weights
         self._load_GRE()
+        # spread range strategy
+        self.info_spread_ranges = info_spread_ranges
         
     def _load_GRE(self):
         """ Load strategy efficiency matrix GRE """
         # shape GRE: (model.seq_len+1, len(thresholds_mc), len(thresholds_md), 
         #int((model.size_output_layer-1)/2))
-        if self.use_GRE:
+        if self.entry_strategy=='gre':
             assert(np.sum(self.weights)==1)
             allGREs = pickle.load( open( self.dir_origin+self.IDgre+
                                         "/GRE_e"+self.epoch+".p", "rb" ))
@@ -262,7 +265,7 @@ class Strategy():
     def get_profitability(self, p_mc, p_md, level):
         '''
         '''
-        if self.use_GRE:
+        if self.entry_strategy=='gre':
             
             return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
         else:
@@ -318,12 +321,12 @@ class Trader:
         self.save_log = 1
         if log_file=='':
             start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-            self.log_file = ("../RNN/resultsLive/simulate/trader/"+
+            self.log_file = (local_vars.live_results_dict+"simulate/trader/"+
                              start_time+"trader_v30.log")
         else:
             self.log_file = log_file
         if summary_file=='':
-            self.summary_file = ("../RNN/resultsLive/simulate/trader/"+
+            self.summary_file = (local_vars.live_results_dict+"simulate/trader/"+
                              start_time+"summary.log")
         else:
             self.summary_file = summary_file
@@ -354,7 +357,7 @@ class Trader:
                                                self.next_candidate.strategy]].thr_tp
                                                *self.pip))
         self.list_lim_groi.append(strategys[name2str_map[
-                                               self.next_candidate.strategy]].lim_groi)
+                                               self.next_candidate.strategy]].lim_groi_ext)
         
         
     def remove_position(self, idx):
@@ -466,54 +469,30 @@ class Trader:
     def check_secondary_contition_for_opening(self):
         
         margin = 0.5
-        if strategys[name2str_map[self.next_candidate.strategy]].fix_spread:
+        this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
+        if this_strategy.entry_strategy=='fixed_thr':
             second_condition_open = (self.next_candidate!= None and 
-                                     self.next_candidate.p_mc>=strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].lb_mc_op and 
-                                    self.next_candidate.p_md>=strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].lb_md_op and
-                                     self.next_candidate.p_mc<strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].ub_mc_op and 
-                                    self.next_candidate.p_md<strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].ub_md_op)
+                                     self.next_candidate.p_mc>=this_strategy.lb_mc_op and 
+                                    self.next_candidate.p_md>=this_strategy.lb_md_op and
+                                     self.next_candidate.p_mc<this_strategy.ub_mc_op and 
+                                    self.next_candidate.p_md<this_strategy.ub_md_op)
             
-        elif (not strategys[name2str_map[self.next_candidate.strategy]
-            ].fix_spread and 
-            not strategys[name2str_map[self.next_candidate.strategy]].use_GRE):
+        elif this_strategy.entry_strategy=='gre':
             second_condition_open = (self.next_candidate!= None and 
-                                     e_spread<strategys[name2str_map[
-                                    self.next_candidate.strategy]
-                                    ].fixed_spread_ratio and 
-                                    self.next_candidate.p_mc>=strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].lb_mc_op and 
-                                     self.next_candidate.p_md>=strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].lb_md_op and 
-                                    self.next_candidate.p_mc<strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].ub_mc_op and 
-                                    self.next_candidate.p_md<strategys[
-                                    name2str_map[self.next_candidate.strategy]
-                                    ].ub_md_op)
-            
-        elif (not strategys[name2str_map[
-            self.next_candidate.strategy]].fix_spread and 
-            strategys[name2str_map[self.next_candidate.strategy]].use_GRE):
-            second_condition_open = (self.next_candidate!= None and 
-                                     strategys[name2str_map[
-                                    self.next_candidate.strategy]
-                                    ].get_profitability(self.next_candidate.p_mc, 
+                                     this_strategy.get_profitability(
+                                             self.next_candidate.p_mc, 
                                     self.next_candidate.p_md, 
                                     int(np.abs(self.next_candidate.bet
                                     )-1))>e_spread/self.pip+margin)
-            
+        elif this_strategy.entry_strategy=='spread_ranges':
+#            print("\n\n\n")
+#            print(e_spread/self.pip)
+#            print("\n\n\n")
+            second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1] and\
+                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][0]
         else:
-            raise ValueError("fix_spread cannot be fixed if GRE is in use")
+            raise ValueError("Unknown entry strategy")
             
         return second_condition_open
     
@@ -541,7 +520,7 @@ class Trader:
         margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
         # if not use GRE matrix
-        if not this_strategy.use_GRE:
+        if this_strategy.entry_strategy=='fixed_thr':
             condition =  (self.list_opened_positions[
                         self.map_ass_idx2pos_idx[idx]
                         ].direction==self.next_candidate.direction and 
@@ -549,7 +528,7 @@ class Trader:
                         self.next_candidate.p_md>=this_strategy.lb_md_ext and
                         self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                         self.next_candidate.p_md<this_strategy.ub_md_ext)
-        else:
+        elif this_strategy.entry_strategy=='gre':
             previous_p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
             previous_p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
             sum_previous_p = previous_p_mc+previous_p_md
@@ -569,6 +548,10 @@ class Trader:
 #             and
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
+        elif this_strategy.entry_strategy=='spread_ranges':
+            condition = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1] and \
+                         100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
         return condition
 
     def update_stoploss(self, idx):
@@ -1020,20 +1003,20 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-#    numberNetwors = 10
-#    list_IDresults = ['100287Nov09NTI','100287Nov09NTI','100285Nov09NTI',
-#                      '100285Nov09NTI','100287Nov09NTI','100285Nov09NTI',
-#                      '100287Nov09NTI','100285Nov09NTI','100287Nov09NTI',
-#                      '100285Nov09NTI']#
-#    list_IDgre = list_IDresults#['100287Nov09','100286Nov09','100285Nov09']
-#    list_name = ['87_6_2','87_6_3','85_16_3','85_16_2','87_6_1','85_16_1',
-#                 '87_6_0','85_16_0','87_6_4','85_16_4']
-#    list_epoch_gre = [6,6,16,16,6,16,6,16,6,16]
-#    list_epoch_journal = [6,6,16,16,6,16,6,16,6,16]
-#    list_t_index = [2,3,3,2,1,1,0,0,4,4]
-#    list_w_str = ["55" for i in range(numberNetwors)]
-#    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_weights = [np.array([.5,.5]) for i in range(numberNetwors)]
+#    numberNetwors = 2
+#    list_IDresults = ['100287INVO','100287INVO']#
+#    list_IDgre = ['100287INVO','100287INVO']
+#    list_name = ['287NEWO_2_0','277NEWO_4_1']
+#    list_epoch_gre = [2,4]
+#    list_epoch_journal = [2,4]
+##    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["01" for i in range(numberNetwors)]
+#    list_margin_ext = ['variable']
+#    list_t_index = [0,1]
+#    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]
+#    list_lim_groi_ext = [-.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
 #    list_lb_mc_op = [.5 for i in range(numberNetwors)]
 #    list_lb_md_op = [.8 for i in range(numberNetwors)]
 #    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
@@ -1043,7 +1026,6 @@ if __name__ == '__main__':
 #    list_ub_mc_ext = [1 for i in range(numberNetwors)]
 #    list_ub_md_ext = [1 for i in range(numberNetwors)]
 #    list_thr_sl = [1000 for i in range(numberNetwors)]
-#    list_groi_limit = [-.1 for i in range(numberNetwors)]
 #    list_thr_tp = [1000 for i in range(numberNetwors)]
 #    list_fix_spread = [False for i in range(numberNetwors)]
 #    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
@@ -1052,29 +1034,28 @@ if __name__ == '__main__':
 #    list_if_dir_change_close = [False for i in range(numberNetwors)]
 #    list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    
-    numberNetwors = 2
-    list_IDresults = ['100287INVO','100287INVO']#
-    list_IDgre = ['100287INVO','100287INVO']
-    list_name = ['287NEWO_2_0','277NEWO_4_1']
-    list_epoch_gre = [2,4]
-    list_epoch_journal = [2,4]
-    list_use_GRE = [True for i in range(numberNetwors)]
+    numberNetwors = 1
+    list_IDresults = ['100327R20']#
+    list_IDgre = [None]
+    list_name = ['327R20_9_1_.5_.7']
+    list_epoch_gre = [None]
+    list_epoch_journal = [9]
+#    list_use_GRE = [True for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-    list_w_str = ["01" for i in range(numberNetwors)]
-    list_margin_ext = ['variable']
-    list_t_index = [0,1]
-    list_spreads_range = [[0,5],[5,1000]]
+    list_w_str = [""]
+    list_t_index = [1]
+    list_spread_ranges = [{'sp':[4],'th':[(.5,.7)]}]
+    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
     list_lb_mc_op = [.5 for i in range(numberNetwors)]
     list_lb_md_op = [.8 for i in range(numberNetwors)]
     list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.6 for i in range(numberNetwors)]
+    list_lb_md_ext = [.7 for i in range(numberNetwors)]
     list_ub_mc_op = [1 for i in range(numberNetwors)]
     list_ub_md_op = [1 for i in range(numberNetwors)]
     list_ub_mc_ext = [1 for i in range(numberNetwors)]
     list_ub_md_ext = [1 for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
-    list_groi_limit = [-.1 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
     list_fix_spread = [False for i in range(numberNetwors)]
     list_fixed_spread_pips = [4 for i in range(numberNetwors)]
@@ -1083,7 +1064,7 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    strategys = [Strategy(direct='../RNN/results/',thr_sl=list_thr_sl[i], 
+    strategys = [Strategy(direct=local_vars.results_directory,thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                           fixed_spread_pips=list_fixed_spread_pips[i], 
                           max_lots_per_pos=list_max_lots_per_pos[i],
@@ -1094,47 +1075,73 @@ if __name__ == '__main__':
                           ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
                           if_dir_change_close=list_if_dir_change_close[i], 
                           if_dir_change_extend=list_if_dir_change_extend[i], 
-                          name=list_name[i],use_GRE=list_use_GRE[i],
+                          name=list_name[i],
                           t_index=list_t_index[i],IDr=list_IDresults[i],
-                          IDgre=list_IDgre[i],lim_groi=list_groi_limit[i],
-                          epoch=str(list_epoch_gre[i]),weights=list_weights[i]) 
-                          for i in range(len(list_t_index))]
+                          IDgre=list_IDgre[i],
+                          epoch=str(list_epoch_gre[i]),weights=list_weights[i],
+                          info_spread_ranges=list_spread_ranges[i],
+                          lim_groi_ext=list_lim_groi_ext[i],
+                          entry_strategy=list_entry_strategy[i]) 
+                          for i in range(numberNetwors)]
     
     name2str_map = {}
     for n in range(len(list_name)):
         name2str_map[strategys[n].name] = n
     
     if not load_from_live:
-        
-        resultsDir = "../RNN/results/"
-        list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+
-                            str(list_t_index[i])+"/"+list_IDresults[i]+"t"+
-                            str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
-                            "/"+list_IDresults[i]+"t"+str(list_t_index[i])+
-                            "mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                            "/" for i in range(len(list_t_index))]
-        list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
-                             str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                             "e"+str(list_epoch_journal[i])+".csv" 
-                             for i in range(len(list_t_index))]
-        entry_time_column = 'DT1'#'Entry Time
-        exit_time_column = 'DT2'#'Exit Time
-        entry_bid_column = 'B1'
-        entry_ask_column = 'A1'
-        exit_ask_column = 'A2'
-        exit_bid_column = 'B2'
-        root_dir = 'D:/SDC/py/Data/'
-        list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
-                                             list_journal_name[i], 
-                                             sep='\t').sort_values(
-                                            by=[entry_time_column]).reset_index(
-                                                    ).drop(labels='level_0',
-                                                    axis=1).assign(
-                                                    strategy=list_name[i]) 
-                                            for i in range(len(list_t_index))]# .drop(labels='level_0',axis=1)
+        new_results = True
+        resultsDir = local_vars.results_directory#"../RNN/results/"
+        if not new_results:
+            list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+
+                                str(list_t_index[i])+"/"+list_IDresults[i]+"t"+
+                                str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
+                                "/"+list_IDresults[i]+"t"+str(list_t_index[i])+
+                                "mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
+                                "/" for i in range(len(list_t_index))]
+            list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
+                                 str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
+                                 "e"+str(list_epoch_journal[i])+".csv" 
+                                 for i in range(len(list_t_index))]
+            entry_time_column = 'DT1'#'Entry Time
+            exit_time_column = 'DT2'#'Exit Time
+            entry_bid_column = 'B1'
+            entry_ask_column = 'A1'
+            exit_ask_column = 'A2'
+            exit_bid_column = 'B2'
+            root_dir = 'D:/SDC/py/Data/'
+            list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
+                                                 list_journal_name[i], 
+                                                 sep='\t').sort_values(
+                                                by=[entry_time_column]).reset_index(
+                                                        ).drop(labels='level_0',
+                                                        axis=1).assign(
+                                                        strategy=list_name[i]) 
+                                                for i in range(len(list_t_index))]# .drop(labels='level_0',axis=1)
+        else:
+            list_journal_dir = [resultsDir+list_IDresults[i]+"/journal/"
+                                 for i in range(len(list_t_index))]
+            list_journal_name = ["J_E"+
+                                str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
+                                +"MC"+str(list_lb_mc_ext[i])+"MD"+str(list_lb_md_ext[i])+".csv"
+                                for i in range(len(list_t_index))]
+            entry_time_column = 'DTi'#'Entry Time
+            exit_time_column = 'DTo'#'Exit Time
+            entry_bid_column = 'Bi'
+            entry_ask_column = 'Ai'
+            exit_ask_column = 'Ao'
+            exit_bid_column = 'Bo'
+            root_dir = 'D:/SDC/py/Data/'
+            list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
+                                                 list_journal_name[i], 
+                                                 sep='\t').sort_values(
+                                                by=[entry_time_column]).reset_index(
+                                                        ).drop(labels='level_0',
+                                                        axis=1).assign(
+                                                        strategy=list_name[i]) 
+                                                for i in range(len(list_t_index))]
     else:
         
-        resultsDir = "../RNN/resultsLive/back_test/"
+        resultsDir = "../../RNN/resultsLive/back_test/"
         IDresults = ["100287Nov09"]
         list_journal_dir = [resultsDir+IDresults[0]+'T'+
                             str(list_t_index[0])+
@@ -1184,7 +1191,7 @@ if __name__ == '__main__':
                          'LOT'+str(list_max_lots_per_pos[i])+'SL'+str(list_thr_sl[i])
                          for i in range(numberNetwors)])+',F'+dateTest[0]+'T'+\
                          dateTest[-1]
-    directory = "../RNN/resultsLive/simulate/trader/"
+    directory = local_vars.live_results_dict+"simulate/trader/"
     log_file = directory+start_time+"trader_v30.log"
     summary_file = directory+start_time+"summary.log"
     # save sorted journal
