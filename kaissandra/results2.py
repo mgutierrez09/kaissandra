@@ -325,7 +325,11 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     m = y.shape[0]
     n_days = len(dateTest)
 #    granularity = 1/resolution
-    J_train = costs[IDweights+str(epoch)]
+    if 'cost_name' in config:
+        cost_name = config['cost_name']
+    else:
+        cost_name = IDweights
+    J_train = costs[cost_name+str(epoch)]
     # cum results per t_index and mc/md combination
     CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # single results (results per MCxMD)
@@ -616,20 +620,23 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             Bo = Journal[B2].iloc[e-1]
             Bi = Journal[B1].iloc[eInit]
             if direction>0:
-                GROI = (Ao-Ai)/Ai
-                thisSpread = (Ao-Bo)/Ai
+                GROI = (Bo-Bi)/Ai#(Ao-Ai)/Ai
+                ROI = (Bo-Ai)/Ai
+                #thisSpread = (Ao-Bo)/Ai
                 
             else:
                 GROI = (Bi-Bo)/Ao
-                thisSpread = (Ao-Bo)/Ao
+                ROI = (Bi-Ao)/Ao
+                #thisSpread = (Ao-Bo)/Ao
             if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
+            thisSpread = GROI-ROI
             #thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]  
             mSpread += thisSpread
             #GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[e-1]-Journal[B1].iloc[eInit])/Journal[B1].iloc[eInit]
             eGROI += GROI
             avGROI += Journal['GROI'].iloc[e]
-            ROI = GROI-thisSpread
+            #ROI = GROI-thisSpread
             
             ROI_vector = np.append(ROI_vector,ROI)
             GROI_vector = np.append(GROI_vector,GROI)

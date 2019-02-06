@@ -388,6 +388,10 @@ class modelRNN(object):
         costs = {}
         if os.path.exists(weights_directory+IDweights+"/cost.p"):
             costs = pickle.load( open( weights_directory+IDweights+"/cost.p", "rb" ))
+            if 'cost_name' in config:
+                cost_name = config['cost_name']
+            else:
+                cost_name = IDweights
         else:
             pass
         # load IO info
@@ -404,7 +408,7 @@ class modelRNN(object):
         results_filename, costs_filename = init_results_dir(results_directory, IDresults)
         # load models and test them
         for epoch in range(startFrom,lastTrained+1):
-            if math.isnan(costs[IDweights+str(epoch)]):
+            if math.isnan(costs[cost_name+str(epoch)]):
                 print("J_train=NaN BREAK!")
                 break
             self._load_graph(IDweights,epoch)
