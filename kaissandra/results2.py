@@ -620,14 +620,12 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             Bo = Journal[B2].iloc[e-1]
             Bi = Journal[B1].iloc[eInit]
             if direction>0:
-                GROI = (Bo-Bi)/Ai#(Ao-Ai)/Ai
+                GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
                 ROI = (Bo-Ai)/Ai
-                #thisSpread = (Ao-Bo)/Ai
                 
             else:
                 GROI = (Bi-Bo)/Ao
                 ROI = (Bi-Ao)/Ao
-                #thisSpread = (Ao-Bo)/Ao
             if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
             thisSpread = GROI-ROI
