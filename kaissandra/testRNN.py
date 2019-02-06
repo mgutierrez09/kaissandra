@@ -49,12 +49,7 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = False
-    if 'resolution' not in config:
-        resolution = 10
-    else:
-        resolution = config['resolution']
     
-    weights_directory = local_vars.weights_directory
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -67,11 +62,6 @@ def test_RNN(*ins):
                   feature_keys_tsfresh=feature_keys_tsfresh)
     
     #if_build_IO = config['if_build_IO']
-    startFrom = config['startFrom']
-    endAt = config['endAt']
-    save_journal = config['save_journal']
-    dateTest = config['dateTest']
-    IDweights = config['IDweights']
     IDresults = config['IDresults']
     if 'IO_results_name' not in config:
         IO_results_name = IDresults
@@ -152,7 +142,15 @@ def test_RNN(*ins):
         X = f_IO.create_dataset('X', (0, model.seq_len, model.nFeatures), 
                                 maxshape=(None,model.seq_len, model.nFeatures), 
                                 dtype=float)
+        XA = f_IO.create_dataset('XA', (0, model.seq_len, model.nFeatures), 
+                                maxshape=(None,model.seq_len, model.nFeatures), 
+                                dtype=float)
         Y = f_IO.create_dataset('Y', (0,model.seq_len,
+                                      model.commonY+model.size_output_layer),
+                                      maxshape=(None,model.seq_len,
+                                      model.commonY+model.size_output_layer),
+                                      dtype=float)
+        YA = f_IO.create_dataset('YA', (0,model.seq_len,
                                       model.commonY+model.size_output_layer),
                                       maxshape=(None,model.seq_len,
                                       model.commonY+model.size_output_layer),
@@ -173,6 +171,8 @@ def test_RNN(*ins):
         IO = {}
         IO['X'] = X
         IO['Y'] = Y
+        IO['XA'] = XA
+        IO['YA'] = YA
         IO['I'] = I
         IO['D'] = D
         IO['B'] = B

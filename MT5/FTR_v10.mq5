@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
 //|                                           fetcher_trader_v10.mq5 |
 //|                                                       mgutierrez |
-//|                                       https://www.caissandra.com |
+//|                                       https://www.kaissandra.com |
 //+------------------------------------------------------------------+
 #property copyright "mgutierrez"
 #property link      "https://www.caissandra.com"
@@ -123,7 +123,7 @@ void closePosition(string close_type){
    deadline = -1;
    
    if (position==1){
-      GROI = 100*(bid-Bi)/Ai;
+      GROI = 100*(ask-Ai)/Ai;
       ROI = 100*(bid-Ai)/Ai;
 
    }else{if(position==-1){

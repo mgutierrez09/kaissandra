@@ -115,7 +115,11 @@ def get_results_entries():
                        'NSP4','NSP5','SI.5','SI1','SI2','SI3','SI4','SI5','SI',
                        'eGROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
                        'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
-                       'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2']
+                       'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS','NOL','NOS']
+    # GRL: GROI for Long positions
+    # GRS: GROI for short positions
+    # NOL: Number of long openings
+    # NOS: umber of short openings
     return results_entries
 
 def get_costs_entries():
@@ -415,6 +419,8 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
         TR = TR[TR.epoch==epoch]
         get_best_results(TR, results_filename, resultsDir, IDresults, save=1)
+        print("\nThe very best:")
+        get_best_results(TR, results_filename, resultsDir, IDresults)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:
@@ -491,31 +497,28 @@ def unroll_dictionary(dictionary):
             unrolled_dictionary[k] = dictionary[k]
     return unrolled_dictionary
 
-def build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel, 
-                              rSampsXlevel, successes, mSpread):
+def build_extended_res_struct(list_results):
+#    (eGROI, eROI, eROIs, SI, SIs, sharpe, rROIxLevel, 
+#                              rSampsXlevel, successes, mSpread)
     """  """
-    res_w_ext = {'eGROI':eGROI,
-                'eROI':eROI,
-                'GSP':successes[1],
-                'NSP':successes[2],
-                'NO':successes[0],
-                'sharpe':sharpe,
-                'SI':SI,
-                'mSpread':mSpread,
-                #'rROIxLevel':rROIxLevel,
-                #'rSampsXlevel':rSampsXlevel,
-                #'log':log,
-                #'varRet':varRet,
-                #'successes':successes
-                }
-    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,0], 'eRl', ['1','2'])
-    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,1], 'eGl', ['1','2'])
-    res_w_ext = unroll_param(res_w_ext, rSampsXlevel[:,1], 'NOl', ['1','2'])
-    res_w_ext = unroll_param(res_w_ext, eROIs, 'eROI', ['.5','1','2','3','4','5'])
-    res_w_ext = unroll_param(res_w_ext, successes[3], 'NSP', ['.5','1','2','3','4','5'])
-    res_w_ext = unroll_param(res_w_ext, SIs, 'SI', ['.5','1','2','3','4','5'])
+    res_w_ext = {}
+    # list_results[i][0]: values, list_results[i][1]: name, list_results[i][2]:parameters
+    for i in range(len(list_results)):
+        if len(list_results[i])<3:
+            res_w_ext.update({list_results[i][1]:list_results[i][0]})
+        else:
+            res_w_ext = unroll_param(res_w_ext, list_results[i][0], list_results[i][1], list_results[i][2])
     
     return res_w_ext
+
+#def ma_pos2list():
+#    """  """
+#    this_list = [Journal['Asset'].iloc[e-1], Journal[DT1].iloc[eInit][:10],
+#                 Journal[DT1].iloc[eInit][11:], Journal[DT2].iloc[e-1][:10],
+#                 Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
+#                 100*thisSpread,this_pos_extended,direction,
+#                 Bi,Bo,Ai,Ao]
+#    return this_list
 
 def get_extended_results(Journal, size_output_layer, n_days, get_log=False, 
                          get_positions=False, pNZA=0,
@@ -563,9 +566,13 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         
     # Add GROI and ROI with real spreads
     eGROI = 0.0
+    eGROIL = 0.0
+    eGROIS = 0.0
     eROI = 0.0
     mSpread = 0.0
     n_pos_opned = 1
+    NOL = 0
+    NOS = 0
     n_pos_extended = 0
     gross_succ_counter = 0
     net_succ_counter = 0
@@ -622,10 +629,13 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             if direction>0:
                 GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
                 ROI = (Bo-Ai)/Ai
-                
+                eGROIL += GROI
+                NOL += 1
             else:
                 GROI = (Bi-Bo)/Ao
                 ROI = (Bi-Ao)/Ao
+                eGROIS += GROI
+                NOS += 1
             if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
             thisSpread = GROI-ROI
@@ -695,10 +705,13 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         if direction>0:
             GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
             ROI = (Bo-Ai)/Ai
-            
+            eGROIL += GROI
+            NOL += 1
         else:
             GROI = (Bi-Bo)/Ao
             ROI = (Bi-Ao)/Ao
+            eGROIS += GROI
+            NOS += 1
         if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
             count_dif_dir += 1
         thisSpread = GROI-ROI
@@ -743,20 +756,21 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                     list_pos[l].append(this_list[l])
     
     if get_positions:
-        dict_pos = {'Asset':list_pos[0],
-                    'Di':list_pos[1],
-                    'Ti':list_pos[2],
-                    'Do':list_pos[3],
-                    'To':list_pos[4],
-                    'GROI':list_pos[5],
-                    'ROI':list_pos[6],
-                    'spread':list_pos[7],
-                    'ext':list_pos[8],
-                    'Dir':list_pos[9],
-                    'Bi':list_pos[10],
-                    'Bo':list_pos[11],
-                    'Ai':list_pos[12],
-                    'Ao':list_pos[13]}
+        dict_pos = {columns_positions[i]:list_pos[i] for i in range(len(columns_positions))}
+#        dict_pos = {'Asset':list_pos[0],
+#                    'Di':list_pos[1],
+#                    'Ti':list_pos[2],
+#                    'Do':list_pos[3],
+#                    'To':list_pos[4],
+#                    'GROI':list_pos[5],
+#                    'ROI':list_pos[6],
+#                    'spread':list_pos[7],
+#                    'ext':list_pos[8],
+#                    'Dir':list_pos[9],
+#                    'Bi':list_pos[10],
+#                    'Bo':list_pos[11],
+#                    'Ai':list_pos[12],
+#                    'Ao':list_pos[13]}
         df = pd.DataFrame(dict_pos)\
             [pd.DataFrame(columns = columns_positions).columns.tolist()]
         success = 0
@@ -771,6 +785,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 time.sleep(1)
     print("count_dif_dir")
     print(count_dif_dir)
+    print("percent_dif_dir")
+    print(100*count_dif_dir/n_pos_opned)
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
     NSPs = NSPs/n_pos_opned
@@ -792,8 +808,38 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
-    res_w_ext = build_extended_res_struct(eGROI, eROI, eROIs, SI, SIs, sharpe, 
-                                          rROIxLevel, rSampsXlevel, successes, mSpread)
+    
+#    res_w_ext = {'eGROI':eGROI,
+#                'eROI':eROI,
+#                'GSP':successes[1],
+#                'NSP':successes[2],
+#                'NO':successes[0],
+#                'sharpe':sharpe,
+#                'SI':SI,
+#                'mSpread':mSpread,
+#                #'rROIxLevel':rROIxLevel,
+#                #'rSampsXlevel':rSampsXlevel,
+#                #'log':log,
+#                #'varRet':varRet,
+#                #'successes':successes
+#                }
+#    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,0], 'eRl', ['1','2'])
+#    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,1], 'eGl', ['1','2'])
+#    res_w_ext = unroll_param(res_w_ext, rSampsXlevel[:,1], 'NOl', ['1','2'])
+#    res_w_ext = unroll_param(res_w_ext, eROIs, 'eROI', ['.5','1','2','3','4','5'])
+#    res_w_ext = unroll_param(res_w_ext, successes[3], 'NSP', ['.5','1','2','3','4','5'])
+#    res_w_ext = unroll_param(res_w_ext, SIs, 'SI', ['.5','1','2','3','4','5'])
+    
+    list_ext_results = [[eGROI,'eGROI'], [eROI,'eROI'], [successes[1],'GSP'], \
+                        [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
+                        [SI,'SI'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \
+                        [rROIxLevel[:,1], 'eGl', ['1','2']], [rSampsXlevel[:,1], 'NOl', ['1','2']], \
+                        [eROIs, 'eROI', ['.5','1','2','3','4','5']], \
+                        [successes[3], 'NSP', ['.5','1','2','3','4','5']], \
+                        [SIs, 'SI', ['.5','1','2','3','4','5']], [100*eGROIL, 'eGROIL'], \
+                        [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS']]
+    
+    res_w_ext = build_extended_res_struct(list_ext_results)
     
     return res_w_ext, log
 

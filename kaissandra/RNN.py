@@ -435,11 +435,11 @@ class modelRNN(object):
                         costs_filename,
                         from_var=from_var)
         
-        if resolution>0:
-            TR = pd.read_csv(results_filename+'.csv', sep='\t')
-            print("\nThe very best:")
-            get_best_results(TR, results_filename, results_directory, IDresults)
-            print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
+#        if resolution>0:
+#            TR = pd.read_csv(results_filename+'.csv', sep='\t')
+#            print("\nThe very best:")
+#            get_best_results(TR, results_filename, results_directory, IDresults)
+        print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
             
         return None
     

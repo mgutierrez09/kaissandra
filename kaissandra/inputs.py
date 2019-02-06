@@ -1163,6 +1163,9 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         D = IO['D']
         B = IO['B']
         A = IO['A']
+        
+        #XA = IO['XA']
+        #YA = IO['YA']
 
     # extract IO structures
     X = IO['X']
@@ -1248,10 +1251,13 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         O_i = np.zeros((batch, seq_len, 1))
         # output index vector
         I_i = np.zeros((batch, seq_len, 2))
-        
-        D_i = np.chararray((batch, seq_len, 2),itemsize=19)
-        B_i = np.zeros((batch, seq_len, 2))
-        A_i = np.zeros((batch, seq_len, 2))
+        if all_info:
+            #XA_i = np.zeros((batch, seq_len, model.nFeatures))
+            #OA_i = np.zeros((batch, seq_len, 1))
+            
+            D_i = np.chararray((batch, seq_len, 2),itemsize=19)
+            B_i = np.zeros((batch, seq_len, 2))
+            A_i = np.zeros((batch, seq_len, 2))
         
         for nI in range(batch):
             # init channels counter
@@ -1259,16 +1265,22 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
             for r in range(nC):
                 # get input
                 v_s_s = v_support[nI:nI+seq_len, :, r]
+                #va_s_s = va_support[nI:nI+seq_len, :, r]
                 if inverse_load:
                     X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s[::-1,:]#[nI:nI+seq_len, :, r]
+#                    if all_info:
+#                        XA_i[nI,:,cc*nF:(cc+1)*nF] = va_s_s[::-1,:]
                 else:
                     X_i[nI,:,cc*nF:(cc+1)*nF] = v_s_s
+#                    if all_info:
+#                        XA_i[nI,:,cc*nF:(cc+1)*nF] = va_s_s
                 cc += 1
             # due to substraction of features for variation, output gets the 
             # feature one entry later
             O_i[nI,:,0] = r_support[nI]
             I_i[nI,:,:] = i_support[nI,:]
             if all_info:
+                #OA_i[nI,:,0] = ra_support[nI]
                 D_i[nI,:,:] = dt_support[nI,:]
                 B_i[nI,:,:] = b_support[nI,:]
                 A_i[nI,:,:] = a_support[nI,:]
@@ -1276,22 +1288,30 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         
         # normalize output
         O_i = O_i/stds_out[0,data.lookAheadIndex]#stdO#
+        #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # update counters
         offset = offset+batch
         # get decimal and binary outputs
         Y_i, y_dec = _build_bin_output(model, O_i, batch)
+        #YA_i, ya_dec = _build_bin_output(model, OA_i, batch)
         # get samples per level
         for l in range(model.size_output_layer):
             totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
         # resize IO structures
         X.resize((pointer+batch, seq_len, model.nFeatures))
+        
         Y.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
+        
         I.resize((pointer+batch, seq_len, 2))
         # update IO structures
         X[pointer:pointer+batch,:,:] = X_i
         Y[pointer:pointer+batch,:,:] = Y_i
         I[pointer:pointer+batch,:,:] = I_i
         if all_info:
+            #XA.resize((pointer+batch, seq_len, model.nFeatures))
+            #YA.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
+            #XA[pointer:pointer+batch,:,:] = XA_i
+            #YA[pointer:pointer+batch,:,:] = YA_i
             # resize
             D.resize((pointer+batch, seq_len, 2))
             B.resize((pointer+batch, seq_len, 2))
@@ -1313,6 +1333,9 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     IO['I'] = I
     IO['pointer'] = pointer
     if all_info:
+        #IO['XA'] = XA
+        #IO['YA'] = YA
+        
         IO['D'] = D
         IO['B'] = B
         IO['A'] = A
