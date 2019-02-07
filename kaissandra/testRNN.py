@@ -251,7 +251,7 @@ def test_RNN(*ins):
                     if features_manual.shape[0]==0:
                         features_manual = np.zeros((features_tsf.shape[0],0))
                         
-                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s, filename_prep_IO)
+                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, filename_prep_IO, s)
                     # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
