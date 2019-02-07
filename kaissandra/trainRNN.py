@@ -49,6 +49,10 @@ def train_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = True
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
         
     weights_directory = local_vars.weights_directory
     
@@ -68,7 +72,11 @@ def train_RNN(*ins):
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     # init hdf5 files
-    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+    if feats_from_bids:
+        tag = 'IO_mW'
+    else:
+        tag = 'IO_mW'
+    filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+'_nE'+
                          str(data.nEventsPerStat)+'_2.hdf5')

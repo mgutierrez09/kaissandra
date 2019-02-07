@@ -218,6 +218,10 @@ def configuration(*ins):
             build_partial_raw = entries['build_partial_raw']
         else:
             build_partial_raw = False
+        if 'feats_from_bids' in entries:
+            feats_from_bids = entries['feats_from_bids']
+        else:
+            feats_from_bids = True
         
         # add parameters to config dictionary
         config = {'config_name':config_name,
@@ -259,7 +263,8 @@ def configuration(*ins):
                   
                   'save_stats':save_stats,
                   'load_features_from':load_features_from,
-                  'build_partial_raw':build_partial_raw}
+                  'build_partial_raw':build_partial_raw,
+                  'feats_from_bids':feats_from_bids}
     
         # save config file for later use
     

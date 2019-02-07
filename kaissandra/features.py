@@ -22,13 +22,14 @@ from kaissandra.local_config import local_vars
 
 def get_features_ba(*ins):
     """ Get features from both bids and asks """
-    from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw
+    from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw, get_IOBA_from_raw
     
     ticTotal = time.time()
     if len(ins)>0:
         config = ins[0]
     else:    
         config = configuration('C01100')
+    
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -43,9 +44,10 @@ def get_features_ba(*ins):
     # define files and directories names
     load_features_from = config['load_features_from']
     if load_features_from=='manual':
-        filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+        filename_prep_IO = (hdf5_directory+'IOBA_mW'+str(data.movingWindow)+'_nE'+
                             str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
     elif load_features_from=='tsfresh':
+        raise NotImplemented("tsfresh feature extraction with BA not implemented")
         filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE_test'+
                             str(data.nEventsPerStat)+'.hdf5')
     else:
@@ -128,17 +130,25 @@ def get_features_ba(*ins):
         stats = {}
         if save_stats:
             
-            stats["means_t_in"] = np.zeros((nChannels,data.nFeatures))
-            stats["stds_t_in"] = np.zeros((nChannels,data.nFeatures))
-            stats["means_t_out"] = np.zeros((1,len(data.lookAheadVector)))
-            stats["stds_t_out"] = np.zeros((1,len(data.lookAheadVector)))
+            stats["means_bid_t_in"] = np.zeros((nChannels,data.nFeatures))
+            stats["stds_bid_t_in"] = np.zeros((nChannels,data.nFeatures))
+            stats["means_bid_t_out"] = np.zeros((1,len(data.lookAheadVector)))
+            stats["stds_bid_t_out"] = np.zeros((1,len(data.lookAheadVector)))
+            stats["means_ask_t_in"] = np.zeros((nChannels,data.nFeatures))
+            stats["stds_ask_t_in"] = np.zeros((nChannels,data.nFeatures))
+            stats["means_ask_t_out"] = np.zeros((1,len(data.lookAheadVector)))
+            stats["stds_ask_t_out"] = np.zeros((1,len(data.lookAheadVector)))
             stats["m_t_in"] = 0
             stats["m_t_out"]  = 0
         else:
-            stats["means_t_in"] = ass_group.attrs.get("means_t_in")
-            stats["stds_t_in"] = ass_group.attrs.get("stds_t_in")
-            stats["means_t_out"] = ass_group.attrs.get("means_t_out")
-            stats["stds_t_out"] = ass_group.attrs.get("stds_t_out")
+            stats["means_bid_t_in"] = ass_group.attrs.get("means_bid_t_in")
+            stats["stds_bid_t_in"] = ass_group.attrs.get("stds_bid_t_in")
+            stats["means_bid_t_out"] = ass_group.attrs.get("means_bid_t_out")
+            stats["stds_bid_t_out"] = ass_group.attrs.get("stds_bid_t_out")
+            stats["means_ask_t_in"] = ass_group.attrs.get("means_ask_t_in")
+            stats["stds_ask_t_in"] = ass_group.attrs.get("stds_ask_t_in")
+            stats["means_ask_t_out"] = ass_group.attrs.get("means_ask_t_out")
+            stats["stds_ask_t_out"] = ass_group.attrs.get("stds_ask_t_out")
             stats["m_t_in"] = ass_group.attrs.get("m_t_in")
             stats["m_t_out"] = ass_group.attrs.get("m_t_out")
                 
@@ -154,7 +164,7 @@ def get_features_ba(*ins):
                       ". From "+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
                 #print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
                 # calculate features, returns and stats from raw data
-                IO_prep, stats = get_features_results_stats_from_raw(
+                IO_prep, stats = get_IOBA_from_raw(
                         data, thisAsset, separators, f_prep_IO, group_raw,
                         stats, hdf5_directory, s, save_stats)
                     
@@ -167,19 +177,32 @@ def get_features_ba(*ins):
         # save stats in attributes
         if save_stats:
             # normalize stats
-            stats["means_t_in"] = stats["means_t_in"]/stats["m_t_in"]
-            stats["stds_t_in"] = stats["stds_t_in"]/stats["m_t_in"]
-            stats["means_t_out"] = stats["means_t_out"]/stats["m_t_out"]
-            stats["stds_t_out"] = stats["stds_t_out"]/stats["m_t_out"]
-            means_t_in = stats["means_t_in"]
-            stds_t_in = stats["stds_t_in"] 
-            means_t_out = stats["means_t_out"]
-            stds_t_out = stats["stds_t_out"]
+            stats["means_bid_t_in"] = stats["means_bid_t_in"]/stats["m_t_in"]
+            stats["stds_bid_t_in"] = stats["stds_bid_t_in"]/stats["m_t_in"]
+            stats["means_bid_t_out"] = stats["means_bid_t_out"]/stats["m_t_out"]
+            stats["stds_bid_t_out"] = stats["stds_bid_t_out"]/stats["m_t_out"]
+            stats["means_ask_t_in"] = stats["means_ask_t_in"]/stats["m_t_in"]
+            stats["stds_ask_t_in"] = stats["stds_ask_t_in"]/stats["m_t_in"]
+            stats["means_ask_t_out"] = stats["means_ask_t_out"]/stats["m_t_out"]
+            stats["stds_ask_t_out"] = stats["stds_ask_t_out"]/stats["m_t_out"]
+            means_bid_t_in = stats["means_bid_t_in"]
+            stds_bid_t_in = stats["stds_bid_t_in"] 
+            means_bid_t_out = stats["means_bid_t_out"]
+            stds_bid_t_out = stats["stds_bid_t_out"]
+            means_ask_t_in = stats["means_ask_t_in"]
+            stds_ask_t_in = stats["stds_ask_t_in"] 
+            means_ask_t_out = stats["means_ask_t_out"]
+            stds_ask_t_out = stats["stds_ask_t_out"]
             #save total stats as attributes
-            ass_group.attrs.create("means_t_in", means_t_in, dtype=float)
-            ass_group.attrs.create("stds_t_in", stds_t_in, dtype=float)
-            ass_group.attrs.create("means_t_out", means_t_out, dtype=float)
-            ass_group.attrs.create("stds_t_out", stds_t_out, dtype=float)
+            ass_group.attrs.create("means_bid_t_in", means_bid_t_in, dtype=float)
+            ass_group.attrs.create("stds_bid_t_in", stds_bid_t_in, dtype=float)
+            ass_group.attrs.create("means_bid_t_out", means_bid_t_out, dtype=float)
+            ass_group.attrs.create("stds_bid_t_out", stds_bid_t_out, dtype=float)
+            
+            ass_group.attrs.create("means_ask_t_in", means_ask_t_in, dtype=float)
+            ass_group.attrs.create("stds_ask_t_in", stds_ask_t_in, dtype=float)
+            ass_group.attrs.create("means_ask_t_out", means_ask_t_out, dtype=float)
+            ass_group.attrs.create("stds_ask_t_out", stds_ask_t_out, dtype=float)
             ass_group.attrs.create("m_t_in", stats["m_t_in"], dtype=int)
             ass_group.attrs.create("m_t_out", stats["m_t_out"], dtype=int)
             # pickle them independently
@@ -188,7 +211,7 @@ def get_features_ba(*ins):
                                      str(data.nEventsPerStat)+'_nF'+
                                      str(data.nFeatures)+".p", "wb" ))
             # print number of IO samples
-            print("\t"+"Config "+config['config_name']+
+            print("\t"+"Config "+config['config_name']+" "+thisAsset+
                   " Stats saved. m_t_in="+
                   str(stats["m_t_in"])+", m_t_out="+str(stats["m_t_out"]))
             
@@ -235,14 +258,23 @@ def get_features(*ins):
               feature_keys_tsfresh=config['feature_keys_tsfresh'],
               assets=config['assets'])
     # init booleans
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
     save_stats = config['save_stats']  
     # init file directories
     hdf5_directory = local_vars.hdf5_directory
     # define files and directories names
     load_features_from = config['load_features_from']
     if load_features_from=='manual':
-        filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                            str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+        if feats_from_bids:
+            filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+                                str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+        else:
+            # feats from asks
+            filename_prep_IO = (hdf5_directory+'IOA_mW'+str(data.movingWindow)+'_nE'+
+                                str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
     elif load_features_from=='tsfresh':
         filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE_test'+
                             str(data.nEventsPerStat)+'.hdf5')
@@ -354,7 +386,7 @@ def get_features(*ins):
                 # calculate features, returns and stats from raw data
                 IO_prep, stats = get_features_results_stats_from_raw(
                         data, thisAsset, separators, f_prep_IO, group_raw,
-                        stats, hdf5_directory, s, save_stats)
+                        stats, hdf5_directory, s, save_stats, feats_from_bids=feats_from_bids)
                     
             else:
                 print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(int(s/2),int(len(separators)/2-1)))
@@ -381,7 +413,11 @@ def get_features(*ins):
             ass_group.attrs.create("m_t_in", stats["m_t_in"], dtype=int)
             ass_group.attrs.create("m_t_out", stats["m_t_out"], dtype=int)
             # pickle them independently
-            pickle.dump( stats, open( hdf5_directory+'/stats/'+thisAsset+'_stats_mW'+
+            if feats_from_bids:
+                tag = 'IOB'
+            else:
+                tag = 'IOA'
+            pickle.dump( stats, open( hdf5_directory+'/stats/'+thisAsset+'_'+tag+'stats_mW'+
                                      str(data.movingWindow)+'_nE'+
                                      str(data.nEventsPerStat)+'_nF'+
                                      str(data.nFeatures)+".p", "wb" ))

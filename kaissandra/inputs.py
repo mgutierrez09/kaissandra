@@ -514,6 +514,189 @@ def _build_bin_output(model, Output, batch_size):
 
     return y_bin, y_dec
 
+def get_features_ba_from_raw_par(data, features, DateTime, SymbolBid):
+    """
+    Function that calculates features from raw data in per batches
+    Args:
+        - data
+        - features
+        - DateTime
+        - SymbolBid
+    Returns:
+        - features
+    """
+    
+    tic = time.time()
+    # init scalars
+    nExS = data.nEventsPerStat
+    mW = data.movingWindow
+    nE = DateTime.shape[0]
+    m = int(np.floor((nE/nExS-1)*nExS/mW)+1)
+    secsInDay = 86400.0
+    nEMAs = data.lbd.shape[0]
+    
+    # init exponetial means
+    em = np.zeros((data.lbd.shape))+SymbolBid[0]
+    for i in range(nExS-mW):
+        em = data.lbd*em+(1-data.lbd)*SymbolBid[i]
+    #/(1-np.maximum(data.lbd**i,1e-3))
+    
+    
+    oldSARh20 = SymbolBid[0]
+    oldSARh2 = SymbolBid[0]
+    oldSARl20 = SymbolBid[0]
+    oldSARl2 = SymbolBid[0]
+    HP20 = 0
+    HP2 = 0
+    LP20 = 100000
+    LP2 = 100000
+    stepAF = 0.02
+    AFH20 = stepAF
+    AFH2 = stepAF
+    AFL20 = stepAF
+    AFL2 = stepAF
+    maxAF20 = 20*stepAF    
+    maxAF2 = 2*stepAF
+    
+    batch_size = 10000000
+    par_batches = int(np.ceil(m/batch_size))
+    l_index = 0
+    # loop over batched
+    for b in range(par_batches):
+        # get m
+        m_i = np.min([batch_size, m-b*batch_size])
+        
+        # init structures
+        EMA = np.zeros((m_i,nEMAs))
+        bids = np.zeros((m_i))
+        variance = np.zeros((m_i))
+        maxValue = np.zeros((m_i))
+        minValue = np.zeros((m_i))
+        timeInterval = np.zeros((m_i))
+        timeSecs = np.zeros((m_i))
+        parSARhigh20 = np.zeros((m_i))
+        parSARhigh2 = np.zeros((m_i))
+        parSARlow20 = np.zeros((m_i))
+        parSARlow2 = np.zeros((m_i))
+        
+        
+        for mm in range(m_i):
+            
+            startIndex = l_index+mm*mW
+            endIndex = startIndex+nExS
+            thisPeriod = range(startIndex,endIndex)
+            thisPeriodBids = SymbolBid[thisPeriod]
+            
+            newBidsIndex = range(endIndex-mW,endIndex)
+            for i in newBidsIndex:
+                #a=data.lbd*em/(1-data.lbd**i)+(1-data.lbd)*tradeInfo.SymbolBid.loc[i]
+                em = data.lbd*em+(1-data.lbd)*SymbolBid[i]
+                
+            t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+            te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+
+            bids[mm] = SymbolBid[thisPeriod[-1]]
+            EMA[mm,:] = em
+            variance[mm] = np.var(thisPeriodBids)
+            timeInterval[mm] = (te-t0).seconds/data.nEventsPerStat
+            maxValue[mm] = np.max(thisPeriodBids)
+            minValue[mm] = np.min(thisPeriodBids)
+            timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/secsInDay
+            
+            HP20 = np.max([maxValue[mm],HP20])
+            LP20 = np.min([minValue[mm],LP20])
+            parSARhigh20[mm] = oldSARh20+AFH20*(HP20-oldSARh20)
+            parSARlow20[mm] = oldSARl20-AFL20*(oldSARl20-LP20)
+            if parSARhigh20[mm]<HP20:
+                AFH20 = np.min([AFH20+stepAF,maxAF20])
+                LP20 = np.min(thisPeriodBids)
+            if parSARlow20[mm]>LP20:
+                AFL20 = np.min([AFH20+stepAF,maxAF20])
+                HP20 = np.max(thisPeriodBids)
+            oldSARh20 = parSARhigh20[mm]
+            oldSARl20 = parSARlow20[mm]
+            
+            HP2 = np.max([maxValue[mm],HP2])
+            LP2 = np.min([minValue[mm],LP2])
+            parSARhigh2[mm] = oldSARh2+AFH2*(HP2-oldSARh2)
+            parSARlow2[mm] = oldSARl2-AFL2*(oldSARl2-LP2)
+            if parSARhigh2[mm]<HP2:
+                AFH2 = np.min([AFH2+stepAF,maxAF2])
+                LP2 = np.min(thisPeriodBids)
+            if parSARlow2[mm]>LP2:
+                AFL2 = np.min([AFH2+stepAF,maxAF2])
+                HP2 = np.max(thisPeriodBids)
+            oldSARh2 = parSARhigh2[mm]
+            oldSARl2 = parSARlow2[mm]
+        # end of for mm in range(m_i):
+        l_index = startIndex+mW
+        #print(l_index)
+        toc = time.time()
+        print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+        # update features vector
+        init_idx = b*batch_size
+        end_idx = b*batch_size+m_i
+
+        nF = 0
+        features[init_idx:end_idx,nF] = bids
+
+        nF += 1
+        features[init_idx:end_idx,nF:nF+data.lbd.shape[0]] = EMA
+
+        nF += data.lbd.shape[0]
+        logVar = 10*np.log10(variance/data.std_var+1e-10)
+        features[init_idx:end_idx,nF] = logVar
+
+        nF += 1
+        logInt = 10*np.log10(timeInterval/data.std_time+0.01)
+        features[init_idx:end_idx,nF] = logInt
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = parSARhigh20
+        features[init_idx:end_idx,nF+1] = parSARlow20
+        
+        nF += 2
+        features[init_idx:end_idx,nF] = timeSecs
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = parSARhigh2
+        features[init_idx:end_idx,nF+1] = parSARlow2
+        
+        # repeat
+        nF += 2
+        features[init_idx:end_idx,nF] = logVar
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = logInt
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = maxValue-bids
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = bids-minValue
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = maxValue-bids
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = bids-minValue
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = minValue/maxValue
+        
+        nF += 1
+        features[init_idx:end_idx,nF] = minValue/maxValue
+        
+        for i in range(data.lbd.shape[0]):          
+            nF += 1        
+            features[init_idx:end_idx,nF] = bids/EMA[:,i]
+        
+        for i in range(data.lbd.shape[0]):
+            nF += 1        
+            features[init_idx:end_idx,nF] = bids/EMA[:,i]
+            
+    return features
+
 def get_features_from_raw_par(data, features, DateTime, SymbolBid):
     """
     Function that calculates features from raw data in per batches
@@ -705,7 +888,8 @@ def get_features_from_tsfresh(data, DateTime, SymbolBid):
     return None
 
 def get_returns_from_raw(data, returns, ret_idx, DT, B, A, 
-                         idx_init, DateTime, SymbolBid, SymbolAsk):
+                         idx_init, DateTime, SymbolBid, SymbolAsk,
+                         feats_from_bids=True):
     """
     Function that obtains the outputs from raw data.
     Args:
@@ -744,7 +928,10 @@ def get_returns_from_raw(data, returns, ret_idx, DT, B, A,
         #fill ends wth last value
         for i in range(len(indexEnds),len(indexOrigins)):
             indexEnds.append(nE-1)
-        returns[:,nr] = SymbolBid[indexEnds]-SymbolBid[indexOrigins]
+        if feats_from_bids:
+            returns[:,nr] = SymbolBid[indexEnds]-SymbolBid[indexOrigins]
+        else:
+            returns[:,nr] = SymbolAsk[indexEnds]-SymbolAsk[indexOrigins]
         ret_idx[:,nr+1] = indexEnds+idx_init
         DT[:,nr+1] = DateTime[indexEnds]
         B[:,nr+1] = SymbolBid[indexEnds]
@@ -977,7 +1164,7 @@ def load_tsf_features(data, thisAsset, separators, f_feats_tsf, s):
         features = np.array([])
     return features
 
-def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, group_raw,
+def get_IOBA_from_raw(data, thisAsset, separators, f_prep_IO, group_raw,
                                stats, hdf5_directory, s, save_stats):
     """
     Function that extracts features, results and normalization stats from raw data.
@@ -1049,6 +1236,152 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
             group.attrs.create("m_out", m_out, dtype=int)
             # create datasets
             try:
+                features = group.create_dataset("features", (m_in,2,nF),dtype=float)
+                returns = group.create_dataset("returns", (m_out,2,len(data.lookAheadVector)),dtype=float)
+                ret_idx = group.create_dataset("ret_idx", (m_out,len(data.lookAheadVector)+1),dtype=int)
+                DT = group.create_dataset("DT", (m_out,len(data.lookAheadVector)+1),dtype='S19')
+                B = group.create_dataset("B", (m_out,len(data.lookAheadVector)+1),dtype=float)
+                A = group.create_dataset("A", (m_out,len(data.lookAheadVector)+1),dtype=float)
+                
+            except (ValueError,RuntimeError):
+                print("WARNING: RunTimeError. Trying to recover from it.")
+                features = group['features']
+                returns = group['returns']
+                ret_idx = group['ret_idx']
+                DT = group['DT']
+                B = group['B']
+                A = group['A']
+                
+            print("\tgetting features from raw data...")
+            # get structures and save them in a hdf5 file
+            features = get_features_ba_from_raw_par(data,features,
+                                             DateTime[separators.index[s]:separators.index[s+1]+1], 
+                                             SymbolBid[separators.index[s]:separators.index[s+1]+1])
+
+            returns, ret_idx, DT, B, A = get_returns_ba_from_raw(data,returns,ret_idx,DT,B,A,separators.index[s],
+                                             DateTime[separators.index[s]:separators.index[s+1]+1], 
+                                             SymbolBid[separators.index[s]:separators.index[s+1]+1],
+                                             SymbolAsk[separators.index[s]:separators.index[s+1]+1])
+
+#            print(DT[0,0])
+#            print(DT[-1,0])
+            assert(ret_idx[-1,0]<=separators.index[-1])
+            # get stats
+            means_in, stds_in, means_out, stds_out = get_normalization_stats(data, features, returns, hdf5_directory)
+            # save means and variances as atributes
+            group.attrs.create("means_in", means_in, dtype=float)
+            group.attrs.create("stds_in", stds_in, dtype=float)
+            group.attrs.create("means_out", means_out, dtype=float)
+            group.attrs.create("stds_out", stds_out, dtype=float)
+            
+        else:
+            # get data sets
+            features = group['features']
+            returns = group['returns']
+            ret_idx = group['ret_idx']
+            # get attributes
+            m_in = group.attrs.get("m_in")
+            m_out = group.attrs.get("m_out")
+            means_in = group.attrs.get("means_in")
+            stds_in = group.attrs.get("stds_in")
+            means_out = group.attrs.get("means_out")
+            stds_out = group.attrs.get("stds_out")
+            #print("\tIO loaded from HDF5 file.")
+        
+        if save_stats:
+        # update combined stats of all data sets
+            stats["means_t_in"] += m_in*means_in
+            stats["stds_t_in"] += m_in*stds_in
+            stats["means_t_out"] += m_out*means_out
+            stats["stds_t_out"] += m_out*stds_out
+            stats["m_t_in"] += m_in
+            stats["m_t_out"] += m_out
+    # end of if separators.index[s+1]-separators.index[s]>=2*data.nEventsPerStat:
+#    else:
+#        print("\tSeparator batch {0:d} out of {1:d} skkiped. Not enough entries".format(int(s/2),int(len(separators)/2-1)))
+    # save results in a dictionary
+    IO_prep = {}
+    IO_prep['features'] = features
+    IO_prep['returns'] = returns
+    IO_prep['ret_idx'] = ret_idx
+    
+    return IO_prep, stats
+
+def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, group_raw,
+                               stats, hdf5_directory, s, save_stats, feats_from_bids=True):
+    """
+    Function that extracts features, results and normalization stats from raw data.
+    Args:
+        - data:
+        - thisAsset
+        - separators
+        - f_prep_IO
+        - group
+        - stats
+        - hdf5_directory
+        - s
+    Returns:
+        - features 
+        - returns
+        - ret_idx
+        - stats
+    """
+    
+    # get trade info datasets
+    DateTime = group_raw["DateTime"]
+    SymbolBid = group_raw["SymbolBid"]
+    SymbolAsk = group_raw["SymbolAsk"]
+    if feats_from_bids:
+        Symbols = SymbolBid
+    else:
+        Symbols = SymbolAsk
+    # init structures
+    features = []
+    returns = []
+    ret_idx = []
+    # number of events
+    nE = separators.index[s+1]-separators.index[s]+1
+    # check if number of events is not enough to build two features and one return
+    if nE>=2*data.nEventsPerStat:
+#        print("\tSeparator batch {0:d} out of {1:d}".format(int(s/2),int(len(separators)/2-1)))
+#        print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
+        # get init and end dates of these separators
+        init_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        end_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+#        print(DateTime.shape)
+#        if thisAsset=='AUDJPY':
+#            print(DateTime.shape)
+#            print(separators.index)
+#            print(separators.index[s])
+#            print(separators.index[s+1])
+#            print(DateTime[separators.index[s]])
+#            print(DateTime[separators.index[s+1]])
+        # group name of separator s
+        group_name = thisAsset+'/'+init_date+end_date
+        
+        # create new gruop if not yet in file
+        if group_name not in f_prep_IO:
+            # create group, its attributes and its datasets
+            group = f_prep_IO.create_group(group_name)
+        else:
+            # get group from file
+            group = f_prep_IO[group_name]
+        # get features, returns and stats if don't exist
+        if group.attrs.get("means_in") is None:
+            # number of samples
+            nExS = data.nEventsPerStat
+            mW = data.movingWindow
+            nF = len(data.feature_keys_manual)
+            # number of features and number of returns
+            m_in = int(np.floor((nE/nExS-1)*nExS/mW)+1)
+            m_out = int(m_in-nExS/mW)#len(range(int(nExS/mW)*mW-1,m_in*mW-1,mW))
+            # save as attributes
+            group.attrs.create("m_in", m_in, dtype=int)
+            group.attrs.create("m_out", m_out, dtype=int)
+            # create datasets
+            try:
                 features = group.create_dataset("features", (m_in,nF),dtype=float)
                 returns = group.create_dataset("returns", (m_out,len(data.lookAheadVector)),dtype=float)
                 ret_idx = group.create_dataset("ret_idx", (m_out,len(data.lookAheadVector)+1),dtype=int)
@@ -1069,12 +1402,13 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
             # get structures and save them in a hdf5 file
             features = get_features_from_raw_par(data,features,
                                              DateTime[separators.index[s]:separators.index[s+1]+1], 
-                                             SymbolBid[separators.index[s]:separators.index[s+1]+1])
+                                             Symbols[separators.index[s]:separators.index[s+1]+1])
 
             returns, ret_idx, DT, B, A = get_returns_from_raw(data,returns,ret_idx,DT,B,A,separators.index[s],
                                              DateTime[separators.index[s]:separators.index[s+1]+1], 
                                              SymbolBid[separators.index[s]:separators.index[s+1]+1],
-                                             SymbolAsk[separators.index[s]:separators.index[s+1]+1])
+                                             SymbolAsk[separators.index[s]:separators.index[s+1]+1], 
+                                             feats_from_bids=feats_from_bids)
 
 #            print(DT[0,0])
 #            print(DT[-1,0])
