@@ -428,8 +428,8 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     # extract best result this epoch
     if resolution>0:
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
-        TR = TR[TR.epoch==epoch]
-        get_best_results(TR, results_filename, resultsDir, IDresults, save=1)
+        #TR = TR[TR.epoch==epoch]
+        get_best_results(TR[TR.epoch==epoch], results_filename, resultsDir, IDresults, save=1)
         print("\nThe very best:")
         get_best_results(TR, results_filename, resultsDir, IDresults)
     # get results per MCxMD entry
