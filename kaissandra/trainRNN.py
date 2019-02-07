@@ -75,7 +75,7 @@ def train_RNN(*ins):
     if feats_from_bids:
         tag = 'IO_mW'
     else:
-        tag = 'IO_mW'
+        tag = 'IOA_mW'
     filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+'_nE'+
