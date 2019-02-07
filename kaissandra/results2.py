@@ -778,20 +778,6 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     
     if get_positions:
         dict_pos = {columns_positions[i]:list_pos[i] for i in range(len(columns_positions))}
-#        dict_pos = {'Asset':list_pos[0],
-#                    'Di':list_pos[1],
-#                    'Ti':list_pos[2],
-#                    'Do':list_pos[3],
-#                    'To':list_pos[4],
-#                    'GROI':list_pos[5],
-#                    'ROI':list_pos[6],
-#                    'spread':list_pos[7],
-#                    'ext':list_pos[8],
-#                    'Dir':list_pos[9],
-#                    'Bi':list_pos[10],
-#                    'Bo':list_pos[11],
-#                    'Ai':list_pos[12],
-#                    'Ao':list_pos[13]}
         df = pd.DataFrame(dict_pos)\
             [pd.DataFrame(columns = columns_positions).columns.tolist()]
         success = 0
@@ -820,9 +806,6 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         sharpe = np.sqrt(n_bets)*np.mean(ROI_vector)/np.sqrt(np.var(ROI_vector))
     else:
         sharpe = 0.0
-
-    #rROI = rGROI-rSpread
-    #results['NO']*(results['NSP2p']/100-.5)
     # Success index per spread level
     SIs = n_pos_opned*(NSPs-.55)
     SI = n_pos_opned*(net_succ_per-.55)

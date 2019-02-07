@@ -284,8 +284,6 @@ def get_features(*ins):
         
     if 'build_partial_raw' in config:
         build_partial_raw = config['build_partial_raw']
-        
-        
     else:
         build_partial_raw = False
         
