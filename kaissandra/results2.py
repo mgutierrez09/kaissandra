@@ -804,10 +804,10 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 print("WARNING! PermissionError. Close programs using "+
                       pos_dirname+pos_filename)
                 time.sleep(1)
-    print("count_dif_dir")
-    print(count_dif_dir)
-    print("percent_dif_dir")
-    print(100*count_dif_dir/n_pos_opned)
+#    print("count_dif_dir")
+#    print(count_dif_dir)
+#    print("percent_dif_dir")
+#    print(100*count_dif_dir/n_pos_opned)
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
     NSPs = NSPs/n_pos_opned
@@ -829,27 +829,6 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
-    
-#    res_w_ext = {'eGROI':eGROI,
-#                'eROI':eROI,
-#                'GSP':successes[1],
-#                'NSP':successes[2],
-#                'NO':successes[0],
-#                'sharpe':sharpe,
-#                'SI':SI,
-#                'mSpread':mSpread,
-#                #'rROIxLevel':rROIxLevel,
-#                #'rSampsXlevel':rSampsXlevel,
-#                #'log':log,
-#                #'varRet':varRet,
-#                #'successes':successes
-#                }
-#    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,0], 'eRl', ['1','2'])
-#    res_w_ext = unroll_param(res_w_ext, rROIxLevel[:,1], 'eGl', ['1','2'])
-#    res_w_ext = unroll_param(res_w_ext, rSampsXlevel[:,1], 'NOl', ['1','2'])
-#    res_w_ext = unroll_param(res_w_ext, eROIs, 'eROI', ['.5','1','2','3','4','5'])
-#    res_w_ext = unroll_param(res_w_ext, successes[3], 'NSP', ['.5','1','2','3','4','5'])
-#    res_w_ext = unroll_param(res_w_ext, SIs, 'SI', ['.5','1','2','3','4','5'])
     
     list_ext_results = [[eGROI,'eGROI'], [eROI,'eROI'], [successes[1],'GSP'], \
                         [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
