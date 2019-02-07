@@ -326,6 +326,10 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
         thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
     else:
         thresholds_md = config['thresholds_md']
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
     m = y.shape[0]
     n_days = len(dateTest)
 #    granularity = 1/resolution
@@ -380,6 +384,13 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                                       ys_md['diff_y_y_tilde'], 
                                       ys_mc['probs_mc'][ys_md['y_md_tilde']], 
                                       ys_md['probs_md'])
+                # Filter out positions with non-tackled direction
+                if feats_from_bids:
+                    # only get short bets (negative directions)
+                    Journal = Journal[Journal['Bet']<0]
+                else:
+                    # only get long bets (positive directions)
+                    Journal = Journal[Journal['Bet']>0]
                 ## calculate KPIs
                 results = get_basic_results_struct(ys_mc, ys_md, results, Journal, m)
                 # init positions dir and filename
