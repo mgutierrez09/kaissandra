@@ -228,7 +228,7 @@ def train_RNN(*ins):
                         if features_manual.shape[0]==0:
                             features_manual = np.zeros((features_tsf.shape[0],0))
                         # load returns
-                        returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
+                        returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s, filename_prep_IO)
                         # build network inputs and outputs
                         # check if the separator chuck belongs to the training/test set
                         if 1:

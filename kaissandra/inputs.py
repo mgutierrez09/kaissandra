@@ -995,7 +995,7 @@ def get_normalization_stats(data, features, returns, hdf5_directory):
     ft.close()
     return [means_in, stds_in, means_out, stds_out]
 
-def load_returns(data, hdf5_directory, thisAsset, separators, s):
+def load_returns(data, hdf5_directory, thisAsset, separators, filename_prep_IO, s):
     """
     Function that extracts features, results and normalization stats from already saved
     structures.
@@ -1012,8 +1012,8 @@ def load_returns(data, hdf5_directory, thisAsset, separators, s):
         - returns
         - ret_idx
     """
-    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(37)+'.hdf5')
+#    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
+#                        str(data.nEventsPerStat)+'_nF'+str(37)+'.hdf5')
     f_prep_IO = h5py.File(filename_prep_IO,'r')
     # init structures
     returns = []

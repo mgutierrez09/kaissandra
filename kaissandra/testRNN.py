@@ -49,7 +49,10 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = False
-    
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -73,9 +76,12 @@ def test_RNN(*ins):
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     
-    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+
-                        '.hdf5')
+    if feats_from_bids:
+        tag = 'IO_mW'
+    else:
+        tag = 'IOA_mW'
+    filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
+                        str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
                              '_nE'+str(data.nEventsPerStat)+'_2.hdf5')
     
@@ -245,7 +251,7 @@ def test_RNN(*ins):
                     if features_manual.shape[0]==0:
                         features_manual = np.zeros((features_tsf.shape[0],0))
                         
-                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
+                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s, filename_prep_IO)
                     # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
