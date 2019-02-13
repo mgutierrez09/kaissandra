@@ -115,7 +115,8 @@ def get_results_entries():
                        'NSP4','NSP5','SI.5','SI1','SI2','SI3','SI4','SI5','SI',
                        'eGROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
                        'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
-                       'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS','NOL','NOS']
+                       'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
+                       'NOL','NOS','GSPl','GSPs']
     # GRL: GROI for Long positions
     # GRS: GROI for short positions
     # NOL: Number of long openings
@@ -138,6 +139,21 @@ def init_results_dir(resultsDir, IDresults):
                             mode="w",index=False,sep='\t')
         pd.DataFrame(columns = get_results_entries()).to_csv(results_filename+'.txt', 
                             mode="w",index=False,sep='\t')
+    else:
+        # add new columns with NaNs if it's the case
+        TR = pd.read_csv(results_filename+'.csv', sep='\t')
+        for c in get_results_entries():
+            if c not in TR.columns:
+                TR[c] = np.nan
+        success = 0
+        while not success:
+            try:
+                TR.to_csv(results_filename+'.csv', mode='w', index=False, sep='\t')
+                TR.to_csv(results_filename+'.txt', mode='w', index=False, sep='\t')
+                success = 1
+            except PermissionError:
+                print("WARNING! PermissionError. Close programs using "+results_filename)
+                time.sleep(1)
     if not os.path.exists(costs_filename+'.csv'):
         pd.DataFrame(columns = get_costs_entries()).to_csv(costs_filename+'.csv', 
                             mode="w",index=False,sep='\t')
@@ -197,7 +213,7 @@ def save_results_fn(filename, results):
     df = pd.DataFrame(results, index=[0])\
         [pd.DataFrame(columns = get_results_entries()).columns.tolist()]
     success = 0
-    df.to_csv(filename+'.txt', mode='a', header=False,float_format='%.2f', index=False, sep='\t')
+    df.to_csv(filename+'.txt', mode='a', header=False, index=False, sep='\t')
     while not success:
         try:
             df.to_csv(filename+'.csv', mode='a', header=False, index=False, sep='\t')
@@ -295,7 +311,7 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
               " t_index "+str(TR['t_index'].loc[idx])+\
               " thr_mc "+str(TR['thr_mc'].loc[idx])+\
               " thr_md "+str(TR['thr_md'].loc[idx])+\
-              " epoch "+str(TR['epoch'].loc[idx])
+              " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])
         print(out)
         if not save:
             file.write(out+"\n")
@@ -385,12 +401,27 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                                       ys_mc['probs_mc'][ys_md['y_md_tilde']], 
                                       ys_md['probs_md'])
                 # Filter out positions with non-tackled direction
-                if feats_from_bids:
-                    # only get short bets (negative directions)
-                    Journal = Journal[Journal['Bet']<0]
+                if type(feats_from_bids)==bool:
+                    if feats_from_bids:
+                        # only get short bets (negative directions)
+                        Journal = Journal[Journal['Bet']<0]
+                    else:
+                        # only get long bets (positive directions)
+                        Journal = Journal[Journal['Bet']>0]
+                elif type(feats_from_bids)==str:
+                    if feats_from_bids=='SHORT':
+                        # only get short bets (negative directions)
+                        Journal = Journal[Journal['Bet']<0]
+                    elif feats_from_bids=='LONG':
+                        # only get long bets (positive directions)
+                        Journal = Journal[Journal['Bet']>0]
+                    elif feats_from_bids=='COMBS' or feats_from_bids=='COMBL':
+                        pass
+                    else:
+                        raise ValueError("Entry "+feats_from_bids+" not known. Options are SHORT/LONG/COMB")
                 else:
-                    # only get long bets (positive directions)
-                    Journal = Journal[Journal['Bet']>0]
+                    raise ValueError("feats_from_bids must be a bool or str with options SHORT/LONG/COMB")
+                print("feats_from_bids is "+feats_from_bids)
                 ## calculate KPIs
                 results = get_basic_results_struct(ys_mc, ys_md, results, Journal, m)
                 # init positions dir and filename
@@ -460,25 +491,43 @@ def get_journal(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
 #                                    'Diff','P_mc','P_md']
     Journal = pd.DataFrame()
     #Journal = DTA
+    
+    
+    
+    long_pos = y_dec_tilde>0
+    short_pos = y_dec_tilde<0
+    #grossROIs = np.sign(y_dec_tilde)*(DTA["B2"]-DTA["B1"])/DTA["A2"]
+    grossROIs = np.zeros((y_dec_tilde.shape))
+    LgrossROIs = np.zeros((y_dec_tilde.shape))
+    SgrossROIs = np.zeros((y_dec_tilde.shape))
+    tROIs = np.zeros((y_dec_tilde.shape))
+    LtROIs = np.zeros((y_dec_tilde.shape))
+    StROIs = np.zeros((y_dec_tilde.shape))
+    LgrossROIs = (DTA["A2"]-DTA["A1"])/DTA["A1"]
+    SgrossROIs = (DTA["B1"]-DTA["B2"])/DTA["A2"]
+    grossROIs[long_pos] = LgrossROIs[long_pos]
+    grossROIs[short_pos] = SgrossROIs[short_pos]
+    LtROIs = (DTA["B2"]-DTA["A1"])/DTA["A1"]
+    StROIs = (DTA["B1"]-DTA["A2"])/DTA["A2"]
+    tROIs[long_pos] = LtROIs[long_pos]
+    tROIs[short_pos] = StROIs[short_pos]
+    espreads =  (DTA["A1"]-DTA["B1"])/DTA["A1"]
+    spreads =  grossROIs-tROIs
+    
     Journal['Asset'] = DTA['Asset'].iloc[:]
     Journal['DTi'] = DTA['DT1'].iloc[:]
     Journal['DTo'] = DTA['DT2'].iloc[:]
+    Journal['GROI'] = 100*grossROIs
+    Journal['ROI'] = 100*tROIs
+    Journal['Spread'] = 100*spreads
+    Journal['Espread'] = 100*espreads
+    Journal['Bet'] = y_dec_tilde.astype(int)
+    Journal['Outcome'] = y_dec.astype(int)
+    Journal['Diff'] = diff.astype(int)
     Journal['Bi'] = DTA['B1'].iloc[:]
     Journal['Bo'] = DTA['B2'].iloc[:]
     Journal['Ai'] = DTA['A1'].iloc[:]
     Journal['Ao'] = DTA['A2'].iloc[:]
-    
-    
-    grossROIs = np.sign(y_dec_tilde)*(DTA["B2"]-DTA["B1"])/DTA["B1"]
-    spreads =  (DTA["A2"]-DTA["B2"])/DTA["B1"]
-    tROIs = grossROIs-spreads
-    
-    Journal['Spread'] = 100*spreads
-    Journal['GROI'] = 100*grossROIs
-    Journal['ROI'] = 100*tROIs
-    Journal['Bet'] = y_dec_tilde.astype(int)
-    Journal['Outcome'] = y_dec.astype(int)
-    Journal['Diff'] = diff.astype(int)
     Journal['P_mc'] = probs_mc
     Journal['P_md'] = probs_md
     
@@ -558,7 +607,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     log = pd.DataFrame(columns=['DateTime','Message'])
     # init positions
     if get_positions:
-        columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread','ext','Dir','Bi','Bo','Ai','Ao']
+        columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread','espread','ext','Dir','Bi','Bo','Ai','Ao']
         
         if not os.path.exists(pos_dirname):
             os.makedirs(pos_dirname)
@@ -584,6 +633,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     n_pos_opned = 1
     NOL = 0
     NOS = 0
+    GSCl = 0 # gross succes counter long
+    GSCs = 0
     n_pos_extended = 0
     gross_succ_counter = 0
     net_succ_counter = 0
@@ -618,7 +669,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
 
         oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
         newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e],"%Y.%m.%d %H:%M:%S")
-
+        
         extendExitMarket = (newEntryTime-oldExitTime<=dt.timedelta(0))
         sameAss = Journal['Asset'].iloc[e] == Journal['Asset'].iloc[e-1] 
         if sameAss and extendExitMarket:# and sameDir:
@@ -640,6 +691,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             if direction>0:
                 GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
                 ROI = (Bo-Ai)/Ai
+                #GROI = (Bo-Bi)/Ai
                 eGROIL += GROI
                 NOL += 1
             else:
@@ -648,6 +700,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 eGROIS += GROI
                 NOS += 1
             thisSpread = GROI-ROI
+            e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
             if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
             ### TEMP ###
@@ -685,13 +738,16 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 gross_succ_counter += 1
             if ROI>0:
                 net_succ_counter += 1
-            
+            if GROI>0 and direction>0:
+                GSCl += 1
+            elif GROI>0 and direction<0:
+                GSCs += 1
             NSPs = NSPs+((GROI-fixed_spread_ratios)>0)
             if get_positions:
                 this_list = [Journal['Asset'].iloc[e-1],Journal[DT1].iloc[eInit][:10],
                                  Journal[DT1].iloc[eInit][11:],Journal[DT2].iloc[e-1][:10],
                                  Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
-                                 100*thisSpread,this_pos_extended,direction,
+                                 100*thisSpread,100*e_spread,this_pos_extended,direction,
                                  Bi,Bo,Ai,Ao]
                 #print(this_list)
                 for l in range(len(this_list)):
@@ -736,6 +792,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
             count_dif_dir += 1
         thisSpread = GROI-ROI
+        e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
         #thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
         mSpread += thisSpread
         #GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[-1]-Journal[B1
@@ -771,7 +828,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                 this_list = [Journal['Asset'].iloc[e-1], Journal[DT1].iloc[eInit][:10],
                                  Journal[DT1].iloc[eInit][11:], Journal[DT2].iloc[e-1][:10],
                                  Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
-                                 100*thisSpread,this_pos_extended,direction,
+                                 100*thisSpread,100*e_spread,this_pos_extended,direction,
                                  Bi,Bo,Ai,Ao]
                 for l in range(len(this_list)):
                     list_pos[l].append(this_list[l])
@@ -780,16 +837,20 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         dict_pos = {columns_positions[i]:list_pos[i] for i in range(len(columns_positions))}
         df = pd.DataFrame(dict_pos)\
             [pd.DataFrame(columns = columns_positions).columns.tolist()]
-        success = 0
-        while not success:
-            try:
-                df.to_csv(pos_dirname+pos_filename, mode='a', 
-                  header=False, index=False, sep='\t',float_format='%.4f')
-                success = 1
-            except PermissionError:
-                print("WARNING! PermissionError. Close programs using "+
-                      pos_dirname+pos_filename)
-                time.sleep(1)
+        #df['DTi'] = df["Di"] +" "+ df["Ti"]
+        if df.shape[0]>0:
+            df['DTo'] = df["Do"] +" "+ df["To"]
+            df = df.sort_values(by=['DTo']).drop('DTo',1)
+            success = 0
+            while not success:
+                try:
+                    df.to_csv(pos_dirname+pos_filename, mode='a', 
+                      header=False, index=False, sep='\t')
+                    success = 1
+                except PermissionError:
+                    print("WARNING! PermissionError. Close programs using "+
+                          pos_dirname+pos_filename)
+                    time.sleep(1)
 #    print("count_dif_dir")
 #    print(count_dif_dir)
 #    print("percent_dif_dir")
@@ -799,16 +860,22 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     NSPs = NSPs/n_pos_opned
     successes = [n_pos_opned, 100*gross_succ_per, 100*net_succ_per, 100*NSPs]
     mSpread = 100*mSpread/n_pos_opned
-    #varRet = [100000*np.var(ROI_vector), 100000*np.var(GROI_vector)]
-    
+    try:
+        GSPl = GSCl/NOL
+    except ZeroDivisionError:
+        GSPl = 0
+    try:
+        GSPs = GSCs/NOS
+    except ZeroDivisionError:
+        GSPs = 0
     n_bets = ROI_vector.shape[0]
     if np.var(ROI_vector)>0:
         sharpe = np.sqrt(n_bets)*np.mean(ROI_vector)/np.sqrt(np.var(ROI_vector))
     else:
         sharpe = 0.0
     # Success index per spread level
-    SIs = n_pos_opned*(NSPs-.55)
-    SI = n_pos_opned*(net_succ_per-.55)
+    SIs = n_pos_opned*(NSPs-.52)
+    SI = n_pos_opned*(net_succ_per-.52)
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
@@ -820,7 +887,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                         [eROIs, 'eROI', ['.5','1','2','3','4','5']], \
                         [successes[3], 'NSP', ['.5','1','2','3','4','5']], \
                         [SIs, 'SI', ['.5','1','2','3','4','5']], [100*eGROIL, 'eGROIL'], \
-                        [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS']]
+                        [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS'], \
+                        [100*GSPl,'GSPl'],[100*GSPs,'GSPs']]
     
     res_w_ext = build_extended_res_struct(list_ext_results)
     

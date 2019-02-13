@@ -360,14 +360,12 @@ class modelRNN(object):
         """ 
         Test RNN network with y_c bits
         """
-        import pandas as pd
         from tqdm import tqdm
         
         IDresults = config['IDresults']
         IDweights = config['IDweights']
         startFrom = config['startFrom']
         endAt = config['endAt']
-        resolution = config['resolution']
         
         weights_directory = local_vars.weights_directory
         

@@ -343,7 +343,7 @@ def get_features(*ins):
         separators = load_separators(data, thisAsset, separators_directory, from_txt=1)
         
         if thisAsset==reset_asset:
-            print(separators)
+            print(thisAsset+" reset")
             del f_prep_IO[thisAsset]
         # crate asset_group if does not exist
         if thisAsset not in f_prep_IO:

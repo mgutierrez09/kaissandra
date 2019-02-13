@@ -273,7 +273,8 @@ class Strategy():
 
 class Trader:
     
-    def __init__(self, next_candidate, init_budget=10000,log_file='',summary_file=''):
+    def __init__(self, next_candidate, init_budget=10000,log_file='',summary_file='',
+                 positions_dir='',positions_file=''):
         """  """
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(data.AllAssets))])
@@ -323,6 +324,7 @@ class Trader:
             start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
             self.log_file = (local_vars.live_results_dict+"simulate/trader/"+
                              start_time+"trader_v30.log")
+            self.positions_dir = local_vars.live_results_dict+"simulate/trader/positions/"
         else:
             self.log_file = log_file
         if summary_file=='':
@@ -330,6 +332,8 @@ class Trader:
                              start_time+"summary.log")
         else:
             self.summary_file = summary_file
+            self.positions_dir = positions_dir
+        self.positions_file = positions_file
     
     def _get_thr_sl_vector(self):
         """  """
@@ -519,6 +523,9 @@ class Trader:
         """
         margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
+        dir_condition = self.list_opened_positions[
+                        self.map_ass_idx2pos_idx[idx]
+                        ].direction==self.next_candidate.direction
         # if not use GRE matrix
         if this_strategy.entry_strategy=='fixed_thr':
             condition =  (self.list_opened_positions[
@@ -549,10 +556,10 @@ class Trader:
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
         elif this_strategy.entry_strategy=='spread_ranges':
-            condition = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
+            condition = dir_condition and self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1] and \
                          100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
-        return condition
+        return condition, dir_condition
 
     def update_stoploss(self, idx):
         # update stoploss
@@ -622,14 +629,17 @@ class Trader:
         """ Get current GROI and ROI of a given asset idx """
         
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-#        Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
-#        bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
+        Ti = \
+            dt.datetime.strftime(self.list_opened_positions
+                                 [self.map_ass_idx2pos_idx[idx]].entry_time,
+                                 '%Y.%m.%d %H:%M:%S')
+        Dir = np.sign(self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet)
 ############################ WARNING!!!! ##############################################        
         Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
-        
+        espread = (Ai-Bi)/Ai
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
             spread = (Ao-Bo)/Ai
@@ -650,12 +660,11 @@ class Trader:
             else:
                 ROI_live = GROI_live-roi_ratio*spread
         
-#        info = (ass+","+Ti+","+date_time+","+str(bet)+","+
-#                  str(Bi)+","+str(Ai)+","+str(Bo)+","+
-#                  str(Ao)+","+"0"+","+str(100*GROI_live)+","+
-#                  str(100*spread)+","+str(100*ROI_live))
-        
-        return GROI_live, ROI_live, spread
+        info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
+                str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
+                "0"+"\t"+str(Dir)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
+                str(Ao)
+        return GROI_live, ROI_live, spread, info
     
     def update_groi_limit(self, idx, curr_GROI):
         self.list_lim_groi[self.map_ass_idx2pos_idx[idx]] = \
@@ -703,10 +712,10 @@ class Trader:
 #                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
 #            else:
 #                ROI_live = GROI_live-roi_ratio*spread
-        GROI_live, ROI_live, spread = self.get_rois(idx, date_time=date_time,
+        GROI_live, ROI_live, spread, pos_info = self.get_rois(idx, date_time=date_time.decode("utf-8"),
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
-        
+        self.write_pos_info(pos_info)
         
         self.available_budget += self.list_lots_per_pos[
                 self.map_ass_idx2pos_idx[idx]]*self.LOT*(lot_ratio+ROI_live)
@@ -879,6 +888,13 @@ class Trader:
             file.close()
         return None
     
+    def write_pos_info(self, pos_info):
+        """  """
+        if self.save_log:
+            file = open(self.positions_dir+self.positions_file,"a")
+            file.write(pos_info+"\n")
+            file.close()
+    
     def write_summary(self, out):
         """
         Write summary into a file
@@ -1003,63 +1019,126 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-#    numberNetwors = 2
-#    list_IDresults = ['100287INVO','100287INVO']#
-#    list_IDgre = ['100287INVO','100287INVO']
-#    list_name = ['287NEWO_2_0','277NEWO_4_1']
-#    list_epoch_gre = [2,4]
-#    list_epoch_journal = [2,4]
+#    numberNetwors = 3
+#    list_IDresults = ['100350NJLS','100327S','100500L']#
+#    list_IDgre = [None for i in range(numberNetwors)]
+#    list_name = ['100350NJLS_13_3_.65_.6','100327S_21_0_.75_.7','100500L_29_3_.7_.6']
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_epoch_journal = [13,21,29]
 ##    list_use_GRE = [True for i in range(numberNetwors)]
 #    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["01" for i in range(numberNetwors)]
-#    list_margin_ext = ['variable']
-#    list_t_index = [0,1]
-#    list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]
-#    list_lim_groi_ext = [-.1 for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    list_t_index = [3,0,2]
+#    list_spread_ranges = [{'sp':[2.5],'th':[(.65,.6)]},{'sp':[2.5],'th':[(.75,.7)]},{'sp':[2.5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
 #    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+#    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    list_thr_tp = [1000 for i in range(numberNetwors)]
+#    # depricated/not supported
 #    list_lb_mc_op = [.5 for i in range(numberNetwors)]
 #    list_lb_md_op = [.8 for i in range(numberNetwors)]
-#    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-#    list_lb_md_ext = [.6 for i in range(numberNetwors)]
 #    list_ub_mc_op = [1 for i in range(numberNetwors)]
 #    list_ub_md_op = [1 for i in range(numberNetwors)]
 #    list_ub_mc_ext = [1 for i in range(numberNetwors)]
 #    list_ub_md_ext = [1 for i in range(numberNetwors)]
-#    list_thr_sl = [1000 for i in range(numberNetwors)]
-#    list_thr_tp = [1000 for i in range(numberNetwors)]
 #    list_fix_spread = [False for i in range(numberNetwors)]
 #    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
 #    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
 #    list_if_dir_change_close = [False for i in range(numberNetwors)]
 #    list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    numberNetwors = 1
-    list_IDresults = ['100327R20']#
-    list_IDgre = [None]
-    list_name = ['327R20_9_1_.5_.7']
-    list_epoch_gre = [None]
-    list_epoch_journal = [9]
+#    numberNetwors = 2
+#    list_IDresults = ['100327S','100500L']#
+#    list_IDgre = [None for i in range(numberNetwors)]
+#    list_name = ['100327S_21_0_.75_.7','100500L_29_3_.7_.6']
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_epoch_journal = [21,29]
+##    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    list_t_index = [0,2]
+#    list_spread_ranges = [{'sp':[2.5],'th':[(.75,.7)]},{'sp':[2.5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+#    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    list_thr_tp = [1000 for i in range(numberNetwors)]
+#    # depricated/not supported
+#    list_lb_mc_op = [.5 for i in range(numberNetwors)]
+#    list_lb_md_op = [.8 for i in range(numberNetwors)]
+#    list_ub_mc_op = [1 for i in range(numberNetwors)]
+#    list_ub_md_op = [1 for i in range(numberNetwors)]
+#    list_ub_mc_ext = [1 for i in range(numberNetwors)]
+#    list_ub_md_ext = [1 for i in range(numberNetwors)]
+#    list_fix_spread = [False for i in range(numberNetwors)]
+#    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
+#    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
+#    list_if_dir_change_close = [False for i in range(numberNetwors)]
+#    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+    
+#    numberNetwors = 1
+#    list_IDresults = ['100350NJLS']#
+#    list_IDgre = [None for i in range(numberNetwors)]
+#    list_name = ['100350NJLS_13_3_.65_.6']
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_epoch_journal = [13]
+##    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    list_t_index = [3]
+#    list_spread_ranges = [{'sp':[2.5],'th':[(.65,.6)]}]
+#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+#    list_thr_sl = [1000 for i in range(numberNetwors)]
+#    list_thr_tp = [1000 for i in range(numberNetwors)]
+#    # depricated/not supported
+#    list_lb_mc_op = [.5 for i in range(numberNetwors)]
+#    list_lb_md_op = [.8 for i in range(numberNetwors)]
+#    list_ub_mc_op = [1 for i in range(numberNetwors)]
+#    list_ub_md_op = [1 for i in range(numberNetwors)]
+#    list_ub_mc_ext = [1 for i in range(numberNetwors)]
+#    list_ub_md_ext = [1 for i in range(numberNetwors)]
+#    list_fix_spread = [False for i in range(numberNetwors)]
+#    list_fixed_spread_pips = [4 for i in range(numberNetwors)]
+#    list_flexible_lot_ratio = [False for i in range(numberNetwors)]
+#    list_if_dir_change_close = [False for i in range(numberNetwors)]
+#    list_if_dir_change_extend = [False for i in range(numberNetwors)]
+        
+    numberNetwors = 4
+    list_IDresults = ['100350S','100350L']+['100327S','100500L']
+    list_IDgre = [None for i in range(numberNetwors)]
+    list_name = ['100350S_13_3_.65_.6','100350S_6_1_.65_.55']+['100327S_21_0_.75_.7','100500L_29_3_.7_.6']
+    list_epoch_gre = [None for i in range(numberNetwors)]
+    list_epoch_journal = [13,6]+[21,29]
 #    list_use_GRE = [True for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-    list_w_str = [""]
-    list_t_index = [1]
-    list_spread_ranges = [{'sp':[4],'th':[(.5,.7)]}]
+    list_w_str = ["" for i in range(numberNetwors)]
+    list_t_index = [3,1]+[0,2]
+    list_spread_ranges = [{'sp':[2.5],'th':[(.55,.6)]},{'sp':[2.5],'th':[(.65,.65)]}]+[{'sp':[2.5],'th':[(.75,.7)]},{'sp':[2.5],'th':[(.7,.6)]}]
     list_lim_groi_ext = [-100 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
+    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+    list_thr_sl = [1000 for i in range(numberNetwors)]
+    list_thr_tp = [1000 for i in range(numberNetwors)]
+    # depricated/not supported
     list_lb_mc_op = [.5 for i in range(numberNetwors)]
     list_lb_md_op = [.8 for i in range(numberNetwors)]
-    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.7 for i in range(numberNetwors)]
     list_ub_mc_op = [1 for i in range(numberNetwors)]
     list_ub_md_op = [1 for i in range(numberNetwors)]
     list_ub_mc_ext = [1 for i in range(numberNetwors)]
     list_ub_md_ext = [1 for i in range(numberNetwors)]
-    list_thr_sl = [1000 for i in range(numberNetwors)]
-    list_thr_tp = [1000 for i in range(numberNetwors)]
     list_fix_spread = [False for i in range(numberNetwors)]
     list_fixed_spread_pips = [4 for i in range(numberNetwors)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_flexible_lot_ratio = [False for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
@@ -1194,6 +1273,19 @@ if __name__ == '__main__':
     directory = local_vars.live_results_dict+"simulate/trader/"
     log_file = directory+start_time+"trader_v30.log"
     summary_file = directory+start_time+"summary.log"
+    positions_dir = directory+"positions/"
+    if not os.path.exists(positions_dir):
+        os.mkdir(positions_dir)
+    
+    positions_file = start_time+'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
+                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
+                         str(list_spread_ranges[i]['th'][0][1])
+                         for i in range(numberNetwors)])+'.csv'
+    columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo'
+    file = open(positions_dir+positions_file,"a")
+    file.write(columns_positions+"\n")
+    file.close()
+            #'_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
     # save sorted journal
     #journal_all_days.drop('index',axis=1).to_csv(directory+start_time+'journal.log',sep='\t',float_format='%.3f',index_label='index')
     ##### loop over different day groups #####
@@ -1201,6 +1293,7 @@ if __name__ == '__main__':
     t_journal_entries = 0
     change_dir = 0
     rewinded = 0
+    week_counter = 0
     while day_index<len(data.dateTest):
         counter_back = 0
         init_list_index = day_index#data.dateTest[day_index]
@@ -1229,11 +1322,13 @@ if __name__ == '__main__':
         # init trader
         trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), 
                                  init_budget=init_budget, log_file=log_file,
-                                 summary_file=summary_file)
+                                 summary_file=summary_file,positions_dir=positions_dir,
+                                 positions_file=positions_file)
         
-        out = ("Week from "+data.dateTest[init_list_index]+
+        out = ("Week counter "+str(week_counter)+". From "+data.dateTest[init_list_index]+
                " to "+data.dateTest[end_list_index]+
                " Number journal entries "+str(journal_entries))
+        week_counter += 1
         print(out)
         trader.write_log(out)
         trader.write_summary(out)
@@ -1261,6 +1356,7 @@ if __name__ == '__main__':
         not_entered_extention = 0
         not_entered_same_time = 0
         not_entered_secondary = 0
+        close_dueto_dirchange = 0
         w = 1-1/20
         # get to 
         while event_idx<nEvents:
@@ -1299,7 +1395,7 @@ if __name__ == '__main__':
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                       " pofitability {0:.3f}".format(profitability)+
                       " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
-                      str(int(np.abs(trader.next_candidate.bet)-1))+
+                      str(int(trader.next_candidate.bet))+
                       " Open Condition met")
                 print(out)
                 trader.write_log(out)
@@ -1350,7 +1446,7 @@ if __name__ == '__main__':
                     trader.close_position(DateTimes[event_idx], 
                                           Assets[event_idx].decode("utf-8"), 
                                           ass_idx)
-                    trader.ban_asset(ass_idx)
+                    #trader.ban_asset(ass_idx)
                     # reset approched
                     if len(trader.list_opened_positions)==0:
                         approached = 0
@@ -1363,16 +1459,17 @@ if __name__ == '__main__':
                         if (trader.check_primary_condition_for_extention(
                                 time_stamp, ass_idx)):#next_pos.eGROI>e_spread):
                             #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+Assets[event_idx].decode("utf-8")+" Primary condition fulfilled")
-                            curr_GROI, _, _ = trader.get_rois(ass_idx, date_time='', roi_ratio=1)
+                            curr_GROI, _, _, _ = trader.get_rois(ass_idx, date_time=DateTimes[event_idx].decode("utf-8"), roi_ratio=1)
                             # update GROI limit for extension
                             #trader.update_groi_limit(ass_idx, curr_GROI)
-                            if trader.check_secondary_condition_for_extention(
-                                    ass_idx, curr_GROI):
+                            ext_condition, dir_condition = trader.check_secondary_condition_for_extention(
+                                    ass_idx, curr_GROI)
+                            if ext_condition:
                                 # include third condition for thresholds
                                 # extend deadline
                                 EXIT, rewind = trader.extend_position(ass_idx, curr_GROI)
                                 
-                            else:
+                            elif not dir_condition:
                                 # extend conditon not met
                                 profitability = strategys[name2str_map[
                                         trader.next_candidate.strategy]
@@ -1393,6 +1490,18 @@ if __name__ == '__main__':
                                 trader.write_log(out)
                                 
                                 EXIT, rewind = trader.update_candidates()
+                            else:
+                                # close due to change direction
+                                close_dueto_dirchange += 1
+                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
+                                print(out)
+                                trader.write_log(out)
+                                trader.close_position(DateTimes[event_idx], 
+                                              Assets[event_idx].decode("utf-8"), 
+                                              ass_idx)
+                            # reset approched
+                            if len(trader.list_opened_positions)==0:
+                                approached = 0
 #                                change_dir += 1
 #                                print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Exit position due to direction change "+Assets[event_idx].decode("utf-8"))
 #                                # get lots in case a new one is directly opened
@@ -1611,6 +1720,8 @@ if __name__ == '__main__':
     print(out)
     trader.write_log(out)
     out = "Results file: "+start_time+"results.p"
+    print(out)
+    out = "Positions file: "+positions_file
     print(out)
     # build results dictionary
     results_dict = {'dts':results.datetimes,
@@ -2028,3 +2139,44 @@ if __name__ == '__main__':
 #Total entries 383 per entries 1.79 percent gross success 64.75% percent nett success 51.96% average loss 6.82p average win 6.38p RR 1 to 1.01
 #DONE. Total time: 106.16 mins
 #Results file: 190111114825results.p
+    
+#Total GROI = 15.529% Total ROI = 9.132% Sum GROI = 16.149% Sum ROI = 9.494% Accumulated earnings 949.42E
+#Total entries 460 per entries 26.32 percent gross success 60.00% percent nett success 57.17% average loss 11.89p average win 12.52p RR 1 to 1.41
+#DONE. Total time: 35.92 mins
+#Results file: 190212094819results.p
+    
+#Total GROI = 26.045% Total ROI = 15.461% Sum GROI = 28.000% Sum ROI = 16.578% Accumulated earnings 1657.77E
+#Total entries 726 per entries 18.99 percent gross success 63.50% percent nett success 57.85% average loss 9.22p average win 10.66p RR 1 to 1.59
+#DONE. Total time: 41.31 mins
+#Results file: 190212144049results.p
+# Positions file: '190212144049_100350NJLSE13TI3MC0.65MD0.6_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv'
+    
+#Total GROI = 26.778% Total ROI = 16.193% Sum GROI = 28.879% Sum ROI = 17.420% Accumulated earnings 1741.98E
+#Total entries 728 per entries 19.04 percent gross success 63.46% percent nett success 57.83% average loss 9.21p average win 10.85p RR 1 to 1.62
+#DONE. Total time: 57.89 mins
+#Results file: 190212182402results.p
+#Positions file: 190212182402_100350NJLSE13TI3MC0.65MD0.6_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv
+    
+#Total GROI = 14.697% Total ROI = 8.215% Sum GROI = 15.293% Sum ROI = 8.504% Accumulated earnings 850.44E
+#Total entries 406 per entries 19.57 percent gross success 66.01% percent nett success 58.87% average loss 7.85p average win 9.04p RR 1 to 1.65
+#DONE. Total time: 29.61 mins
+#Results file: 190213090034results.p
+#Positions file: 190213090034_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv
+    
+#Total GROI = 17.253% Total ROI = 11.423% Sum GROI = 18.159% Sum ROI = 12.020% Accumulated earnings 1201.96E
+#Total entries 428 per entries 24.49 percent gross success 61.45% percent nett success 58.18% average loss 10.55p average win 12.41p RR 1 to 1.64
+#DONE. Total time: 36.85 mins
+#Results file: 190213095021results.p
+#Positions file: 190213095021_100350NJLSE13TI3MC0.65MD0.6.csv
+    
+#Total GROI = 21.425% Total ROI = 14.427% Sum GROI = 22.968% Sum ROI = 15.408% Accumulated earnings 1540.76E
+#Total entries 523 per entries 32.18 percent gross success 59.85% percent nett success 56.98% average loss 10.09p average win 12.79p RR 1 to 1.68
+#DONE. Total time: 38.70 mins
+#Results file: 190213103037results.p
+#Positions file: 190213103037_100350SE13TI3MC0.55MD0.6_100350LE6TI1MC0.65MD0.65.csv
+    
+#Total GROI = 29.788% Total ROI = 18.179% Sum GROI = 32.568% Sum ROI = 19.772% Accumulated earnings 1977.19E
+#Total entries 827 per entries 22.35 percent gross success 61.67% percent nett success 57.19% average loss 9.01p average win 10.92p RR 1 to 1.62
+#DONE. Total time: 44.73 mins
+#Results file: 190213121736results.p
+#Positions file: 190213121736_100350SE13TI3MC0.55MD0.6_100350LE6TI1MC0.65MD0.65_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv

@@ -72,10 +72,25 @@ def train_RNN(*ins):
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     # init hdf5 files
-    if feats_from_bids:
-        tag = 'IO_mW'
+    if type(feats_from_bids)==bool:
+        if feats_from_bids:
+            # only get short bets (negative directions)
+            tag = 'IO_mW'
+        else:
+            # only get long bets (positive directions)
+            tag = 'IOA_mW'
+    elif type(feats_from_bids)==str:
+        if feats_from_bids=='SHORT' or feats_from_bids=='COMBS':
+            # only get short bets (negative directions)
+            tag = 'IO_mW'
+        elif feats_from_bids=='LONG' or feats_from_bids=='COMBL':
+            # only get long bets (positive directions)
+            tag = 'IOA_mW'
+        else:
+            raise ValueError("Entry "+feats_from_bids+" not known. Options are SHORT/LONG/COMB")
     else:
-        tag = 'IOA_mW'
+        raise ValueError("feats_from_bids must be a bool or str with options SHORT/LONG/COMB")
+            
     filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+'_nE'+
@@ -128,6 +143,7 @@ def train_RNN(*ins):
                        num_epochs=config['num_epochs'])
     # if IO structures have to be built 
     if if_build_IO:
+        print("Tag = "+str(tag))
         # open IO file for writting
         f_IO = h5py.File(filename_IO,'w')
         # init IO data sets
