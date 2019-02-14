@@ -352,14 +352,15 @@ def modify_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'T0000'
+    config_name = 'T0001'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
         dateTest = ['2018.11.12']
-        numberNetworks = 3
-        IDweights = ['000318INVO','000318INVO','000318INVO']#['000289STRO']
-        IDresults = ['100318INVO','000318INVO','000318INVO']
+        numberNetworks = 4
+        IDweights = ['000350','000350']+['000327INVO','000500']
+        IDresults = ['100350S','100350L']+['100327S','100500L']
+        list_feats_from_bids = ['SHORT','LONG','SHORT','LONG']
         lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
         list_name = ['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
         IDepoch = ['15','8','22']
