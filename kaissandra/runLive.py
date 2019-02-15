@@ -1373,7 +1373,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
                   list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
-                  results_file, model, data, log_file, nonVarIdx, list_inv_out):
+                  results_file, model, data, log_file, nonVarIdx, list_inv_out, 
+                  list_feats_from):
     """
     <DocString>
     """
@@ -1803,7 +1804,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_data'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn])
+                                       lists['list_inv_out'][nn].
+                                       lists['list_feats_from'][nn])
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -2411,6 +2413,7 @@ def run(config_trader, running_assets, start_time):
     netNames = config_trader['netNames']#['31815','31808','31822']
     list_t_indexs = config_trader['list_t_indexs']#[[1],[3],[3]]
     list_inv_out = config_trader['list_inv_out']#[True,True,True]
+    list_feats_from = config_trader['list_feats_from']
     list_entry_strategy = config_trader['list_entry_strategy']#['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
     list_spread_ranges = config_trader['list_spread_ranges']#[{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
     #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
@@ -2671,6 +2674,7 @@ def run(config_trader, running_assets, start_time):
                 lists['list_data'] = list_data
                 lists['list_nonVarIdx'] = list_nonVarIdx
                 lists['list_inv_out'] = list_inv_out
+                lists['list_feats_from'] = list_feats_from
                 
                 trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
@@ -2751,6 +2755,7 @@ def run(config_trader, running_assets, start_time):
             lists['list_data'] = list_data
             lists['list_nonVarIdx'] = list_nonVarIdx
             lists['list_inv_out'] = list_inv_out
+            lists['list_feats_from'] = list_feats_from
             # init trader
             trader = Trader(running_assets,
                                 ass2index_mapping, strategies, AllAssets, 
@@ -2805,9 +2810,9 @@ def launch(*ins):
     if len(ins)>0:
         config_trader = retrieve_config(ins[0])
     else:
-        config_trader = retrieve_config('T0000')
-    synchroned_run = False
-    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]#
+        config_trader = retrieve_config('T0001')
+    synchroned_run = True
+    assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     
     running_assets = assets#[31]#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets, directory_MT5)

@@ -127,6 +127,10 @@ def configuration(*ins):
             inverse_load = entries['inverse_load']
         else:
             inverse_load = True
+        if 'feats_from_bids' in entries:
+            feats_from_bids = entries['feats_from_bids']
+        else:
+            feats_from_bids = True
         
         # model parameters
         if 'size_hidden_layer' in entries:
@@ -203,6 +207,10 @@ def configuration(*ins):
             thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
         else:
             thresholds_md = entries['thresholds_md']
+        if 'results_from' in entries:
+            results_from = entries['results_from']
+        else:
+            results_from = 'BIDS' # {'BIDS','ASKS','COMB'}
         
         
         # feature-specific configuration
@@ -218,10 +226,7 @@ def configuration(*ins):
             build_partial_raw = entries['build_partial_raw']
         else:
             build_partial_raw = False
-        if 'feats_from_bids' in entries:
-            feats_from_bids = entries['feats_from_bids']
-        else:
-            feats_from_bids = True
+        
         
         # add parameters to config dictionary
         config = {'config_name':config_name,
@@ -252,6 +257,7 @@ def configuration(*ins):
                   'IDweights':IDweights,
                   'IO_results_name':IO_results_name,
                   'inverse_load':inverse_load,
+                  'results_from':results_from,
                   
                   'IDresults':IDresults,
                   'startFrom':startFrom,
@@ -348,6 +354,25 @@ def modify_config(config_name,key,value):
         print("Config name "+config_name+" does not exist")
         config = None
         return False
+    
+def add_to_config(config_name,key,value):
+    """
+    
+    """
+    config_filename = local_vars.config_directory+config_name+config_extension
+    if os.path.exists(config_filename):
+        config = pickle.load( open( config_filename, "rb" ))
+        if key not in config:
+            config[key] = value
+            pickle.dump( config, open( config_filename, "wb" ))
+            print("Config file "+config_filename+" saved")
+            return True
+        else:
+            raise ValueError(key+" in "+config_name+". Use modify_config instead")
+    else:
+        print("Config name "+config_name+" does not exist")
+        config = None
+        return False
 
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
@@ -360,30 +385,32 @@ def configuration_trader(*ins):
         numberNetworks = 4
         IDweights = ['000350','000350']+['000327INVO','000500']
         IDresults = ['100350S','100350L']+['100327S','100500L']
-        list_feats_from_bids = ['SHORT','LONG','SHORT','LONG']
         lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-        list_name = ['15e_1t_77m_2p','8e_3t_77m_3p','22e_0t_57m_1p']#['89_4']
-        IDepoch = ['15','8','22']
-        netNames = ['31815','31808','31822']
-        list_t_indexs = [[1],[3],[3]]
-        list_inv_out = [True,True,True]
+        list_name = ['100350S_13_3_.65_.6','100350S_6_1_.65_.55']+['100327S_21_0_.75_.7','100500L_29_3_.7_.6']
+        IDepoch = ['13','6','21','29']
+        netNames = ['350S','350L','327S','500L']
+        list_t_indexs = [[3],[1],[0],[2]]
+        list_inv_out = [True for i in range(numberNetworks)]
+        list_feats_from = ['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
-        list_spread_ranges = [{'sp':[2],'th':[(.7,.7)]},{'sp':[3],'th':[(.7,.7)]},{'sp':[1],'th':[(.5,.7)]}]#[2]# in pips
+        list_spread_ranges = [{'sp':[2.5],'th':[(.55,.6)],'dir':'S'},{'sp':[2.5],'th':[(.65,.65)],'dir':'L'}]+\
+            [{'sp':[2.5],'th':[(.75,.7)],'dir':'S'},{'sp':[2.5],'th':[(.7,.6)],'dir':'L'}]
         #[{'sp':[2],'th':[(.5,.7)]},{'sp':[3],'th':[(.6,.8)]},{'sp':[1],'th':[(.5,.7)]}]
-        list_priorities = [[1],[2],[0]]
-        phase_shifts = [5,5,5]
-        list_thr_sl = [20 for i in range(numberNetworks)]
+        list_priorities = [[3],[2],[1],[0]]
+        phase_shifts = [1 for i in range(numberNetworks)]
+        list_thr_sl = [1000 for i in range(numberNetworks)]
         list_thr_tp = [1000 for i in range(numberNetworks)]
-        delays = [0,0,0]
-        mWs = [100,100,100]
-        nExSs = [1000,1000,1000]
-        lBs = [1300,1300,1300]#[1300]
-        list_lim_groi_ext = [-.02 for i in range(numberNetworks)]
-        list_w_str = ['55','55','55']
-        model_dict = {'size_hidden_layer':[100,100,100],
-                      'L':[3,3,3],
+        delays = [0 for i in range(numberNetworks)]
+        mWs = [500,500,200,200]
+        nExSs = [5000,5000,2000,2000]
+        lBs = [6500,6500,2600,2600]#[1300]
+        list_lim_groi_ext = [-100 for i in range(numberNetworks)]
+        list_w_str = ['55' for i in range(numberNetworks)]
+        
+        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
+                      'L':[3 for i in range(numberNetworks)],
                       'size_output_layer':[5 for i in range(numberNetworks)],
-                      'outputGain':[1,1,1]}
+                      'outputGain':[1 for i in range(numberNetworks)]}
         
         list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
         list_lb_mc_op = [.5 for i in range(numberNetworks)]
@@ -415,6 +442,7 @@ def configuration_trader(*ins):
                   'list_entry_strategy':list_entry_strategy,
                   'list_spread_ranges':list_spread_ranges,
                   'list_priorities':list_priorities,
+                  'list_feats_from':list_feats_from,
                   'phase_shifts':phase_shifts,
                   'list_thr_sl':list_thr_sl,
                   'list_thr_tp':list_thr_tp,

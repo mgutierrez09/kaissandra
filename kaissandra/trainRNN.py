@@ -76,20 +76,13 @@ def train_RNN(*ins):
         if feats_from_bids:
             # only get short bets (negative directions)
             tag = 'IO_mW'
+            tag_stats = 'IOB'
         else:
             # only get long bets (positive directions)
             tag = 'IOA_mW'
-    elif type(feats_from_bids)==str:
-        if feats_from_bids=='SHORT' or feats_from_bids=='COMBS':
-            # only get short bets (negative directions)
-            tag = 'IO_mW'
-        elif feats_from_bids=='LONG' or feats_from_bids=='COMBL':
-            # only get long bets (positive directions)
-            tag = 'IOA_mW'
-        else:
-            raise ValueError("Entry "+feats_from_bids+" not known. Options are SHORT/LONG/COMB")
+            tag_stats = 'IOA'
     else:
-        raise ValueError("feats_from_bids must be a bool or str with options SHORT/LONG/COMB")
+        raise ValueError("feats_from_bids must be a bool")
             
     filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
@@ -196,11 +189,11 @@ def train_RNN(*ins):
                                thisAsset, 
                                ass_group,
                                from_stats_file=from_stats_file, 
-                               hdf5_directory=hdf5_directory+'stats/')
+                               hdf5_directory=hdf5_directory+'stats/',tag=tag_stats)
         else:
             stats_manual = []
         
-        stats_output = load_stats_output(data, hdf5_directory, thisAsset)
+        stats_output = load_stats_output(data, hdf5_directory+'stats/', thisAsset, tag=tag_stats)
         
         if f_feats_tsf != None:
             stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory, f_feats_tsf,

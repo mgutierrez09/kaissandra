@@ -258,19 +258,24 @@ def initFeaturesLive(data,tradeInfoLive):
     
     return featuresLive,parSarStruct,em
 
-def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
+def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em, list_feats_from):
     """
     <DocString>
     """
     nEvents = data.nEventsPerStat
     
-    
+    if list_feats_from == 'B':
+        symbols = tradeInfoLive.SymbolBid
+    elif list_feats_from == 'A':
+        symbols = tradeInfoLive.SymbolAsk
+    else:
+        ValueError("list_feats_from must be B or A")
     initRange = int(data.nEventsPerStat/data.movingWindow)
-    endIndex = initRange*data.movingWindow+tradeInfoLive.SymbolBid.index[0]
+    endIndex = initRange*data.movingWindow+symbols.index[0]
     newBidsIndex = range(endIndex-data.movingWindow,endIndex)
     for i in newBidsIndex:
         #print(tradeInfoLive.SymbolBid.loc[i])
-        em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i]
+        em = data.lbd*em+(1-data.lbd)*symbols.loc[i]
     
     
     if 1 in data.feature_keys:
@@ -280,40 +285,40 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
         for il in newEventsRange:
             #print(tradeInfoLive.SymbolBid.iloc[il])
             eml = data.lbd*eml+(
-                    1-data.lbd)*tradeInfoLive.SymbolBid.iloc[il]
+                    1-data.lbd)*symbols.iloc[il]
         
         featuresLive[1:1+data.lbd.shape[0],0] = eml
         
     if 10 in data.feature_keys:
-        parSarStruct.HP20 = np.max([np.max(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.HP20])
-        parSarStruct.LP20 = np.min([np.min(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.LP20])
+        parSarStruct.HP20 = np.max([np.max(symbols.iloc[:]),parSarStruct.HP20])
+        parSarStruct.LP20 = np.min([np.min(symbols.iloc[:]),parSarStruct.LP20])
         featuresLive[10,0] = featuresLive[10,0]+parSarStruct.AFH20*(parSarStruct.HP20-featuresLive[10,0]) #parSar high
         featuresLive[11,0] = featuresLive[11,0]-parSarStruct.AFL20*(featuresLive[11,0]-parSarStruct.LP20) # parSar low
         if featuresLive[10,0]<parSarStruct.HP20:
             parSarStruct.AFH20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
-            parSarStruct.LP20 = np.min(tradeInfoLive.SymbolBid.iloc[:])
+            parSarStruct.LP20 = np.min(symbols.iloc[:])
         if featuresLive[11,0]>parSarStruct.LP20:
             parSarStruct.AFL20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
-            parSarStruct.HP20 = np.max(tradeInfoLive.SymbolBid.iloc[:])
+            parSarStruct.HP20 = np.max(symbols.iloc[:])
         
     if 13 in data.feature_keys:
-        parSarStruct.HP2 = np.max([np.max(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.HP2])
-        parSarStruct.LP2 = np.min([np.min(tradeInfoLive.SymbolBid.iloc[:]),parSarStruct.LP2])
+        parSarStruct.HP2 = np.max([np.max(symbols.iloc[:]),parSarStruct.HP2])
+        parSarStruct.LP2 = np.min([np.min(symbols.iloc[:]),parSarStruct.LP2])
         featuresLive[13,0] = featuresLive[13,0]+parSarStruct.AFH2*(parSarStruct.HP2-featuresLive[13,0]) #parSar high
         featuresLive[14,0] = featuresLive[14,0]-parSarStruct.AFL2*(featuresLive[14,0]-parSarStruct.LP2) # parSar low
         if featuresLive[13,0]<parSarStruct.HP2:
             parSarStruct.AFH2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
-            parSarStruct.LP2 = np.min(tradeInfoLive.SymbolBid.iloc[:])
+            parSarStruct.LP2 = np.min(symbols.iloc[:])
         if featuresLive[14,0]>parSarStruct.LP2:
             parSarStruct.AFL2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
-            parSarStruct.HP2 = np.max(tradeInfoLive.SymbolBid.iloc[:])
+            parSarStruct.HP2 = np.max(symbols.iloc[:])
 
     if 0 in data.feature_keys:
-        featuresLive[0,0] = tradeInfoLive.SymbolBid.iloc[-1]
+        featuresLive[0,0] = symbols.iloc[-1]
     
     
     if 8 in data.feature_keys:
-            featuresLive[8,0] = 10*np.log10(np.var(tradeInfoLive.SymbolBid.iloc[:])/data.std_var+1e-10)
+            featuresLive[8,0] = 10*np.log10(np.var(symbols.iloc[:])/data.std_var+1e-10)
         
     if 9 in data.feature_keys:
         te = pd.to_datetime(tradeInfoLive.iloc[-1].DateTime)
@@ -337,22 +342,22 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em):
         featuresLive[16,0] = featuresLive[9,0]
         
     if 17 in data.feature_keys:
-        featuresLive[17,0] = np.max(tradeInfoLive.SymbolBid.iloc[:])-featuresLive[0,0]
+        featuresLive[17,0] = np.max(symbols.iloc[:])-featuresLive[0,0]
     
     if 18 in data.feature_keys:
-        featuresLive[18,0] = featuresLive[0,0]-np.min(tradeInfoLive.SymbolBid.iloc[:])
+        featuresLive[18,0] = featuresLive[0,0]-np.min(symbols.iloc[:])
     
     if 19 in data.feature_keys:
-        featuresLive[19,0] = np.max(tradeInfoLive.SymbolBid.iloc[:])-featuresLive[0,0]
+        featuresLive[19,0] = np.max(symbols.iloc[:])-featuresLive[0,0]
         
     if 20 in data.feature_keys:
-        featuresLive[20,0] = featuresLive[0,0]-np.min(tradeInfoLive.SymbolBid.iloc[:])
+        featuresLive[20,0] = featuresLive[0,0]-np.min(symbols.iloc[:])
     
     if 21 in data.feature_keys:
-        featuresLive[21,0] = np.min(tradeInfoLive.SymbolBid.iloc[:])/np.max(tradeInfoLive.SymbolBid.iloc[:])
+        featuresLive[21,0] = np.min(symbols.iloc[:])/np.max(symbols.iloc[:])
     
     if 22 in data.feature_keys:
-        featuresLive[22,0] = np.min(tradeInfoLive.SymbolBid.iloc[:])/np.max(tradeInfoLive.SymbolBid.iloc[:])
+        featuresLive[22,0] = np.min(symbols.iloc[:])/np.max(symbols.iloc[:])
     
     for i in range(data.lbd.shape[0]):
         #nF = nF+1
@@ -1439,8 +1444,8 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
         # update combined stats of all data sets
             stats["means_t_in"] += m_in*means_in
             stats["stds_t_in"] += m_in*stds_in
-            stats["means_t_out"] += m_out*means_out
-            stats["stds_t_out"] += m_out*stds_out
+            stats["means_t_out"] += m_out*means_out[:stats["means_t_out"].shape[0]]
+            stats["stds_t_out"] += m_out*stds_out[:stats["means_t_out"].shape[0]]
             stats["m_t_in"] += m_in
             stats["m_t_out"] += m_out
     # end of if separators.index[s+1]-separators.index[s]>=2*data.nEventsPerStat:
@@ -1947,15 +1952,15 @@ def build_DTA_from_var(data, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def load_stats_output(data, hdf5_directory, thisAsset):
+def load_stats_output(data, hdf5_directory, thisAsset, tag='IOA'):
     """
     Load output stats
     """
     # TODO: pass output stats to their own container and load them from there
-    stats = pickle.load( open( hdf5_directory+'stats/'+thisAsset+'_stats_mW'+
+    stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(data.movingWindow)+
                                      '_nE'+str(data.nEventsPerStat)+
-                                     '_nF37'+'.p', 'rb' ))
+                                     '_nF'+str(len(data.feature_keys_manual))+".p", "rb" ))
     stats_output = {'m_t_out':stats['m_t_out'],
                     'stds_t_out':stats['stds_t_out']}
     return stats_output
@@ -2013,7 +2018,7 @@ def load_stats(data, thisAsset, ass_group, save_stats, from_stats_file=False,
     return stats
 
 def load_stats_manual(data, thisAsset, ass_group, from_stats_file=False, 
-               hdf5_directory='', save_pickle=False):
+               hdf5_directory='', save_pickle=False, tag='IOA'):
     """
     Function that loads stats
     """
@@ -2028,7 +2033,7 @@ def load_stats_manual(data, thisAsset, ass_group, from_stats_file=False,
     
     elif from_stats_file:
         try:
-            stats = pickle.load( open( hdf5_directory+thisAsset+'_stats_mW'+
+            stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(data.movingWindow)+
                                      '_nE'+str(data.nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
@@ -2044,6 +2049,7 @@ def load_stats_manual(data, thisAsset, ass_group, from_stats_file=False,
         
     # save stats individually
     if save_pickle:
+        raise ValueError("Depricated save_pickle=True in arguments")
         pickle.dump( stats, open( hdf5_directory+thisAsset+'_stats_mW'+
                                  str(data.movingWindow)+
                                  '_nE'+str(data.nEventsPerStat)+

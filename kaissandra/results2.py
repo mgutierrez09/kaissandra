@@ -346,6 +346,10 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
         feats_from_bids = config['feats_from_bids']
     else:
         feats_from_bids = True
+    if 'results_from' in config:
+        results_from = config['results_from']
+    else:
+        results_from = 'BIDS'
     m = y.shape[0]
     n_days = len(dateTest)
 #    granularity = 1/resolution
@@ -401,27 +405,17 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                                       ys_mc['probs_mc'][ys_md['y_md_tilde']], 
                                       ys_md['probs_md'])
                 # Filter out positions with non-tackled direction
-                if type(feats_from_bids)==bool:
-                    if feats_from_bids:
-                        # only get short bets (negative directions)
-                        Journal = Journal[Journal['Bet']<0]
-                    else:
-                        # only get long bets (positive directions)
-                        Journal = Journal[Journal['Bet']>0]
-                elif type(feats_from_bids)==str:
-                    if feats_from_bids=='SHORT':
-                        # only get short bets (negative directions)
-                        Journal = Journal[Journal['Bet']<0]
-                    elif feats_from_bids=='LONG':
-                        # only get long bets (positive directions)
-                        Journal = Journal[Journal['Bet']>0]
-                    elif feats_from_bids=='COMBS' or feats_from_bids=='COMBL':
-                        pass
-                    else:
-                        raise ValueError("Entry "+feats_from_bids+" not known. Options are SHORT/LONG/COMB")
+                
+                if results_from=='BIDS':
+                    # only get short bets (negative directions)
+                    Journal = Journal[Journal['Bet']<0]
+                elif results_from=='ASKS':
+                    # only get long bets (positive directions)
+                    Journal = Journal[Journal['Bet']>0]
+                elif results_from=='COMB':
+                    pass
                 else:
-                    raise ValueError("feats_from_bids must be a bool or str with options SHORT/LONG/COMB")
-                print("feats_from_bids is "+feats_from_bids)
+                    raise ValueError("Entry "+feats_from_bids+" not known. Options are SHORT/LONG/COMB")
                 ## calculate KPIs
                 results = get_basic_results_struct(ys_mc, ys_md, results, Journal, m)
                 # init positions dir and filename
@@ -874,8 +868,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     else:
         sharpe = 0.0
     # Success index per spread level
-    SIs = n_pos_opned*(NSPs-.52)
-    SI = n_pos_opned*(net_succ_per-.52)
+    SIs = n_pos_opned*(NSPs-.54)
+    SI = n_pos_opned*(net_succ_per-.54)
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs

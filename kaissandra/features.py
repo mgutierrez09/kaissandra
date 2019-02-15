@@ -309,7 +309,7 @@ def get_features(*ins):
     # reset only one asset
     reset_asset = ''
     
-    if len(ins)>0:
+    if 0:
         # wait while files are locked
         while os.path.exists(filename_raw+'.flag') or os.path.exists(filename_prep_IO+'.flag'):
             # sleep random time up to 10 seconds if any file is being used
@@ -444,7 +444,7 @@ def get_features(*ins):
     f_prep_IO.close()
     f_raw.close()
     # release lock
-    if len(ins)>0:
+    if 0:
         os.remove(filename_raw+'.flag')
         os.remove(filename_prep_IO+'.flag')
     
