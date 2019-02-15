@@ -213,10 +213,18 @@ class Data:
             n_feats_tsfresh += params[-1]
         return n_feats_tsfresh
     
-def initFeaturesLive(data,tradeInfoLive):
+def initFeaturesLive(data, tradeInfoLive, list_feats_from):
     """
     <DocString>
     """
+    if list_feats_from == 'B':
+        symbols = tradeInfoLive.SymbolBid
+        
+    elif list_feats_from == 'A':
+        symbols = tradeInfoLive.SymbolAsk
+    else:
+        ValueError("list_feats_from must be B or A")
+        
     class parSarInit:
         # old parsar=> 20
         #periodSAR = data.nEventsPerStat
@@ -237,24 +245,24 @@ def initFeaturesLive(data,tradeInfoLive):
     featuresLive = np.zeros((nF,1))
     
     initRange = int(data.nEventsPerStat/data.movingWindow)
-    em = np.zeros((data.lbd.shape))+tradeInfoLive.SymbolBid.loc[tradeInfoLive.SymbolBid.index[0]]
+    em = np.zeros((data.lbd.shape))+symbols.loc[symbols.index[0]]
     for i in range(initRange*data.movingWindow-data.movingWindow):
-        em = data.lbd*em+(1-data.lbd)*tradeInfoLive.SymbolBid.loc[i+tradeInfoLive.SymbolBid.index[0]]
+        em = data.lbd*em+(1-data.lbd)*symbols.loc[i+symbols.index[0]]
     
     
     if 1 in data.feature_keys:
-        featuresLive[1:1+data.lbd.shape[0],0] = tradeInfoLive.SymbolBid.iloc[0]
+        featuresLive[1:1+data.lbd.shape[0],0] = symbols.iloc[0]
         for i in range(int(data.nEventsPerStat*(1-data.movingWindow/data.nEventsPerStat))):
             featuresLive[1:1+data.lbd.shape[0],0] = data.lbd*featuresLive[1:1+data.lbd.shape[0],0]+(
-                    1-data.lbd)*tradeInfoLive.SymbolBid.iloc[i]
+                    1-data.lbd)*symbols.iloc[i]
     #print(em-featuresLive[1:1+data.lbd.shape[0],0])
     if 10 in data.feature_keys:
-        featuresLive[10,0] = tradeInfoLive.SymbolBid.iloc[0]
-        featuresLive[11,0] = tradeInfoLive.SymbolBid.iloc[0]
+        featuresLive[10,0] = symbols.iloc[0]
+        featuresLive[11,0] = symbols.iloc[0]
     
     if 13 in data.feature_keys:
-        featuresLive[13,0] = tradeInfoLive.SymbolBid.iloc[0]
-        featuresLive[14,0] = tradeInfoLive.SymbolBid.iloc[0]
+        featuresLive[13,0] = symbols.iloc[0]
+        featuresLive[14,0] = symbols.iloc[0]
     
     return featuresLive,parSarStruct,em
 
@@ -266,6 +274,7 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em, list_
     
     if list_feats_from == 'B':
         symbols = tradeInfoLive.SymbolBid
+        
     elif list_feats_from == 'A':
         symbols = tradeInfoLive.SymbolAsk
     else:

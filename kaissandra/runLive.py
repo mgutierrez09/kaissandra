@@ -17,7 +17,11 @@ import re
 import tensorflow as tf
 #from multiprocessing import Process
 from kaissandra.simulateTrader import load_in_memory
-from kaissandra.inputs import Data, load_stats, initFeaturesLive, extractFeaturesLive
+from kaissandra.inputs import (Data, 
+                               initFeaturesLive, 
+                               extractFeaturesLive, 
+                               load_stats_manual, 
+                               load_stats_output)
 from kaissandra.RNN import modelRNN
 import shutil
 from kaissandra.local_config import local_vars
@@ -564,6 +568,18 @@ class Trader:
         self.list_count_events[self.map_ass_idx2pos_idx[idx]] += n_events
         self.list_count_all_events[self.map_ass_idx2pos_idx[idx]] += n_events
     
+    def direction_map(self, candidate_direction, strategy_direction):
+        """  """
+        if strategy_direction=='C':
+            condition = True
+        elif strategy_direction=='S' and candidate_direction<0:
+            condition =True
+        elif strategy_direction=='L' and candidate_direction>0:
+            condition = True
+        else:
+            condition = False
+        return condition
+    
     def check_contition_for_opening(self, t):
         '''
         '''
@@ -588,7 +604,9 @@ class Trader:
         elif this_strategy.entry_strategy=='spread_ranges':
             condition_open= self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
-                e_spread<=this_strategy.info_spread_ranges['sp'][t]
+                e_spread<=this_strategy.info_spread_ranges['sp'][t] and\
+                self.direction_map(self.next_candidate.direction, 
+                                   self.next_candidate.strategy.info_spread_ranges['dir'][t])
         else:
             #print("ERROR: fix_spread cannot be fixed if GRE is in use")
             raise ValueError("fix_spread cannot be fixed if GRE is in use")
@@ -885,7 +903,6 @@ class Trader:
             pos_info['grois'].append(groi)
             pos_info['@tick#'].append(tick_counts)
             pos_info['strategy'].append(strategy_name)
-            print(pos_info)
         elif event=='close':
             pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
             n_ticks = len(self.list_last_bid[self.map_ass_idx2pos_idx[idx]])
@@ -1413,11 +1430,11 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             print("\r"+out)
             write_log(out, log_file)
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = \
-            initFeaturesLive(data,tradeInfoLive)
+            initFeaturesLive(data, tradeInfoLive, list_feats_from)
         init[sc] = True
 
     listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive\
-        (tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
+        (tradeInfoLive,data,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc], list_feats_from)
     # check if variations can be calculated or have to wait
     #allFeats = np.append(allFeats,features,axis=1)
     listAllFeatsLive[sc] = np.append(listAllFeatsLive[sc],listFeaturesLive[sc],
@@ -1516,13 +1533,13 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 if condition:
                     list_time_to_entry[sc][t_index].append(0)#model.seq_len-t_indexes[t_index]-1
                     list_list_soft_tildes[sc][t_index].append(soft_tilde_t[0,:])
-                    if verbose_RNN:
-                        out = thisAsset+netName+" ToBe sent DateTime "+\
-                            tradeInfoLive.DateTime.iloc[-1]+\
-                            " P_mc "+str(soft_tilde_t[0,0])+\
-                            " P_md "+str(np.max(soft_tilde_t[0,1:3]))
-                        print("\r"+out)
-                        write_log(out, log_file)
+#                    if verbose_RNN:
+#                        out = thisAsset+netName+" ToBe sent DateTime "+\
+#                            tradeInfoLive.DateTime.iloc[-1]+\
+#                            " P_mc "+str(soft_tilde_t[0,0])+\
+#                            " P_md "+str(np.max(soft_tilde_t[0,1:3]))
+#                        print("\r"+out)
+#                        write_log(out, log_file)
                 elif verbose_RNN:
                     out = thisAsset+netName+" DateTime "+\
                         tradeInfoLive.DateTime.iloc[-1]+\
@@ -1804,7 +1821,7 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_data'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn].
+                                       lists['list_inv_out'][nn],
                                        lists['list_feats_from'][nn])
                 if len(output)>0:
                     outputs.append([output,nn])
@@ -2482,6 +2499,7 @@ def run(config_trader, running_assets, start_time):
                          "P_mg"]
     
     for nn in range(numberNetworks):
+        
         if phase_shifts[nn] != 0:
             nCxAxN[:,nn] = int(nChans[nn]*phase_shifts[nn])
         else:
@@ -2508,14 +2526,15 @@ def run(config_trader, running_assets, start_time):
     
     #########################################
     
-    # init stats structures
-    
     
     # load stats
-    list_stats = [[load_stats(list_data[nn], AllAssets[str(running_assets[ass])], 
-                    None, 
-                    0, from_stats_file=True, hdf5_directory=hdf5_directory+
-                    'stats/') for nn in range(nNets)] for ass in range(nAssets)]
+    list_stats_feats = [[load_stats_manual(list_data[nn], AllAssets[str(running_assets[ass])], 
+                    None, from_stats_file=True, hdf5_directory=hdf5_directory+
+                    'stats/',tag='IO'+list_feats_from[nn]) for nn in range(nNets)] for ass in range(nAssets)]
+    
+    list_stats_rets = [[load_stats_output(list_data[nn], hdf5_directory+
+                    'stats/', AllAssets[str(running_assets[ass])], 
+                    tag='IO'+list_feats_from[nn]) for nn in range(nNets)] for ass in range(nAssets)]
     
     if test:
         gain = .000000001
@@ -2523,11 +2542,11 @@ def run(config_trader, running_assets, start_time):
     else: 
         gain = 1
     
-    list_means_in =  [[list_stats[ass][nn]['means_t_in'] for nn in range(nNets)] 
+    list_means_in =  [[list_stats_feats[ass][nn]['means_t_in'] for nn in range(nNets)] 
                                                          for ass in range(nAssets)]
-    list_stds_in =  [[gain*list_stats[ass][nn]['stds_t_in'] for nn in range(nNets)] 
+    list_stds_in =  [[gain*list_stats_feats[ass][nn]['stds_t_in'] for nn in range(nNets)] 
                                                             for ass in range(nAssets)]
-    list_stds_out =  [[gain*list_stats[ass][nn]['stds_t_out'] for nn in range(nNets)] 
+    list_stds_out =  [[gain*list_stats_rets[ass][nn]['stds_t_out'] for nn in range(nNets)] 
                                                               for ass in range(nAssets)]
     # pre allocate memory size
     
@@ -2810,11 +2829,11 @@ def launch(*ins):
     if len(ins)>0:
         config_trader = retrieve_config(ins[0])
     else:
-        config_trader = retrieve_config('T0001')
-    synchroned_run = True
+        config_trader = retrieve_config('T0003')
+    synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     
-    running_assets = assets#[31]#[12,7,14]#
+    running_assets = assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets, directory_MT5)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
