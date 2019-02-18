@@ -634,6 +634,7 @@ class Trader:
                                  [self.map_ass_idx2pos_idx[idx]].entry_time,
                                  '%Y.%m.%d %H:%M:%S')
         Dir = np.sign(self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet)
+        strategy_name = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy
 ############################ WARNING!!!! ##############################################        
         Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
@@ -663,7 +664,7 @@ class Trader:
         info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
                 str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
                 "0"+"\t"+str(Dir)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
-                str(Ao)
+                str(Ao)+"\t"+strategy_name
         return GROI_live, ROI_live, spread, info
     
     def update_groi_limit(self, idx, curr_GROI):
@@ -1281,7 +1282,7 @@ if __name__ == '__main__':
                          str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
                          str(list_spread_ranges[i]['th'][0][1])
                          for i in range(numberNetwors)])+'.csv'
-    columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo'
+    columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo\tstrategy'
     file = open(positions_dir+positions_file,"a")
     file.write(columns_positions+"\n")
     file.close()

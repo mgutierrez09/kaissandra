@@ -35,7 +35,7 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = True
 verbose_trader = False
-test = False
+test = True
 run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
@@ -440,7 +440,7 @@ class Trader:
         # results tracking
         if not os.path.exists(self.log_positions_soll):
             resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
-                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,E_spread,stoploss,stGROI,stROI"
+                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,strategy,Profit,E_spread,stoploss,stGROI,stROI"
             write_log(resultsInfoHeader, self.log_positions_soll)
             if not run_back_test:
                 write_log(resultsInfoHeader, self.log_positions_ist)
@@ -694,7 +694,7 @@ class Trader:
     
     def get_rois(self, idx, date_time='', roi_ratio=1, ass=''):
         """ Get current GROI and ROI of a given asset idx """
-        
+        strategy_name = direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy.name
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
         Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
         bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
@@ -726,7 +726,7 @@ class Trader:
         info = (ass+","+Ti+","+date_time+","+str(bet)+","+
                   str(Bi)+","+str(Ai)+","+str(Bo)+","+
                   str(Ao)+","+"0"+","+str(100*GROI_live)+","+
-                  str(100*spread)+","+str(100*ROI_live))
+                  str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
         
         return GROI_live, ROI_live, spread, info
         
@@ -2830,10 +2830,10 @@ def launch(*ins):
         config_trader = retrieve_config(ins[0])
     else:
         config_trader = retrieve_config('T0003')
-    synchroned_run = False
+    synchroned_run = True
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     
-    running_assets = assets#[12,7,14]#
+    running_assets = [12,7,14]#assets#
     renew_directories(Data().AllAssets, running_assets, directory_MT5)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
