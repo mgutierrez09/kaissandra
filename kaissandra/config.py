@@ -377,7 +377,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'T0004'
+    config_name = 'T0008'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -399,7 +399,7 @@ def configuration_trader(*ins):
         lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
         list_name = ['100350S_13_3_.65_.6','100350L_6_1_.65_.55']+['100327S_21_0_.75_.7','100500L_29_3_.7_.6']
         IDepoch = ['13','6','21','29']
-        netNames = ['350S','350L','327S','500L']
+        netNames = ['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
         list_t_indexs = [[3],[1],[0],[2]]
         list_inv_out = [True for i in range(numberNetworks)]
         list_feats_from = ['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
@@ -416,7 +416,7 @@ def configuration_trader(*ins):
         mWs = [500,500,200,200]
         nExSs = [5000,5000,2000,2000]
         lBs = [6500,6500,2600,2600]#[1300]
-        list_lim_groi_ext = [-100 for i in range(numberNetworks)]
+        list_lim_groi_ext = [-.3 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
         
         model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],

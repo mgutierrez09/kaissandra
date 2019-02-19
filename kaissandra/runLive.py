@@ -35,7 +35,7 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = False
 verbose_trader = True
-test = True
+test = False
 run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
@@ -200,7 +200,7 @@ class Position:
         self.e_spread = float(journal_entry['E_spread'])
         self.deadline = int(journal_entry['Deadline'])
         self.strategy = strategy
-        self.network_index = int(journal_entry['network_index'])
+        self.strategy_index = int(journal_entry['strategy_index'])
         self.profitability = journal_entry['profitability']
         self.idx_mc = strategy._get_idx(self.p_mc)
         self.idx_md = strategy._get_idx(self.p_md)
@@ -867,7 +867,8 @@ class Trader:
               " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
               " spread={0:.3f} ".format(e_spread)+" strategy "+
               self.list_opened_positions[-1].strategy.name)
-        print("\r"+out)
+        if verbose_trader:
+            print("\r"+out)
         self.write_log(out)
         
         
@@ -1036,6 +1037,8 @@ class Trader:
         Ai = inputs[0][0][0][4]
         e_spread_pip = e_spread/self.pip
         #s_prof = -10000 # -infinite
+        #print("Number of Networks:")
+        #print(len(inputs))
         for nn in range(len(inputs)):
             network_index = inputs[nn][-1]
             
@@ -1043,8 +1046,8 @@ class Trader:
                 
                 deadline = inputs[nn][i][0][5]
                 network_name = inputs[nn][i][0][6]
-                print("network_name")
-                print(network_name)
+                #print("network_name")
+                #print(network_name)
                 
                 for t in range(len(inputs[nn][i])):
                     soft_tilde = inputs[nn][i][t][0]
@@ -1062,10 +1065,10 @@ class Trader:
                     p_mc = soft_tilde[0]
                     p_md = np.max([soft_tilde[1],soft_tilde[2]])
                     if network_name in self.net2strategy:
-                        str_index = self.net2strategy.index(network_name)
-                        print("str_index in trader")
-                        print(str_index)
-                        profitability = self.strategies[str_index].get_profitability(
+                        strategy_index = self.net2strategy.index(network_name)
+                        #print("str_index in trader")
+                        #print(strategy_index)
+                        profitability = self.strategies[strategy_index].get_profitability(
                                 t, p_mc, p_md, int(np.abs(Y_tilde)-1))
                         yield {entry_time_column:DateTime,
                                'Asset':thisAsset,
@@ -1076,11 +1079,11 @@ class Trader:
                                entry_ask_column:Ai,
                                'E_spread':e_spread_pip,
                                'Deadline':deadline,
-                               'network_index':network_index,
+                               'strategy_index':strategy_index,
                                'profitability':profitability,
                                't':t}
                     else:
-                        print("network_name not in net2strategy")
+                        #print("network_name not in net2strategy")
                         yield []
                             
     
@@ -1092,7 +1095,7 @@ class Trader:
         for new_entry in self.select_next_entry(inputs, thisAsset):
             if not type(new_entry)==list:
                 t = new_entry['t']
-                strategy_name = self.strategies[new_entry['network_index']].name
+                strategy_name = self.strategies[new_entry['strategy_index']].name
                 # check for opening/extension in order of expected returns
                 out = ("New entry @ "+new_entry[entry_time_column]+" "+
                        new_entry['Asset']+
@@ -1104,8 +1107,8 @@ class Trader:
                        "Strategy "+strategy_name)
                 if verbose_trader:
                     print("\r"+out)
-                    self.write_log(out)
-                position = Position(new_entry, self.strategies[new_entry['network_index']])
+                    #self.write_log(out)
+                position = Position(new_entry, self.strategies[new_entry['strategy_index']])
                 
                 self.add_new_candidate(position)
                 ass_idx = self.ass2index_mapping[thisAsset]
@@ -1158,6 +1161,7 @@ class Trader:
                             # track position
                             self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
                             # print out
+                            
                             out = (new_entry[entry_time_column]+" Extended "+
                                    thisAsset+
                                " Lots {0:.1f}".format(self.list_lots_per_pos[
@@ -1166,9 +1170,11 @@ class Trader:
                                " p_mc={0:.2f}".format(new_entry['P_mc'])+
                                " p_md={0:.2f}".format(new_entry['P_md'])+ 
                                " spread={0:.3f}".format(new_entry['E_spread'])+
+                               " strategy "+strategy_name+
                                " current GROI={0:.2f}p".format(1/self.pip*curr_GROI))
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
-                            print("\r"+out)
+                            if verbose_trader:
+                                print("\r"+out)
                             self.write_log(out)
                         else: # if candidate for extension does not meet requirements
                             out = new_entry[entry_time_column]+" not extended "+\
@@ -1190,7 +1196,8 @@ class Trader:
                 # end of if not self.is_opened(ass_id):
             # end of for io in indexes_ordered:    
             else:
-                print("Network not in Trader. Skipped")
+                pass
+                #print("Network not in Trader. Skipped")
         return None
     
     def write_log(self, log):
@@ -2143,7 +2150,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     <DocString>
     """
     nAssets = len(running_assets)
-    print("Fetcher lauched")
+    print("Back test launched")
     # number of events per file
     n_files = 10
     n_samps_buffer = 100
@@ -2157,7 +2164,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     event_idx = 0
     
     tic = time.time()
-    
+    shutdown = False
     while event_idx<nEvents:
         
         outputs = []
@@ -2254,6 +2261,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         if os.path.exists(io_ass_dir+'SD'):
             print(thisAsset+" Shutting down")
             os.remove(io_ass_dir+'SD')
+            shutdown = True
             break
         elif os.path.exists(io_ass_dir+'PA'):
             
@@ -2272,7 +2280,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # get intermediate results
         budget = get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
     
-    return budget
+    return shutdown
 
 def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
     """  """
@@ -2318,7 +2326,7 @@ def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
     write_log(out, trader.log_file)
     write_log(out, trader.log_summary)
     print(out)
-    out = "DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins"
+    out = "This period DONE. Time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins"
     write_log(out, trader.log_file)
     write_log(out, trader.log_summary)
     print(out)
@@ -2528,17 +2536,15 @@ def run(config_list, running_assets, start_time):
 #                list_seq_lens = [int((list_data[idx_tr].lB-list_data[i].nEventsPerStat)/
 #                                 list_data[i].movingWindow+1) for i in range(len(mWs))]
                 list_models.append(modelRNN(list_data[idx_tr],
-                                    size_hidden_layer=model_dict['size_hidden_layer'][idx_tr],
-                                    L=model_dict['L'][idx_tr],
-                                    size_output_layer=model_dict['size_output_layer'][idx_tr],
-                                    outputGain=model_dict['outputGain'][idx_tr],
-                                    IDgraph=IDweights[idx_tr]+IDepoch[idx_tr],
-                                    lID=lIDs[idx_tr]))
+                                    size_hidden_layer=model_dict['size_hidden_layer'][nn],
+                                    L=model_dict['L'][nn],
+                                    size_output_layer=model_dict['size_output_layer'][nn],
+                                    outputGain=model_dict['outputGain'][nn],
+                                    IDgraph=IDweights[nn]+IDepoch[nn],
+                                    lID=lIDs[nn]))
                 #list_net2strategy.append(len(unique_nets)-1)
             #else:
             list_net2strategy[idx_tr].append(netNames[nn])
-        print("list_net2strategy")
-        print(list_net2strategy)
         ################# Strategies #############################
         strategies = [Strategy(direct=local_vars.ADsDir,thr_sl=list_thr_sl[i], 
                               thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -2679,10 +2685,11 @@ def run(config_list, running_assets, start_time):
 #                                IDgraph=IDweights[i]+IDepoch[i],
 #                                lID=lIDs[i]) \
 #                                for i in range(numberNetworks)]
+        shutdown = False
         if run_back_test:
             day_index = 0
             #t_journal_entries = 0
-            while day_index<len(dateTest):
+            while day_index<len(dateTest) and not shutdown:
                 counter_back = 0
                 init_list_index = day_index#data.dateTest[day_index]
                 
@@ -2778,7 +2785,7 @@ def run(config_list, running_assets, start_time):
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
                                    end_list_index, root_dir=data_dir)
-                back_test(DateTimes, SymbolBids, SymbolAsks, 
+                shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
                                         ass2index_mapping, lists, AllAssets, 
@@ -2905,11 +2912,11 @@ def launch(*ins):
             #config_trader = retrieve_config(ins[0])
             list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T0003'),retrieve_config('T0004')]
-    synchroned_run = True
+        list_config_traders = [retrieve_config('T0004'),retrieve_config('T0005'),retrieve_config('T0006'),retrieve_config('T0007'),retrieve_config('T0008')]
+    synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     
-    running_assets = [12,7,14]#assets#
+    running_assets = assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets, directory_MT5)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
