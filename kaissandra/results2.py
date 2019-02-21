@@ -272,7 +272,7 @@ def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
 
 def get_best_results_list():
     """ get list containing the entries to get the best results from """
-    return ['eGROI','eROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
+    return ['eGROI','eROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
            'eROI5','SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5']
     
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
