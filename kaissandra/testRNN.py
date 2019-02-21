@@ -213,7 +213,7 @@ def test_RNN(*ins):
                                thisAsset, 
                                ass_group,
                                from_stats_file=from_stats_file, 
-                               hdf5_directory=hdf5_directory+'stats/')
+                               hdf5_directory=hdf5_directory+'stats/',tag=tag_stats)
         else:
             stats_manual = []
         

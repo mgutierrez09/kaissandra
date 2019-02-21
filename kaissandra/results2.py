@@ -112,7 +112,7 @@ def get_results_entries():
     """  """
     results_entries = ['epoch','t_index','thr_mc','thr_md','AD','ADA','GSP','NSP','NO',
                        'NZ','NZA','RD','NSP.5','NSP1','NSP2','NSP3',
-                       'NSP4','NSP5','SI.5','SI1','SI2','SI3','SI4','SI5','SI',
+                       'NSP4','NSP5','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
                        'eGROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
                        'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
                        'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
@@ -273,7 +273,7 @@ def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
 def get_best_results_list():
     """ get list containing the entries to get the best results from """
     return ['eGROI','eROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
-           'eROI5','SI','SI.5','SI1','SI2','SI3','SI4','SI5']
+           'eROI5','SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5']
     
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     """  """
@@ -637,7 +637,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     rROIxLevel = np.zeros((int(size_output_layer-1),3))
     rSampsXlevel = np.zeros((int(size_output_layer-1),2))
         
-    fixed_spread_ratios = np.array([0.00005,0.0001,0.0002,0.0003,0.0004,0.0005])
+    fixed_spread_ratios = np.array([0.00005,0.0001,0.00015,0.0002,0.0003,0.0004,0.0005])
+    fixed_extensions = ['.5','1','1.5','2','3','4','5']
     # fixed ratio success percent
     NSPs = np.zeros((fixed_spread_ratios.shape[0]))
     eROIs = np.zeros((fixed_spread_ratios.shape))
@@ -868,8 +869,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     else:
         sharpe = 0.0
     # Success index per spread level
-    SIs = n_pos_opned*(NSPs-.54)
-    SI = n_pos_opned*(net_succ_per-.54)
+    SIs = n_pos_opned*(NSPs-.55)
+    SI = n_pos_opned*(net_succ_per-.55)
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
@@ -878,9 +879,9 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                         [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
                         [SI,'SI'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \
                         [rROIxLevel[:,1], 'eGl', ['1','2']], [rSampsXlevel[:,1], 'NOl', ['1','2']], \
-                        [eROIs, 'eROI', ['.5','1','2','3','4','5']], \
-                        [successes[3], 'NSP', ['.5','1','2','3','4','5']], \
-                        [SIs, 'SI', ['.5','1','2','3','4','5']], [100*eGROIL, 'eGROIL'], \
+                        [eROIs, 'eROI', fixed_extensions], \
+                        [successes[3], 'NSP', fixed_extensions], \
+                        [SIs, 'SI', fixed_extensions], [100*eGROIL, 'eGROIL'], \
                         [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS'], \
                         [100*GSPl,'GSPl'],[100*GSPs,'GSPs']]
     

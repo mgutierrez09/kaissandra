@@ -549,6 +549,7 @@ class Trader:
         entry_time = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
         p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
         p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
+        strategy = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy
         
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]] = self.next_candidate
         
@@ -559,6 +560,7 @@ class Trader:
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time = entry_time
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc = p_mc
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md = p_md
+        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy = strategy
     
     def is_opened(self, idx):
         '''
@@ -640,7 +642,8 @@ class Trader:
         elif this_strategy.entry_strategy=='spread_ranges':
             condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and \
-                100*curr_GROI>=this_strategy.lim_groi_ext
+                100*curr_GROI>=this_strategy.lim_groi_ext and self.direction_map(self.next_candidate.direction, 
+                                   this_strategy.info_spread_ranges['dir'][t])
         else:
             raise ValueError("Wrong entry strategy")            
         return condition_extension
@@ -698,7 +701,7 @@ class Trader:
     
     def get_rois(self, idx, date_time='', roi_ratio=1, ass=''):
         """ Get current GROI and ROI of a given asset idx """
-        strategy_name = direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy.name
+        strategy_name = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy.name
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
         Ti = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
         bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
@@ -1070,6 +1073,10 @@ class Trader:
                         #print(strategy_index)
                         profitability = self.strategies[strategy_index].get_profitability(
                                 t, p_mc, p_md, int(np.abs(Y_tilde)-1))
+                        if network_name=='327T21E0S':
+                            out = "327T21E0S network_name in self.net2strategy"
+                            print(out)
+                            self.write_log(out)
                         yield {entry_time_column:DateTime,
                                'Asset':thisAsset,
                                'Bet':Y_tilde,
@@ -1083,11 +1090,10 @@ class Trader:
                                'profitability':profitability,
                                't':t}
                     else:
-                        #print("network_name not in net2strategy")
                         yield []
                             
     
-    def check_new_inputs(self, inputs, thisAsset, directory_MT5_ass=''):
+    def check_new_inputs(self, inputs, thisAsset, results, directory_MT5_ass=''):
         '''
         <DocString>
         '''
@@ -1107,7 +1113,7 @@ class Trader:
                        "Strategy "+strategy_name)
                 if verbose_trader:
                     print("\r"+out)
-                    #self.write_log(out)
+                    self.write_log(out)
                 position = Position(new_entry, self.strategies[new_entry['strategy_index']])
                 
                 self.add_new_candidate(position)
@@ -1180,18 +1186,34 @@ class Trader:
                             out = new_entry[entry_time_column]+" not extended "+\
                                   thisAsset+" current GROI={0:.2f}p".format(1/self.pip*curr_GROI)
                     else: # if direction is different
-                        # if new position has higher GRE, close
-                        if self.next_candidate.profitability>=self.list_opened_positions[
-                                self.map_ass_idx2pos_idx[ass_id]].profitability:
-                            if not run_back_test:
-                                pass
-                            # TODO: check proper function of  close_command
-                                #self.send_close_command(directory_MT5_ass)
-                                # TODO: study the option of not only closing 
-                                #postiion but also changing direction
-                            else:
-                                # TODO: implement it for back test
-                                pass
+                        this_strategy = self.next_candidate.strategy
+                        if this_strategy.if_dir_change_close:
+                            if this_strategy.entry_strategy=='spread_ranges' and \
+                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
+                                    # close position due to direction change
+                                    out = new_entry[entry_time_column]+" "+thisAsset\
+                                        +" closing due to direction change!"
+                                    if verbose_trader:
+                                        print("\r"+out)
+                                    self.write_log(out)
+                                    if run_back_test:
+                                        self.close_position(new_entry[entry_time_column], 
+                                                        thisAsset, ass_id, results)
+                                    else:
+                                        send_close_command(thisAsset)
+#                        # if new position has higher GRE, close
+#                        if self.next_candidate.profitability>=self.list_opened_positions[
+#                                self.map_ass_idx2pos_idx[ass_id]].profitability:
+#                            if not run_back_test:
+#                                pass
+#                            # TODO: check proper function of  close_command
+#                                #self.send_close_command(directory_MT5_ass)
+#                                # TODO: study the option of not only closing 
+#                                #postiion but also changing direction
+#                            else:
+#                                # TODO: implement it for back test
+#                                pass
                     # end of extention options
                 # end of if not self.is_opened(ass_id):
             # end of for io in indexes_ordered:    
@@ -2009,7 +2031,7 @@ def fetch(lists, trader, directory_MT5,
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
-                    trader.check_new_inputs(outputs, thisAsset, 
+                    trader.check_new_inputs(outputs, thisAsset, results,
                                             directory_MT5_ass=directory_MT5_ass)
             
             # check for closing
@@ -2237,7 +2259,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         for idx, trader in enumerate(traders):
             if new_outputs:
                 #print(outputs)
-                trader.check_new_inputs(outputs, thisAsset)
+                trader.check_new_inputs(outputs, thisAsset, list_results[idx])
             
             ################ MT5 simulator ############
             # check if a position is already opened
@@ -2433,7 +2455,8 @@ def run_carefully(config_trader, running_assets, start_time):
 def run(config_list, running_assets, start_time):
     """  """    
     
-    
+    if len(config_list)>1 and not run_back_test:
+        raise ValueError("Live execution not compatible with more than one trader")
     # directories
     if run_back_test:
         dir_results = local_vars.RNN_dir+"resultsLive/back_test/"    
@@ -2574,6 +2597,8 @@ def run(config_list, running_assets, start_time):
     print("nUniqueNetworks")
     print(nUniqueNetworks)
     print(unique_nets)
+    print("list_net2strategy")
+    print(list_net2strategy)
     ADs = [np.array([]) for i in range(nUniqueNetworks)]
 #    for i in range(len(IDepoch)):
 #        mrc = False
