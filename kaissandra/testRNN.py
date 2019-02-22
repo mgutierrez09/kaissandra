@@ -378,4 +378,22 @@ def test_RNN(*ins):
 if __name__=='__main__':
     pass
     #test_RNN()
+    # edit config without saving for test purposes
     
+#from kaissandra.testRNN import test_RNN
+#from kaissandra.config import *
+#config=retrieve_config('C0520BS')
+##config['config_name'] = 'C0520BSNFR'
+##config['IDweights'] = '000520'
+#config['IDresults'] = '100520BSNFR'
+#config['save_journal'] = False
+#config['startFrom'] = 8
+#config['endAt']= -1
+#resolution = 10
+#config['resolution'] = resolution
+#config['thresholds_mc'] = [.5+i/resolution for i in range(int(resolution/2))]
+#config['thresholds_md'] = [.5+i/resolution for i in range(int(resolution/2))]
+#
+##config['cost_name'] = '000318TI02'
+
+#test_RNN(config)

@@ -2937,7 +2937,7 @@ def launch(*ins):
             #config_trader = retrieve_config(ins[0])
             list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T0004'),retrieve_config('T0005'),retrieve_config('T0006'),retrieve_config('T0007'),retrieve_config('T0008')]
+        list_config_traders = [retrieve_config('T0009'),retrieve_config('T0010'),retrieve_config('T0011')]
     synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     

@@ -111,9 +111,9 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index):
 def get_results_entries():
     """  """
     results_entries = ['epoch','t_index','thr_mc','thr_md','AD','ADA','GSP','NSP','NO',
-                       'NZ','NZA','RD','NSP.5','NSP1','NSP2','NSP3',
+                       'NZ','NZA','RD','NSP.5','NSP1','NSP1.5','NSP2','NSP3',
                        'NSP4','NSP5','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
-                       'eGROI','eROI.5','eROI1','eROI2','eROI3','eROI4',
+                       'eGROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
                        'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
                        'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
                        'NOL','NOS','GSPl','GSPs']
@@ -278,7 +278,9 @@ def get_best_results_list():
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
     """  """
     best_results_list = get_best_results_list()
-    
+    for c in best_results_list:
+        if c not in TR.columns:
+            TR[c] = -100000
     best_dir = resultsDir+IDresults+'/best/'
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
@@ -291,7 +293,9 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
         if not os.path.exists(best_filename):
             pd.DataFrame(columns = get_results_entries()).to_csv(best_filename, 
                         mode="w",index=False,sep='\t')
+            
         idx = TR[b].idxmax()
+            
         # reset file
         
         if save:
