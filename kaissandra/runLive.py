@@ -541,6 +541,7 @@ class Trader:
         '''
         # reset counter
         self.list_count_events[self.map_ass_idx2pos_idx[idx]] = 0
+        self.list_deadlines[self.map_ass_idx2pos_idx[idx]] = self.next_candidate.deadline
         
         entry_bid = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         entry_ask = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
@@ -620,9 +621,13 @@ class Trader:
         return condition_open
     
     def check_primary_condition_for_extention(self, ass_id):
-        
+        """  """
+        samps_extension = self.next_candidate.deadline
+        samps_ramaining = self.list_deadlines[self.map_ass_idx2pos_idx[ass_id]]-\
+            self.list_count_events[self.map_ass_idx2pos_idx[ass_id]]
         return self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]\
-                                .direction==self.next_candidate.direction
+                                .direction==self.next_candidate.direction and \
+               samps_ramaining<samps_extension
         
         
 
@@ -1168,16 +1173,17 @@ class Trader:
                             self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
                             # print out
                             
-                            out = (new_entry[entry_time_column]+" Extended "+
-                                   thisAsset+
-                               " Lots {0:.1f}".format(self.list_lots_per_pos[
-                                       self.map_ass_idx2pos_idx[ass_id]])+
-                               " "+str(new_entry['Bet'])+
+                            out = (new_entry[entry_time_column]+
+                                   thisAsset+" Extended "+str(self.list_deadlines[
+                                       self.map_ass_idx2pos_idx[ass_id]])+" samps "+
+#                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
+#                                       self.map_ass_idx2pos_idx[ass_id]])+
+                               "bet "+str(new_entry['Bet'])+
                                " p_mc={0:.2f}".format(new_entry['P_mc'])+
                                " p_md={0:.2f}".format(new_entry['P_md'])+ 
                                " spread={0:.3f}".format(new_entry['E_spread'])+
                                " strategy "+strategy_name+
-                               " current GROI={0:.2f}p".format(1/self.pip*curr_GROI))
+                               " current GROI={0:.2f}%".format(100*curr_GROI))
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
                             if verbose_trader:
                                 print("\r"+out)
@@ -2300,7 +2306,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     # end of while events
     for idx, trader in enumerate(traders):
         # get intermediate results
-        budget = get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
+        get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
     
     return shutdown
 
@@ -2325,7 +2331,7 @@ def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
     GROI = trader.gross_earnings/trader.init_budget
     earnings = trader.budget-trader.init_budget
     ROI = earnings/trader.init_budget
-    budget = trader.budget
+    #budget = trader.budget
     
     out = ("\n"+str([AllAssets[str(ass)] for ass in running_assets])[1:-1]+
            ":\nGROI = {0:.3f}% ".format(100*GROI)+"ROI = {0:.3f}%".format(100*ROI)+
@@ -2368,7 +2374,7 @@ def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
     write_log(out, trader.log_summary)
     write_log(out, trader.log_file)
     
-    return budget
+    return None
 
 def init_network_structures(lists, nNets, nAssets):
     """  """
@@ -2543,8 +2549,17 @@ def run(config_list, running_assets, start_time):
         for nn in range(numberNetworks):
             if netNames[nn] not in unique_nets:
                 unique_nets.append(netNames[nn])
-                list_data.append(Data(movingWindow=mWs[nn],nEventsPerStat=nExSs[nn],lB=lBs[nn],
-                          dateTest = dateTest,feature_keys_tsfresh=[]))
+                print("config_name")
+                print(config_name)
+                print("idx_tr")
+                print(idx_tr)
+                print("nn")
+                print(nn)
+                print("mWs")
+                print(mWs)
+                data = Data(movingWindow=mWs[nn],nEventsPerStat=nExSs[nn],lB=lBs[nn],
+                          dateTest = dateTest,feature_keys_tsfresh=[])
+                list_data.append(data)
                 list_nExS.append(nExSs[nn])
                 list_mW.append(mWs[nn])
                 list_lBs.append(lBs[nn])
@@ -2558,7 +2573,8 @@ def run(config_list, running_assets, start_time):
                 unique_inv_out.append(list_inv_out[nn])
 #                list_seq_lens = [int((list_data[idx_tr].lB-list_data[i].nEventsPerStat)/
 #                                 list_data[i].movingWindow+1) for i in range(len(mWs))]
-                list_models.append(modelRNN(list_data[idx_tr],
+                
+                list_models.append(modelRNN(data,
                                     size_hidden_layer=model_dict['size_hidden_layer'][nn],
                                     L=model_dict['L'][nn],
                                     size_output_layer=model_dict['size_output_layer'][nn],
@@ -2651,11 +2667,15 @@ def run(config_list, running_assets, start_time):
     nAssets = nCxAxN.shape[0]
     
     #########################################
-        
-        
+    #### TEMP ###
+    tag = 'IOA_mW'    
+    filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
+                        str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
+    import h5py
+    f_prep_IO = h5py.File(filename_prep_IO,'r')
     # load stats
     list_stats_feats = [[load_stats_manual(list_data[nn], AllAssets[str(running_assets[ass])], 
-                    None, from_stats_file=True, hdf5_directory=hdf5_directory+
+                    f_prep_IO[AllAssets[str(running_assets[ass])]], from_stats_file=True, hdf5_directory=hdf5_directory+
                     'stats/',tag='IO'+unique_feats_from[nn]) for nn in range(nNets)] for ass in range(nAssets)]
         
     list_stats_rets = [[load_stats_output(list_data[nn], hdf5_directory+
@@ -2937,7 +2957,7 @@ def launch(*ins):
             #config_trader = retrieve_config(ins[0])
             list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T0009'),retrieve_config('T0010'),retrieve_config('T0011')]
+        list_config_traders = [retrieve_config('T0012'),retrieve_config('T0013'),retrieve_config('T0014')]
     synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     

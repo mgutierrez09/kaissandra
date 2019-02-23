@@ -323,6 +323,59 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0):
         file.close()
     return None
 
+def adc(AD, ADA):
+    """ Accuracy directions combine """
+    return max(1.7/3*(AD-.5)+1.3/3*(ADA-.33), 0)#2/3*AccDir+1/3*AccDirA#
+
+def update_weights_combine(weights, t, w_idx, params, results):
+    """  """
+    #map_idx2thr[w_idx]
+    if params['alg'] == 'adc':
+        AD = results['AD']
+        ADA = results['ADA']
+        weights[t,w_idx,0] = adc(AD, ADA)
+        print("weights[t,w_idx,0]")
+        print(weights[t,w_idx,0])
+    #thr_idx += 1
+    return weights
+
+def combine_ts_fn(model, soft_tilde, weights, map_idx2thr, thresholds_mc, thresholds_md):
+    """  """
+    i_t_mc = 0
+    i_thr = 0
+    idx_thr = np.zeros((soft_tilde.shape[0],model.seq_len)).astype(int)
+    
+    for thr_mc in thresholds_mc:
+        i_t_md = 0
+        for thr_md in thresholds_md:
+            for t_ in range(model.seq_len):
+                
+                idx_thr_mc = soft_tilde[:,t_,0]>thr_mc
+                idx_thr_md = np.maximum(soft_tilde[:,t_,1],soft_tilde[:,t_,2])>thr_md
+                idx_thr[idx_thr_mc & idx_thr_md,t_] = i_thr
+            i_thr += 1
+            i_t_md += 1
+        i_t_mc += 1
+                    
+    sum_AD = np.zeros((idx_thr.shape[0],1))
+    t_soft_tilde = np.zeros((soft_tilde.shape[0],soft_tilde.shape[2]))
+    weights[np.isnan(weights)] = 0
+    print("idx_thr")
+    print(idx_thr)
+    for t_ in range(model.seq_len):
+        print("idx_thr[:,t_]")
+        print(idx_thr[:,t_])
+        print("map_idx2thr[idx_thr[:,t_]]")
+        print(map_idx2thr[idx_thr[:,t_]])
+        print("weights[t_,map_idx2thr[idx_thr[:,t_]],:]")
+        print(weights[t_,map_idx2thr[idx_thr[:,t_]],:])
+        sum_AD = sum_AD+weights[t_,map_idx2thr[idx_thr[:,t_]],:]
+        t_soft_tilde = t_soft_tilde+weights[t_,map_idx2thr[idx_thr[:,t_]],:]*soft_tilde[:,t_,:]
+    # normaluze t_soft_tilde
+    t_soft_tilde = t_soft_tilde/sum_AD
+    
+    return t_soft_tilde
+
 def get_results(config, model, y, DTA, J_test, soft_tilde,
                  costs, epoch, lastTrained, results_filename,
                  costs_filename, from_var=False):
@@ -346,14 +399,47 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
         thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
     else:
         thresholds_md = config['thresholds_md']
-    if 'feats_from_bids' in config:
-        feats_from_bids = config['feats_from_bids']
-    else:
-        feats_from_bids = True
     if 'results_from' in config:
         results_from = config['results_from']
     else:
         results_from = 'BIDS'
+    if 'combine_ts' in config:
+        if_combine = config['combine_ts']['if_combine']
+        params_combine = config['combine_ts']['params_combine']
+        columns_AD = [str(tmc)+str(tmd) for tmc in range(thresholds_mc) for tmd in range(thresholds_md)]#config['combine_ts']['columns_AD']
+        map_idx2thr = [columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
+                       for tmc in thresholds_mc for tmd in thresholds_md]
+        extra_ts = len(params_combine)
+        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
+        #map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
+        
+#        idx = 0
+#        for tmc in thresholds_mc:
+#            for tmd in thresholds_md:
+#                col_name = str(int(tmc*10))+str(int(tmd*10))
+#                map_idx2thr[idx] = columns_AD.index(col_name)
+#                idx += 1
+    else:
+#        if_combine = 'off'
+#        extra_ts = 0
+        ### TEMP! ####
+        combine_ts = {'if_combine':True,
+                      'params_combine':[{'alg':'adc'}]}
+        if_combine = combine_ts['if_combine']
+        params_combine = combine_ts['params_combine']
+        columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
+        print("columns_AD")
+        print(columns_AD)
+        map_idx2thr = np.array([columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
+                       for tmc in thresholds_mc for tmd in thresholds_md])
+        print("map_idx2thr")
+        print(map_idx2thr)
+        extra_ts = len(params_combine)
+        print("extra_ts")
+        print(extra_ts)
+        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
+        #print("weights_list")
+        #print(weights_list)
     m = y.shape[0]
     n_days = len(dateTest)
 #    granularity = 1/resolution
@@ -374,12 +460,17 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     tic = time.time()
     pos_dirname = ''
     pos_filename = ''
-    for t_index in range(model.seq_len):
+    
+    for t_index in range(model.seq_len+extra_ts):
         # init results dictionary
-        
-        if t_index==model.seq_len:
+        thr_idx = 0
+        if t_index>=model.seq_len:
             # get MRC from all indexes
-            pass
+            weights_id = t_index-model.seq_len
+            print("weights_id")
+            print(weights_id)
+            t_soft_tilde = combine_ts_fn(model, soft_tilde, weights_list[weights_id], 
+                                      map_idx2thr, thresholds_mc, thresholds_md)
         else:
             t_soft_tilde = soft_tilde[:,t_index,:]
             t_y = y[:,t_index,:]
@@ -419,7 +510,7 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                 elif results_from=='COMB':
                     pass
                 else:
-                    raise ValueError("Entry "+feats_from_bids+" not known. Options are SHORT/LONG/COMB")
+                    raise ValueError("Entry results_from not known. Options are SHORT/LONG/COMB")
                 ## calculate KPIs
                 results = get_basic_results_struct(ys_mc, ys_md, results, Journal, m)
                 # init positions dir and filename
@@ -437,6 +528,12 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                                                     pos_dirname=pos_dirname,
                                                     pos_filename=pos_filename)
                 results.update(res_ext)
+                # combine ts
+                if if_combine:
+                    
+                    for i, params in enumerate(params_combine):
+                        update_weights_combine(weights_list[i], t_index, map_idx2thr[thr_idx], params, results)
+                    thr_idx += 1
                 # update cumm results list
                 CR[t_index][mc][md] = results
                 # print results

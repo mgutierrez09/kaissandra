@@ -34,8 +34,17 @@ def get_positions_filename(asset, open_dt, close_dt):
     return filename
 
 live = False
-config_names = ['T0004','T0005','T0006','T0007','T0008']
-start_times = ['19_02_19_14_23_40','19_02_19_14_23_40','19_02_19_14_23_40','19_02_19_14_23_40','19_02_19_14_23_40']#,'19_02_15_17_30_37'
+plot = True
+
+#config_names = ['T0004','T0005','T0006','T0007','T0008']
+#start_times = ['19_02_19_14_23_40','19_02_19_14_23_40','19_02_19_14_23_40','19_02_19_14_23_40','19_02_19_14_23_40']#,'19_02_15_17_30_37'
+
+#config_names = ['T0009','T0010','T0011','T0005']
+#start_times = ['19_02_21_20_34_40','19_02_21_20_34_40','19_02_21_20_34_40','19_02_19_14_23_40']
+
+config_names = ['T0012','T0013','T0014']
+start_times = ['19_02_23_14_35_10','19_02_23_14_35_10','19_02_23_14_35_10']
+
 if live:
     ext = '_LI_'
     directory = 'kaissandra_live/live'
@@ -67,9 +76,18 @@ for i in range(len(config_names)):
     emspread = positions['E_spread'].mean()
     SIs = positions.agg({'GROI': lambda x: 100*np.sum(x>0)/len(x),
                           'ROI': lambda x: 100*np.sum(x>0)/len(x)})
-    av_win = sum(positions[positions['GROI']>0]['GROI'])/len(positions[positions['GROI']>0]['GROI'])
-    av_lose = sum(positions[positions['GROI']<0]['GROI'])/len(positions[positions['GROI']<0]['GROI'])
-    per_under_2p = 100*positions[positions['Spread']<0.02].shape[0]/positions.shape[0]
+    if len(positions[positions['GROI']>0]['GROI'])>0:
+        av_win = sum(positions[positions['GROI']>0]['GROI'])/len(positions[positions['GROI']>0]['GROI'])
+    else:
+        av_win = 0
+    if len(positions[positions['GROI']<0]['GROI'])>0:
+        av_lose = sum(positions[positions['GROI']<0]['GROI'])/len(positions[positions['GROI']<0]['GROI'])
+    else: 
+        av_lose = 0
+    if positions.shape[0]>0:
+        per_under_2p = 100*positions[positions['Spread']<0.02].shape[0]/positions.shape[0]
+    else:
+        per_under_2p = 0
 
     print("Total GROI = {0:.2f}% ".format(tgroi)+"Total ROI = {0:.2f}% ".format(troi)+\
           "total profit = {0:.2f}e ".format(tprofit)+"mean spread = {0:.2f} pips ".format(100*mspread)+
@@ -77,6 +95,8 @@ for i in range(len(config_names)):
     print("Number entries "+str(positions.shape[0])+" GSP = {0:.2f}% ".format(SIs['GROI'])\
           +" NSP = {0:.2f}% ".format(SIs['ROI'])+" av win = {0:.3f}% ".format(av_win)+" av lose = {0:.3f}% ".format(av_lose))
     print("Percent below 2p {0:.2f}%".format(per_under_2p))
+    print(positions['ROI'].max())
+    print(positions['ROI'].min())
     #print(pd.DataFrame(prob_rois))
     grouped = positions.groupby(['Asset'])
     #print(grouped.get_group(('GBPJPY',1)).to_string())
@@ -91,29 +111,29 @@ for i in range(len(config_names)):
     #for name, group in grouped:
         #print(name)
     #    print(group.to_string())
+    if plot:
+        plt.figure(i)
+        gran = 100
+        min_h = int(gran*np.floor(positions['GROI'].min()))
+        max_h = int(gran*np.ceil(positions['GROI'].max()))
+        bins = [i/gran for i in range(min_h,max_h,2)]
+        histG = plt.hist(positions['GROI'], bins=bins)
+        histR = plt.hist(positions['ROI'], bins=bins)
+        plt.grid()
+        plt.title(config_name)
     
-#    plt.figure(i)
-#    gran = 100
-#    min_h = int(gran*np.floor(positions['GROI'].min()))
-#    max_h = int(gran*np.ceil(positions['GROI'].max()))
-#    bins = [i/gran for i in range(min_h,max_h,2)]
-#    histG = plt.hist(positions['GROI'], bins=bins)
-#    histR = plt.hist(positions['ROI'], bins=bins)
-#    plt.grid()
-#    plt.title(config_name)
-
-    #pos_under_thr.index = range(pos_under_thr.shape[0])
-#    plt.figure(100)
-#    #plt.plot(range(positions.shape[0]),positions['GROI'].cumsum())
-#    plt.plot(range(positions.shape[0]),positions['ROI'].cumsum(),label=config_name)
-#    plt.grid()
-#    plt.legend()
-
-    list_dates = [dt.datetime.strptime(date, '%Y.%m.%d %H:%M:%S') for date in positions['Entry Time']]
-    dates = matplotlib.dates.date2num(list_dates)
-#    plt.figure(101)
-##    plt.plot_date(list_dates, positions['GROI'].cumsum(),fmt='-')
-#    plt.plot_date(list_dates, positions['ROI'].cumsum(),fmt='-',label=config_name)
-#    plt.gcf().autofmt_xdate()
-#    plt.grid()
-#    plt.legend()
+        #pos_under_thr.index = range(pos_under_thr.shape[0])
+        plt.figure(100)
+        #plt.plot(range(positions.shape[0]),positions['GROI'].cumsum())
+        plt.plot(range(positions.shape[0]),positions['ROI'].cumsum(),label=config_name)
+        plt.grid()
+        plt.legend()
+    
+        list_dates = [dt.datetime.strptime(date, '%Y.%m.%d %H:%M:%S') for date in positions['Entry Time']]
+        dates = matplotlib.dates.date2num(list_dates)
+        plt.figure(101)
+    #    plt.plot_date(list_dates, positions['GROI'].cumsum(),fmt='-')
+        plt.plot_date(list_dates, positions['ROI'].cumsum(),fmt='-',label=config_name)
+        plt.gcf().autofmt_xdate()
+        plt.grid()
+        plt.legend()
