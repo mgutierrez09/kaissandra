@@ -468,7 +468,7 @@ def get_outputGain(stdO, bid, spread):
     outputGain = np.min([1,stdO/(4*spread*bid)])
     return outputGain
 
-def _build_bin_output(model, Output, batch_size):
+def build_bin_output(model, Output, batch_size):
     """
     Function that builds output binary Y based on real-valued returns Output vector.
     Args:
@@ -504,6 +504,8 @@ def _build_bin_output(model, Output, batch_size):
         # set 1s in y_c0 vector at non-zero entries
         y_c0[nonZeroYs,0] = 1
         y_c = np.append(y_c,y_c0,axis=2)
+        
+        y_bin = np.append(y_c,y_one_hot,axis=2)
     if model.commonY == 2 or model.commonY == 3:
         # build y_c1 and y_c2 vectors. y_c1 indicates all down outputs. y_c2
         # indicates all up outputs.
@@ -521,10 +523,13 @@ def _build_bin_output(model, Output, batch_size):
 
         y_c = np.append(y_c,y_c1,axis=2)
         y_c = np.append(y_c,y_c2,axis=2)
-
+        
+        y_bin = np.append(y_c,y_one_hot,axis=2)
+    if model.commonY == 0:
+        y_bin = y_one_hot#np.zeros((y_one_hot.shape[0],0,1))
     # build output vector
 
-    y_bin = np.append(y_c,y_one_hot,axis=2)
+    
 
     return y_bin, y_dec
 
@@ -1640,8 +1645,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         # update counters
         offset = offset+batch
         # get decimal and binary outputs
-        Y_i, y_dec = _build_bin_output(model, O_i, batch)
-        #YA_i, ya_dec = _build_bin_output(model, OA_i, batch)
+        Y_i, y_dec = build_bin_output(model, O_i, batch)
+        #YA_i, ya_dec = build_bin_output(model, OA_i, batch)
         # get samples per level
         for l in range(model.size_output_layer):
             totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
@@ -1795,7 +1800,7 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, feats_var,
         # update counters
         offset = offset+batch
         # get decimal and binary outputs
-        Y_i, y_dec = _build_bin_output(model, O_i, batch)
+        Y_i, y_dec = build_bin_output(model, O_i, batch)
         # get samples per level
         for l in range(model.size_output_layer):
             totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)

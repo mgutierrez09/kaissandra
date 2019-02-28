@@ -17,7 +17,11 @@ import os
 #import pandas as pd
 #import matplotlib.pyplot as plt
 from kaissandra.results import evaluate_RNN,save_best_results,get_last_saved_epoch
-from kaissandra.results2 import get_results, get_last_saved_epoch2, get_best_results, init_results_dir
+from kaissandra.results2 import (get_results, 
+                                 get_last_saved_epoch2,
+                                 init_results_dir,
+                                 get_results_mg,
+                                 init_results_mg_dir)
 from kaissandra.local_config import local_vars
 
 class trainData:
@@ -97,10 +101,14 @@ class modelRNN(object):
         # Market gain prediction
         pred_mg = tf.nn.softmax(tf.matmul(out, self._parameters["w"]) + self._parameters["b"])
         # concatenate predictions
-        pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),
-                          tf.reshape(pred_md, [-1, self.seq_len, 2]),
-                          tf.reshape(pred_mg, [-1, self.seq_len, 
-                                              self.size_output_layer])],2)
+        if self.commonY==0:
+            pred = tf.reshape(pred_mg, [-1, self.seq_len, 
+                                        self.size_output_layer])
+        elif self.commonY==3:
+            pred = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),
+                              tf.reshape(pred_md, [-1, self.seq_len, 2]),
+                              tf.reshape(pred_mg, [-1, self.seq_len, 
+                                                  self.size_output_layer])],2)
         return pred
         
     def _init_parameters(self):
@@ -158,19 +166,30 @@ class modelRNN(object):
                                     name="target")
         # Define cross entropy loss.
         # first target bit for mc (market change)
-        loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
-                                (1-self._target[:,:,0:1])* -
-                                tf.log(1 - self._pred[:,:,0:1]), [1, 2])
-        # second and third bits for md (market direction)
-        loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
-                                 tf.log(self._pred[:,:,1:3])), [1, 2])
-        # last 5 bits for market gain output
-        loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
+        if self.commonY == 3:
+            loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
+                                    (1-self._target[:,:,0:1])* -
+                                    tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+            # second and third bits for md (market direction)
+            loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
+                                     tf.log(self._pred[:,:,1:3])), [1, 2])
+            # last 5 bits for market gain output
+            loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
                                  (self._target[:,:,3:] * 
                                   tf.log(self._pred[:,:,3:])), [1, 2])
-        self._loss = tf.reduce_mean(
-            loss_mc+loss_md+loss_mg,
-            name="loss_nll")
+            self._loss = tf.reduce_mean(
+                loss_mc+loss_md+loss_mg,
+                name="loss_nll")
+        elif self.commonY == 0:
+#            loss_mc = tf.reduce_sum(0 * -tf.log(self._pred[:,:,0:1])+
+#                                    (1-1)* -
+#                                    tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+#            # second and third bits for md (market direction)
+#            loss_md = -tf.reduce_sum(0*(self._target[:,:,1:3] * 
+#                                     tf.log(self._pred[:,:,1:3])), [1, 2])
+            # last size_output_layer bits for market gain output
+            loss_mg = -tf.reduce_sum(self._target *tf.log(self._pred), [1, 2])
+            self._loss = tf.reduce_mean(loss_mg, name="loss_nll")
         self._optim = tf.train.AdamOptimizer(self.lR0).minimize(
             self._loss,
             name="adam_optim")
@@ -403,7 +422,15 @@ class modelRNN(object):
         if startFrom == -1:
             startFrom = get_last_saved_epoch2(results_directory, IDresults, self.seq_len)+1
         import math
-        results_filename, costs_filename = init_results_dir(results_directory, IDresults)
+        if self.commonY==3:
+            results_filename, costs_filename = init_results_dir(results_directory, IDresults)
+        elif self.commonY==0:
+            t_indexes = [str(t) if t<self.seq_len else 'mean' for t in range(self.seq_len+1)]
+            results_filename, costs_filename, performance_filename = init_results_mg_dir(results_directory, 
+                                                            IDresults, 
+                                                            self.size_output_layer,
+                                                            t_indexes,
+                                                            get_performance=True)
         # load models and test them
         for epoch in range(startFrom,lastTrained+1):
             if math.isnan(costs[cost_name+str(epoch)]):
@@ -428,15 +455,17 @@ class modelRNN(object):
                 #print(softMaxOut.shape)
             t_J_test = t_J_test/n_chunks
             print("Getting results")
-            results_filename = get_results(config, self, Y_test, DTA, 
-                        t_J_test, softMaxOut, costs, epoch, lastTrained, results_filename,
-                        costs_filename,
-                        from_var=from_var)
+            if self.commonY==3:
+                get_results(config, self, Y_test, DTA, 
+                            t_J_test, softMaxOut, costs, epoch, lastTrained, results_filename,
+                            costs_filename,
+                            from_var=from_var)
+            elif self.commonY==0:
+                get_results_mg(config, Y_test, softMaxOut, costs, epoch, 
+                               J_test, costs_filename, results_filename,
+                               performance_filename,
+                               get_performance=True, DTA=DTA)
         
-#        if resolution>0:
-#            TR = pd.read_csv(results_filename+'.csv', sep='\t')
-#            print("\nThe very best:")
-#            get_best_results(TR, results_filename, results_directory, IDresults)
         print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
             
         return None

@@ -42,8 +42,14 @@ plot = True
 #config_names = ['T0009','T0010','T0011','T0005']
 #start_times = ['19_02_21_20_34_40','19_02_21_20_34_40','19_02_21_20_34_40','19_02_19_14_23_40']
 
-config_names = ['T0012','T0013','T0014']
-start_times = ['19_02_23_14_35_10','19_02_23_14_35_10','19_02_23_14_35_10']
+#config_names = ['T0012','T0013','T0014']
+#start_times = ['19_02_23_14_35_10','19_02_23_14_35_10','19_02_23_14_35_10']
+
+#config_names = ['T0015']
+#start_times = ['19_02_24_13_07_31']
+
+config_names = ['T0015','T0016','T0017']
+start_times = ['19_02_24_18_27_02','19_02_24_18_27_02','19_02_24_18_27_02']
 
 if live:
     ext = '_LI_'
@@ -137,3 +143,5 @@ for i in range(len(config_names)):
         plt.gcf().autofmt_xdate()
         plt.grid()
         plt.legend()
+
+print(positions_list[-1].sort_values(by=['ROI'],ascending=True).reset_index()['ROI'])

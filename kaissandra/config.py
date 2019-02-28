@@ -160,7 +160,7 @@ def configuration(*ins):
         if 'commonY' in entries:
             commonY = entries['commonY']
         else:
-            commonY=3
+            commonY = 3
         if 'lR0' in entries:
             lR0 = entries['lR0']
         else:
@@ -383,7 +383,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'T0014'
+    config_name = 'T0017'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -400,28 +400,26 @@ def configuration_trader(*ins):
                     '2019.01.21','2019.01.22','2019.01.23','2019.01.24','2019.01.25',
                     '2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01']
         numberNetworks = 2
-        IDweights = ['000540AL','000540AS']#['000350','000350']+['000327INVO','000500']
-        IDresults = ['100540AL','100540AS']#['100350S','100350L']+['100327S','100500L']
+        IDweights = ['000540A','000540A']
+        IDresults = ['100540AL','100540AS']
         lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-        list_name = ['100540AL_18_0_.9_.5','100540AS_14_2_.7_.6']#['100350S_13_3_.65_.6','100350L_6_1_.65_.55']+['100327S_21_0_.75_.7','100500L_29_3_.7_.6']
-        IDepoch = ['18','14']#['13','6','21','29']
+        list_name = ['100540AL_18_0_.9_.5','100540AS_14_2_.7_.6']
+        IDepoch = ['18','14']
         netNames = ['540E18T0AL','540E14T2AS']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
-        list_t_indexs = [[0],[2]]#[[3],[1],[0],[2]]
+        list_t_indexs = [[0],[2]]
         list_inv_out = [True for i in range(numberNetworks)]
-        list_feats_from = ['L','S']#['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
+        list_feats_from = ['A','A']#['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         list_spread_ranges = [{'sp':[10],'th':[(.9,.5)],'dir':'L'},{'sp':[10],'th':[(.7,.6)],'dir':'S'}]
-        #[{'sp':[2.5],'th':[(.55,.6)],'dir':'S'},{'sp':[2.5],'th':[(.65,.65)],'dir':'L'}]+\
-        #    [{'sp':[2.5],'th':[(.75,.7)],'dir':'S'},{'sp':[2.5],'th':[(.7,.6)],'dir':'L'}]
-        list_priorities = [[0]]#[[3],[2],[1],[0]]
-        phase_shifts = [1 for i in range(numberNetworks)]
-        list_thr_sl = [1000 for i in range(numberNetworks)]
+        list_priorities = [[3],[2]]#[[3],[2],[1],[0]]
+        phase_shifts = [2 for i in range(numberNetworks)]
+        list_thr_sl = [75, 75]
         list_thr_tp = [1000 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
-        mWs = [1000]#[500,500,200,200]
-        nExSs = [10000]#[5000,5000,2000,2000]
-        lBs = [13000]#[6500,6500,2600,2600]#[1300]
+        mWs = [1000,1000]#[500,500,200,200]
+        nExSs = [10000,10000]#[5000,5000,2000,2000]
+        lBs = [13000,13000]#[6500,6500,2600,2600]#[1300]
         list_lim_groi_ext = [-100 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
         

@@ -620,17 +620,23 @@ class Trader:
             
         return condition_open
     
-    def check_primary_condition_for_extention(self, ass_id):
+    def check_same_direction(self, ass_id):
+        """  """
+        return self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]\
+                                .direction==self.next_candidate.direction
+    
+    def check_remain_samps(self, ass_id):
         """  """
         samps_extension = self.next_candidate.deadline
-        samps_ramaining = self.list_deadlines[self.map_ass_idx2pos_idx[ass_id]]-\
+        samps_remaining = self.list_deadlines[self.map_ass_idx2pos_idx[ass_id]]-\
             self.list_count_events[self.map_ass_idx2pos_idx[ass_id]]
-        return self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]\
-                                .direction==self.next_candidate.direction and \
-               samps_ramaining<samps_extension
+        return samps_remaining<samps_extension
+    
+    def check_primary_condition_for_extention(self, ass_id):
+        """  """
+        return self.check_same_direction(ass_id) and self.check_remain_samps(ass_id)
         
         
-
     def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI, t):
         '''
         '''
@@ -1183,7 +1189,7 @@ class Trader:
                                " p_md={0:.2f}".format(new_entry['P_md'])+ 
                                " spread={0:.3f}".format(new_entry['E_spread'])+
                                " strategy "+strategy_name+
-                               " current GROI={0:.2f}%".format(100*curr_GROI))
+                               " current GROI = {0:.2f}%".format(100*curr_GROI))
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
                             if verbose_trader:
                                 print("\r"+out)
@@ -1194,8 +1200,9 @@ class Trader:
                     else: # if direction is different
                         this_strategy = self.next_candidate.strategy
                         if this_strategy.if_dir_change_close:
-                            if this_strategy.entry_strategy=='spread_ranges' and \
-                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                            if not self.check_same_direction(ass_id) and \
+                                this_strategy.entry_strategy=='spread_ranges' and \
+                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
                                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
                                     # close position due to direction change
                                     out = new_entry[entry_time_column]+" "+thisAsset\
@@ -2502,6 +2509,8 @@ def run(config_list, running_assets, start_time):
     for idx_tr, config_trader in enumerate(config_list):
 #        log_files.append(log_file)
         config_name = config_trader['config_name']
+        print("config_name")
+        print(config_name)
         dateTest = config_trader['dateTest']
         numberNetworks = config_trader['numberNetworks']
         IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
@@ -2549,8 +2558,7 @@ def run(config_list, running_assets, start_time):
         for nn in range(numberNetworks):
             if netNames[nn] not in unique_nets:
                 unique_nets.append(netNames[nn])
-                print("config_name")
-                print(config_name)
+                
                 print("idx_tr")
                 print(idx_tr)
                 print("nn")
@@ -2957,7 +2965,7 @@ def launch(*ins):
             #config_trader = retrieve_config(ins[0])
             list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T0012'),retrieve_config('T0013'),retrieve_config('T0014')]
+        list_config_traders = [retrieve_config('T0015'),retrieve_config('T0016'),retrieve_config('T0017')]
     synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     
