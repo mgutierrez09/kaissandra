@@ -55,13 +55,19 @@ ext = '.csv'
 #list_mcs = [.55,.65]
 #list_mds = [.6,.65]
 
-list_results_names = ['100540ACR20']
-list_epochs = [25]
+#list_results_names = ['100540ACR20']
+#list_epochs = [25]
+#list_tis = [0]
+#list_mcs = [.9]
+#list_mds = [.6]
+
+list_results_names = ['100540E18T0MC9MD5ALT']
+list_epochs = [18]
 list_tis = [0]
 list_mcs = [.9]
-list_mds = [.6]
+list_mds = [.5]
 
-pip_limit = 0.025
+pip_limit = 1#0.025
 
 Journal = pd.DataFrame()
 for l,name in enumerate(list_results_names):

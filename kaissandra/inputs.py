@@ -212,7 +212,14 @@ class Data:
             # add last parameter entry (number of features)
             n_feats_tsfresh += params[-1]
         return n_feats_tsfresh
+
+def get_total_input_samples(config):
+    """ Get total number of samples from input file """
     
+    filename_prep_IO = (hdf5_directory+tag+str(mW)+'_nE'+
+                        str(nExS)+'_nF'+str(len(feature_keys_manual))+'.hdf5')
+    return m
+
 def initFeaturesLive(data, tradeInfoLive, list_feats_from):
     """
     <DocString>

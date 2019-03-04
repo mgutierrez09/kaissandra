@@ -142,8 +142,8 @@ def get_results_mg_entries(classes, t_indexes):
 
 def get_performance_entries():
     """  """
-    entries = ['epoch','t_index','thr_mg','GSP','NSP','NO',
-               'NSP.5','NSP1','NSP1.5','NSP2','NSP3',
+    entries = ['epoch','t_index','thr_mg','pNZ','pNZA','AD','ADA','GSP','NSP','NO',
+               'NZ','NZA','RD','NSP.5','NSP1','NSP1.5','NSP2','NSP3',
                'NSP4','NSP5','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
                'eGROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
                'eROI5','eROI','mSpread','eRl1',
@@ -248,7 +248,7 @@ def get_basic_results_struct(ys_mc, ys_md, results, m):
     results['NZA'] = np.sum(ys_md['y_md_tilde']) # number of non-zeros all
     results['NZ'] = np.sum(ys_md['nz_indexes']) # Number of non-zeros
     results['RD'] =  np.sum(ys_md['y_md_down_intersect'])+\
-        np.sum(ys_md['y_md_up_intersect']) # right direction
+                     np.sum(ys_md['y_md_up_intersect']) # right direction
     #a=p
     if results['NZ']>0:
         results['AD'] = 100*results['RD']/results['NZ'] # accuracy direction
@@ -567,9 +567,14 @@ def get_results_mg(config, y, soft_tilde, costs, epoch, J_test, costs_filename,
             for j in range(n_classes):
                 CM[i,j,t] = np.sum(y_tilde[:,i] & y_t[:,j]) # entry of conf. matrix
         for c in range(n_classes):
-            PR[c,t] = CM[c,c,t]/np.sum(CM[c,:,t])
-            RC[c,t] = CM[c,c,t]/np.sum(CM[:,c,t])
-            FS[c,t,:] = [(1+score**2)*PR[c,t]*RC[c,t]/(score**2*PR[c,t]+RC[c,t]) for score in scores]
+            if np.sum(CM[c,:,t])>0:
+                PR[c,t] = CM[c,c,t]/np.sum(CM[c,:,t])
+                RC[c,t] = CM[c,c,t]/np.sum(CM[:,c,t])
+                FS[c,t,:] = [(1+score**2)*PR[c,t]*RC[c,t]/(score**2*PR[c,t]+RC[c,t]) for score in scores]
+            else:
+                PR[c,t] = 0
+                RC[c,t] = 0
+                FS[c,t,:] = [0 for score in scores]
         accs[t] = acc
         
         print_results_mg(acc, CM, PR, RC, FS, scores, t, t_idx)
@@ -613,6 +618,7 @@ def filter_journal(config, Journal):
 
 def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
     """ Get ROI-based performance metrics """
+    m = y.shape[0]
     lB = config['lB']
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
@@ -621,10 +627,15 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
     n_days = len(config['dateTest'])
     resolution = config['resolution']
     IDresults = config['IDresults']
+    save_journal = config['save_journal']
     if 'thresholds_mg' in config:
         thresholds_mg = config['thresholds_mg']
     else:
-        thresholds_mg = [.6]#[.5+i/resolution for i in range(int(resolution/2))]
+        thresholds_mg = [.5+i/resolution for i in range(int(resolution/2))]
+    if 'get_corr_signal' in config:
+        get_corr_signal = config['get_corr_signal']
+    else:
+        get_corr_signal = False
     for t in range(seq_len+1):
         if t<seq_len:
             soft_tilde_t = soft_tilde[:, t, :]
@@ -634,12 +645,8 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
             y_t = y[:, 0, :]
             soft_tilde_t = np.mean(soft_tilde, axis=1)
             t_idx = 'mean'
-        y_tilde_dec = np.argmax(soft_tilde_t, axis=1)
-        #y_tilde = np.eye(n_classes)[y_tilde_dec].astype(int)
-        y_dec = np.argmax(y_t, axis=1)
-        #indexes_bear = y_tilde_dec<int((n_classes-1)/2)
-        #indexes_bull = y_tilde_dec>int((n_classes-1)/2)
-        #indexes_mc = indexes_bear | indexes_bull
+        y_tilde_dec = np.argmax(soft_tilde_t, axis=1)-int((n_classes-1)/2)
+        y_dec = np.argmax(y_t, axis=1)-int((n_classes-1)/2)
         p_bear = np.sum(soft_tilde_t[:, :int((n_classes-1)/2)],axis=1)
         p_bull = np.sum(soft_tilde_t[:, int((n_classes-1)/2)+1:],axis=1)
         for mg, thr_mg in enumerate(thresholds_mg):
@@ -648,6 +655,23 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
             indexes_mc = indexes_thr_bear | indexes_thr_bull
             diff_y_y_tilde = np.abs(np.sign(y_dec[indexes_mc])-np.sign(y_tilde_dec[indexes_mc]))
             DTAt = DTA.iloc[::seq_len,:]
+            results = {}
+            # market change accuracy
+            results['NZA'] = np.sum(indexes_mc) # number of non-zeros all
+            results['NZ'] = np.sum(indexes_mc & (y_dec!=0)) # Number of non-zeros
+            results['RD'] =  np.sum(indexes_thr_bear & (y_dec<0))+\
+                             np.sum(indexes_thr_bull & (y_dec>0)) # right direction
+            #a=p
+            if results['NZ']>0:
+                results['AD'] = 100*results['RD']/results['NZ'] # accuracy direction
+            else:
+                results['AD'] = 0
+            if results['NZA']>0:
+                results['ADA'] = 100*results['RD']/results['NZA'] # accuracy direction all
+            else:
+                results['ADA'] = 0
+            results['pNZ'] = 100*results['NZ']/m # percent of non-zeros
+            results['pNZA'] = 100*results['NZA']/m # percent of non-zeros all
             # get journal
             Journal = get_journal(DTAt.iloc[indexes_mc], 
                                   y_tilde_dec[indexes_mc], 
@@ -657,14 +681,35 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
                                   p_bull[indexes_mc])
             
             Journal = filter_journal(config, Journal)
+            if save_journal:
+                journal_dir = local_vars.results_directory+IDresults+'/journal/'
+                journal_id = 'J_E'+str(epoch)+'TI'+t_idx+'MG'+str(thr_mg)
+                ext = '.csv'
+                save_journal_fn(Journal, journal_dir, journal_id, ext)
+                pos_dirname = local_vars.results_directory+IDresults+'/positions/'
+                corr_dirname = local_vars.results_directory+IDresults+'/corr/'                    
+                pos_filename = 'P_E'+str(epoch)+'TI'+t_idx+'MG'+str(thr_mg)+'.csv'
+                corr_filename = 'C_E'+str(epoch)+'TI'+t_idx+'MG'+str(thr_mg)+'.p'
+            else:
+                corr_dirname = ''
+                pos_dirname = ''
+                pos_filename = ''
+                corr_filename = ''
             results_extended, log = get_extended_results(Journal,
                                                 n_classes,
-                                                n_days)
-            print_performance(results_extended, epoch, thr_mg, t_idx)
+                                                n_days,
+                                                get_corr_signal=get_corr_signal,
+                                                get_positions=save_journal,
+                                                pos_dirname=pos_dirname,
+                                                pos_filename=pos_filename,
+                                                corr_filename=corr_filename,
+                                                corr_dirname=corr_dirname)
             results_extended.update({'epoch':epoch,
                                      't_index':t_idx,
                                      'thr_mg':thr_mg})
-            save_performance(performance_filename, results_extended)
+            results.update(results_extended)
+            print_performance(results, epoch, thr_mg, t_idx)
+            save_performance(performance_filename, results)
     TP = pd.read_csv(performance_filename+'.csv', sep='\t')
     print('\n')
     get_best_results(TP[TP.epoch==epoch], performance_filename, 
@@ -678,6 +723,14 @@ def print_performance(results, epoch, thr_mg, t_idx):
     """  """
     print("Epoch = "+str(epoch)+". Time index = "+t_idx+
           ". Threshold MG = "+str(thr_mg))
+    
+    print("AD = {0:.2f}% ".format(results["AD"])+
+          "ADA = {0:.2f}% ".format(results["ADA"])+
+          "RD = {0:d} ".format(results["RD"])+
+          "NZ = {0:d} ".format(results["NZ"])+
+          "NZA = {0:d} ".format(results["NZA"])+
+          "pNZ = {0:.4f}% ".format(results["pNZ"])+
+          "pNZA = {0:.4f}% ".format(results["pNZA"]))
     
     print("NO = {0:d} ".format(results["NO"])+
           "NOL = {0:d} ".format(results["NOL"])+
@@ -736,6 +789,10 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     save_journal = config['save_journal']
     resolution = config['resolution']
     resultsDir = local_vars.results_directory
+    if 't_indexes' not in config:
+        t_indexes = range(model.seq_len)
+    else:
+        t_indexes = config['t_indexes']
     if 'thresholds_mc' not in config:
         thresholds_mc = [.5+i/resolution for i in range(int(resolution/2))]
     else:
@@ -745,13 +802,27 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     else:
         thresholds_md = config['thresholds_md']
     if 'combine_ts' in config:
-        if_combine = config['combine_ts']['if_combine']
-        params_combine = config['combine_ts']['params_combine']
-        columns_AD = [str(tmc)+str(tmd) for tmc in range(thresholds_mc) for tmd in range(thresholds_md)]#config['combine_ts']['columns_AD']
-        map_idx2thr = [columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
-                       for tmc in thresholds_mc for tmd in thresholds_md]
+        combine_ts = config['combine_ts']
+#        if_combine = config['combine_ts']['if_combine']
+#        params_combine = config['combine_ts']['params_combine']
+#        columns_AD = [str(tmc)+str(tmd) for tmc in thresholds_md for tmd in thresholds_md]#config['combine_ts']['columns_AD']
+#        map_idx2thr = [columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
+#                       for tmc in thresholds_mc for tmd in thresholds_md]
+#        extra_ts = len(params_combine)
+#        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
+        
+        if_combine = combine_ts['if_combine']
+        params_combine = combine_ts['params_combine']
+        columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
+
+        map_idx2thr = np.array([columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
+                       for tmc in thresholds_mc for tmd in thresholds_md])
+
         extra_ts = len(params_combine)
+
         weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
+        
+        
         #map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
         
 #        idx = 0
@@ -761,24 +832,22 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
 #                map_idx2thr[idx] = columns_AD.index(col_name)
 #                idx += 1
     else:
-#        if_combine = 'off'
+        if_combine = False
+        extra_ts = 0
 #        extra_ts = 0
         ### TEMP! ####
-        combine_ts = {'if_combine':True,
-                      'params_combine':[{'alg':'adc'}]}
-        if_combine = combine_ts['if_combine']
-        params_combine = combine_ts['params_combine']
-        columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
-        print("columns_AD")
-        print(columns_AD)
-        map_idx2thr = np.array([columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
-                       for tmc in thresholds_mc for tmd in thresholds_md])
-        print("map_idx2thr")
-        print(map_idx2thr)
-        extra_ts = len(params_combine)
-        print("extra_ts")
-        print(extra_ts)
-        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
+#        combine_ts = {'if_combine':True,
+#                      'params_combine':[{'alg':'adc'}]}
+#        if_combine = combine_ts['if_combine']
+#        params_combine = combine_ts['params_combine']
+#        columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
+#
+#        map_idx2thr = np.array([columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
+#                       for tmc in thresholds_mc for tmd in thresholds_md])
+#
+#        extra_ts = len(params_combine)
+#
+#        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
         #print("weights_list")
         #print(weights_list)
     m = y.shape[0]
@@ -799,17 +868,15 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()
-    pos_dirname = ''
-    pos_filename = ''
     
-    for t_index in range(model.seq_len+extra_ts):
+    for t_index in t_indexes:
         # init results dictionary
         thr_idx = 0
         if t_index>=model.seq_len:
             # get MRC from all indexes
             weights_id = t_index-model.seq_len
-            print("weights_id")
-            print(weights_id)
+#            print("weights_id")
+#            print(weights_id)
             t_soft_tilde = combine_ts_fn(model, soft_tilde, weights_list[weights_id], 
                                       map_idx2thr, thresholds_mc, thresholds_md)
         else:
@@ -1012,7 +1079,8 @@ def build_extended_res_struct(list_results):
 def get_extended_results(Journal, size_output_layer, n_days, get_log=False, 
                          get_positions=False, pNZA=0,
                          pos_dirname='', pos_filename='', reference_date='2018.03.09',
-                         end_date='2018.11.09 23:59:59'):
+                         end_date='2018.11.09 23:59:59', get_corr_signal=False,
+                         corr_filename='', corr_dirname=''):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -1027,8 +1095,6 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     B1 = 'Bi'
     B2 = 'Bo'
     ref_date_dt = dt.datetime.strptime(reference_date,"%Y.%m.%d")
-    n_secs = int((dt.datetime.strptime(end_date,"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
-    corr_signal = np.zeros((n_secs))+1j*np.zeros((n_secs))
     log = pd.DataFrame(columns=['DateTime','Message'])
     # init positions
     if get_positions:
@@ -1083,7 +1149,10 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
 #                        'Message':Journal['Asset'].iloc[0]+" open" },
 #                        ignore_index=True)
     eInit = 0
-    secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+    if get_corr_signal and Journal.shape[0]>0:
+        n_secs = int((dt.datetime.strptime(end_date,"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+        corr_signal = np.zeros((n_secs))+1j*np.zeros((n_secs))
+        secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
     e = 0
     if get_positions:
         list_pos = [[] for i in columns_positions]#[None for i in range(500)]
@@ -1118,22 +1187,24 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             Ai = Journal[A1].iloc[eInit]
             Bo = Journal[B2].iloc[e-1]
             Bi = Journal[B1].iloc[eInit]
-            
-            # update correlation signal
-            secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+            if get_corr_signal:
+                # update correlation signal
+                secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
             if direction>0:
                 GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
                 ROI = (Bo-Ai)/Ai
                 #GROI = (Bo-Bi)/Ai
                 eGROIL += GROI
                 NOL += 1
-                corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1
+                if get_corr_signal:
+                    corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1
             else:
                 GROI = (Bi-Bo)/Ao
                 ROI = (Bi-Ao)/Ao
                 eGROIS += GROI
                 NOS += 1
-                corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
+                if get_corr_signal:
+                    corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
             thisSpread = GROI-ROI
             e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
             if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
@@ -1207,7 +1278,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             n_pos_opned += 1
             this_pos_extended = 0
             eInit = e
-            secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+            if get_corr_signal:
+                secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
         # end of if (sameAss and extendExitMarket):
     # end of for e in range(1,Journal.shape[0]):
     
@@ -1217,19 +1289,22 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         Ai = Journal[A1].iloc[eInit]
         Bo = Journal[B2].iloc[-1]
         Bi = Journal[B1].iloc[eInit]
-        secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[-1],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+        if get_corr_signal:
+            secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[-1],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
         if direction>0:
             GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
             ROI = (Bo-Ai)/Ai
             eGROIL += GROI
             NOL += 1
-            corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1
+            if get_corr_signal:
+                corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1
         else:
             GROI = (Bi-Bo)/Ao
             ROI = (Bi-Ao)/Ao
             eGROIS += GROI
             NOS += 1
-            corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
+            if get_corr_signal:
+                corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
         if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
             count_dif_dir += 1
         thisSpread = GROI-ROI
@@ -1332,11 +1407,15 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                         [100*GSPl,'GSPl'],[100*GSPs,'GSPs']]
     
     res_w_ext = build_extended_res_struct(list_ext_results)
-    plt.figure(np.random.randint(1000))
-    plt.plot(np.real(corr_signal))
-    plt.plot(np.imag(corr_signal))
-    plt.figure(np.random.randint(1000))
-    plt.plot(np.abs(corr_signal))
+#    plt.figure(np.random.randint(1000))
+#    plt.plot(np.real(corr_signal))
+#    plt.plot(np.imag(corr_signal))
+#    plt.figure(np.random.randint(1000))
+#    plt.plot(np.abs(corr_signal))
+    if get_corr_signal and Journal.shape[0]>0:
+        if not os.path.exists(corr_dirname):
+            os.makedirs(corr_dirname)
+        pickle.dump(corr_signal, open( corr_dirname+corr_filename, "wb" ))
     return res_w_ext, log
 
 def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread_thr=1):

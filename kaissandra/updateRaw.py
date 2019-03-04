@@ -12,7 +12,8 @@ import h5py
 import numpy as np
 import pandas as pd
 import datetime as dt
-from inputs import Data, extractSeparators
+from kaissandra.inputs import Data, extractSeparators
+from kaissandra.local_config import local_vars
 
 def check_consecutive_trading_days(directory,prev_day, post_day):
     """
@@ -158,7 +159,7 @@ def find_bussines_days(data, directory_destination):
     for ass in data.assets:
         thisAsset = data.AllAssets[str(ass)]
         #print(thisAsset)
-        directory_origin = 'D:/SDC/py/Data/'+thisAsset+'/'#'../Data/'+thisAsset+'/'
+        directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
             
         files_list = []
         # get files list, and beginning and end current dates
@@ -196,9 +197,44 @@ def find_bussines_days(data, directory_destination):
     #print(missing_days['Days'].tolist())
     b_days_list = sorted(b_days_list+missing_days['Days'].tolist())
     return b_days_list
-                    
 
-dateTest = ([                                                    '2018.03.09',
+# limit the build of the HDF5 to data comprised in these dates
+build_partial_raw = False
+build_test_db = True
+int_date = '180928'
+end_date = '181109'
+init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
+end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
+
+directory_destination = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'
+if build_partial_raw and not build_test_db:
+    hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
+    directory_root = 'D:/SDC/py/Data/'
+    separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
+elif build_test_db and not build_partial_raw:
+    hdf5_file_name = 'tradeinfo_test.hdf5'
+    directory_root = local_vars.data_test_dir
+    separators_directory_name = 'separators_test/'
+    dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16',
+                '2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23',
+                '2018.11.26','2018.11.27','2018.11.28','2018.11.29','2018.11.30',
+                '2018.12.03','2018.12.04','2018.12.05','2018.12.06','2018.12.07',
+                '2018.12.10','2018.12.11','2018.12.12','2018.12.13','2018.12.14',
+                '2018.12.17','2018.12.18','2018.12.19','2018.12.20','2018.12.21',
+                '2018.12.24','2018.12.25','2018.12.26','2018.12.27','2018.12.28',
+                '2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04',
+                '2019.01.07','2019.01.08','2019.01.09','2019.01.10','2019.01.11',
+                '2019.01.14','2019.01.15','2019.01.16','2019.01.17','2019.01.18',
+                '2019.01.21','2019.01.22','2019.01.23','2019.01.24','2019.01.25',
+                '2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01',
+                '2019.02.04','2019.02.05','2019.02.06','2019.02.07','2019.02.08',
+                '2019.02.11','2019.02.12','2019.02.13','2019.02.14','2019.02.15',
+                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22']
+elif not build_test_db and not build_partial_raw:
+    hdf5_file_name = 'tradeinfo.hdf5'
+    separators_directory_name = 'separators/'
+    directory_root = 'D:/SDC/py/Data/'
+    dateTest = ([                                                 '2018.03.09',
              '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
              '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
              '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -232,28 +268,10 @@ dateTest = ([                                                    '2018.03.09',
              '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
              '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
              '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
-
-
-#    ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-#             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
-
-data = Data(dateTest = dateTest)
-
-# limit the build of the HDF5 to data comprised in these dates
-build_partial_raw = True
-int_date = '180928'
-end_date = '181109'
-init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
-end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
-
-directory_destination = 'D:/SDC/py/HDF5/'
-if build_partial_raw:
-    hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
-    separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
 else:
-    hdf5_file_name = 'tradeinfo.hdf5'
-    separators_directory_name = 'separators/'
+    raise ValueError("Not supported")
 trusted_source = False
+data = Data(dateTest = dateTest)
 # create directory if not exists
 if not os.path.exists(directory_destination+separators_directory_name):
     os.mkdir(directory_destination+separators_directory_name)
@@ -279,7 +297,7 @@ list_bussines_days = find_bussines_days(data, directory_destination)
 for ass in data.assets:
     thisAsset = data.AllAssets[str(ass)]
     print(thisAsset)
-    directory_origin = 'D:/SDC/py/Data/'+thisAsset+'/'#'../Data/'+thisAsset+'/'
+    directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
     # extend the threshold margin for GOLD since it always starts at 01:00 am
     if thisAsset == 'GOLD':
         inter_day_thres = 120

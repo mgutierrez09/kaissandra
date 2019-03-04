@@ -87,16 +87,21 @@ def test_RNN(*ins):
             tag_stats = 'IOA'
     else:
         raise ValueError("feats_from_bids must be a bool")
-    
+    if 'build_test_db' in config:
+        build_test_db = config['build_test_db']
+    else:
+        build_test_db = False
+    if build_test_db:
+        test_flag = '_test'
+    else:
+        test_flag = ''
     filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
+                        str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+test_flag+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
                              '_nE'+str(data.nEventsPerStat)+'_2.hdf5')
     
     if 'build_partial_raw' in config:
         build_partial_raw = config['build_partial_raw']
-        
-        
     else:
         build_partial_raw = False
         
@@ -106,7 +111,7 @@ def test_RNN(*ins):
         end_date = '181109'
         separators_directory = hdf5_directory+'separators_F'+int_date+'T'+end_date+'/'
     else:
-        separators_directory = hdf5_directory+'separators/'
+        separators_directory = hdf5_directory+'separators'+test_flag+'/'
         
     if 'from_stats_file' in config:
         from_stats_file = config['from_stats_file']

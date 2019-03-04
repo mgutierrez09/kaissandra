@@ -43,7 +43,7 @@ class modelRNN(object):
                  keep_prob_dropout=1,
                  miniBatchSize=32,
                  outputGain=0.5,
-                 commonY=0,
+                 commonY=3,
                  num_epochs=1000,
                  lR0=0.003,
                  version="0.0",

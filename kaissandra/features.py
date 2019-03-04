@@ -267,14 +267,22 @@ def get_features(*ins):
     hdf5_directory = local_vars.hdf5_directory
     # define files and directories names
     load_features_from = config['load_features_from']
+    if 'build_test_db' in config:
+        build_test_db = config['build_test_db']
+    else:
+        build_test_db = False
+    if build_test_db:
+        test_flag = '_test'
+    else:
+        test_flag = ''
     if load_features_from=='manual':
         if feats_from_bids:
             filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                                str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+                                str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+test_flag+'.hdf5')
         else:
             # feats from asks
             filename_prep_IO = (hdf5_directory+'IOA_mW'+str(data.movingWindow)+'_nE'+
-                                str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+'.hdf5')
+                                str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+test_flag+'.hdf5')
     elif load_features_from=='tsfresh':
         filename_prep_IO = (hdf5_directory+'feat_tsf_mW'+str(data.movingWindow)+'_nE_test'+
                             str(data.nEventsPerStat)+'.hdf5')
@@ -297,9 +305,10 @@ def get_features(*ins):
         if save_stats:
             raise ValueError("save_stats must be False if building from partial raw")
     else:
-        filename_raw = hdf5_directory+'tradeinfo.hdf5'
-        separators_directory = hdf5_directory+'separators/'
-
+        filename_raw = hdf5_directory+'tradeinfo'+test_flag+'.hdf5'
+        separators_directory = hdf5_directory+'separators'+test_flag+'/'
+    stats_dirname = hdf5_directory+'/stats/'
+    assert(not (build_test_db and save_stats))
     # reset file
     #reset = False
     #if reset:
@@ -415,7 +424,7 @@ def get_features(*ins):
                 tag = 'IOB'
             else:
                 tag = 'IOA'
-            pickle.dump( stats, open( hdf5_directory+'/stats/'+thisAsset+'_'+tag+'stats_mW'+
+            pickle.dump( stats, open( stats_dirname+thisAsset+'_'+tag+'stats_mW'+
                                      str(data.movingWindow)+'_nE'+
                                      str(data.nEventsPerStat)+'_nF'+
                                      str(data.nFeatures)+".p", "wb" ))
@@ -424,8 +433,8 @@ def get_features(*ins):
                   " Stats saved. m_t_in="+
                   str(stats["m_t_in"])+", m_t_out="+str(stats["m_t_out"]))
             
-        # update total number of samples
-        m += stats["m_t_out"]
+            # update total number of samples
+            m += stats["m_t_out"]
         # flush content file
         f_prep_IO.flush()
         

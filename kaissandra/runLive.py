@@ -33,15 +33,16 @@ entry_ask_column = 'Ai'
 exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
-verbose_RNN = False
+verbose_RNN = True
 verbose_trader = True
-test = False
-run_back_test = True
+test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
+force_no_extesion = True
 
 
-data_dir = local_vars.data_dir
+data_dir = local_vars.data_test_dir
 directory_MT5 = local_vars.directory_MT5#("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
                 #     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
 io_dir = local_vars.io_dir
@@ -654,7 +655,7 @@ class Trader:
             condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and \
                 100*curr_GROI>=this_strategy.lim_groi_ext and self.direction_map(self.next_candidate.direction, 
-                                   this_strategy.info_spread_ranges['dir'][t])
+                                   this_strategy.info_spread_ranges['dir'][t] and not force_no_extesion)
         else:
             raise ValueError("Wrong entry strategy")            
         return condition_extension
@@ -720,7 +721,7 @@ class Trader:
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]][-1]
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]][-1]
-
+        
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
             spread = (Ao-Bo)/Ai
@@ -1390,7 +1391,7 @@ class Trader:
                                                       asset, otherDirection):
                             # ban assets this trader is controlling
                             ass_idx = self.running_assets.index(ass_id)
-                            out = asset+ "banned "
+                            out = asset+" banned "
                             print(out)
                             self.write_log(out)
                             
@@ -2188,6 +2189,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     print("Back test launched")
     # number of events per file
     n_files = 10
+    ##### MODIFY!!! ##############
     n_samps_buffer = 100
     init_row = ['d',0.0,0.0]
     fileIDs = [0 for ass in range(nAssets)]
@@ -2676,7 +2678,7 @@ def run(config_list, running_assets, start_time):
     
     #########################################
     #### TEMP ###
-    tag = 'IOA_mW'    
+    tag = 'IO_mW'    
     filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
                         str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+'.hdf5')
     import h5py
@@ -2684,12 +2686,12 @@ def run(config_list, running_assets, start_time):
     # load stats
     list_stats_feats = [[load_stats_manual(list_data[nn], AllAssets[str(running_assets[ass])], 
                     f_prep_IO[AllAssets[str(running_assets[ass])]], from_stats_file=True, hdf5_directory=hdf5_directory+
-                    'stats/',tag='IO'+unique_feats_from[nn]) for nn in range(nNets)] for ass in range(nAssets)]
-        
+                    'stats/',tag='') for nn in range(nNets)] for ass in range(nAssets)]
+        #+unique_feats_from[nn]
     list_stats_rets = [[load_stats_output(list_data[nn], hdf5_directory+
                     'stats/', AllAssets[str(running_assets[ass])], 
-                    tag='IO'+unique_feats_from[nn]) for nn in range(nNets)] for ass in range(nAssets)]
-        
+                    tag='') for nn in range(nNets)] for ass in range(nAssets)]
+        #+unique_feats_from[nn]
     if test:
         gain = .000000001
         
@@ -2907,11 +2909,25 @@ def run(config_list, running_assets, start_time):
             lists['list_nonVarIdx'] = list_nonVarIdx
             lists['list_inv_out'] = list_inv_out
             lists['list_feats_from'] = list_feats_from
-            # init trader
-            trader = Trader(running_assets,
-                                ass2index_mapping, strategies, AllAssets, 
+            # init traders
+            traders = []
+            for idx_tr, config_trader in enumerate(config_list):
+                trader = Trader(running_assets,
+                                ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
-                                start_time=start_time)
+                                start_time=start_time, config_name=config_trader['config_name'],
+                                net2strategy=list_net2strategy[idx_tr])
+                    
+#                if not os.path.exists(trader.log_file):
+#                    write_log(out, trader.log_file)
+#                    write_log(out, trader.log_summary)
+                    
+                traders.append(trader)
+            
+#            trader = Trader(running_assets,
+#                                ass2index_mapping, strategies, AllAssets, 
+#                                log_file, results_dir=dir_results, 
+#                                start_time=start_time)
             # launch fetcher
             fetch(lists, trader, directory_MT5, 
                                 AllAssets, running_assets, log_file, results)
@@ -2965,7 +2981,7 @@ def launch(*ins):
             #config_trader = retrieve_config(ins[0])
             list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T0015'),retrieve_config('T0016'),retrieve_config('T0017')]
+        list_config_traders = [retrieve_config('TTEST')]
     synchroned_run = False
     assets = [1, 2, 3, 4, 7, 8, 10, 11, 12, 13, 14, 16, 17, 19, 27, 28, 29, 30, 31, 32]
     
