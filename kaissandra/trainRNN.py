@@ -165,7 +165,6 @@ def train_RNN(*ins):
         IO['pointer'] = 0
         
     # init total number of samples
-    m = 0
     aloc = 2**20
     # index asset
     ass_idx = 0

@@ -1482,7 +1482,7 @@ def get_features_results_stats_from_raw(data, thisAsset, separators, f_prep_IO, 
 
 def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct,
              stats_manual,stats_tsf,stats_output,IO,totalSampsPerLevel, 
-             s, nE, thisAsset, inverse_load):
+             s, nE, thisAsset, inverse_load, save_output=False):
     """
     Function that builds X and Y from data contained in a HDF5 file.
     """
@@ -1531,6 +1531,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     X = IO['X']
     Y = IO['Y']
     I = IO['I']
+    if save_output:
+        R = IO['R']
     pointer = IO['pointer']
     # number of channels
     nC = len(data.channels)
@@ -1608,7 +1610,7 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         # init formatted input and output
         X_i = np.zeros((batch, seq_len, model.nFeatures))
         # real-valued output
-        O_i = np.zeros((batch, seq_len, 1))
+        R_i = np.zeros((batch, seq_len, 1))
         # output index vector
         I_i = np.zeros((batch, seq_len, 2))
         if all_info:
@@ -1637,7 +1639,7 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
                 cc += 1
             # due to substraction of features for variation, output gets the 
             # feature one entry later
-            O_i[nI,:,0] = r_support[nI]
+            R_i[nI,:,0] = r_support[nI]
             I_i[nI,:,:] = i_support[nI,:]
             if all_info:
                 #OA_i[nI,:,0] = ra_support[nI]
@@ -1647,19 +1649,18 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         
         
         # normalize output
-        O_i = O_i/stds_out[0,data.lookAheadIndex]#stdO#
+        R_i = R_i/stds_out[0,data.lookAheadIndex]#stdO#
         #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # update counters
         offset = offset+batch
         # get decimal and binary outputs
-        Y_i, y_dec = build_bin_output(model, O_i, batch)
+        Y_i, y_dec = build_bin_output(model, R_i, batch)
         #YA_i, ya_dec = build_bin_output(model, OA_i, batch)
         # get samples per level
         for l in range(model.size_output_layer):
             totalSampsPerLevel[l] = totalSampsPerLevel[l]+np.sum(y_dec[:,-1,0]==l)
         # resize IO structures
         X.resize((pointer+batch, seq_len, model.nFeatures))
-        
         Y.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
         
         I.resize((pointer+batch, seq_len, 2))
@@ -1667,6 +1668,9 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
         X[pointer:pointer+batch,:,:] = X_i
         Y[pointer:pointer+batch,:,:] = Y_i
         I[pointer:pointer+batch,:,:] = I_i
+        if save_output:
+            R.resize((pointer+batch, 1))
+            R[pointer:pointer+batch,0] = R_i[:,0,0]
         if all_info:
             #XA.resize((pointer+batch, seq_len, model.nFeatures))
             #YA.resize((pointer+batch, seq_len,model.commonY+model.size_output_layer))
@@ -1692,6 +1696,8 @@ def build_IO(file_temp, data, model, features_manual,features_tsf,returns_struct
     IO['Y'] = Y
     IO['I'] = I
     IO['pointer'] = pointer
+    if save_output:
+        IO['R'] = R
     if all_info:
         #IO['XA'] = XA
         #IO['YA'] = YA

@@ -14,6 +14,7 @@ import time
 import h5py
 import datetime as dt
 import os
+from tqdm import tqdm
 #import pandas as pd
 #import matplotlib.pyplot as plt
 from kaissandra.results import evaluate_RNN,save_best_results,get_last_saved_epoch
@@ -32,8 +33,122 @@ class trainData:
 #_, seq_len, input_size = train.data.shape
 #print(train.data.shape)
 
+class Model:
+    """ Parent object reprsening a model """
+    def __init__(self):
+        pass
+    def fit(self):
+        pass
+    def cv(self):
+        pass
+    def test(self):
+        pass
+    def build_model(self):
+        pass
+    def compute_loss(self):
+        pass
+    def predict(self):
+        pass
+    def evaluate(self):
+        pass
+    def _save_graph(self, saver, sess, ID, epoch_cost, epoch, weights_directory):
+        """ <DocString> """
+        if os.path.exists(weights_directory+ID+"/")==False:
+            os.mkdir(weights_directory+ID+"/")
+        strEpoch = "{0:06d}".format(epoch)
+        save_path = saver.save(sess, weights_directory+ID+"/"+
+                                     strEpoch+"/"+strEpoch)
+        print("Parameters saved")
+        return save_path
+    
+    def _save_cost(self, epoch, epoch_cost, From='weights', params={}):
+        """ save cost in cost.p file """
+        if From=='weights':
+            if 'IDweights' in params:
+                ID = params['IDweights']
+            else:
+                ID = 'FDNN00001'
+            if 'weights_directory' in params:
+                directory = params['weights_directory']
+            else:
+                directory = local_vars.weights_directory+ID+'/'
+        elif From=='results':
+            if 'IDresults' in params:
+                ID = params['IDresults']
+            else:
+                ID = 'FDNN10001'
+            if 'results_directory' in params:
+                directory = params['results_directory']
+            else:
+                directory = local_vars.results_directory+ID+'/'
+        else:
+            print("From: "+From)
+            raise ValueError("Argument From not recognized")
+        # load saved costs if exist
+        if os.path.exists(directory+"cost.p"):
+            cost = pickle.load( open( directory+"cost.p", "rb" ))
+        else:
+            cost = {}
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+        cost[str(epoch)] = epoch_cost
+        pickle.dump(cost, open( directory+"cost.p", "wb" ))
+        
+    def _load_graph(self, sess, ID, epoch=-1):
+        """ <DocString> """
+        # Create placeholders
+        if os.path.exists(local_vars.weights_directory+ID+"/"):
+            # load last if epoch = -1
+            if epoch == -1:
+                ## TODO: from listdir get the file that matches the cost file name
+                # get last saved epoch
+                epoch = int(sorted(os.listdir(local_vars.weights_directory+ID+"/"))[-2])
+            
+            strEpoch = "{0:06d}".format(epoch)
+            self._saver.restore(sess, local_vars.weights_directory+ID+"/"+
+                                strEpoch+"/"+strEpoch)
+            #print("var : %s" % self.var.eval())
+            epoch += 1
+            print("Parameters loaded. Epoch "+str(epoch))
+            
+#        elif live=="":
+#            self._init_op = tf.global_variables_initializer()
+#            self._sess.run(self._init_op)
+        else:
+            #init_op = tf.global_variables_initializer()
+            sess.run(tf.global_variables_initializer())
+            epoch = 0
+            #raise ValueError("Graph "+ID+"E"+str(epoch)+" does not exist. Revise IDweights and IDepoch")
+        return epoch
+            
+    def save_output_fn(self, ID, output, cost, method='pickle', tag='NNIO'):
+        """ Save output """
+        dirfilename = local_vars.IO_directory+tag+ID
+        if method=='pickle':
+            pickle.dump({'output':output, 
+                         'cost':cost}, open( dirfilename+'.p', 'wb'))
+        elif method=='hdf5':
+            f_IO = h5py.File(dirfilename,'w')
+            # init IO data sets
+            outputh5 = f_IO.create_dataset('output', output.shape, dtype=float)
+            outputh5[:] = output
+            f_IO.close()
+            print("Output saved in disk")
+            
+    def load_dataset_fn(self, ID, method='pickle', tag='NNIO', setname='output', ext=''):
+        """ Load output """
+        dirfilename = local_vars.IO_directory+tag+ID
+        if method=='pickle':
+            dataset = pickle.load( open( dirfilename+ext, "rb" ))
+        elif method=='hdf5':
+            f_IO = h5py.File(dirfilename+ext,'r')
+            dataset = f_IO[setname]
+            #f_IO.close
+        else:
+            raise ValueError("method is not supported")
+        return dataset
 
-class modelRNN(object):
+class modelRNN(Model):
     
     def __init__(self,
                  data,
@@ -169,14 +284,14 @@ class modelRNN(object):
         if self.commonY == 3:
             loss_mc = tf.reduce_sum(self._target[:,:,0:1] * -tf.log(self._pred[:,:,0:1])+
                                     (1-self._target[:,:,0:1])* -
-                                    tf.log(1 - self._pred[:,:,0:1]), [1, 2])
+                                    tf.log(1 - self._pred[:,:,0:1]), [1, 2])/self.seq_len
             # second and third bits for md (market direction)
             loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self._target[:,:,1:3] * 
-                                     tf.log(self._pred[:,:,1:3])), [1, 2])
+                                     tf.log(self._pred[:,:,1:3])), [1, 2])/self.seq_len
             # last 5 bits for market gain output
             loss_mg = -tf.reduce_sum(self._tf_repeat(self.size_output_layer)*
                                  (self._target[:,:,3:] * 
-                                  tf.log(self._pred[:,:,3:])), [1, 2])
+                                  tf.log(self._pred[:,:,3:])), [1, 2])/self.seq_len
             self._loss = tf.reduce_mean(
                 loss_mc+loss_md+loss_mg,
                 name="loss_nll")
@@ -188,7 +303,7 @@ class modelRNN(object):
 #            loss_md = -tf.reduce_sum(0*(self._target[:,:,1:3] * 
 #                                     tf.log(self._pred[:,:,1:3])), [1, 2])
             # last size_output_layer bits for market gain output
-            loss_mg = -tf.reduce_sum(self._target *tf.log(self._pred), [1, 2])
+            loss_mg = -tf.reduce_sum(self._target *tf.log(self._pred), [1, 2])/self.seq_len
             self._loss = tf.reduce_mean(loss_mg, name="loss_nll")
         self._optim = tf.train.AdamOptimizer(self.lR0).minimize(
             self._loss,
@@ -196,8 +311,9 @@ class modelRNN(object):
         
         self._error = self._loss
         
-    def _load_graph(self,ID,epoch,live=""):
+    def _load_graph(self,ID, epoch, live=""):
         """ <DocString> """
+        print("Loading graph...")
         # Create placeholders
         if os.path.exists(local_vars.weights_directory+ID+"/"):
             if epoch == -1:# load last
@@ -371,21 +487,16 @@ class modelRNN(object):
             print(best_sharpe_profile.to_string())
             # save best results
             #save_best_results(BR_ROIs, BR_sharpes, resultsDir, IDresults, save_results)
-
-        return None
     
     def test2(self, sess, config, alloc, filename_IO,
              startFrom=-1, data_format='', DTA=[],  from_var=False):
         """ 
         Test RNN network with y_c bits
         """
-        from tqdm import tqdm
-        
         IDresults = config['IDresults']
         IDweights = config['IDweights']
         startFrom = config['startFrom']
         endAt = config['endAt']
-        
         weights_directory = local_vars.weights_directory
         
         tic = time.time()
@@ -436,7 +547,7 @@ class modelRNN(object):
             if math.isnan(costs[cost_name+str(epoch)]):
                 print("J_train=NaN BREAK!")
                 break
-            self._load_graph(IDweights,epoch)
+            self._load_graph(IDweights, epoch)
             print("Epoch "+str(epoch)+" of "+str(lastTrained)+". Getting output...")
 #            J_train = self._loss.eval()
             softMaxOut = np.zeros((0,self.seq_len,self.size_output_layer+self.commonY))
@@ -477,7 +588,6 @@ class modelRNN(object):
         args: train_data, train object defined in sets.
         args: test_data, test data defined in sets.
         """
-        from tqdm import tqdm
         self._sess = sess
         print("ID = "+ID)
         self._init_parameters()
@@ -563,4 +673,519 @@ class modelRNN(object):
         except KeyboardInterrupt:
             f_IO.close()
             raise KeyboardInterrupt
+            
+    def evaluate(self, sess, X, Y, params={}, tOt='tr'):
+        """ Evaluate the model at one epoch and return weights and output """
+        if 'IDweights' in params:
+            IDweights = params['IDweights']
+        else:
+            IDweights = '0001001A'
+        if 'IDresults' in params:
+            IDresults = params['IDresults']
+        else:
+            IDresults = '1001001AC'
+        if 'epoch' in params:
+            epoch = params['epoch']
+        else:
+            epoch = 35
+        if 'alloc' in params:
+            alloc = params['alloc']
+        else:
+            alloc = 2**10
+        if 'output_shape' in params:
+            output_shape = params['output_shape']
+        else:
+            output_shape = (Y.shape[0], self.seq_len, self.size_output_layer+self.commonY)
+        if 'save_output' in params:
+            save_output = params['save_output']
+        else:
+            save_output = True
+        m = output_shape[0]
+        loss = 0
+        n_chunks = int(np.ceil(m/alloc))
+        self._sess = sess
+        self._init_parameters()
+        self._compute_loss()
+        self._saver = tf.train.Saver(max_to_keep = None)
+        self._load_graph(IDweights, epoch)
+        print("Epoch "+str(epoch)+". Evaluating...")
+        output = np.zeros(output_shape)
+        for chunck in tqdm(range(n_chunks)):
+            #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+            # build input/output data
+            test_data_feed = {
+                self._inputs: X[chunck*alloc:(chunck+1)*alloc],
+                self._target: Y[chunck*alloc:(chunck+1)*alloc],
+                self._dropout: 1.0
+            }
+            c_loss, output[chunck*alloc:(chunck+1)*alloc] = sess.run([self._error,self._pred], test_data_feed)
+            loss += c_loss
+                #print(softMaxOut.shape)
+        loss = loss/n_chunks
+        print("loss = {}".format(loss))
+        if save_output:
+            if tOt=='tr':
+                ID = IDweights
+            elif tOt=='te':
+                ID = IDresults
+            self.save_output_fn(ID, output, loss, method='hdf5')
+        return output, loss
+        
+class DNN(Model):
+    """ Deep neural network model """
+    def __init__(self, params={}):
+        # get params
+        if 'size_input_layer' in params:
+            self.size_input_layer = params['size_input_layer']
+        else:
+            self.size_input_layer = 20
+        if 'size_hidden_layers' in params:
+            self.size_hidden_layers = params['size_hidden_layers']
+        else:
+            self.size_hidden_layers = []
+        self.n_hidden_leyers = len(self.size_hidden_layers)
+        if 'size_output_layer' in params:
+            self.size_output_layer = params['size_output_layer']
+        else:
+            self.size_output_layer = 1
+        if 'out_act_func' in params:
+            self.out_act_func = params['out_act_func']
+        else:
+            self.out_act_func = 'tanh'
+        if 'act_funcs' in params:
+            self.act_funcs = params['act_funcs']+[self.out_act_func]
+        else:
+            self.act_funcs = ['relu' for _ in self.size_hidden_layers]+[self.out_act_func]
+        assert(len(self.act_funcs)==self.n_hidden_leyers+1)
+        if 'keep_prob_dropout' in params:
+            self.keep_prob_dropout = params['keep_prob_dropout']
+        else:
+            self.keep_prob_dropout = 1
+        
+    def fit(self, X, Y, params={}):
+        """ Fit model to train data """
+        if 'loss_func' in params:
+            loss_func = params['loss_func']
+        else:
+            loss_func = 'exponential'
+        if 'keep_prob_dropout' in params:
+            keep_prob_dropout = params['keep_prob_dropout']
+        else:
+            keep_prob_dropout = 1
+        if 'seed' in params:
+            seed = params['seed']
+        else:
+            seed = 0
+        if 'miniBatchSize' in params:
+            miniBatchSize = params['miniBatchSize']
+        else:
+            miniBatchSize = 256
+        if 'weights_directory' in params:
+            weights_directory = params['weights_directory']
+        else:
+            weights_directory = local_vars.weights_directory
+        if 'IDweights' in params:
+            IDweights = params['IDweights']
+        else:
+            IDweights = 'FDNN00001'
+        if 'save_graph' in params:
+            save_graph = params['save_graph']
+        else:
+            save_graph = True
+        if 'num_epochs' in params:
+            num_epochs = params['num_epochs']
+        else:
+            num_epochs = 100
+        if 'save_every' in params:
+            save_every = params['save_every']
+        else:
+            save_every = 1    
+        # init timer
+        tic = time.time()
+        # init graph
+        tf.reset_default_graph()
+        # build model
+        self.build_model()
+        # init session
+        with tf.Session() as sess:
+            # get loss function
+            loss = compute_loss(self, loss_func)
+            # define optimizer
+            optimizer = get_optimazer(loss, params)
+            # define save object
+            self._saver = tf.train.Saver(max_to_keep = None)
+            # restore graph
+            epoch_init = self._load_graph(sess, IDweights, epoch=-1)
+            # get minibatches
+            minibatches = random_mini_batches(X.T, Y.T, miniBatchSize, seed=seed)
+            n_mB = len(minibatches)
+            # get epochs range
+            epochs = range(epoch_init, epoch_init+num_epochs)
+            exception = False
+            counter = 0
+            try:
+                
+                for epoch in epochs:
+                    J_train = 0
+                    for minibatch in tqdm(minibatches, mininterval=1):
+                        (X_batch, Y_batch) = minibatch
+                        feed_dict = {self.input:X_batch.T, self.target:Y_batch.T, 
+                                     self.keep_prob_dropout:keep_prob_dropout}
+                        output, cost = sess.run([optimizer, loss], feed_dict=feed_dict)
+                        J_train += cost
+                    J_train= J_train/n_mB
+                    print ("Cost after epoch %i: %f. Av cost %f" % (epoch, cost, J_train))
+                    print(dt.datetime.strftime(dt.datetime.now(),"%H:%M:%S")+
+                      " Total time training: "+"{0:.2f}".format(np.floor(time.time()-tic)/60)+"m")
+                    if save_graph:
+                        self._save_graph(self._saver, sess, IDweights, J_train, epoch, weights_directory)
+                    self._save_cost(epoch, J_train, params=params)
+                    counter += 1
+            except KeyboardInterrupt:
+                print("Trainning stopped due to KeyboardInterrupt exception")
+                exception = True
+        if not exception:
+            print("Model fit.")
+        return self
+        
+    def cv(self, X, Y, params={}):
+        """ Cross-validation function """
+        tic = time.time()
+        if 'IDresults' in params:
+            IDresults = params['IDresults']
+        else:
+            IDresults = 'CVDNN00001'
+        if 'IDweights' in params:
+            IDweights = params['IDweights']
+        else:
+            IDweights = 'FDNN00001'
+        if 'alloc' in params:
+            alloc = params['alloc']
+        else:
+            alloc = 2**20
+        if 'loss_func' in params:
+            loss_func = params['loss_func']
+        else:
+            loss_func = 'exponential'
+        if 'save_output' in params:
+            save_output = params['save_output']
+        else:
+            save_output = False
+        if 'get_results' in params:
+            get_results = params['get_results']
+        else:
+            get_results = False
+        m = Y.shape[0]
+        n_chunks = int(np.ceil(m/alloc))
+        # retrieve costs
+        costs = retrieve_costs(params=params)
+        # get epochs range
+        epochs = get_epochs_range(params)
+        # init graph
+        tf.reset_default_graph()
+        # build model
+        self.build_model()
+        # init session
+        with tf.Session() as sess:
+            # get loss function
+            loss = compute_loss(self, loss_func)
+            # load models and test them
+            for epoch in epochs:
+                # make sure cost in not a NaN
+                if check_nan(costs, epoch):
+                    break
+                # define save object
+                self._saver = tf.train.Saver(max_to_keep = None)
+                # load graph
+                self._load_graph(sess, IDweights, epoch=epoch)
+                print("Epoch "+str(epoch)+" of "+str(epochs[-1])+". Getting output...")
+    #            J_train = self._loss.eval()
+                output = np.zeros(Y.shape)
+                J_test = 0
+                for chunck in tqdm(range(n_chunks)):
+                    #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+                    # build input/output data
+                    test_data_feed = {
+                        self.input: X[chunck*alloc:(chunck+1)*alloc],
+                        self.target: Y[chunck*alloc:(chunck+1)*alloc],
+                        self.keep_prob_dropout: 1.0
+                    }
+                    J_test_chuck, output_chunck = sess.run([loss, self.output], test_data_feed)
+                    J_test += J_test_chuck
+                    output[chunck*alloc:(chunck+1)*alloc] = output_chunck
+                    #print(softMaxOut.shape)
+                J_test = J_test/n_chunks
+                print("J_test = {0:.6f}".format(J_test))
+                self._save_cost(epoch, J_test, From='results', params=params)
+                if save_output:
+                    self.save_output_fn(IDresults, output, J_test, method='hdf5', tag='DNNIO')
+                if get_results:
+                    pass
+        
+        print("Total time for testing: "+str((time.time()-tic)/60)+" mins.\n")
+        return self
+        
+    def test(self):
+        pass
     
+    def _init_parameters(self):
+        """ Init weights and biases per layer """
+        Wb = {}
+        w_initializer = tf.contrib.layers.xavier_initializer()
+        b_initializer = tf.zeros_initializer()
+        # loop over hidden layers
+        s_l_1 = self.size_input_layer
+        l = -1
+        for l, L in enumerate(self.size_hidden_layers):
+            Wb['W'+str(l)] = tf.Variable(w_initializer([s_l_1, L]))
+            Wb['b'+str(l)] = tf.Variable(b_initializer([1, L]))
+            s_l_1 = L
+        # add last layer
+        Wb['W'+str(l+1)] = tf.Variable(w_initializer([s_l_1, self.size_output_layer]))
+        Wb['b'+str(l+1)] = tf.Variable(b_initializer([1, self.size_output_layer]))
+#        Wb['W'+str(l+1)] = tf.Variable(tf.truncated_normal([s_l_1, self.size_output_layer], stddev=0.01), name="fc_w")
+#        Wb['b'+str(l+1)] = tf.Variable(tf.constant(0.1, shape=[1, self.size_output_layer]), name="fc_b")
+        return Wb
+        
+    def _run_forward_prop(self, Wb):
+        """ Run forward propagation function """
+        A = self.input
+        for l, act_func in enumerate(self.act_funcs):
+            W = Wb['W'+str(l)]
+            b = Wb['b'+str(l)]
+            Z = tf.add(tf.matmul(A, W), b)
+            if act_func=='relu':
+                A = tf.nn.relu(Z)
+            elif act_func=='sigmoid':
+                A = tf.nn.sigmoid(Z)
+            elif act_func=='tanh':
+                A = tf.nn.tanh(Z)
+            elif act_func=='softmax':
+                A = tf.nn.softmax(Z)
+            else:
+                raise ValueError('acti_func not supported')
+#            if self.keep_prob_dropout<1 and l<self.size_hidden_layers:
+#                A = tf.nn.dropout(A, self.keep_prob_dropout)
+        return A
+            
+    def build_model(self):
+        """ Build DNN model """
+        # define placeholders
+        self.input = tf.placeholder(tf.float32, [None, self.size_input_layer], name='X')
+        self.target = tf.placeholder(tf.float32, [None, self.size_output_layer], name='Y')
+        self.keep_prob_dropout = tf.placeholder(tf.float32)
+        # init parameters
+        Wb = self._init_parameters()
+        # forward prop
+        self.output = self._run_forward_prop(Wb)
+        # init saver obect
+        
+    def predict(self, X):
+        """  """
+        test_data_feed = {
+            self.input: X,
+            self.keep_prob_dropout: 1.0
+        }
+        output = self._sess.run([self.output], test_data_feed)
+        return output
+    
+    def init_session(self, params={}):
+        """ <DocString> """
+        if 'IDweights' in params:
+            IDweights = params['IDweights']
+        else:
+            IDweights = 'FDNN00001'
+        if 'epoch_predict' in params:
+            epoch = params['epoch_predict']
+        else:
+            epoch = 0
+        graph = tf.Graph()
+        with graph.as_default():
+            self.build_model()
+            self._saver = tf.train.Saver(max_to_keep = None)
+            self._sess = tf.Session()
+            self._load_graph(self._sess, IDweights, epoch)
+            
+        return self
+    
+def compute_loss(model, loss_func):
+    """ Loss function """
+    if loss_func=='exponential':
+        loss = tf.reduce_mean(tf.exp(-model.target*model.output))
+    elif loss_func=='cross_entropy':
+        loss = tf.reduce_mean(model.target *-tf.log(model.output)+
+                               (1-model.target)*-tf.log(1 - model.output), 
+                               name="loss_nll")
+    else:
+        raise ValueError("loss_func not supported")
+    return loss
+
+def get_optimazer(loss, params):
+    """  """
+    if 'optimazer_name' in params:
+        optimazer_name = params['optimazer_name']
+    else:
+        optimazer_name = 'adam'
+    if 'learning_rate' in params:
+        learning_rate = params['learning_rate']
+    else:
+        learning_rate = 0.0001
+    if 'beta1' in params:
+        beta1 = params['beta1']
+    else:
+        beta1 = 0.9
+    if 'beta2' in params:
+        beta2 = params['beta2']
+    else:
+        beta2 = 0.999
+    if 'epsilon' in params:
+        epsilon = params['epsilon']
+    else:
+        epsilon = 1e-08
+    
+    if optimazer_name=='adam':
+        optimazer = tf.train.AdamOptimizer(learning_rate=learning_rate, 
+                                           beta1=beta1, beta2=beta2,
+                                           epsilon=epsilon).minimize(loss)
+    else:
+        raise ValueError("optimazer_name not supported")
+    return optimazer
+
+def random_mini_batches(X, Y, mini_batch_size=64, seed=0):
+    """
+    Creates a list of random minibatches from (X, Y)
+    
+    Arguments:
+    X -- input data, of shape (input size, number of examples)
+    Y -- true "label" vector (containing 0 if cat, 1 if non-cat), of shape (1, number of examples)
+    mini_batch_size - size of the mini-batches, integer
+    seed -- this is only for the purpose of grading, so that you're "random minibatches are the same as ours.
+    
+    Returns:
+    mini_batches -- list of synchronous (mini_batch_X, mini_batch_Y)
+    """
+    import math
+    m = X.shape[1]                  # number of training examples
+    mini_batches = []
+    np.random.seed(seed)
+    
+    # Step 1: Shuffle (X, Y)
+    perm = np.random.permutation(m)
+    #perm = np.array(range(m))
+    permutation = list(perm)
+    shuffled_X = X[:, permutation]
+    shuffled_Y = Y[:, permutation].reshape((Y.shape[0],m))
+
+    # Step 2: Partition (shuffled_X, shuffled_Y). Minus the end case.
+    num_complete_minibatches = math.floor(m/mini_batch_size) # number of mini batches of size mini_batch_size in your partitionning
+    for k in range(0, num_complete_minibatches):
+        mini_batch_X = shuffled_X[:, k * mini_batch_size : k * mini_batch_size + mini_batch_size]
+        mini_batch_Y = shuffled_Y[:, k * mini_batch_size : k * mini_batch_size + mini_batch_size]
+        mini_batch = (mini_batch_X, mini_batch_Y)
+        mini_batches.append(mini_batch)
+    
+    # Handling the end case (last mini-batch < mini_batch_size)
+    if m % mini_batch_size != 0:
+        mini_batch_X = shuffled_X[:, num_complete_minibatches * mini_batch_size : m]
+        mini_batch_Y = shuffled_Y[:, num_complete_minibatches * mini_batch_size : m]
+        mini_batch = (mini_batch_X, mini_batch_Y)
+        mini_batches.append(mini_batch)
+    
+    return mini_batches
+
+def check_nan(costs, epoch):
+    """  """
+    import math
+    if type(costs)==dict:
+        if math.isnan(costs[str(epoch)]):
+            print("J_train=NaN BREAK!")
+            return True
+        else:
+            return False
+    elif type(costs)==type(np.array([])) or type(costs)==list:
+        if math.isnan(costs[epoch]):
+            print("J_train=NaN BREAK!")
+            return True
+        else:
+            return False
+    else:
+        raise ValueError("costs type not known")
+
+def get_epochs_range(params={}):
+    """ Get epochs range """
+    if 'startFrom' in params:
+        startFrom = params['startFrom']
+    else:
+        startFrom = -1
+    if 'endAt' in params:
+        endAt = params['endAt']
+    else:
+        endAt = -1
+    if 'weights_directory' in params:
+        weights_directory = params['weights_directory']
+    else:
+        weights_directory = local_vars.weights_directory
+    if 'IDweights' in params:
+        IDweights = params['IDweights']
+    else:
+        IDweights = 'FDNN00001'
+    if startFrom==-1:
+        # TODO: extract last epoch saved
+        startFrom = 0
+    if endAt==-1:
+        directory_list = sorted(os.listdir(weights_directory+IDweights+"/"))
+        endAt = int(directory_list[-2])
+    # build epochs range
+    epochs = range(startFrom, endAt)
+    return epochs
+
+def retrieve_costs(tOt='tr', params={}):
+    """  """
+    if tOt=='tr':
+        if 'IDweights' in params:
+            ID = params['IDweights']
+        else:
+            ID = 'FDNN00001'
+        if 'weights_directory' in params:
+            directory = params['weights_directory']
+        else:
+            directory = local_vars.weights_directory+ID+'/'
+    elif tOt=='te':
+        if 'IDresults' in params:
+            ID = params['IDresults']
+        else:
+            ID = 'FDNN10001'
+        if 'results_directory' in params:
+            directory = params['results_directory']
+        else:
+            directory = local_vars.results_directory+ID+'/'
+    else:
+        print("tOt: "+tOt)
+        raise ValueError("Argument From not recognized")
+    
+#    if 'IDweights' in params:
+#        IDweights = params['IDweights']
+#    else:
+#        IDweights = 'FDNN00001'
+#    if 'weights_directory' in params:
+#        weights_directory = params['weights_directory']
+#    else:
+#        weights_directory = local_vars.weights_directory
+    if os.path.exists(directory+"/cost.p"):
+        costs = pickle.load( open( directory+"/cost.p", "rb" ))
+    else:
+        raise ValueError("File cost.p does not exist.")
+#    directory_list = sorted(os.listdir(weights_directory+IDweights+"/"))
+#    print(directory_list)
+#    print(filter(lambda x: 'cost' in x, directory_list))
+#    costfile_id = [l for l,s in enumerate(directory_list) if 'cost' in s][0]
+#    print(costfile_id)
+#    print(directory_list[costfile_id])
+    if type(costs)==dict:
+        np_costs = np.zeros((len(costs)))
+        c = 0
+        for i in costs:
+            np_costs[int(i)] = costs[i]
+            c += 1
+        costs = np_costs
+    return costs

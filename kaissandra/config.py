@@ -184,7 +184,7 @@ def configuration(*ins):
         if 'num_epochs' in entries:
             num_epochs = entries['num_epochs']
         else:
-            num_epochs=100
+            num_epochs = 100
         
         # test-specific parameters
         if 'IDresults' in entries:

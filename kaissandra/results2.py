@@ -401,17 +401,17 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_m
                           best_filename)
                     time.sleep(1)
         if not from_mg:
-            out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
-                  " t_index "+str(TR['t_index'].loc[idx])+\
-                  " thr_mc "+str(TR['thr_mc'].loc[idx])+\
-                  " thr_md "+str(TR['thr_md'].loc[idx])+\
-                  " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])
+            thr_text = " thr_mc "+str(TR['thr_mc'].loc[idx])+\
+                  " thr_md "+str(TR['thr_md'].loc[idx])
         else:
-            out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
-                  " t_index "+str(TR['t_index'].loc[idx])+\
-                  " thr_mc "+str(TR['thr_mg'].loc[idx])+\
-                  " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])+\
-                  " gross precision {0:.2f}".format(TR['GSP'].loc[idx])
+            thr_text = " thr_mc "+str(TR['thr_mg'].loc[idx])
+        
+        out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
+              " t_index "+str(TR['t_index'].loc[idx])+thr_text+\
+              " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])+\
+              " GSP {0:.2f}".format(TR['GSP'].loc[idx])+\
+              " ADA {0:.2f}".format(TR['ADA'].loc[idx])+\
+              " AD {0:.2f}".format(TR['AD'].loc[idx])
         print(out)
         if not save:
             file.write(out+"\n")
@@ -676,7 +676,7 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
             Journal = get_journal(DTAt.iloc[indexes_mc], 
                                   y_tilde_dec[indexes_mc], 
                                   y_dec[indexes_mc],
-                                  diff_y_y_tilde, 
+                                  diff_y_y_tilde,
                                   p_bear[indexes_mc], 
                                   p_bull[indexes_mc])
             
@@ -1390,8 +1390,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     else:
         sharpe = 0.0
     # Success index per spread level
-    SIs = n_pos_opned*(NSPs-.55)
-    SI = n_pos_opned*(net_succ_per-.55)
+    SIs = n_pos_opned*(NSPs-.53)
+    SI = n_pos_opned*(net_succ_per-.53)
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs

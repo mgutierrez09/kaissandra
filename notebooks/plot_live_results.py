@@ -144,4 +144,4 @@ for i in range(len(config_names)):
         plt.grid()
         plt.legend()
 
-print(positions_list[-1].sort_values(by=['ROI'],ascending=True).reset_index()['ROI'])
+print(positions_list[-1].sort_values(by=['ROI'],ascending=True).reset_index())
