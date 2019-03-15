@@ -19,7 +19,7 @@ import time
 
 from kaissandra.local_config import local_vars
 
-def get_last_saved_epoch2(resultsDir, ID, t_index):
+def get_last_saved_epoch2(resultsDir, ID):
     """
     <DocString>
     """
@@ -518,6 +518,80 @@ def update_TR_mg(TR, CN, acc, PR, RC, FS, t, t_idx, classes):
                     TR[key] = acc
     return TR
 
+def get_results_meta(config, y, soft_tilde, costs, epoch, J_test, costs_filename,
+                   results_filename, performance_filename, out_act_func, 
+                   get_performance=False, DTA=None):
+    """ Get results based on market gain """
+    m = soft_tilde.shape[0]
+    seq_len = 1
+    n_classes = config['size_output_layer']
+    if 'scores' in config:
+        scores = config['scores']
+    else:
+        scores = [1]
+    if 'cost_name' in config:
+        cost_name = config['cost_name']
+    else:
+        cost_name = ''
+    J_train = costs[cost_name+str(epoch)]
+    
+    accs = np.zeros((seq_len+1))
+    PR = np.zeros((n_classes,seq_len+1)) # precision matrix
+    RC = np.zeros((n_classes,seq_len+1)) # recall matrix
+    FS = np.zeros((n_classes,seq_len+1,len(scores))) # F score matrix
+    CM = np.zeros((n_classes, n_classes, seq_len+1))# confusion matrix
+    # TODO: take +1 and 'mean' constants from config file
+    t_indexes = [str(t) if t<seq_len else 'mean' for t in range(seq_len)]
+    column_names = get_results_mg_entries(n_classes, t_indexes)
+    # table results
+    TR = {'epoch':epoch,
+          'J_train':J_train,
+          'J_test':J_test}
+    for t in range(seq_len):
+        if t<seq_len:
+            y_tilde_dec = np.argmax(soft_tilde[:, t, :], axis=1)
+            y_t = y[:,t,:].astype(int)
+            t_idx = str(t)
+        y_tilde = np.eye(n_classes)[y_tilde_dec].astype(int)
+        y_dec = np.argmax(y_t, axis=1)
+        #print(y_tilde_dec)
+        #acc = 1-np.sum(np.abs(y_t^y_tilde))/m # xor
+        acc = 1-np.sum(np.abs(np.sign(y_dec-y_tilde_dec)))/m # xor
+        for i in range(n_classes):
+            for j in range(n_classes):
+                CM[i,j,t] = np.sum(y_tilde[:,i] & y_t[:,j]) # entry of conf. matrix
+        for c in range(n_classes):
+            if np.sum(CM[c,:,t])>0:
+                PR[c,t] = CM[c,c,t]/np.sum(CM[c,:,t])
+                RC[c,t] = CM[c,c,t]/np.sum(CM[:,c,t])
+                FS[c,t,:] = [(1+score**2)*PR[c,t]*RC[c,t]/(score**2*PR[c,t]+RC[c,t]) for score in scores]
+            else:
+                PR[c,t] = 0
+                RC[c,t] = 0
+                FS[c,t,:] = [0 for score in scores]
+        accs[t] = acc
+        
+        print_results_mg(acc, CM, PR, RC, FS, scores, t, t_idx)
+        
+        TR = update_TR_mg(TR, column_names, acc, PR, RC, FS, t, t_idx, n_classes)
+        
+        t_indexes.append(t_idx)
+        #print(dicto)
+    save_results_mg(TR, results_filename, n_classes, t_indexes)
+    results = {'accs':accs,
+               'CM':CM,
+               'PR':PR,
+               'RC':RC,
+               'FS':FS}
+    
+    save_costs(costs_filename, [epoch, J_train, J_test])
+    
+    if get_performance:
+        print("Getting performance")
+        results_extended = get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename)
+        results.update(results_extended)
+    return results
+
 def get_results_mg(config, y, soft_tilde, costs, epoch, J_test, costs_filename,
                    results_filename, performance_filename, get_performance=False, DTA=None):
     """ Get results based on market gain """
@@ -534,7 +608,7 @@ def get_results_mg(config, y, soft_tilde, costs, epoch, J_test, costs_filename,
     if 'cost_name' in config:
         cost_name = config['cost_name']
     else:
-        cost_name = config['IDweights']
+        cost_name = ''
     J_train = costs[cost_name+str(epoch)]
     
     accs = np.zeros((seq_len+1))
@@ -615,6 +689,130 @@ def filter_journal(config, Journal):
     else:
         raise ValueError("Entry results_from not known. Options are SHORT/LONG/COMB")
     return Journal
+
+def get_performance_meta(config, y, soft_tilde, DTA, epoch, 
+                         performance_filename):
+    """ Get ROI-based performance metrics """
+    m = y.shape[0]
+    seq_len = 1
+    n_classes = 3
+    n_days = len(config['dateTest'])
+    if 'resolution' in config:
+        resolution = config['resolution']
+    else:
+        resolution = 10
+    IDresults = config['IDresults']
+    save_journal = config['save_journal']
+    if 'out_act_func' in config:
+        out_act_func = config['out_act_func']
+    else:
+        out_act_func = 'sigmoid'
+    if out_act_func=='sigmoid':
+        thr = 0.5
+    elif out_act_func=='tanh':
+        thr = 0
+    else:
+        raise NotImplemented("out_act_func no implemented yet")
+    if 'thresholds_mg' in config:
+        thresholds_mg = config['thresholds_mg']
+    else:
+        thresholds_mg = [.5+i/resolution for i in range(int(resolution/2))]
+    if 'get_corr_signal' in config:
+        get_corr_signal = config['get_corr_signal']
+    else:
+        get_corr_signal = False
+    for t in range(seq_len):
+        if t<seq_len:
+            soft_tilde_t = soft_tilde
+            y_t = y
+            t_idx = str(t)
+        else:
+            y_t = y[:, 0, :]
+            soft_tilde_t = np.mean(soft_tilde, axis=1)
+            t_idx = 'mean'
+        
+        if out_act_func=='sigmoid':
+            
+            y_tilde_dec = (soft_tilde_t>thr).astype(int)-(soft_tilde_t<thr).astype(int)#np.argmax(soft_tilde_t, axis=1)-int((n_classes-1)/2)
+            y_dec = (y_t>thr).astype(int)-(y_t<thr).astype(int)#np.argmax(y_t, axis=1)-int((n_classes-1)/2)
+            p_bear = 1-soft_tilde_t#np.sum(soft_tilde_t[:, :int((n_classes-1)/2)],axis=1)
+            p_bull = soft_tilde_t#np.sum(soft_tilde_t[:, int((n_classes-1)/2)+1:],axis=1)
+        elif out_act_func=='tanh':
+            
+            y_tilde_dec = (soft_tilde_t>thr).astype(int)-(soft_tilde_t<thr).astype(int)#np.argmax(soft_tilde_t, axis=1)-int((n_classes-1)/2)
+            y_dec = (y_t>thr).astype(int)-(y_t<thr).astype(int)#np.argmax(y_t, axis=1)-int((n_classes-1)/2)
+            p_bear = (-1)*soft_tilde_t#np.sum(soft_tilde_t[:, :int((n_classes-1)/2)],axis=1)
+            p_bull = soft_tilde_t#np.sum(soft_tilde_t[:, int((n_classes-1)/2)+1:],axis=1) 
+        
+        for mg, thr_mg in enumerate(thresholds_mg):
+            indexes_thr_bear = p_bear>thr_mg
+            indexes_thr_bull = p_bull>thr_mg
+            indexes_mc = indexes_thr_bear | indexes_thr_bull
+            diff_y_y_tilde = np.abs(np.sign(y_dec[indexes_mc])-np.sign(y_tilde_dec[indexes_mc]))
+            DTAt = DTA.iloc[::seq_len,:]
+            results = {}
+            # market change accuracy
+            results['NZA'] = np.sum(indexes_mc) # number of non-zeros all
+            results['NZ'] = np.sum(indexes_mc & (y_dec!=0)) # Number of non-zeros
+            results['RD'] =  np.sum(indexes_thr_bear & (y_dec<0))+\
+                             np.sum(indexes_thr_bull & (y_dec>0)) # right direction
+            #a=p
+            if results['NZ']>0:
+                results['AD'] = 100*results['RD']/results['NZ'] # accuracy direction
+            else:
+                results['AD'] = 0
+            if results['NZA']>0:
+                results['ADA'] = 100*results['RD']/results['NZA'] # accuracy direction all
+            else:
+                results['ADA'] = 0
+            results['pNZ'] = 100*results['NZ']/m # percent of non-zeros
+            results['pNZA'] = 100*results['NZA']/m # percent of non-zeros all
+            # get journal
+            Journal = get_journal(DTAt.iloc[indexes_mc[:,0]], 
+                                  y_tilde_dec[indexes_mc], 
+                                  y_dec[indexes_mc],
+                                  diff_y_y_tilde,
+                                  p_bear[indexes_mc], 
+                                  p_bull[indexes_mc])
+            
+            Journal = filter_journal(config, Journal)
+            if save_journal:
+                journal_dir = local_vars.results_directory+IDresults+'/journal/'
+                journal_id = 'J_E'+str(epoch)+'TI'+t_idx+'MG'+str(thr_mg)
+                ext = '.csv'
+                save_journal_fn(Journal, journal_dir, journal_id, ext)
+                pos_dirname = local_vars.results_directory+IDresults+'/positions/'
+                corr_dirname = local_vars.results_directory+IDresults+'/corr/'                    
+                pos_filename = 'P_E'+str(epoch)+'TI'+t_idx+'MG'+str(thr_mg)+'.csv'
+                corr_filename = 'C_E'+str(epoch)+'TI'+t_idx+'MG'+str(thr_mg)+'.p'
+            else:
+                corr_dirname = ''
+                pos_dirname = ''
+                pos_filename = ''
+                corr_filename = ''
+            results_extended, log = get_extended_results(Journal,
+                                                n_classes,
+                                                n_days,
+                                                get_corr_signal=get_corr_signal,
+                                                get_positions=save_journal,
+                                                pos_dirname=pos_dirname,
+                                                pos_filename=pos_filename,
+                                                corr_filename=corr_filename,
+                                                corr_dirname=corr_dirname)
+            results_extended.update({'epoch':epoch,
+                                     't_index':t_idx,
+                                     'thr_mg':thr_mg})
+            results.update(results_extended)
+            print_performance(results, epoch, thr_mg, t_idx)
+            save_performance(performance_filename, results)
+    TP = pd.read_csv(performance_filename+'.csv', sep='\t')
+    print('\n')
+    get_best_results(TP[TP.epoch==epoch], performance_filename, 
+                     local_vars.results_directory,
+                     IDresults, save=1, from_mg=True)
+    print("\nThe very best:")
+    get_best_results(TP, performance_filename, local_vars.results_directory, IDresults, from_mg=True)
+    return results_extended
 
 def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
     """ Get ROI-based performance metrics """
@@ -1084,7 +1282,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     """
     Function that calculates real ROI, GROI, spread...
     """
-    
+    print('Getting extended results...')
     from tqdm import tqdm
     import matplotlib.pyplot as plt
     
