@@ -67,7 +67,7 @@ def configuration(*ins):
                         '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
                         '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
                         '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-                        '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])   
+                        '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
             
 #            dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16',
 #                        '2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23',
@@ -190,6 +190,10 @@ def configuration(*ins):
             num_epochs = entries['num_epochs']
         else:
             num_epochs = 100
+        if 'rand_mB' in entries:
+            rand_mB = entries['rand_mB']
+        else:
+            rand_mB = True
         
         # test-specific parameters
         if 'IDresults' in entries:
@@ -287,6 +291,7 @@ def configuration(*ins):
                   'commonY':commonY,
                   'lR0':lR0,
                   'num_epochs':num_epochs,
+                  'rand_mB':rand_mB,
                   
                   'if_build_IO':if_build_IO,
                   'from_stats_file':from_stats_file,

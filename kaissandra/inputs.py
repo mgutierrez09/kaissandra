@@ -1849,7 +1849,7 @@ def build_IO_from_var(data, model, stats, IO, totalSampsPerLevel, feats_var,
     
     return IO, totalSampsPerLevel
 
-def load_separators(data, thisAsset, separators_directory, tOt='tr', from_txt=1):
+def load_separators(thisAsset, separators_directory, from_txt=1):
     """
     Function that loads and segments separators according to beginning and end dates.
     
