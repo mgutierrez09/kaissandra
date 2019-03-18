@@ -312,7 +312,7 @@ class RNN(Model):
             try:
                 for epoch in epochs:
                     J_train = 0
-                    for minibatch in tqdm(minibatches, mininterval=1):
+                    for minibatch in tqdm(minibatches, mininterval=10):
                         (X_batch, Y_batch) = minibatch
                         feed_dict = {self.input:X_batch, self.target:Y_batch, 
                                      self.dropout:keep_prob_dropout}

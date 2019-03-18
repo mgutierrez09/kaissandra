@@ -12,10 +12,11 @@ from kaissandra.preprocessing import build_IO_wrapper
 from kaissandra.models import DNN, RNN, retrieve_costs
 from kaissandra.config import retrieve_config, configuration
 
-entries={'config_name':'CRNN00003','IDweights':'WRNN00003A', 'IDresults':'RRNN00003AC',
+entries={'config_name':'CRNN00005','IDweights':'WRNN00005A', 'IDresults':'RRNN00005AC',
          'movingWindow':1000,'nEventsPerStat':10000,'feats_from_bids':False,
-         'size_output_layer':3,'outputGain':1, 'results_from':'COMB'}
+         'size_output_layer':3,'outputGain':1, 'results_from':'COMB','L':1,'size_hidden_layer':1024}
 config = configuration(entries)
+#config['L']=2
 #config = retrieve_config('CRNN00001')
 #config['config_name'] = 'CRNN00010RANDMB'
 #config['IDweights'] = 'WRNN00001A'

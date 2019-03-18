@@ -118,6 +118,10 @@ def configuration(*ins):
             feature_keys_manual = entries['feature_keys_manual']
         else:
             feature_keys_manual = [i for i in range(37)]
+        if 'noVarFeatsManual' in entries:
+            noVarFeatsManual = entries['noVarFeatsManual']
+        else:
+            noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
         if 'feature_keys_tsfresh' in entries:
             feature_keys_tsfresh = entries['feature_keys_tsfresh']
         else:
@@ -278,6 +282,7 @@ def configuration(*ins):
                   'channels':channels,
                   'max_var':max_var,
                   'feature_keys_manual':feature_keys_manual,
+                  'noVarFeatsManual':noVarFeatsManual,
                   'feature_keys_tsfresh':feature_keys_tsfresh,
                   'var_feat_keys':var_feat_keys,
                   'lookAheadIndex':lookAheadIndex,
