@@ -851,7 +851,8 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
             indexes_thr_bear = p_bear>thr_mg
             indexes_thr_bull = p_bull>thr_mg
             indexes_mc = indexes_thr_bear | indexes_thr_bull
-            diff_y_y_tilde = np.abs(np.sign(y_dec[indexes_mc])-np.sign(y_tilde_dec[indexes_mc]))
+            diff_y_y_tilde = np.abs(np.sign(y_dec[indexes_mc])-\
+                                            np.sign(y_tilde_dec[indexes_mc]))
             DTAt = DTA.iloc[::seq_len,:]
             results = {}
             # market change accuracy
@@ -1758,7 +1759,7 @@ def merge_t_index_results(results_dir, IDr_m1, IDr_m2):
         raise ValueError("merge 1 and 2 must have same number of t_indexes")
     return None
 
-def merge_results(IDr_m1, IDr_m2, IDr_merged):
+def merge_results(IDrs, IDr_merged):
     """ Merge results from two different test executions.
     Arg:
         - IDr_m1 (string): ID of first merging results
@@ -1768,11 +1769,18 @@ def merge_results(IDr_m1, IDr_m2, IDr_merged):
         - None """
     from local_config import local_vars
     results_dir = local_vars.results_directory
-#    if os.path.exists(results_dir):
-#        raise ValueError("Results directory already exists")
-    # merge best results
-    #merge_best_result_files(results_dir, IDr_m1, IDr_m2)
-    merge_t_index_results(results_dir, IDr_m1, IDr_m2)
+    
+    columns = get_performance_entries()
+    resultsDir = local_vars.results_directory
+    TRT = pd.DataFrame(columns = columns)
+        #[pd.DataFrame(columns = columns).columns.tolist()]
+    for i, ID in enumerate(IDrs):
+        performance_filename = resultsDir+ID+'/performance'
+        TP = pd.read_csv(performance_filename+'.csv', sep='\t')
+        for epoch in epochs:
+            for t in t_indexes:
+                pass
+    #merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
     return None
 

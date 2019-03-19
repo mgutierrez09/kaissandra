@@ -81,37 +81,14 @@ def automate(*ins):
 
 def automate_RNN(rootname_config='RNN00000k', entries={}, K=5, tAt='TrTe'):
     """  """
-#    if 'movingWindow' in entries:
-#        movingWindow = entries['movingWindow']
-#    else:
-#        movingWindow = 1000
-#    if 'nEventsPerStat' in entries:
-#        nEventsPerStat = entries['nEventsPerStat']
-#    else:
-#        nEventsPerStat = 10000
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
     else:
         feats_from_bids = False
-#    if 'size_output_layer' in entries:
-#        size_output_layer = entries['size_output_layer']
-#    else:
-#        size_output_layer = 3
-#    if 'outputGain' in entries:
-#        outputGain = entries['outputGain']
-#    else:
-#        outputGain = 1
     if 'results_from' in entries:
         results_from = entries['results_from']
     else:
         results_from = 'COMB'
-#    if 'L' in entries:
-#        L = entries['L']
-#    else:
-#        L = 3
-#    if 'size_hidden_layer' in entries:
-#        size_hidden_layer = entries['size_hidden_layer']
-#    else:
 #        size_hidden_layer = 3
     if feats_from_bids==False:
         extW = 'A'
