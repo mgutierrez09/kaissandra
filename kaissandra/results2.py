@@ -204,8 +204,8 @@ def kpi2func_merge():
                'mSpread':'mean',
                'eRl1':'sum',
                'eRl2':'sum',
-               'eGl1':'summ',
-               'eGl2':'summ',
+               'eGl1':'sum',
+               'eGl2':'sum',
                'sharpe':'mean',
                'NOl1':'sum',
                'NOl2':'sum',
@@ -213,8 +213,8 @@ def kpi2func_merge():
                'eGROIS':'sum',
                'NOL':'sum',
                'NOS':'sum',
-               'GSPl':'sum',
-               'GSPs':'sum'
+               'GSPl':'mean',
+               'GSPs':'mean'
               }
     return mapper
     
@@ -783,7 +783,7 @@ def get_performance_meta(config, y, soft_tilde, DTA, epoch,
     if 'thresholds_mg' in config:
         thresholds_mg = config['thresholds_mg']
     else:
-        thresholds_mg = [.5+i/resolution for i in range(int(resolution/2))]
+        thresholds_mg = thresholds_mg = [int(np.round((.5+i/resolution)*100))/100 for i in range(int(resolution/2))]
     if 'get_corr_signal' in config:
         get_corr_signal = config['get_corr_signal']
     else:
@@ -1870,7 +1870,6 @@ def merge_results(IDrs, IDr_merged):
         - IDr_merged (string): ID of merged results
     Return:
         - None """
-    from local_config import local_vars
     from tqdm import tqdm
     results_dir = local_vars.results_directory
     
@@ -1898,17 +1897,18 @@ def merge_results(IDrs, IDr_merged):
         for kpi, func in kpi2mergefunc.items():
             #print(kpi)
             #print(func)
-            if func=='none':
-                TRT[kpi].iloc[:] = TP[kpi].iloc[:]
-            elif func=='sum':
-               if i>0:
-                   TRT[kpi].iloc[:] = TRT[kpi].iloc[:]+TP[kpi].iloc[:]
-            elif func=='mean':
-               if i>0:
-                   TRT[kpi].iloc[:] = TRT[kpi].iloc[:]+TP[kpi].iloc[:]
-                   # last index: devide
-                   if i==len(IDrs)-1:
-                       TRT[kpi].iloc[:] = TRT[kpi].iloc[:]/len(IDrs)
+            if kpi in TP:
+                if func=='none':
+                    TRT[kpi].iloc[:] = TP[kpi].iloc[:]
+                elif func=='sum':
+                   if i>0:
+                       TRT[kpi].iloc[:] = TRT[kpi].iloc[:]+TP[kpi].iloc[:]
+                elif func=='mean':
+                   if i>0:
+                       TRT[kpi].iloc[:] = TRT[kpi].iloc[:]+TP[kpi].iloc[:]
+                       # last index: devide
+                       if i==len(IDrs)-1:
+                           TRT[kpi].iloc[:] = TRT[kpi].iloc[:]/len(IDrs)
 #        for epoch in epochs:
 #            for t in t_indexes:
     dir_merged = results_dir+IDr_merged+'/'
@@ -1924,6 +1924,7 @@ def merge_results(IDrs, IDr_merged):
         print('\n')
     print("\nThe very best:")
     get_best_results(TRT, '', resultsDir, IDr_merged, from_mg=True)
+    print('Results MEGED!')
     #merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
     return None

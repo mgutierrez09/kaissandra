@@ -74,10 +74,10 @@ extR = 'AC'
 IDrs=['R'+rootname_config+str(fold_idx+1)+'K'+str(K)+extR+'NR' for fold_idx in range(3)]
 list_results_names = IDrs#['100540E18T0MC9MD5ALT']
 list_epochs = [9 for _ in range(K)]
-list_tis = ['1' for _ in range(K)]
+list_tis = ['3' for _ in range(K)]
 #list_mcs = [.9]
 #list_mds = [.5]
-list_mgs = [0.5700000000000001 for _ in range(K)]
+list_mgs = [0.69 for _ in range(K)]
 
 pip_limit = 1#0.02
 

@@ -12,8 +12,8 @@ from multiprocessing import Process
 import pickle
 
 from kaissandra.trainRNN import train_RNN
-from testRNN import test_RNN
-from kaissandra.config import retrieve_config, configuration
+from kaissandra.testRNN import test_RNN
+from kaissandra.config import retrieve_config, configuration, write_log
 from kaissandra.features import get_features
 from kaissandra.preprocessing import K_fold
 from kaissandra.local_config import local_vars
@@ -80,7 +80,8 @@ def automate(*ins):
     #        disp.start()
     #        time.sleep(1)
 
-def automate_RNN(rootname_config='RNN00000', entries={}, K=5, tAt='TrTe', its=15, sufix=''):
+def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
+                 its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log=''):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -114,33 +115,42 @@ def automate_RNN(rootname_config='RNN00000', entries={}, K=5, tAt='TrTe', its=15
     else:
         raise ValueError('results_from not recognized')
             
-    IDrs = []
-    IDr_merged = rootname_config+'K'+str(K)+extR
-    for fold_idx in range(K):
-        print("k "+str(fold_idx+1)+" of "+str(K))
+    if IDr_merged=='':
+        IDr_merged = rootname_config+'K'+str(K)+extR
+    if k_end==-1:
+        k_end=K
+    for fold_idx in range(k_init,k_end):
+        mess = "k "+str(fold_idx+1)+" of "+str(K)
+        print(mess)
+        if len(log)>0:
+            write_log(mess)
         basename = rootname_config+'k'+str(fold_idx+1)+'K'+str(K)
         entries['config_name'] = 'C'+basename
         entries['IDweights'] = 'W'+basename+extW
         entries['IDresults'] = 'R'+basename+extR+sufix
+        entries['IO_results_name'] = 'R'+basename+extR
         config = configuration(entries)
-        print(config['save_journal'])
-        #config['save_journal'] = save_journal
         IDresults = config['IDresults']
-        IDrs.append(IDresults)
+        if build_IDrs:
+            IDrs.append(IDresults)
         
         
-        dirfilename_tr, dirfilename_te, IO_results_name = K_fold(folds=K, fold_idx=fold_idx, config=config)
+        dirfilename_tr, dirfilename_te, IO_results_name = K_fold(folds=K, \
+                                                                 fold_idx=fold_idx, \
+                                                                 config=config, 
+                                                                 log=log)
         
         #dirfilename_tr = local_vars.IO_directory+tag+IDweights+ext
         f_IOtr = h5py.File(dirfilename_tr,'r')
-        Ytr = f_IOtr['Y'][:]
-        Xtr = f_IOtr['X'][:]
-        #Rtr = f_IOtr['R'][:]
-        
+        if 'Tr' in tAt:
+            Ytr = f_IOtr['Y'][:]
+            Xtr = f_IOtr['X'][:]
+            #Rtr = f_IOtr['R'][:]
         #dirfilename_te = local_vars.IO_directory+tag+IDresults+ext
         f_IOte = h5py.File(dirfilename_te,'r')
-        Yte = f_IOte['Y'][:]
-        Xte = f_IOte['X'][:]
+        if 'Te' in tAt:
+            Yte = f_IOte['Y'][:]
+            Xte = f_IOte['X'][:]
         #Rte = f_IOte['R'][:]
         #IO_results_name = local_vars.IO_directory+'DTA_'+basename+'A.p'
         DTA = pickle.load( open( IO_results_name, "rb" ))
@@ -148,11 +158,16 @@ def automate_RNN(rootname_config='RNN00000', entries={}, K=5, tAt='TrTe', its=15
         
         epochs_per_it = 1
         for i in range(its):
-            print("Iteration "+str(i)+" of "+str(its-1))
+            mess = "Iteration "+str(i)+" of "+str(its-1)
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
             if tAt=='TrTe':
-                RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it).cv(Xte, Yte, DTA, IDresults=IDresults, config=config)
+                RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it,log=log).\
+                    cv(Xte, Yte, DTA, IDresults=IDresults, config=config, log=log)
             elif tAt=='Te':
-                RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, startFrom=startFrom, endAt=endAt, config=config)
+                RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
+                   startFrom=startFrom, endAt=endAt, config=config, log=log)
             elif tAt=='Tr':
                 RNN(config).fit(Xtr,Ytr,num_epochs=epochs_per_it)
             else:

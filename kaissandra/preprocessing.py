@@ -22,7 +22,7 @@ from kaissandra.inputs import (Data,
                                load_returns,
                                load_manual_features,
                                load_tsf_features)
-from kaissandra.config import retrieve_config
+from kaissandra.config import retrieve_config, write_log
 from kaissandra.local_config import local_vars
 
 def convert_to_one_hot(Y, C):
@@ -1351,7 +1351,7 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def K_fold(folds=3, fold_idx=0, config={}):
+def K_fold(folds=3, fold_idx=0, config={}, log=''):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1416,8 +1416,14 @@ def K_fold(folds=3, fold_idx=0, config={}):
                         str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
     
     separators_directory = hdf5_directory+'separators/'
-    filename_tr = IO_directory+'IOKF'+config['IDweights']+str(fold_idx+1)+'OF'+str(folds)+'.hdf5'
-    filename_cv = IO_directory+'IOKF'+config['IDresults']+str(fold_idx+1)+'OF'+str(folds)+'.hdf5'
+    filename_tr = IO_directory+'IOKF'+config['IDweights']+'.hdf5'
+    filename_cv = IO_directory+'IOKF'+config['IO_results_name']+'.hdf5'
+    print(filename_tr)
+    if len(log)>0:
+        write_log(filename_tr)
+    print(filename_cv)
+    if len(log)>0:
+        write_log(filename_cv)
     f_prep_IO = h5py.File(filename_prep_IO,'r')
         
     if os.path.exists(filename_tr) and os.path.exists(filename_cv):
@@ -1501,6 +1507,8 @@ def K_fold(folds=3, fold_idx=0, config={}):
         
     IO_results_name = IO_directory+'DTA_'+filetag+'.p'
     print(IO_results_name)
+    if len(log)>0:
+        write_log(IO_results_name)
     # index asset
     ass_idx = 0
     AllAssets = Data().AllAssets
@@ -1528,12 +1536,18 @@ def K_fold(folds=3, fold_idx=0, config={}):
                                             thisAsset, tag=tag_stats)
         
         if if_build_IO:
-            print(str(ass)+". "+thisAsset)
+            mess = str(ass)+". "+thisAsset
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
             # loop over separators
             for s in range(0,len(separators)-1,2):
-                print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
-                              ". From "+separators.DateTime.iloc[s]+" to "+
-                              separators.DateTime.iloc[s+1])
+                mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
+                    ". From "+separators.DateTime.iloc[s]+" to "+\
+                    separators.DateTime.iloc[s+1]
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
                 # number of events within this separator chunk
                 nE = separators.index[s+1]-separators.index[s]+1
                 # get first day after separator
@@ -1589,7 +1603,10 @@ def K_fold(folds=3, fold_idx=0, config={}):
                             file_temp.close()
                             os.remove(file_temp_name)
                         except (KeyboardInterrupt):
-                            print("KeyBoardInterrupt. Closing files and exiting program.")
+                            mess = "KeyBoardInterrupt. Closing files and exiting program."
+                            print(mess)
+                            if len(log)>0:
+                                write_log(mess)
                             f_tr.close()
                             f_cv.close()
                             file_temp.close()
@@ -1598,7 +1615,10 @@ def K_fold(folds=3, fold_idx=0, config={}):
                                 f_prep_IO.close()
                             raise KeyboardInterrupt
                     else:
-                        print("\tNot in the set. Skipped.")
+                        mess = "\tNot in the set. Skipped."
+                        print(mess)
+                        if len(log)>0:
+                            write_log(mess)
                         # end of if (tOt=='train' and day_s not in data.dateTest) ...
                     
                 else:
@@ -1609,8 +1629,11 @@ def K_fold(folds=3, fold_idx=0, config={}):
         if if_build_IO:
             ass_IO_ass_tr[ass_idx] = IO['pointerTr']
             ass_IO_ass_cv[ass_idx] = IO['pointerCv']
-            print("\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+
-              ". Total time:"+str(np.floor(time.time()-ticTotal))+"s")
+            mess = "\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+\
+              ". Total time:"+str(np.floor(time.time()-ticTotal))+"s"
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
             
         # update asset index
         ass_idx += 1
@@ -1627,7 +1650,10 @@ def K_fold(folds=3, fold_idx=0, config={}):
     if f_prep_IO != None:
         f_prep_IO.close()
     if if_build_IO:
-        print("Building DTA...")
+        mess = "Building DTA..."
+        print(mess)
+        if len(log)>0:
+            write_log(mess)
         DTA = build_DTA_v2(config, AllAssets, IO['Dcv'], 
                            IO['Bcv'], IO['Acv'], ass_IO_ass_cv)
         pickle.dump( DTA, open( IO_results_name, "wb" ))
@@ -1644,12 +1670,20 @@ def K_fold(folds=3, fold_idx=0, config={}):
     m_tr = ass_IO_ass_tr[-1]
     m_cv = ass_IO_ass_cv[-1]
     m_t = m_tr+m_cv
-    print("Samples for fitting: "+str(m_tr))
-    print("Samples for cross-validation: "+str(m_cv))
-    print("Total samples: "+str(m_t))
+    mess = "Samples for fitting: "+str(m_tr)+"\n"+"Samples for cross-validation: "+\
+        str(m_cv)+"\n"+"Total samples: "+str(m_t)
+    print(mess)
+    if len(log)>0:
+        write_log(mess)
     if if_build_IO:
-        print("Percent per level:"+str(IO['totalSampsPerLevel']/m_t))
+        mess = "Percent per level:"+str(IO['totalSampsPerLevel']/m_t)
+        print(mess)
+        if len(log)>0:
+            write_log(mess)
     f_tr.close()
     f_cv.close()
-    print("DONE building IO")
+    mess = "DONE building IO"
+    print(mess)
+    if len(log)>0:
+        write_log(mess)
     return filename_tr, filename_cv, IO_results_name

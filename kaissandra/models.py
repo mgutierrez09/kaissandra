@@ -279,7 +279,7 @@ class RNN(Model):
             raise ValueError("loss_func not supported")
         return loss
     
-    def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0):
+    def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log=''):
         """ Fit model to trainning data """
         # directory to save weights
         weights_directory = local_vars.weights_directory
@@ -340,7 +340,7 @@ class RNN(Model):
         
     def cv(self, X, Y, DTA=[], IDresults='RRNN00001', alloc=2**10, 
            save_output=False, if_get_results=True, tag='DNNIO',
-           startFrom=-1, endAt=-1, config={}, save_cost=True):
+           startFrom=-1, endAt=-1, config={}, save_cost=True, log=''):
         """ Cross-validation function """
         tic = time.time()
         results_directory = local_vars.results_directory

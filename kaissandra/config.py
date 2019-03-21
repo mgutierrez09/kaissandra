@@ -13,6 +13,14 @@ from kaissandra.local_config import local_vars
 
 config_extension = ".config"
 
+def write_log(log_message, log_file):
+        """
+        Write in log file
+        """
+        file = open(local_vars.log_directory+log_file,"a")
+        file.write(log_message+"\n")
+        file.close()
+        return None
 
 def configuration(*ins):
     """
@@ -220,6 +228,10 @@ def configuration(*ins):
             save_journal = entries['save_journal']
         else:
             save_journal = False
+#        if 'save_log' in entries:
+#            save_log = entries['save_log']
+#        else:
+#            save_log = False
         if 't_indexes' not in entries:
             t_indexes = range(int((lB-nEventsPerStat)/movingWindow+1))
         else:
@@ -240,6 +252,10 @@ def configuration(*ins):
             thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
         else:
             thresholds_md = entries['thresholds_md']
+        if 'thresholds_mg' not in entries:
+            thresholds_mg = [int(np.round((.5+i/resolution)*100))/100 for i in range(int(resolution/2))]
+        else:
+            thresholds_mg = entries['thresholds_mg']
         if 'results_from' in entries:
             results_from = entries['results_from']
         else:
@@ -268,8 +284,8 @@ def configuration(*ins):
             build_test_db = entries['build_test_db']
         else:
             build_test_db = False
-        
         assert(not (build_test_db and save_stats))
+        
         # add parameters to config dictionary
         config = {'config_name':config_name,
                   
@@ -314,6 +330,7 @@ def configuration(*ins):
                   'resolution':resolution,
                   'thresholds_mc':thresholds_mc,
                   'thresholds_md':thresholds_md,
+                  'thresholds_mg':thresholds_mg,
                   
                   'save_stats':save_stats,
                   'load_features_from':load_features_from,
