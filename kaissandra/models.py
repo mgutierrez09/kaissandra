@@ -367,6 +367,7 @@ class RNN(Model):
                 for it, epoch in enumerate(epochs):
                     # make sure cost in not a NaN
                     if check_nan(costs, epoch):
+                        print("WARNING! cost=NaN. Break CV")
                         break
                     # define save object
                     self._saver = tf.train.Saver(max_to_keep = None)

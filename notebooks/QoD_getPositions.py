@@ -6,7 +6,8 @@ Created on Thu Feb 21 17:02:35 2019
 """
 
 import pandas as pd
-from kaissandra.results2 import get_extended_results
+import numpy as np
+from kaissandra.results2 import get_extended_results, remove_outliers
 import datetime as dt
 import matplotlib
 
@@ -61,24 +62,42 @@ ext = '.csv'
 #list_mcs = [.9]
 #list_mds = [.6]
 
-list_results_names = ['100540E18T0MC9MD5ALT']
-list_epochs = [18]
-list_tis = [0]
-list_mcs = [.9]
-list_mds = [.5]
+#list_results_names = ['100540E18T0MC9MD5ALT']
+#list_epochs = [18]
+#list_tis = [0]
+#list_mcs = [.9]
+#list_mds = [.5]
 
-pip_limit = 1#0.025
+rootname_config='RNN00000k'
+K = 5
+extR = 'AC'
+IDrs=['R'+rootname_config+str(fold_idx+1)+'K'+str(K)+extR+'NR' for fold_idx in range(3)]
+list_results_names = IDrs#['100540E18T0MC9MD5ALT']
+list_epochs = [9 for _ in range(K)]
+list_tis = ['1' for _ in range(K)]
+#list_mcs = [.9]
+#list_mds = [.5]
+list_mgs = [0.5700000000000001 for _ in range(K)]
 
+pip_limit = 1#0.02
+
+#Journal = pd.DataFrame()
+#for l,name in enumerate(list_results_names):
+#    journal_filename = results_dir+name+'/journal/J_E'+str(list_epochs[l])+'TI'+str(list_tis[l])+'MC'+str(list_mcs[l])+'MD'+str(list_mds[l])+ext
+#    new_journal = pd.read_csv(journal_filename,sep='\t')
+#    #if list_results_names[l]=='100350NROI':
+#    #    new_journal = new_journal[new_journal['Bet']<0]
+#    Journal = Journal.append(new_journal).sort_values(by=['Asset','DTi']).reset_index().drop(labels='level_0',axis=1)
+#    print(journal_filename)
+    
 Journal = pd.DataFrame()
 for l,name in enumerate(list_results_names):
-    journal_filename = results_dir+name+'/journal/J_E'+str(list_epochs[l])+'TI'+str(list_tis[l])+'MC'+str(list_mcs[l])+'MD'+str(list_mds[l])+ext
+    journal_filename = results_dir+name+'/journal/J_E'+str(list_epochs[l])+'TI'+list_tis[l]+'MG'+str(list_mgs[l])+ext
     new_journal = pd.read_csv(journal_filename,sep='\t')
     #if list_results_names[l]=='100350NROI':
     #    new_journal = new_journal[new_journal['Bet']<0]
     Journal = Journal.append(new_journal).sort_values(by=['Asset','DTi']).reset_index().drop(labels='level_0',axis=1)
     print(journal_filename)
-    
-
 
 # filter journal
 #pip_limit = 0.02
@@ -98,6 +117,8 @@ positions_summary, log = get_extended_results(Journal,
 
 positions = pd.read_csv(pos_dirname+pos_filename+'.csv',sep='\t')
 #print(positions)
+GROIS99, ROIS99, idx_sorted, low_arg_goi, high_arg_goi = remove_outliers(np.array(positions.GROI),
+                                                                         np.array(positions.spread), thr=.99)
 
 pos_under_2p = positions['espread']<pip_limit
 positions['DTo'] = positions["Do"] +" "+ positions["To"]
@@ -139,7 +160,9 @@ pos_under_thr.to_csv(pos_dirname+pos_filename+str(100*pip_limit)+'pFilt.csv', in
 import matplotlib.pyplot as plt
 
 plt.figure(0)
-bins = [i/100 for i in range(-100,100,2)]
+mx = int(np.ceil(max(pos_under_thr['GROI'])))
+mn = int(np.floor(min(pos_under_thr['ROI'])))
+bins = [i/20 for i in range(20*mn,20*mx)]
 histG = plt.hist(pos_under_thr['GROI'], bins=bins)
 histR = plt.hist(pos_under_thr['ROI'], bins=bins)
 plt.grid()
@@ -148,6 +171,8 @@ plt.grid()
 plt.figure(1)
 plt.plot(range(pos_under_thr.shape[0]),pos_under_thr['GROI'].cumsum())
 plt.plot(range(pos_under_thr.shape[0]),pos_under_thr['ROI'].cumsum())
+plt.plot(np.cumsum(positions.GROI[(positions.GROI>=low_arg_goi) & (positions.GROI<=high_arg_goi)]))
+plt.plot(np.cumsum(positions.ROI[(positions.GROI>=low_arg_goi) & (positions.GROI<=high_arg_goi)]))
 plt.grid()
 
 plt.figure(2)

@@ -18,6 +18,7 @@ from kaissandra.features import get_features
 from kaissandra.preprocessing import K_fold
 from kaissandra.local_config import local_vars
 from kaissandra.models import RNN
+from kaissandra.results2 import merge_results
 
 def run_train_test(config, its, if_train, if_test, if_get_features, run_in_paralell):
     """
@@ -79,7 +80,7 @@ def automate(*ins):
     #        disp.start()
     #        time.sleep(1)
 
-def automate_RNN(rootname_config='RNN00000k', entries={}, K=5, tAt='TrTe'):
+def automate_RNN(rootname_config='RNN00000', entries={}, K=5, tAt='TrTe', its=15, sufix=''):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -89,6 +90,14 @@ def automate_RNN(rootname_config='RNN00000k', entries={}, K=5, tAt='TrTe'):
         results_from = entries['results_from']
     else:
         results_from = 'COMB'
+    if 'startFrom' in entries:
+        startFrom = entries['startFrom']
+    else:
+        startFrom = -1
+    if 'endAt' in entries:
+        endAt = entries['endAt']
+    else:
+        endAt = -1
 #        size_hidden_layer = 3
     if feats_from_bids==False:
         extW = 'A'
@@ -105,23 +114,20 @@ def automate_RNN(rootname_config='RNN00000k', entries={}, K=5, tAt='TrTe'):
     else:
         raise ValueError('results_from not recognized')
             
-    
+    IDrs = []
+    IDr_merged = rootname_config+'K'+str(K)+extR
     for fold_idx in range(K):
-        print("k "+str(fold_idx+1)+"of "+str(K))
-        basename = rootname_config+str(fold_idx+1)+'K'+str(K)
+        print("k "+str(fold_idx+1)+" of "+str(K))
+        basename = rootname_config+'k'+str(fold_idx+1)+'K'+str(K)
         entries['config_name'] = 'C'+basename
         entries['IDweights'] = 'W'+basename+extW
-        entries['IDresults'] = 'R'+basename+extR
+        entries['IDresults'] = 'R'+basename+extR+sufix
         config = configuration(entries)
-        #config['L']=2
-        #config = retrieve_config('CRNN00001')
-        #config['config_name'] = 'CRNN00010RANDMB'
-        #config['IDweights'] = 'WRNN00001A'
-        #config['IDresults'] = 'RRNN00001A'
-        
-        
-        #IDweights = config['IDweights']
+        print(config['save_journal'])
+        #config['save_journal'] = save_journal
         IDresults = config['IDresults']
+        IDrs.append(IDresults)
+        
         
         dirfilename_tr, dirfilename_te = K_fold(folds=K, fold_idx=fold_idx, config=config)
         
@@ -139,14 +145,14 @@ def automate_RNN(rootname_config='RNN00000k', entries={}, K=5, tAt='TrTe'):
         IO_results_name = local_vars.IO_directory+'DTA_'+basename+'A.p'
         DTA = pickle.load( open( IO_results_name, "rb" ))
         
-        its = 15
+        
         epochs_per_it = 1
         for i in range(its):
             print("Iteration "+str(i)+" of "+str(its-1))
             if tAt=='TrTe':
-                RNN(config).fit(Xtr,Ytr,num_epochs=epochs_per_it).cv(Xte,Yte,DTA,IDresults=IDresults,config=config)
+                RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it).cv(Xte, Yte, DTA, IDresults=IDresults, config=config)
             elif tAt=='Te':
-                RNN(config).cv(Xte,Yte,DTA,IDresults=IDresults,config=config)
+                RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, startFrom=startFrom, endAt=endAt, config=config)
             elif tAt=='Tr':
                 RNN(config).fit(Xtr,Ytr,num_epochs=epochs_per_it)
             else:
@@ -154,6 +160,7 @@ def automate_RNN(rootname_config='RNN00000k', entries={}, K=5, tAt='TrTe'):
         
         f_IOtr.close()
         f_IOte.close()
+    merge_results(IDrs, IDr_merged)
     
 if __name__=='__main__':
     pass

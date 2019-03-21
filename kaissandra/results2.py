@@ -142,14 +142,81 @@ def get_results_mg_entries(classes, t_indexes):
 
 def get_performance_entries():
     """  """
-    entries = ['epoch','t_index','thr_mg','pNZ','pNZA','AD','ADA','GSP','NSP','NO',
-               'NZ','NZA','RD','NSP.5','NSP1','NSP1.5','NSP2','NSP3',
-               'NSP4','NSP5','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
-               'eGROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
-               'eROI5','eROI','mSpread','eRl1',
-               'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
+    entries = ['epoch','t_index','thr_mg',
+               'pNZ','pNZA','AD','ADA',
+               'NO','NZ','NZA','RD',
+               'GSP','NSP','NSP.5','NSP1','NSP1.5','NSP2','NSP3','NSP4','NSP5',
+               'eGROI','eROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4','eROI5',
+               'SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
+               '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5',
+               'mSpread','eRl1','eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
                'NOL','NOS','GSPl','GSPs']
     return entries
+
+def kpi2func_merge():
+    """  """
+    mapper = {'epoch':'none',
+               't_index':'none',
+               'thr_mg':'none',
+               'pNZ':'mean',
+               'pNZA':'mean',
+               'AD':'mean',
+               'ADA':'mean',
+               'GSP':'mean',
+               'NSP':'mean',
+               'NO':'sum',
+               'NZ':'sum',
+               'NZA':'sum',
+               'RD':'sum',
+               'NSP.5':'sum',
+               'NSP1':'sum',
+               'NSP1.5':'sum',
+               'NSP2':'sum',
+               'NSP3':'sum',
+               'NSP4':'sum',
+               'NSP5':'sum',
+               'SI.5':'sum',
+               'SI1':'sum',
+               'SI1.5':'sum',
+               'SI2':'sum',
+               'SI3':'sum',
+               'SI4':'sum',
+               'SI5':'sum',
+               'SI':'sum',
+               'eGROI':'sum',
+               'eROI.5':'sum',
+               'eROI1':'sum',
+               'eROI1.5':'sum',
+               'eROI2':'sum',
+               'eROI3':'sum',
+               'eROI4':'sum',
+               'eROI5':'sum',
+               'eROI':'sum',
+               '99eGROI':'sum',
+               '99eROI':'sum',
+               '99eROI.5':'sum',
+               '99eROI1':'sum',
+               '99eROI1.5':'sum',
+               '99eROI2':'sum',
+               '99eROI3':'sum',
+               '99eROI4':'sum',
+               '99eROI5':'sum',
+               'mSpread':'mean',
+               'eRl1':'sum',
+               'eRl2':'sum',
+               'eGl1':'summ',
+               'eGl2':'summ',
+               'sharpe':'mean',
+               'NOl1':'sum',
+               'NOl2':'sum',
+               'eGROIL':'sum',
+               'eGROIS':'sum',
+               'NOL':'sum',
+               'NOS':'sum',
+               'GSPl':'sum',
+               'GSPs':'sum'
+              }
+    return mapper
     
 def init_results_dir(resultsDir, IDresults):
     """  """
@@ -360,7 +427,8 @@ def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
 def get_best_results_list():
     """ get list containing the entries to get the best results from """
     return ['eGROI','eROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
-           'eROI5','SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5']
+           'eROI5','SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5',
+           '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
     
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_mg=False):
     """  """
@@ -384,7 +452,6 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_m
             else:
                 pd.DataFrame(columns = get_performance_entries()).to_csv(best_filename, 
                             mode="w",index=False,sep='\t')
-            
         idx = TR[b].idxmax()
             
         # reset file
@@ -1274,6 +1341,28 @@ def build_extended_res_struct(list_results):
 #                 100*thisSpread,this_pos_extended,direction,
 #                 Bi,Bo,Ai,Ao]
 #    return this_list
+    
+def remove_outliers(grois, spreads, thr=.99):
+    """ Remove outliers from GROIs """
+    n_positions = len(grois)
+    high_thr_pos = int(np.ceil(n_positions*thr))
+    low_thr_pos = int(np.ceil(n_positions*(1-thr)))
+    if high_thr_pos-low_thr_pos>1:
+        grois_no_outliers = np.sort(grois)[low_thr_pos:high_thr_pos+1]
+        low_arg_goi = grois_no_outliers[0]
+        high_arg_goi = grois_no_outliers[-1]
+        idx_sorted = np.argsort(grois)
+        spreads_sorted = spreads[idx_sorted]
+        rois_no_outliers = grois_no_outliers-spreads_sorted[low_thr_pos:high_thr_pos+1]
+    else:
+        grois_no_outliers = []
+        low_arg_goi = 0
+        high_arg_goi = 0
+        idx_sorted = []
+        spreads_sorted = []
+        rois_no_outliers = []
+        
+    return grois_no_outliers, rois_no_outliers, idx_sorted, low_arg_goi, high_arg_goi
 
 def get_extended_results(Journal, size_output_layer, n_days, get_log=False, 
                          get_positions=False, pNZA=0,
@@ -1341,6 +1430,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     eROIs = np.zeros((fixed_spread_ratios.shape))
     ROI_vector = np.array([])
     GROI_vector = np.array([])
+    spreads = np.array([])
     avGROI = 0.0 # average GROI for all trades happening concurrently and for the
                # same asset
 #    if Journal.shape[0]>0:
@@ -1427,6 +1517,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
             
             ROI_vector = np.append(ROI_vector,ROI)
             GROI_vector = np.append(GROI_vector,GROI)
+            spreads = np.append(spreads,thisSpread)
             eROI += ROI
             eROIs = eROIs+GROI-fixed_spread_ratios
             level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
@@ -1518,6 +1609,7 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
         ROI = GROI-thisSpread
         ROI_vector = np.append(ROI_vector,ROI)
         GROI_vector = np.append(GROI_vector,GROI)
+        spreads = np.append(spreads,thisSpread)
         eROI += ROI
         eROIs = eROIs+GROI-fixed_spread_ratios
         level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
@@ -1594,7 +1686,16 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
-    
+    GROIS99, ROIS99, _, _, _ = remove_outliers(GROI_vector, spreads, thr=.99)
+    GROI99 = sum(GROIS99)
+#    print("GROI99")
+#    print(GROI99)
+    ROI99 = sum(ROIS99)
+    ROIS99 = [100*sum(GROIS99-spread) for spread in fixed_spread_ratios]
+#    print("ROI99")
+#    print(ROI99)
+#    print("ROIS99")
+#    print(ROIS99)
     list_ext_results = [[eGROI,'eGROI'], [eROI,'eROI'], [successes[1],'GSP'], \
                         [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
                         [SI,'SI'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \
@@ -1603,8 +1704,10 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
                         [successes[3], 'NSP', fixed_extensions], \
                         [SIs, 'SI', fixed_extensions], [100*eGROIL, 'eGROIL'], \
                         [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS'], \
-                        [100*GSPl,'GSPl'],[100*GSPs,'GSPs']]
-    
+                        [100*GSPl,'GSPl'],[100*GSPs,'GSPs'], \
+                        [100*GROI99,'99eGROI'],[100*ROI99,'99eROI'],[ROIS99,'99eROI', fixed_extensions]]
+#    print("list_ext_results")
+#    print(list_ext_results)
     res_w_ext = build_extended_res_struct(list_ext_results)
 #    plt.figure(np.random.randint(1000))
 #    plt.plot(np.real(corr_signal))
@@ -1768,18 +1871,59 @@ def merge_results(IDrs, IDr_merged):
     Return:
         - None """
     from local_config import local_vars
+    from tqdm import tqdm
     results_dir = local_vars.results_directory
     
     columns = get_performance_entries()
+    kpi2mergefunc = kpi2func_merge()
     resultsDir = local_vars.results_directory
-    TRT = pd.DataFrame(columns = columns)
+#    TRT = pd.DataFrame(columns = columns)
         #[pd.DataFrame(columns = columns).columns.tolist()]
     for i, ID in enumerate(IDrs):
+        print("Merging "+ID+"...")
         performance_filename = resultsDir+ID+'/performance'
         TP = pd.read_csv(performance_filename+'.csv', sep='\t')
-        for epoch in epochs:
-            for t in t_indexes:
-                pass
+        if i==0:
+            TRT = TP
+        # TODO: check if number of epochs is thhe same from all results
+        epochs = TP['epoch'].unique()
+        t_indexes = TP['t_index'].unique()
+        thrs = TP['thr_mg'].unique()
+        
+#        for epoch in epochs:
+#            for t_index in t_indexes:
+#                for thr in thrs:
+        #for index in tqdm(range(TRT.shape[0])):
+        #print('index '+str(index)+" of "+str(TRT.shape[0]))
+        for kpi, func in kpi2mergefunc.items():
+            #print(kpi)
+            #print(func)
+            if func=='none':
+                TRT[kpi].iloc[:] = TP[kpi].iloc[:]
+            elif func=='sum':
+               if i>0:
+                   TRT[kpi].iloc[:] = TRT[kpi].iloc[:]+TP[kpi].iloc[:]
+            elif func=='mean':
+               if i>0:
+                   TRT[kpi].iloc[:] = TRT[kpi].iloc[:]+TP[kpi].iloc[:]
+                   # last index: devide
+                   if i==len(IDrs)-1:
+                       TRT[kpi].iloc[:] = TRT[kpi].iloc[:]/len(IDrs)
+#        for epoch in epochs:
+#            for t in t_indexes:
+    dir_merged = results_dir+IDr_merged+'/'
+    if not os.path.exists(dir_merged):
+        os.makedirs(dir_merged)
+    #TRT = TRT.replace('nan', 0)
+    TRT.to_csv(dir_merged+'performance.csv',sep='\t', index=False)
+    for epoch in epochs:
+        print('Epoch '+str(epoch))
+        get_best_results(TRT[TRT.epoch==epoch], '', 
+                         resultsDir,
+                         IDr_merged, save=1, from_mg=True)
+        print('\n')
+    print("\nThe very best:")
+    get_best_results(TRT, '', resultsDir, IDr_merged, from_mg=True)
     #merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
     return None

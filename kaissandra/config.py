@@ -92,11 +92,11 @@ def configuration(*ins):
         if 'movingWindow' in entries:
             movingWindow = entries['movingWindow']
         else:
-            movingWindow = 100
+            movingWindow = 1000
         if 'nEventsPerStat' in entries:
             nEventsPerStat = entries['nEventsPerStat']
         else:
-            nEventsPerStat = 1000
+            nEventsPerStat = 10000
         if 'lB' in entries:
             lB = entries['lB']
         else:
@@ -155,7 +155,7 @@ def configuration(*ins):
         if 'feats_from_bids' in entries:
             feats_from_bids = entries['feats_from_bids']
         else:
-            feats_from_bids = True
+            feats_from_bids = False
         
         # model parameters
         if 'size_hidden_layer' in entries:
@@ -243,7 +243,7 @@ def configuration(*ins):
         if 'results_from' in entries:
             results_from = entries['results_from']
         else:
-            results_from = 'BIDS' # {'BIDS','ASKS','COMB'}
+            results_from = 'COMB' # {'BIDS','ASKS','COMB'}
         if 'combine_ts' in entries:
             combine_ts = entries['combine_ts']
         else:
@@ -330,8 +330,10 @@ def configuration(*ins):
         print("Config file "+config_filename+" saved")
     else:
         config = pickle.load( open( config_filename, "rb" ))
-        if len(ins)>0:
-            print("WARNING! Arguments not taken into consideration")
+        for key, val in entries.items():
+            config[key] = val
+#        if len(ins)>0:
+#            print("WARNING! Arguments not taken into consideration")
         print("Config file "+config_filename+" exists. Loaded from disk")
     return config
 
