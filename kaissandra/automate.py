@@ -129,7 +129,7 @@ def automate_RNN(rootname_config='RNN00000', entries={}, K=5, tAt='TrTe', its=15
         IDrs.append(IDresults)
         
         
-        dirfilename_tr, dirfilename_te = K_fold(folds=K, fold_idx=fold_idx, config=config)
+        dirfilename_tr, dirfilename_te, IO_results_name = K_fold(folds=K, fold_idx=fold_idx, config=config)
         
         #dirfilename_tr = local_vars.IO_directory+tag+IDweights+ext
         f_IOtr = h5py.File(dirfilename_tr,'r')
@@ -142,7 +142,7 @@ def automate_RNN(rootname_config='RNN00000', entries={}, K=5, tAt='TrTe', its=15
         Yte = f_IOte['Y'][:]
         Xte = f_IOte['X'][:]
         #Rte = f_IOte['R'][:]
-        IO_results_name = local_vars.IO_directory+'DTA_'+basename+'A.p'
+        #IO_results_name = local_vars.IO_directory+'DTA_'+basename+'A.p'
         DTA = pickle.load( open( IO_results_name, "rb" ))
         
         
