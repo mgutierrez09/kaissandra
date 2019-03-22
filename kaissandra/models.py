@@ -183,7 +183,9 @@ class RNN(Model):
         if 'loss_func' in params:
             self.loss_funcs = params['loss_func']
         else:
-            self.loss_funcs = 'cross_entropy'
+            self.loss_funcs = ['cross_entropy']
+        if type(self.loss_funcs)==str:
+            self.loss_funcs = [self.loss_funcs]
         if 'seed' in params:
             self.seed = params['seed']
         else:
@@ -268,16 +270,18 @@ class RNN(Model):
         # forward prop
         self.output = self._run_forward_prop(Wb)
         
-    def compute_loss(self, loss_func):
+    def compute_loss(self, loss_funcs):
         """ Loss function """
-        if loss_func=='exponential':
-            raise NotImplementedError("Exponential loss for RNN not implemented yet.") 
-        elif loss_func=='cross_entropy':
-            loss = tf.reduce_mean(-tf.reduce_sum(self.target*
-                                                 tf.log(self.output),
-                                  [1, 2])/self.seq_len, name="loss_xe")
-        else:
-            raise ValueError("loss_func not supported")
+        loss = 0
+        for loss_func in loss_funcs:
+            if loss_func=='exponential':
+                raise NotImplementedError("Exponential loss for RNN not implemented yet.") 
+            elif loss_func=='cross_entropy':
+                loss = loss+tf.reduce_mean(-tf.reduce_sum(self.target*
+                                                     tf.log(self.output),
+                                      [1, 2])/self.seq_len, name="loss_xe")
+            else:
+                raise ValueError("loss_func not supported")
         return loss
     
     def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log=''):
@@ -293,7 +297,7 @@ class RNN(Model):
         # init session
         with tf.Session() as sess:
             # get loss function
-            loss = self.compute_loss(self.loss_func)
+            loss = self.compute_loss(self.loss_funcs)
             # define optimizer
             optimizer = get_optimazer(loss, params=self.params_optimizer)
             # define save object
@@ -358,7 +362,7 @@ class RNN(Model):
         tic = time.time()
         results_directory = local_vars.results_directory
         IDweights = self.IDweights
-        loss_func = self.loss_func
+        loss_funcs = self.loss_funcs
         m = Y.shape[0]
         n_chunks = int(np.ceil(m/alloc))
         # retrieve costs
@@ -375,7 +379,7 @@ class RNN(Model):
         with tf.Session() as sess:
             try:
                 # get loss function
-                loss = self.compute_loss(loss_func)
+                loss = self.compute_loss(loss_funcs)
                 # load models and test them
                 for it, epoch in enumerate(epochs):
                     # make sure cost in not a NaN
