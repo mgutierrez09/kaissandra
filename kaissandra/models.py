@@ -13,6 +13,7 @@ import datetime as dt
 import os
 from tqdm import tqdm
 from kaissandra.local_config import local_vars
+from kaissandra.config import write_log
 from kaissandra.results2 import (get_last_saved_epoch2,
                                  get_results_mg,
                                  init_results_mg_dir,
@@ -180,9 +181,9 @@ class RNN(Model):
         else:
             self.RRN_type = "LSTM" 
         if 'loss_func' in params:
-            self.loss_func = params['loss_func']
+            self.loss_funcs = params['loss_func']
         else:
-            self.loss_func = 'cross_entropy'
+            self.loss_funcs = 'cross_entropy'
         if 'seed' in params:
             self.seed = params['seed']
         else:
@@ -306,7 +307,10 @@ class RNN(Model):
             n_mB = len(minibatches)
             # get epochs range
             epochs = range(epoch_init, epoch_init+num_epochs)
-            print("Fitting model from epoch "+str(epochs[0])+" till "+str(epochs[-1]))
+            mess = "Fitting model from epoch "+str(epochs[0])+" till "+str(epochs[-1])
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
             exception = False
             counter = 0
             try:
@@ -320,11 +324,17 @@ class RNN(Model):
                                                 feed_dict=feed_dict)
                         J_train += cost
                     J_train= J_train/n_mB
-                    print ("Cost after epoch %i: %f. Av cost %f" 
-                           % (epoch, cost, J_train))
-                    print(dt.datetime.strftime(dt.datetime.now(),"%H:%M:%S")+
-                      " Total time training: "+
-                      "{0:.2f}".format(np.floor(time.time()-tic)/60)+"m")
+                    mess = "Cost after epoch %i: %f. Av cost %f" \
+                           % (epoch, cost, J_train)
+                    print(mess)
+                    if len(log)>0:
+                        write_log(mess)
+                    mess = dt.datetime.strftime(dt.datetime.now(),"%H:%M:%S")+\
+                      " Total time training: "+\
+                      "{0:.2f}".format(np.floor(time.time()-tic)/60)+"m"
+                    print(mess)
+                    if len(log)>0:
+                        write_log(mess)
                     #if save_graph:
                     self._save_graph(self._saver, sess, self.IDweights, 
                                          J_train, epoch, weights_directory)
@@ -332,7 +342,10 @@ class RNN(Model):
                                     params={'IDweights':self.IDweights})
                     counter += 1
             except KeyboardInterrupt:
-                print("Trainning stopped due to KeyboardInterrupt exception")
+                mess = "Trainning stopped due to KeyboardInterrupt exception"
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
                 exception = True
         if not exception:
             print("Model fit.")
@@ -367,14 +380,20 @@ class RNN(Model):
                 for it, epoch in enumerate(epochs):
                     # make sure cost in not a NaN
                     if check_nan(costs, epoch):
-                        print("WARNING! cost=NaN. Break CV")
+                        mess = "WARNING! cost=NaN. Break CV"
+                        print(mess)
+                        if len(log)>0:
+                            write_log(mess)
                         break
                     # define save object
                     self._saver = tf.train.Saver(max_to_keep = None)
                     # load graph
                     self._load_graph(sess, IDweights, epoch=epoch)
-                    print("Epoch "+str(epoch)+" of "+str(epochs[-1])+\
-                          ". Getting output...")
+                    mess = "Epoch "+str(epoch)+" of "+str(epochs[-1])+\
+                          ". Getting output..."
+                    print(mess)
+                    if len(log)>0:
+                        write_log(mess)
         #            J_train = self._loss.eval()
                     output = np.zeros(Y.shape)
                     J_test = 0
@@ -392,7 +411,10 @@ class RNN(Model):
                         output[chunck*alloc:(chunck+1)*alloc] = output_chunck
                         #print(softMaxOut.shape)
                     J_test = J_test/n_chunks
-                    print("J_test = {0:.6f}".format(J_test))
+                    mess = "J_test = {0:.6f}".format(J_test)
+                    print(mess)
+                    if len(log)>0:
+                        write_log(mess)
                     if save_cost:
                         self._save_cost(epoch, J_test, From='results', 
                                         params={'IDresults':IDresults})
@@ -415,8 +437,14 @@ class RNN(Model):
                                        performance_filename,
                                        get_performance=True, DTA=DTA)
             except KeyboardInterrupt:
-                print("CV stopped due to KeyboardInterrupt exception")
-        print("Total time for CV: "+str((time.time()-tic)/60)+" mins.\n")
+                mess = "CV stopped due to KeyboardInterrupt exception"
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
+        mess = "Total time for CV: "+str((time.time()-tic)/60)+" mins.\n"
+        print(mess)
+        if len(log)>0:
+            write_log(mess)
         return self
         
     def test(self):

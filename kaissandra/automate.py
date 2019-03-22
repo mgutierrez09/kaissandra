@@ -81,7 +81,7 @@ def automate(*ins):
     #        time.sleep(1)
 
 def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
-                 its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log=''):
+                 its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -139,43 +139,39 @@ def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_ID
                                                                  fold_idx=fold_idx, \
                                                                  config=config, 
                                                                  log=log)
-        
-        #dirfilename_tr = local_vars.IO_directory+tag+IDweights+ext
-        f_IOtr = h5py.File(dirfilename_tr,'r')
-        if 'Tr' in tAt:
-            Ytr = f_IOtr['Y'][:]
-            Xtr = f_IOtr['X'][:]
-            #Rtr = f_IOtr['R'][:]
-        #dirfilename_te = local_vars.IO_directory+tag+IDresults+ext
-        f_IOte = h5py.File(dirfilename_te,'r')
-        if 'Te' in tAt:
-            Yte = f_IOte['Y'][:]
-            Xte = f_IOte['X'][:]
-        #Rte = f_IOte['R'][:]
-        #IO_results_name = local_vars.IO_directory+'DTA_'+basename+'A.p'
-        DTA = pickle.load( open( IO_results_name, "rb" ))
-        
-        
-        epochs_per_it = 1
-        for i in range(its):
-            mess = "Iteration "+str(i)+" of "+str(its-1)
-            print(mess)
-            if len(log)>0:
-                write_log(mess)
-            if tAt=='TrTe':
-                RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it,log=log).\
-                    cv(Xte, Yte, DTA, IDresults=IDresults, config=config, log=log)
-            elif tAt=='Te':
-                RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
-                   startFrom=startFrom, endAt=endAt, config=config, log=log)
-            elif tAt=='Tr':
-                RNN(config).fit(Xtr,Ytr,num_epochs=epochs_per_it)
-            else:
-                raise ValueError('tAt value not known')
-        
-        f_IOtr.close()
-        f_IOte.close()
-    merge_results(IDrs, IDr_merged)
+        if not just_build:
+            f_IOtr = h5py.File(dirfilename_tr,'r')
+            if 'Tr' in tAt:
+                Ytr = f_IOtr['Y'][:]
+                Xtr = f_IOtr['X'][:]
+            f_IOte = h5py.File(dirfilename_te,'r')
+            if 'Te' in tAt:
+                Yte = f_IOte['Y'][:]
+                Xte = f_IOte['X'][:]
+            DTA = pickle.load( open( IO_results_name, "rb" ))
+            
+            
+            epochs_per_it = 1
+            for i in range(its):
+                mess = "Iteration "+str(i)+" of "+str(its-1)
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
+                if tAt=='TrTe':
+                    RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it,log=log).\
+                        cv(Xte, Yte, DTA, IDresults=IDresults, config=config, log=log)
+                elif tAt=='Te':
+                    RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
+                       startFrom=startFrom, endAt=endAt, config=config, log=log)
+                elif tAt=='Tr':
+                    RNN(config).fit(Xtr,Ytr,num_epochs=epochs_per_it, log=log)
+                else:
+                    raise ValueError('tAt value not known')
+            
+            f_IOtr.close()
+            f_IOte.close()
+    if not just_build:
+        merge_results(IDrs, IDr_merged)
     
 if __name__=='__main__':
     pass

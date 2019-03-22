@@ -1417,7 +1417,7 @@ def K_fold(folds=3, fold_idx=0, config={}, log=''):
     
     separators_directory = hdf5_directory+'separators/'
     filename_tr = IO_directory+'IOKF'+config['IDweights']+'.hdf5'
-    filename_cv = IO_directory+'IOKF'+config['IO_results_name']+'.hdf5'
+    filename_cv = IO_directory+'IOKF'+config['IO_results_name'][:-1]+'.hdf5'
     print(filename_tr)
     if len(log)>0:
         write_log(filename_tr)

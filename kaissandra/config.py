@@ -215,6 +215,7 @@ def configuration(*ins):
         if 'IO_results_name' in entries:
             IO_results_name = entries['IO_results_name']
         else:
+            # TODO: change to [:-1]
             IO_results_name = IDresults
         if 'startFrom' in entries:
             startFrom = entries['startFrom']
@@ -349,8 +350,8 @@ def configuration(*ins):
         config = pickle.load( open( config_filename, "rb" ))
         for key, val in entries.items():
             config[key] = val
-#        if len(ins)>0:
-#            print("WARNING! Arguments not taken into consideration")
+        if len(entries)>0:
+            print("WARNING! Config values have been overwritten with entries values")
         print("Config file "+config_filename+" exists. Loaded from disk")
     return config
 

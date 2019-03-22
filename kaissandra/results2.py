@@ -1924,7 +1924,7 @@ def merge_results(IDrs, IDr_merged):
         print('\n')
     print("\nThe very best:")
     get_best_results(TRT, '', resultsDir, IDr_merged, from_mg=True)
-    print('Results MEGED!')
+    print('Results MERGED!')
     #merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
     return None
