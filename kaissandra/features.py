@@ -680,7 +680,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_directory,
             type_feats):
     """  """
     from kaissandra.inputs import load_separators, Data
-    data = Data(var_feat_keys=var_feat_keys, feature_keys_tsfresh=feature_keys_tsfresh)
+    data = Data(movingWindow=500,nEventsPerStat=5000,var_feat_keys=var_feat_keys, feature_keys_tsfresh=feature_keys_tsfresh)
     f_raw = h5py.File(filename_raw,'r')
     thisAsset = data.AllAssets[str(ass)]
     print(thisAsset)
@@ -712,7 +712,7 @@ def wrapper(var_feat_keys, feature_keys_tsfresh, filename_raw, feats_directory,
                  "m_out":0}
 
     # load separators
-    separators = load_separators(data, thisAsset, separators_directory, from_txt=1)
+    separators = load_separators(thisAsset, separators_directory, from_txt=1)
     
     for s in range(0,len(separators)-1,2):#len(separators)-1
         

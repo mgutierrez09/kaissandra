@@ -2225,10 +2225,8 @@ def build_IO_from_var_wrapper(*ins):
         print(str(ass)+" "+thisAsset)
         #thisAsset = 'EURUSD'
         # load separators
-        separators = load_separators(data, 
-                                     thisAsset, 
-                                     separators_directory, 
-                                     tOt='tr', 
+        separators = load_separators(thisAsset, 
+                                     separators_directory,
                                      from_txt=1)
     
         filename_feats_var = (feats_var_directory+thisAsset+'_feats_var_mW'+str(data.movingWindow)+'_nE'+
