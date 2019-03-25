@@ -19,7 +19,9 @@ from kaissandra.results2 import (get_last_saved_epoch2,
                                  init_results_mg_dir,
                                  get_results_meta,
                                  get_performance_meta,
-                                 save_costs)
+                                 save_costs,
+                                 init_results_dir,
+                                 get_results)
 
 class Model:
     """ Parent object reprsening a model """
@@ -180,12 +182,17 @@ class RNN(Model):
             self.RRN_type = params['RRN_type']
         else:
             self.RRN_type = "LSTM" 
-        if 'loss_func' in params:
-            self.loss_funcs = params['loss_func']
+        if 'loss_funcs' in params:
+            self.loss_funcs = params['loss_funcs']
+            
         else:
             self.loss_funcs = ['cross_entropy']
         if type(self.loss_funcs)==str:
             self.loss_funcs = [self.loss_funcs]
+        if 'n_bits_outputs' in params:
+            self.n_bits_outputs = params['n_bits_outputs']
+        else:
+            self.n_bits_outputs = [self.size_output_layer]
         if 'seed' in params:
             self.seed = params['seed']
         else:
@@ -248,10 +255,19 @@ class RNN(Model):
         out, self._state = tf.nn.dynamic_rnn(cell=cell, inputs=self.input, 
                                              dtype=tf.float32)
         out = tf.reshape(out, [-1, self.size_hidden_layer])
+        # market change prediction
+        pred_mc = tf.nn.sigmoid(tf.matmul(out, Wb["w"][0]) + Wb["b"][0])
+        # market direction prediction
+        pred_md = tf.nn.softmax(tf.matmul(out, Wb["w"][1]) + Wb["b"][1])
         # Market gain prediction
-        pred_mg = tf.nn.softmax(tf.matmul(out, Wb["w"]) + Wb["b"])
+        pred_mg = tf.nn.softmax(tf.matmul(out, Wb["w"][2]) + Wb["b"][2])
+        
+        output = tf.concat([tf.reshape(pred_mc, [-1, self.seq_len, 1]),
+                              tf.reshape(pred_md, [-1, self.seq_len, 2]),
+                              tf.reshape(pred_mg, [-1, self.seq_len, 
+                                                  self.n_bits_outputs[-1]])],2)
 
-        output = tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])
+#        output = tf.reshape(pred_mg, [-1, self.seq_len, self.size_output_layer])
         
         return output
             
@@ -270,18 +286,65 @@ class RNN(Model):
         # forward prop
         self.output = self._run_forward_prop(Wb)
         
+    def _tf_repeat(self, repeats):
+        """
+        Args:
+    
+        input: A Tensor. 1-D or higher.
+        repeats: A list. Number of repeat for each dimension, 
+        length must be the same as the number of dimensions in input
+    
+        Returns:
+        
+        A Tensor. Has the same type as input. Has the shape of tensor.shape*repeats
+        """
+        repeated_tensor = self.target[:,:,:1]
+        for i in range(repeats-1):
+            repeated_tensor = tf.concat([repeated_tensor,self.target[:,:,:1]],2)
+
+        return repeated_tensor
+    
     def compute_loss(self, loss_funcs):
         """ Loss function """
-        loss = 0
-        for loss_func in loss_funcs:
-            if loss_func=='exponential':
-                raise NotImplementedError("Exponential loss for RNN not implemented yet.") 
-            elif loss_func=='cross_entropy':
-                loss = loss+tf.reduce_mean(-tf.reduce_sum(self.target*
-                                                     tf.log(self.output),
-                                      [1, 2])/self.seq_len, name="loss_xe")
-            else:
-                raise ValueError("loss_func not supported")
+#        loss = 0
+#        bc = 0
+#        for f, loss_func in enumerate(loss_funcs):
+#            if loss_func=='exponential':
+#                raise NotImplementedError("Exponential loss for RNN not implemented yet.") 
+#            elif loss_func=='cross_entropy':
+#                nb = self.n_bits_outputs[f]
+#                if nb>1:
+#                    loss = loss+tf.reduce_mean(-tf.reduce_sum(self.target[:,:,bc:bc+nb]*
+#                                        tf.log(self.output[:,:,bc:bc+nb]),
+#                                        [1, 2])/self.seq_len, name="loss_xe"+str(f))
+#                else:
+#                    loss = loss+tf.reduce_mean(tf.reduce_sum(self.target[:,:,bc:bc+nb]*\
+#                                    -tf.log(self.output[:,:,bc:bc+nb])+
+#                                    (1-self.target[:,:,bc:bc+nb])* -
+#                                    tf.log(1 - self.output[:,:,bc:bc+nb]), 
+#                                    [1, 2])/self.seq_len, name="loss_xe"+str(f))
+#            else:
+#                raise ValueError("loss_func not supported")
+#            bc += nb
+        if len(loss_funcs)>1:
+            loss_mc = tf.reduce_sum(self.target[:,:,:1] * -tf.log(self.output[:,:,:1])+
+                                    (1-self.target[:,:,:1])* -
+                                    tf.log(1 - self.output[:,:,:1]), [1, 2])/self.seq_len
+            # second and third bits for md (market direction). Add loss only when
+            # mc is nonzero
+            loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self.target[:,:,1:3] * 
+                                     tf.log(self.output[:,:,1:3])), [1, 2])/self.seq_len
+            # last 5 bits for market gain output. Add loss only when
+            # mc is nonzero
+            loss_mg = -tf.reduce_sum(self._tf_repeat(self.n_bits_outputs[-1])*
+                                 (self.target[:,:,3:] * 
+                                  tf.log(self.output[:,:,3:])), [1, 2])/self.seq_len
+            loss = tf.reduce_mean(
+                loss_mc+loss_md+loss_mg,
+                name="loss_nll")
+        else:
+            loss_mg = -tf.reduce_sum(self.target *tf.log(self.output), [1, 2])/self.seq_len
+            loss = tf.reduce_mean(loss_mg, name="loss_nll")
         return loss
     
     def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log=''):
@@ -363,6 +426,7 @@ class RNN(Model):
         results_directory = local_vars.results_directory
         IDweights = self.IDweights
         loss_funcs = self.loss_funcs
+        n_bits_outputs = self.n_bits_outputs
         m = Y.shape[0]
         n_chunks = int(np.ceil(m/alloc))
         # retrieve costs
@@ -427,19 +491,27 @@ class RNN(Model):
                                             method='hdf5', tag=tag)
                     if if_get_results:
                         ## TEMPORARY: use legacy results functions
-                        if it==0:
-                            t_indexes = [str(t) if t<self.seq_len else 'mean' 
-                                         for t in range(self.seq_len+1)]
-                            results_filename, costs_filename, performance_filename = \
-                                init_results_mg_dir(results_directory, 
-                                                    IDresults, 
-                                                    self.size_output_layer,
-                                                    t_indexes,
-                                                    get_performance=True)
-                        get_results_mg(config, Y, output, costs_dict, epoch, 
-                                       J_test, costs_filename, results_filename,
-                                       performance_filename,
-                                       get_performance=True, DTA=DTA)
+                        if len(n_bits_outputs)==1:
+                            if it==0:
+                                t_indexes = [str(t) if t<self.seq_len else 'mean' 
+                                             for t in range(self.seq_len+1)]
+                                results_filename, costs_filename, performance_filename = \
+                                    init_results_mg_dir(results_directory, 
+                                                        IDresults, 
+                                                        self.size_output_layer,
+                                                        t_indexes,
+                                                        get_performance=True)
+                            
+                            get_results_mg(config, Y, output, costs_dict, epoch, 
+                                           J_test, costs_filename, results_filename,
+                                           performance_filename,
+                                           get_performance=True, DTA=DTA)
+                        else:
+                            if it==0:
+                                results_filename, costs_filename = init_results_dir(results_directory, IDresults)
+                            get_results(config, Y, DTA, 
+                                J_test, output, costs_dict, epoch, -1, results_filename,
+                                costs_filename, from_var=False)
             except KeyboardInterrupt:
                 mess = "CV stopped due to KeyboardInterrupt exception"
                 print(mess)
@@ -459,13 +531,20 @@ class RNN(Model):
         """ Init weights and biases per layer """
         # Define variables for final fully connected layer.
         Wb = {}
-        w_ho = tf.Variable(tf.truncated_normal([self.size_hidden_layer, 
-                                                self.size_output_layer], 
-                                                stddev=0.01), name="fc_w")
-        b_o = tf.Variable(tf.constant(0.1, shape=[self.size_output_layer]), 
-                                                              name="fc_b")
-        Wb["w"] = w_ho
-        Wb["b"] = b_o
+        w_mg = tf.Variable(tf.truncated_normal([self.size_hidden_layer, 
+                                                self.n_bits_outputs[-1]], 
+                                                stddev=0.01), name="w_mg")
+        b_mg = tf.Variable(tf.constant(0.1, shape=[self.n_bits_outputs[-1]]), 
+                                                              name="b_mg")
+        w_mc = tf.Variable(tf.truncated_normal([self.size_hidden_layer, 1], 
+                                                stddev=0.01), name="w_mc")
+        b_mc = tf.Variable(tf.constant(0.1, shape=[1]), name="b_mc")
+        w_md = tf.Variable(tf.truncated_normal([self.size_hidden_layer, 2], 
+                                                stddev=0.01), name="w_md")
+        b_md = tf.Variable(tf.constant(0.1, shape=[2]), name="b_md")
+        
+        Wb["w"] = [w_mc, w_md, w_mg]
+        Wb["b"] = [b_mc, b_md, b_mg]
         return Wb
 
     def predict(self, X, epoch=0):

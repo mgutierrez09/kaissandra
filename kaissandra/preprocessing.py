@@ -29,7 +29,60 @@ def convert_to_one_hot(Y, C):
     Y = np.eye(C)[Y.reshape(-1)].T
     return Y
 
-def build_bin_output(config, Output, batch_size):
+def build_bin_output_mcmdmg(config, Output, batch_size):
+    """
+    Function that builds output binary Y based on real-valued returns Output vector.
+    Args:
+        - model: object containing model parameters
+        - Output: real-valued returns vector
+        - batch_size: scalar representing the batch size 
+    Returns:
+        - output binary matrix y_bin
+    """
+    size_output_mg = config['n_bits_outputs'][-1]
+    seq_len = config['seq_len']
+    outputGain = config['outputGain']
+    # init y
+    y = np.zeros((Output.shape))
+    #print(y.shape)
+    # quantize output to get y
+    out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
+        (size_output_mg-1)/2),(size_output_mg-1)/2)
+    
+    y = out_quantized+int((size_output_mg-1)/2)
+    # conver y as integer
+    y_dec=y.astype(int)
+    # one hot output
+    y_one_hot = convert_to_one_hot(y_dec, size_output_mg).T.reshape(
+        batch_size,seq_len, size_output_mg)
+    #print("y_one_hot.shape")
+    #print(y_one_hot.shape)
+
+    # add y_c bits if proceed
+    y_c = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],0))
+    
+    y_c0 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
+    # find up/down outputs (=> those with a zero in the middle bit of one-hot vector)
+    nonZeroYs = y_one_hot[:,:,int((size_output_mg-1)/2)]!=1
+    # set 1s in y_c0 vector at non-zero entries
+    y_c0[nonZeroYs,0] = 1
+    y_c = np.append(y_c,y_c0,axis=2)
+    y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
+    y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
+    # find negative (positive) returns
+    negativeYs = out_quantized<0
+    positiveYs = out_quantized>0
+    # set to 1 the corresponding entries
+    y_c1[np.squeeze(negativeYs,axis=2),0] = 1
+    y_c2[np.squeeze(positiveYs,axis=2),0] = 1
+    y_c = np.append(y_c,y_c1,axis=2)
+    y_c = np.append(y_c,y_c2,axis=2)
+    
+    y_bin = np.append(y_c,y_one_hot,axis=2)
+    # build output vector
+    return y_bin, y_dec
+
+def build_bin_output_mg(config, Output, batch_size):
     """
     Function that builds output binary Y based on real-valued returns Output vector.
     Args:
@@ -180,12 +233,16 @@ def build_variations(config, file_temp, features, stats):
     del group_temp['variations']
     return variations_normed_new
 
-def map_index2sets(K, fold_idx):
+def map_index2sets(K, fold_idx, build_XY_mode='K_fold'):
     """  """
     assert(fold_idx<K)
     assert(fold_idx>=0)
-    sets_list = ['Tr' for _ in range(K)]
-    sets_list[K-(fold_idx+1)] = 'Cv'
+    if build_XY_mode=='K_fold':
+        sets_list = ['Tr' for _ in range(K)]
+        sets_list[K-(fold_idx+1)] = 'Cv'
+    elif build_XY_mode=='datebased':
+        # TODO: can be included in K_fold mode with the right K and k's (eg. [2,0])
+        sets_list = ['Tr','Cv']
     return sets_list
 
 def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list):
@@ -273,6 +330,11 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         lookAheadIndex = config['lookAheadIndex']
     else:
         lookAheadIndex = 3
+    if 'build_XY_mode' in config:
+        build_XY_mode = config['build_XY_mode']
+    else:
+        build_XY_mode = 'K_fold'
+    
     seq_len = config['seq_len']
     feature_keys_manual = config['feature_keys_manual']
     nFeatures = len(feature_keys_manual)
@@ -282,6 +344,7 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     channels = config['channels']
     nC = len(channels)
     nF = len(feature_keys_manual)
+    n_bits_outputs = config['n_bits_outputs']
     
     stds_out = stats_output['stds_t_out']
     # extract features and returns
@@ -387,17 +450,22 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         R_i = R_i/stds_out[0, lookAheadIndex]#stdO#
         #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # get decimal and binary outputs
-        Y_i, y_dec = build_bin_output(config, R_i, batch)
+        # TODO: generalize for the number of outputs
+        if sum(n_bits_outputs)==1:
+            Y_i, y_dec = build_bin_output_mg(config, R_i, batch)
+        else:
+            Y_i, y_dec = build_bin_output_mcmdmg(config, R_i, batch)
         #YA_i, ya_dec = build_bin_output(model, OA_i, batch)
         # get samples per level
-        for l in range(size_output_layer):
+        for l in range(n_bits_outputs[-1]):
             IO['totalSampsPerLevel'][l] = IO['totalSampsPerLevel'][l]+np.sum(y_dec[:,-1,0]==l)
         #if dts[end_idx_rets, -1]>last_day:
         #pickle.dump( dt_support, open( '.\dts', "wb" ))
         # look for last entry containing last day
         edges_tr_idx, edges_cv_idx = find_edge_indexes(dt_support, edges_dt, 
                                                        initenddates, fold_idx, 
-                                                       map_index2sets(K, fold_idx))
+                                                       map_index2sets(K, fold_idx, 
+                                                        build_XY_mode=build_XY_mode))
         
         #samps_tr = 0
         for e in range(edges_tr_idx.shape[0]):
@@ -1032,57 +1100,72 @@ def get_numer_days(thisAsset):
     
     return len(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
 
-def get_edges_datasets(K, config={}):
+def get_edges_datasets(K, config, dataset_dirfilename=''):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
     if 'nEventsPerStat' in config:
         nEventsPerStat = config['nEventsPerStat']
     else:
-        nEventsPerStat = 10000
+        nEventsPerStat = 5000
     if 'movingWindow' in config:
         movingWindow = config['movingWindow']
     else:
-        movingWindow = 1000
+        movingWindow = 500
     if 'feature_keys_manual' in config:
         feature_keys_manual = config['feature_keys_manual']
     else:
         feature_keys_manual = [i for i in range(37)]
+    n_feats_manual = len(feature_keys_manual)
     if 'assets' in config:
         assets = config['assets']
     else:
         assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
-    n_feats_manual = len(feature_keys_manual)
-    dataset_dirfilename = local_vars.hdf5_directory+'IOA_mW'+str(movingWindow)+'_nE'+\
-                        str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5'
-    dataset_file = h5py.File(dataset_dirfilename,'r')
-    weights_ass = np.zeros((len(assets),1))
-    samps_ass = np.zeros((len(assets)))
-    n_days_ass = np.zeros((len(assets)))
-    
-    first_day=dt.date(2016, 1, 1)
-    last_day=dt.date(2018, 11, 9)
-    max_days = (last_day-first_day).days+1
-    A = np.zeros((len(assets), max_days))
-    AllAssets = Data().AllAssets
-    for a, ass in enumerate(assets):
-        thisAsset = AllAssets[str(ass)]
-        #print(thisAsset)
-        samps_ass[a] = dataset_file[thisAsset].attrs.get("m_t_out")
-        list_unique_days = get_list_unique_days(thisAsset)
-        n_days_ass[a] = len(list_unique_days)
-        A[a,:] = get_day_indicator(list_unique_days)
-    weights_ass[:,0] = n_days_ass/samps_ass
-    weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
-    weights_day = np.sum(A*weights_ass,0)
-    weights_day = weights_day/sum(weights_day)
-    
-    edges_loc = np.array([k/K for k in range(1,K)])
-    edges_idx = np.zeros((K-1)).astype(int)
-    for e, edge in enumerate(edges_loc):
-        edges_idx[e] = np.argmin(abs(np.cumsum(weights_day)-edge))
-    edges = [first_day+dt.timedelta(days=int(d)) for d in edges_idx]
-    edeges_dt = [dt.datetime.fromordinal((first_day+dt.timedelta(days=int(d))).toordinal())  for d in edges_idx]
+    if 'build_XY_mode' in config:
+        build_XY_mode = config['build_XY_mode']
+    else:
+        build_XY_mode = 'K_fold'
+    if 'egde_date' in config:
+        egde_date = config['egde_date']
+    else:
+        egde_date = '2018.03.09'
+    if dataset_dirfilename=='':
+        dataset_dirfilename = local_vars.hdf5_directory+'IOA_mW'+str(movingWindow)+'_nE'+\
+                            str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5'
+    if build_XY_mode=='K_fold':
+        dataset_file = h5py.File(dataset_dirfilename,'r')
+        weights_ass = np.zeros((len(assets),1))
+        samps_ass = np.zeros((len(assets)))
+        n_days_ass = np.zeros((len(assets)))
+        
+        first_day=dt.date(2016, 1, 1)
+        last_day=dt.date(2018, 11, 9)
+        max_days = (last_day-first_day).days+1
+        A = np.zeros((len(assets), max_days))
+        AllAssets = Data().AllAssets
+        for a, ass in enumerate(assets):
+            thisAsset = AllAssets[str(ass)]
+            #print(thisAsset)
+            samps_ass[a] = dataset_file[thisAsset].attrs.get("m_t_out")
+            list_unique_days = get_list_unique_days(thisAsset)
+            n_days_ass[a] = len(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days)
+        weights_ass[:,0] = n_days_ass/samps_ass
+        weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
+        weights_day = np.sum(A*weights_ass,0)
+        weights_day = weights_day/sum(weights_day)
+        
+        edges_loc = np.array([k/K for k in range(1,K)])
+        edges_idx = np.zeros((K-1)).astype(int)
+        for e, edge in enumerate(edges_loc):
+            edges_idx[e] = np.argmin(abs(np.cumsum(weights_day)-edge))
+        edges = [first_day+dt.timedelta(days=int(d)) for d in edges_idx]
+        edeges_dt = [dt.datetime.fromordinal((first_day+dt.timedelta(days=int(d))).toordinal())  for d in edges_idx]
+    elif build_XY_mode=='datebased':
+        edeges_dt = dt.datetime.strptime(egde_date,'%Y.%m.%d')
+        edges = edeges_dt.date()
+    else:
+        raise ValueError("build_XY_mode not recognized")
     return edges, edeges_dt
 
 def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False, 
@@ -1351,7 +1434,7 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def K_fold(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets(folds=3, fold_idx=0, config={}, log=''):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1393,7 +1476,7 @@ def K_fold(folds=3, fold_idx=0, config={}, log=''):
         filetag = config['IDweights'][1:]
     size_output_layer = config['size_output_layer']
     
-    edges, edges_dt = get_edges_datasets(folds)
+    
 
     hdf5_directory = local_vars.hdf5_directory
     IO_directory = local_vars.IO_directory
@@ -1414,6 +1497,8 @@ def K_fold(folds=3, fold_idx=0, config={}, log=''):
             
     filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
                         str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
+    
+    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
     
     separators_directory = hdf5_directory+'separators/'
     filename_tr = IO_directory+'IOKF'+config['IDweights']+'.hdf5'
@@ -1556,7 +1641,7 @@ def K_fold(folds=3, fold_idx=0, config={}, log=''):
                 if nE>=3*nEventsPerStat+2*movingWindow:
 #                    print("nE")
 #                    print(nE)
-                    if 1:  # TODO! check if s_init in set
+                    if 1:
                             #if day_s not in data.dateTest and day_s<=data.dateTest[-1]:
                         
                         # load features, returns and stats from HDF files

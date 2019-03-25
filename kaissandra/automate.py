@@ -15,7 +15,7 @@ from kaissandra.trainRNN import train_RNN
 from kaissandra.testRNN import test_RNN
 from kaissandra.config import retrieve_config, configuration, write_log
 from kaissandra.features import get_features
-from kaissandra.preprocessing import K_fold
+from kaissandra.preprocessing import build_datasets
 from kaissandra.local_config import local_vars
 from kaissandra.models import RNN
 from kaissandra.results2 import merge_results
@@ -81,7 +81,8 @@ def automate(*ins):
     #        time.sleep(1)
 
 def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
-                 its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False):
+                 its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
+                 if_merge_results=True):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -130,12 +131,17 @@ def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_ID
         entries['IDresults'] = 'R'+basename+extR+sufix
         entries['IO_results_name'] = 'R'+basename+extR
         config = configuration(entries)
+        if 'build_XY_mode' in entries:
+            build_XY_mode = entries['build_XY_mode']
+        else:
+            build_XY_mode = 'K_fold'#'datebased'
+        if build_XY_mode == 'datebased':
+            assert(K==2 and k_init==0 and k_end==1)
         IDresults = config['IDresults']
         if build_IDrs:
             IDrs.append(IDresults)
         
-        
-        dirfilename_tr, dirfilename_te, IO_results_name = K_fold(folds=K, \
+        dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
                                                                  fold_idx=fold_idx, \
                                                                  config=config, 
                                                                  log=log)
@@ -170,7 +176,7 @@ def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_ID
             
             f_IOtr.close()
             f_IOte.close()
-    if not just_build:
+    if not just_build and if_merge_results:
         merge_results(IDrs, IDr_merged)
     
 if __name__=='__main__':

@@ -208,8 +208,7 @@ def test_RNN(*ins):
         
         tic = time.time()
         # load separators
-        separators = load_separators(data, thisAsset, separators_directory,
-                                     tOt='te', from_txt=1)
+        separators = load_separators(thisAsset, separators_directory, from_txt=1)
 
         # retrive asset group
         if f_prep_IO != None:

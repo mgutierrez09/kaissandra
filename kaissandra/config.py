@@ -142,6 +142,10 @@ def configuration(*ins):
             lookAheadIndex = entries['lookAheadIndex']
         else:
             lookAheadIndex = 3
+        if 'build_XY_mode' in entries:
+            build_XY_mode = entries['build_XY_mode']
+        else:
+            build_XY_mode = 'K_fold'#'datebased'
         
         # general parameters
         if 'if_build_IO' in entries:
@@ -206,7 +210,15 @@ def configuration(*ins):
             rand_mB = entries['rand_mB']
         else:
             rand_mB = True
-        
+        if 'loss_funcs' in entries:
+            loss_funcs = entries['loss_funcs']
+        else:
+            loss_funcs = ['cross_entropy']
+        if 'n_bits_outputs' in entries:
+            n_bits_outputs = entries['n_bits_outputs']
+        else:
+            n_bits_outputs = [size_output_layer]
+        assert(sum(n_bits_outputs)==size_output_layer)
         # test-specific parameters
         if 'IDresults' in entries:
             IDresults = entries['IDresults']
@@ -303,6 +315,7 @@ def configuration(*ins):
                   'feature_keys_tsfresh':feature_keys_tsfresh,
                   'var_feat_keys':var_feat_keys,
                   'lookAheadIndex':lookAheadIndex,
+                  'build_XY_mode':build_XY_mode,
                   
                   'size_hidden_layer':size_hidden_layer,
                   'L':L,
@@ -314,6 +327,8 @@ def configuration(*ins):
                   'lR0':lR0,
                   'num_epochs':num_epochs,
                   'rand_mB':rand_mB,
+                  'loss_funcs':loss_funcs,
+                  'n_bits_outputs':n_bits_outputs,
                   
                   'if_build_IO':if_build_IO,
                   'from_stats_file':from_stats_file,

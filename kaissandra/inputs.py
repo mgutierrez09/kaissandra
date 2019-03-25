@@ -535,9 +535,6 @@ def build_bin_output(model, Output, batch_size):
     if model.commonY == 0:
         y_bin = y_one_hot#np.zeros((y_one_hot.shape[0],0,1))
     # build output vector
-
-    
-
     return y_bin, y_dec
 
 def get_features_ba_from_raw_par(data, features, DateTime, SymbolBid):

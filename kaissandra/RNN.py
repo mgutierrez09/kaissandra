@@ -182,15 +182,9 @@ class modelRNN():
                 loss_mc+loss_md+loss_mg,
                 name="loss_nll")
         elif self.commonY == 0:
-#            loss_mc = tf.reduce_sum(0 * -tf.log(self._pred[:,:,0:1])+
-#                                    (1-1)* -
-#                                    tf.log(1 - self._pred[:,:,0:1]), [1, 2])
-#            # second and third bits for md (market direction)
-#            loss_md = -tf.reduce_sum(0*(self._target[:,:,1:3] * 
-#                                     tf.log(self._pred[:,:,1:3])), [1, 2])
-            # last size_output_layer bits for market gain output
             loss_mg = -tf.reduce_sum(self._target *tf.log(self._pred), [1, 2])/self.seq_len
             self._loss = tf.reduce_mean(loss_mg, name="loss_nll")
+            
         self._optim = tf.train.AdamOptimizer(self.lR0).minimize(
             self._loss,
             name="adam_optim")
@@ -467,7 +461,7 @@ class modelRNN():
             t_J_test = t_J_test/n_chunks
             print("Getting results")
             if self.commonY==3:
-                get_results(config, self, Y_test, DTA, 
+                get_results(config, Y_test, DTA, 
                             t_J_test, softMaxOut, costs, epoch, lastTrained, results_filename,
                             costs_filename,
                             from_var=from_var)

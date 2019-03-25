@@ -52,14 +52,14 @@ def get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc):
           'probs_mc':t_soft_tilde[:,0]}
     return ys
 
-def get_md_vectors(t_soft_tilde, t_y, ys_mc, size_output_layer, thr_md, ub_md):
+def get_md_vectors(t_soft_tilde, t_y, ys_mc, n_classes, thr_md, ub_md):
     """  """
     y_dec_md_tilde = np.argmax(t_soft_tilde[:,1:3], 1)-1# predicted dec out
     y_md_down_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,1]>thr_md) & (t_soft_tilde[:,1]<=ub_md)
     y_md_up_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,2]>=thr_md) & (t_soft_tilde[:,2]<=ub_md)
     y_md_tilde = y_md_down_tilde | y_md_up_tilde
     y_dec_md_tilde = y_dec_md_tilde-(y_dec_md_tilde-1)*(-1)+2
-    y_dec_md = np.argmax(t_y[:,3:], 1)-(size_output_layer-1)/2 # real output in decimal
+    y_dec_md = np.argmax(t_y[:,3:], 1)-(n_classes-1)/2 # real output in decimal
     ys_md = {# non-zeros market direction down ([y_md1,y_md2]=10)
              'y_md_down_tilde':y_md_down_tilde,
              # non-zeros market direction down ([y_md1,y_md2]=10)
@@ -70,8 +70,8 @@ def get_md_vectors(t_soft_tilde, t_y, ys_mc, size_output_layer, thr_md, ub_md):
              'y_md_up_intersect':ys_mc['y_md_up'] & y_md_up_tilde, # indicates up bits (y_c2) correctly predicted
              'y_dec_md':y_dec_md, # real output in decimal
              'y_dec_md_tilde':y_dec_md_tilde, 
-             'y_dec_mg':np.argmax(t_y[y_md_tilde,3:], 1)-(size_output_layer-1)/2,
-             'y_dec_mg_tilde':np.argmax(t_soft_tilde[y_md_tilde,3:], 1)-(size_output_layer-1)/2,
+             'y_dec_mg':np.argmax(t_y[y_md_tilde,3:], 1)-(n_classes-1)/2,
+             'y_dec_mg_tilde':np.argmax(t_soft_tilde[y_md_tilde,3:], 1)-(n_classes-1)/2,
              # difference between y and y_tilde {0=no error, 1=error in mc. 2=error in md}
              'diff_y_y_tilde':np.abs(np.sign(y_dec_md_tilde[y_md_tilde])-np.sign(y_dec_md[y_md_tilde])),
              'probs_md':np.maximum(t_soft_tilde[y_md_tilde,2],t_soft_tilde[y_md_tilde,1])
@@ -115,7 +115,8 @@ def get_results_entries():
                        'eGROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
                        'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
                        'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
-                       'NOL','NOS','GSPl','GSPs']
+                       'NOL','NOS','GSPl','GSPs','99eGROI','99eROI','99eROI.5',
+                       '99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
     # GRL: GROI for Long positions
     # GRS: GROI for short positions
     # NOL: Number of long openings
@@ -221,7 +222,7 @@ def kpi2func_merge():
 def init_results_dir(resultsDir, IDresults):
     """  """
     filedir = resultsDir+IDresults+'/'
-    results_filename = resultsDir+IDresults+'/results'
+    results_filename = resultsDir+IDresults+'/performance'
     costs_filename = resultsDir+IDresults+'/costs'
     if not os.path.exists(filedir):
         os.makedirs(filedir)
@@ -501,8 +502,8 @@ def update_weights_combine(weights, t, w_idx, params, results):
         AD = results['AD']
         ADA = results['ADA']
         weights[t,w_idx,0] = adc(AD, ADA)
-        print("weights[t,w_idx,0]")
-        print(weights[t,w_idx,0])
+#        print("weights[t,w_idx,0]")
+#        print(weights[t,w_idx,0])
     elif params['alg'] == 'roic': # ROI combine
         if 'spread' in params:
             spread = params['spread']
@@ -514,16 +515,16 @@ def update_weights_combine(weights, t, w_idx, params, results):
     #thr_idx += 1
     return weights
 
-def combine_ts_fn(model, soft_tilde, weights, map_idx2thr, thresholds_mc, thresholds_md):
+def combine_ts_fn(seq_len, soft_tilde, weights, map_idx2thr, thresholds_mc, thresholds_md):
     """  """
     i_t_mc = 0
     i_thr = 0
-    idx_thr = np.zeros((soft_tilde.shape[0],model.seq_len)).astype(int)
+    idx_thr = np.zeros((soft_tilde.shape[0], seq_len)).astype(int)
     
     for thr_mc in thresholds_mc:
         i_t_md = 0
         for thr_md in thresholds_md:
-            for t_ in range(model.seq_len):
+            for t_ in range(seq_len):
                 
                 idx_thr_mc = soft_tilde[:,t_,0]>thr_mc
                 idx_thr_md = np.maximum(soft_tilde[:,t_,1],soft_tilde[:,t_,2])>thr_md
@@ -537,7 +538,7 @@ def combine_ts_fn(model, soft_tilde, weights, map_idx2thr, thresholds_mc, thresh
     weights[np.isnan(weights)] = 0
     print("idx_thr")
     print(idx_thr)
-    for t_ in range(model.seq_len):
+    for t_ in range(seq_len):
         print("idx_thr[:,t_]")
         print(idx_thr[:,t_])
         print("map_idx2thr[idx_thr[:,t_]]")
@@ -1040,7 +1041,7 @@ def print_results_mg(acc, CM, PR, RC, FS, scores, t, t_idx):
 #        print(FS[:,t,s])
     return None
 
-def get_results(config, model, y, DTA, J_test, soft_tilde,
+def get_results(config, y, DTA, J_test, soft_tilde,
                  costs, epoch, lastTrained, results_filename,
                  costs_filename, from_var=False):
     """ Get results after one epoch.
@@ -1048,15 +1049,28 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
         - 
     Return:
         - """
-    
+#    print("y")
+#    print(y)
+#    print(y.shape)
+#    print(np.sum(np.sum(y[:,0,1:3],axis=1)))
+#    print(np.sum(1-y[:,0,5]))
+#    print(np.sum(y[:,0,0]))
+#    print("soft_tilde")
+#    print(soft_tilde[:,-1,:])
+#    mc5=soft_tilde[:,-1,0]>.5
+#    print(soft_tilde[mc5,-1,:])
+#    print(soft_tilde[mc5,-1,0])
+#    a=p
     dateTest = config['dateTest']
     IDresults = config['IDresults']
     IDweights = config['IDweights']
     save_journal = config['save_journal']
     resolution = config['resolution']
+    seq_len = config['seq_len']
+    bits_mg = config['n_bits_outputs'][-1]
     resultsDir = local_vars.results_directory
     if 't_indexes' not in config:
-        t_indexes = range(model.seq_len)
+        t_indexes = range(seq_len)
     else:
         t_indexes = config['t_indexes']
     if 'thresholds_mc' not in config:
@@ -1086,7 +1100,7 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
 
         extra_ts = len(params_combine)
 
-        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
+        weights_list = [np.zeros((seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
         
         
         #map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
@@ -1123,9 +1137,10 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
         cost_name = config['cost_name']
     else:
         cost_name = IDweights
-    J_train = costs[cost_name+str(epoch)]
+    
+    J_train = costs[str(epoch)]#cost_name+
     # cum results per t_index and mc/md combination
-    CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
+    CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(seq_len+1)]
     # single results (results per MCxMD)
     #SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # to acces CR: CR[t][mc][md]
@@ -1138,12 +1153,12 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
     for t_index in t_indexes:
         # init results dictionary
         thr_idx = 0
-        if t_index>=model.seq_len:
+        if t_index>=seq_len:
             # get MRC from all indexes
-            weights_id = t_index-model.seq_len
+            weights_id = t_index-seq_len
 #            print("weights_id")
 #            print(weights_id)
-            t_soft_tilde = combine_ts_fn(model, soft_tilde, weights_list[weights_id], 
+            t_soft_tilde = combine_ts_fn(seq_len, soft_tilde, weights_list[weights_id], 
                                       map_idx2thr, thresholds_mc, thresholds_md)
         else:
             t_soft_tilde = soft_tilde[:,t_index,:]
@@ -1160,12 +1175,12 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                 results = init_results_struct(epoch, thr_mc, thr_md, t_index)
                 # upper bound
                 ub_md = 1#thr_md+granularity
-                ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, model.size_output_layer, thr_md, ub_md)
+                ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, bits_mg, thr_md, ub_md)
                 # extract DTA structure for t_index
                 if from_var == True:
                     DTAt = DTA.iloc[:,:]
                 else:
-                    DTAt = DTA.iloc[::model.seq_len,:]
+                    DTAt = DTA.iloc[::seq_len,:]
                 # get journal
                 Journal = get_journal(DTAt.iloc[ys_md['y_md_tilde']], 
                                       ys_md['y_dec_mg_tilde'], 
@@ -1188,7 +1203,7 @@ def get_results(config, model, y, DTA, J_test, soft_tilde,
                     pos_filename = ''
                 # get results with extensions
                 res_ext, log = get_extended_results(Journal,
-                                                    model.size_output_layer,
+                                                    bits_mg,
                                                     n_days, get_positions=save_journal,
                                                     pNZA=results['pNZA'],
                                                     pos_dirname=pos_dirname,
@@ -1364,7 +1379,7 @@ def remove_outliers(grois, spreads, thr=.99):
         
     return grois_no_outliers, rois_no_outliers, idx_sorted, low_arg_goi, high_arg_goi
 
-def get_extended_results(Journal, size_output_layer, n_days, get_log=False, 
+def get_extended_results(Journal, n_classes, n_days, get_log=False, 
                          get_positions=False, pNZA=0,
                          pos_dirname='', pos_filename='', reference_date='2018.03.09',
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
@@ -1420,8 +1435,8 @@ def get_extended_results(Journal, size_output_layer, n_days, get_log=False,
     net_succ_counter = 0
     this_pos_extended = 0
 
-    rROIxLevel = np.zeros((int(size_output_layer-1),3))
-    rSampsXlevel = np.zeros((int(size_output_layer-1),2))
+    rROIxLevel = np.zeros((int(n_classes-1),3))
+    rSampsXlevel = np.zeros((int(n_classes-1),2))
         
     fixed_spread_ratios = np.array([0.00005,0.0001,0.00015,0.0002,0.0003,0.0004,0.0005])
     fixed_extensions = ['.5','1','1.5','2','3','4','5']
@@ -1862,7 +1877,7 @@ def merge_t_index_results(results_dir, IDr_m1, IDr_m2):
         raise ValueError("merge 1 and 2 must have same number of t_indexes")
     return None
 
-def merge_results(IDrs, IDr_merged):
+def merge_results(IDrs, IDr_merged, from_mg=False):
     """ Merge results from two different test executions.
     Arg:
         - IDr_m1 (string): ID of first merging results
@@ -1886,8 +1901,8 @@ def merge_results(IDrs, IDr_merged):
             TRT = TP
         # TODO: check if number of epochs is thhe same from all results
         epochs = TP['epoch'].unique()
-        t_indexes = TP['t_index'].unique()
-        thrs = TP['thr_mg'].unique()
+        #t_indexes = TP['t_index'].unique()
+        #thrs = TP['thr_mg'].unique()
         
 #        for epoch in epochs:
 #            for t_index in t_indexes:
@@ -1920,10 +1935,10 @@ def merge_results(IDrs, IDr_merged):
         print('Epoch '+str(epoch))
         get_best_results(TRT[TRT.epoch==epoch], '', 
                          resultsDir,
-                         IDr_merged, save=1, from_mg=True)
+                         IDr_merged, save=1, from_mg=from_mg)
         print('\n')
     print("\nThe very best:")
-    get_best_results(TRT, '', resultsDir, IDr_merged, from_mg=True)
+    get_best_results(TRT, '', resultsDir, IDr_merged, from_mg=from_mg)
     print('Results MERGED!')
     #merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
