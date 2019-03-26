@@ -347,7 +347,7 @@ class RNN(Model):
             loss = tf.reduce_mean(loss_mg, name="loss_nll")
         return loss
     
-    def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log=''):
+    def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log='',aloc=3000000):
         """ Fit model to trainning data """
         # directory to save weights
         weights_directory = local_vars.weights_directory
@@ -373,10 +373,7 @@ class RNN(Model):
 #            minibatches = generate_mini_batches(X, Y, 
 #                                                mini_batch_size=self.miniBatchSize, 
 #                                                seed=self.seed, random=self.rand_mB)
-            minibatchidx = generate_mini_batch_idx(m, 
-                                                mini_batch_size=self.miniBatchSize, 
-                                                seed=self.seed, random=self.rand_mB)
-            n_mB = len(minibatchidx)
+            
             
             # get epochs range
             epochs = range(epoch_init, epoch_init+num_epochs)
@@ -385,37 +382,49 @@ class RNN(Model):
             if len(log)>0:
                 write_log(mess)
             exception = False
-            counter = 0
             try:
+                nChunks = int(np.ceil(X.shape[0]/aloc))
                 for epoch in epochs:
                     J_train = 0
-                    for minibatch in tqdm(minibatchidx, mininterval=10):
-                        #(X_batch, Y_batch) = minibatch
-                        X_batch = X[minibatch,:,:]
-                        Y_batch = Y[minibatch,:,:]
-                        feed_dict = {self.input:X_batch, self.target:Y_batch, 
-                                     self.dropout:keep_prob_dropout}
-                        output, cost = sess.run([optimizer, loss], 
-                                                feed_dict=feed_dict)
-                        J_train += cost
-                    J_train= J_train/n_mB
+                    chunk = 0
+                    while chunk<nChunks:
+                        Xc = X[chunk*aloc:(chunk+1)*aloc,:,:]
+                        Yc = Y[chunk*aloc:(chunk+1)*aloc,:,:]
+                        m = Xc.shape[0]
+                        print("Chunck size: "+str(m))
+                        minibatchidx = generate_mini_batch_idx(m, 
+                                                mini_batch_size=self.miniBatchSize, 
+                                                seed=self.seed, random=self.rand_mB)
+                        n_mB = len(minibatchidx)
+                        for minibatch in tqdm(minibatchidx, mininterval=10):
+                            #(X_batch, Y_batch) = minibatch
+                            X_batch = Xc[minibatch,:,:]
+                            Y_batch = Yc[minibatch,:,:]
+                            feed_dict = {self.input:X_batch, self.target:Y_batch, 
+                                         self.dropout:keep_prob_dropout}
+                            _, cost = sess.run([optimizer, loss], 
+                                                    feed_dict=feed_dict)
+                            J_train += cost
+                        print("Time training Chunck {0:d} of {1:d}: {2:.0f} s"\
+                              .format(chunk,nChunks-1,np.floor(time.time()-tic)))
+                    J_train= J_train/(n_mB*nChunks)
                     mess = "Cost after epoch %i: %f. Av cost %f" \
-                           % (epoch, cost, J_train)
-                    print(mess)
-                    if len(log)>0:
-                        write_log(mess)
-                    mess = dt.datetime.strftime(dt.datetime.now(),"%H:%M:%S")+\
-                      " Total time training: "+\
-                      "{0:.2f}".format(np.floor(time.time()-tic)/60)+"m"
-                    print(mess)
-                    if len(log)>0:
-                        write_log(mess)
-                    #if save_graph:
-                    self._save_graph(self._saver, sess, self.IDweights, 
-                                         J_train, epoch, weights_directory)
-                    self._save_cost(epoch, J_train, From='weights', 
-                                    params={'IDweights':self.IDweights})
-                    counter += 1
+                               % (epoch, cost, J_train)
+                    chunk += 1
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
+                mess = dt.datetime.strftime(dt.datetime.now(),"%H:%M:%S")+\
+                         " Total time training: "+\
+                         "{0:.2f}".format(np.floor(time.time()-tic)/60)+"m"
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
+                #if save_graph:
+                self._save_graph(self._saver, sess, self.IDweights, 
+                                 J_train, epoch, weights_directory)
+                self._save_cost(epoch, J_train, From='weights', 
+                                params={'IDweights':self.IDweights})
             except KeyboardInterrupt:
                 mess = "Trainning stopped due to KeyboardInterrupt exception"
                 print(mess)
