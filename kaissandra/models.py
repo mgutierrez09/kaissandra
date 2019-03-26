@@ -387,6 +387,7 @@ class RNN(Model):
                 for epoch in epochs:
                     J_train = 0
                     chunk = 0
+                    print("#Chunks = "+str(nChunks))
                     while chunk<nChunks:
                         Xc = X[chunk*aloc:(chunk+1)*aloc,:,:]
                         Yc = Y[chunk*aloc:(chunk+1)*aloc,:,:]
@@ -407,10 +408,11 @@ class RNN(Model):
                             J_train += cost
                         print("Time training Chunck {0:d} of {1:d}: {2:.0f} s"\
                               .format(chunk,nChunks-1,np.floor(time.time()-tic)))
+                        chunk += 1
                     J_train= J_train/(n_mB*nChunks)
                     mess = "Cost after epoch %i: %f. Av cost %f" \
                                % (epoch, cost, J_train)
-                    chunk += 1
+                    
                 print(mess)
                 if len(log)>0:
                     write_log(mess)
