@@ -79,9 +79,9 @@ def get_md_vectors(t_soft_tilde, t_y, ys_mc, n_classes, thr_md, ub_md):
     
     return ys_md
 
-def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index):
+def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
     """  """
-    print("Epoch = "+str(epoch)+". Time index = "+str(t_index)+
+    print("Epoch = "+str(epoch)+". Time index = "+t_str+
           ". Threshold MC = "+str(thr_mc)+". Threshold MD = "+str(thr_md))
     if thr_md==.5 and thr_mc==.5:
         print("J_test = "+str(J_test)+", J_train = "+
@@ -510,7 +510,7 @@ def update_weights_combine(weights, t, w_idx, params, results):
         else:
             spread = '2'
         weights[t,w_idx,0] = metric_combine(results['eROI'+spread])
-    elif params['alg'] == 'uni': # uniform averaging
+    elif params['alg'] == 'mean': # mean
         weights[t,w_idx,0] = 1
     #thr_idx += 1
     return weights
@@ -539,12 +539,12 @@ def combine_ts_fn(seq_len, soft_tilde, weights, map_idx2thr, thresholds_mc, thre
     print("idx_thr")
     print(idx_thr)
     for t_ in range(seq_len):
-        print("idx_thr[:,t_]")
-        print(idx_thr[:,t_])
-        print("map_idx2thr[idx_thr[:,t_]]")
-        print(map_idx2thr[idx_thr[:,t_]])
-        print("weights[t_,map_idx2thr[idx_thr[:,t_]],:]")
-        print(weights[t_,map_idx2thr[idx_thr[:,t_]],:])
+#        print("idx_thr[:,t_]")
+#        print(idx_thr[:,t_])
+#        print("map_idx2thr[idx_thr[:,t_]]")
+#        print(map_idx2thr[idx_thr[:,t_]])
+#        print("weights[t_,map_idx2thr[idx_thr[:,t_]],:]")
+#        print(weights[t_,map_idx2thr[idx_thr[:,t_]],:])
         sum_AD = sum_AD+weights[t_,map_idx2thr[idx_thr[:,t_]],:]
         t_soft_tilde = t_soft_tilde+weights[t_,map_idx2thr[idx_thr[:,t_]],:]*soft_tilde[:,t_,:]
     # normaluze t_soft_tilde
@@ -1083,6 +1083,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         thresholds_md = config['thresholds_md']
     if 'combine_ts' in config:
         combine_ts = config['combine_ts']
+        
 #        if_combine = config['combine_ts']['if_combine']
 #        params_combine = config['combine_ts']['params_combine']
 #        columns_AD = [str(tmc)+str(tmd) for tmc in thresholds_md for tmd in thresholds_md]#config['combine_ts']['columns_AD']
@@ -1092,6 +1093,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
 #        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
         
         if_combine = combine_ts['if_combine']
+        if if_combine:
+            t_indexes.append(seq_len+1)
         params_combine = combine_ts['params_combine']
         columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
 
@@ -1154,6 +1157,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         # init results dictionary
         thr_idx = 0
         if t_index>=seq_len:
+            t_str = params_combine[0]['alg']
             # get MRC from all indexes
             weights_id = t_index-seq_len
 #            print("weights_id")
@@ -1163,6 +1167,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         else:
             t_soft_tilde = soft_tilde[:,t_index,:]
             t_y = y[:,t_index,:]
+            t_str = str(t_index)
+            
         # loop over market change thresholds
         for mc in range(len(thresholds_mc)):
             thr_mc = thresholds_mc[mc]
@@ -1172,7 +1178,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
             # loop over market direction thresholds
             for md in range(len(thresholds_md)):
                 thr_md = thresholds_md[md]
-                results = init_results_struct(epoch, thr_mc, thr_md, t_index)
+                results = init_results_struct(epoch, thr_mc, thr_md, t_str)
                 # upper bound
                 ub_md = 1#thr_md+granularity
                 ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, bits_mg, thr_md, ub_md)
@@ -1197,7 +1203,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                 # init positions dir and filename
                 if save_journal:
                     pos_dirname = resultsDir+IDresults+'/positions/'
-                    pos_filename = 'P_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+                    pos_filename = 'P_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
                 else:
                     pos_dirname = ''
                     pos_filename = ''
@@ -1213,18 +1219,19 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                 if if_combine:
                     
                     for i, params in enumerate(params_combine):
-                        update_weights_combine(weights_list[i], t_index, map_idx2thr[thr_idx], params, results)
+                        weights_list[i] = update_weights_combine(weights_list[i], 
+                                    t_index, map_idx2thr[thr_idx], params, results)
                     thr_idx += 1
                 # update cumm results list
                 CR[t_index][mc][md] = results
                 # print results
-                print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_index)
+                print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str)
                 # save results
                 save_results_fn(results_filename, results)
                 # save journal
                 if save_journal and (thr_mc>.5 or thr_md>.5):
                     journal_dir = resultsDir+IDresults+'/journal/'
-                    journal_id = 'J_E'+str(epoch)+'TI'+str(t_index)+'MC'+str(thr_mc)+'MD'+str(thr_md)
+                    journal_id = 'J_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
                     ext = '.csv'
                     save_journal_fn(Journal, journal_dir, journal_id, ext)
                 

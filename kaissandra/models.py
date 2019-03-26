@@ -351,6 +351,8 @@ class RNN(Model):
         """ Fit model to trainning data """
         # directory to save weights
         weights_directory = local_vars.weights_directory
+        # number of samples
+        m = X.shape[0]
         # init timer
         tic = time.time()
         # init graph
@@ -368,10 +370,14 @@ class RNN(Model):
             # restore graph
             epoch_init = self._load_graph(sess, self.IDweights, epoch=-1)
             # get minibatches
-            minibatches = generate_mini_batches(X, Y, 
+#            minibatches = generate_mini_batches(X, Y, 
+#                                                mini_batch_size=self.miniBatchSize, 
+#                                                seed=self.seed, random=self.rand_mB)
+            minibatchidx = generate_mini_batch_idx(m, 
                                                 mini_batch_size=self.miniBatchSize, 
                                                 seed=self.seed, random=self.rand_mB)
-            n_mB = len(minibatches)
+            n_mB = len(minibatchidx)
+            
             # get epochs range
             epochs = range(epoch_init, epoch_init+num_epochs)
             mess = "Fitting model from epoch "+str(epochs[0])+" till "+str(epochs[-1])
@@ -383,8 +389,10 @@ class RNN(Model):
             try:
                 for epoch in epochs:
                     J_train = 0
-                    for minibatch in tqdm(minibatches, mininterval=10):
-                        (X_batch, Y_batch) = minibatch
+                    for minibatch in tqdm(minibatchidx, mininterval=10):
+                        #(X_batch, Y_batch) = minibatch
+                        X_batch = X[minibatch,:,:]
+                        Y_batch = Y[minibatch,:,:]
                         feed_dict = {self.input:X_batch, self.target:Y_batch, 
                                      self.dropout:keep_prob_dropout}
                         output, cost = sess.run([optimizer, loss], 
@@ -992,6 +1000,50 @@ def generate_mini_batches(X, Y, mini_batch_size=64, seed=0, random=True):
 #    print("mini_batch_Y.shape")
 #    print(mini_batch_Y.shape)
     return mini_batches
+
+def generate_mini_batch_idx(m, mini_batch_size=64, seed=0, random=True):
+    """
+    Creates a list of random minibatches from (X, Y)
+    
+    Arguments:
+    X -- input data, of shape (input size, number of examples)
+    Y -- true "label" vector (containing 0 if cat, 1 if non-cat), of shape (1, number of examples)
+    mini_batch_size - size of the mini-batches, integer
+    seed -- this is only for the purpose of grading, so that you're "random minibatches are the same as ours.
+    
+    Returns:
+    mini_batches -- list of synchronous (mini_batch_X, mini_batch_Y)
+    """
+    import math                # number of training examples
+#    X_shape = X.reshape((m, -1))
+#    Y_shape = Y.reshape((m, -1))
+    mini_batch_idx = []
+    np.random.seed(seed)
+    
+    # Step 1: Shuffle (X, Y)
+    if random:
+        perm = np.random.permutation(m)
+    else:
+        perm = np.array(range(m))
+    permutation = list(perm)
+#    shuffled_X = X[permutation, :]
+#    shuffled_Y = Y[permutation, :].reshape((m, Y.shape[1]))
+
+    # Step 2: Partition (shuffled_X, shuffled_Y). Minus the end case.
+    num_complete_minibatches = math.floor(m/mini_batch_size) # number of mini batches of size mini_batch_size in your partitionning
+    for k in range(0, num_complete_minibatches):
+        mB_idx = permutation[k * mini_batch_size: k * mini_batch_size + mini_batch_size]
+#        X_reshape = (len(mB_idx),)+X_original_shape[1:]
+#        Y_reshape = (len(mB_idx),)+Y_original_shape[1:]
+#        mini_batch_X = shuffled_X[mB_idx, :].reshape(X_reshape)
+#        mini_batch_Y = shuffled_Y[mB_idx, :].reshape(Y_reshape)
+#        mini_batch = (mini_batch_X, mini_batch_Y)
+        mini_batch_idx.append(mB_idx)
+    # Handling the end case (last mini-batch < mini_batch_size)
+    if m % mini_batch_size != 0:
+        mB_idx = permutation[num_complete_minibatches * mini_batch_size: m]
+        mini_batch_idx.append(mB_idx)
+    return mini_batch_idx
 
 def check_nan(costs, epoch):
     """  """

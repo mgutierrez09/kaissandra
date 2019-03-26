@@ -148,12 +148,12 @@ def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_ID
         if not just_build:
             f_IOtr = h5py.File(dirfilename_tr,'r')
             if 'Tr' in tAt:
-                Ytr = f_IOtr['Y'][:]
-                Xtr = f_IOtr['X'][:]
+                Ytr = f_IOtr['Y']
+                Xtr = f_IOtr['X']
             f_IOte = h5py.File(dirfilename_te,'r')
             if 'Te' in tAt:
-                Yte = f_IOte['Y'][:]
-                Xte = f_IOte['X'][:]
+                Yte = f_IOte['Y']
+                Xte = f_IOte['X']
             DTA = pickle.load( open( IO_results_name, "rb" ))
             
             

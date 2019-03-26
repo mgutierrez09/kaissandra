@@ -1475,7 +1475,10 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
     else:
         filetag = config['IDweights'][1:]
     size_output_layer = config['size_output_layer']
-    
+    if 'n_bits_outputs' in config:
+        n_bits_outputs = config['n_bits_outputs']
+    else:
+        n_bits_outputs = [size_output_layer]
     
 
     hdf5_directory = local_vars.hdf5_directory
@@ -1524,7 +1527,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         #attributes to track asset-IO belonging
         ass_IO_ass_tr = np.zeros((len(assets))).astype(int)
         # structure that tracks the number of samples per level
-        IO['totalSampsPerLevel'] = np.zeros((size_output_layer))
+        IO['totalSampsPerLevel'] = np.zeros((n_bits_outputs[-1]))
         # open IO file for writting
         f_tr = h5py.File(filename_tr,'w')
         # init IO data sets

@@ -246,7 +246,7 @@ def configuration(*ins):
 #        else:
 #            save_log = False
         if 't_indexes' not in entries:
-            t_indexes = range(int((lB-nEventsPerStat)/movingWindow+1))
+            t_indexes = [l for l in range(int((lB-nEventsPerStat)/movingWindow+1))]
         else:
             t_indexes = entries['t_indexes']
         if 'resolution' not in entries:
@@ -277,7 +277,8 @@ def configuration(*ins):
             combine_ts = entries['combine_ts']
         else:
             combine_ts = {'if_combine':True,
-                          'params_combine':[{'alg':'adc'}]}
+                          'params_combine':[{'alg':'mean'}]}# 'adc': AD-combine
+                                                           # 'mean': mean
         
         
         # feature-specific configuration
