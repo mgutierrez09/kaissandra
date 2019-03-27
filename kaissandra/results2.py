@@ -1043,7 +1043,7 @@ def print_results_mg(acc, CM, PR, RC, FS, scores, t, t_idx):
 
 def get_results(config, y, DTA, J_test, soft_tilde,
                  costs, epoch, lastTrained, results_filename,
-                 costs_filename, from_var=False):
+                 costs_filename, from_var=False, keep_old_cost=False):
     """ Get results after one epoch.
     Args:
         - 
@@ -1140,8 +1140,10 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         cost_name = config['cost_name']
     else:
         cost_name = IDweights
-    
-    J_train = costs[str(epoch)]#cost_name+
+    if keep_old_cost:
+        J_train = costs[cost_name+str(epoch)]#
+    else:
+        J_train = costs[str(epoch)]#cost_name+
     # cum results per t_index and mc/md combination
     CR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(seq_len+1)]
     # single results (results per MCxMD)

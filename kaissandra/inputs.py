@@ -2168,7 +2168,8 @@ def build_IO_from_var_wrapper(*ins):
         calculate_roi = False
     else:
         calculate_roi = True
-    if_build_IO = config['if_build_IO']
+    
+    #if_build_IO = config['if_build_IO']
     from_stats_file = config['from_stats_file']
     
     IDweights = config['IDweights']
@@ -2183,6 +2184,10 @@ def build_IO_from_var_wrapper(*ins):
         filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
     else:
         filename_IO = IO_directory+'IO_'+IO_results_name+'.hdf5'
+    if os.path.exists(filename_IO) and len(ins)>0:
+        if_build_IO = False
+    else:
+        if_build_IO = config['if_build_IO']
     separators_directory = hdf5_directory+'separators/'
     nExS = data.nEventsPerStat
     # if IO structures have to be built 
@@ -2222,7 +2227,6 @@ def build_IO_from_var_wrapper(*ins):
         
     for ass_idx, ass in enumerate(data.assets):
         thisAsset = data.AllAssets[str(ass)]
-        print(str(ass)+" "+thisAsset)
         #thisAsset = 'EURUSD'
         # load separators
         separators = load_separators(thisAsset, 
@@ -2268,6 +2272,8 @@ def build_IO_from_var_wrapper(*ins):
             stats = pickle.load( open( filename_stats, "rb" ))
     
         if if_build_IO:
+            
+            print(str(ass)+" "+thisAsset)
             for s in range(0,len(separators)-1,2):#
                 print("\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
                       ". From "+separators.DateTime.iloc[s]+" to "+
@@ -2395,13 +2401,10 @@ def build_and_test(*ins):
         config = ins[0]
     else:
         config = retrieve_config('C0400')
-        
     
-    weights_directory = local_vars.weights_directory
-
     model, m_t, filename_IO, DTA = build_IO_from_var_wrapper('te', config)
     
-    alloc = 200000
+    alloc = 10000
     # reset graph
     tf.reset_default_graph()
     # start session
@@ -2409,11 +2412,8 @@ def build_and_test(*ins):
         # run test RNN
         print("IDresults: "+config['IDresults'])
         
-        model.test2(sess, config['dateTest'], config['IDresults'], 
-                    config['IDweights'], alloc,weights_directory, filename_IO,
-                    startFrom=config['startFrom'], data_format='hdf5', DTA=DTA, 
-                    save_journal=config['save_journal'], endAt=config['endAt'], 
-                    from_var=True)
+        model.test2(sess, config, alloc, filename_IO, DTA=DTA, from_var=True, keep_old_cost=True)
+        """ (sess, config, alloc, filename_IO, DTA=DTA)"""
     print("DONE")
     
 def run_train_test(config, its, if_train, if_test):

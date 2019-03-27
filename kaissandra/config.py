@@ -276,10 +276,8 @@ def configuration(*ins):
         if 'combine_ts' in entries:
             combine_ts = entries['combine_ts']
         else:
-            combine_ts = {'if_combine':True,
-                          'params_combine':[{'alg':'mean'}]}# 'adc': AD-combine
+            combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}# 'adc': AD-combine
                                                            # 'mean': mean
-        
         
         # feature-specific configuration
         if 'save_stats' in entries:

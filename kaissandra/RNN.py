@@ -382,8 +382,8 @@ class modelRNN():
             # save best results
             #save_best_results(BR_ROIs, BR_sharpes, resultsDir, IDresults, save_results)
     
-    def test2(self, sess, config, alloc, filename_IO,
-             startFrom=-1, data_format='', DTA=[],  from_var=False):
+    def test2(self, sess, config, alloc, filename_IO, DTA=[],  from_var=False, 
+              keep_old_cost=False):
         """ 
         Test RNN network with y_c bits
         """
@@ -464,7 +464,7 @@ class modelRNN():
                 get_results(config, Y_test, DTA, 
                             t_J_test, softMaxOut, costs, epoch, lastTrained, results_filename,
                             costs_filename,
-                            from_var=from_var)
+                            from_var=from_var, keep_old_cost=keep_old_cost)
             elif self.commonY==0:
                 get_results_mg(config, Y_test, softMaxOut, costs, epoch, 
                                J_test, costs_filename, results_filename,
