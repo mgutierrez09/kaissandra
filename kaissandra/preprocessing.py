@@ -451,7 +451,7 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # get decimal and binary outputs
         # TODO: generalize for the number of outputs
-        if sum(n_bits_outputs)==1:
+        if len(n_bits_outputs)==1:
             Y_i, y_dec = build_bin_output_mg(config, R_i, batch)
         else:
             Y_i, y_dec = build_bin_output_mcmdmg(config, R_i, batch)
@@ -1480,7 +1480,6 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
     else:
         n_bits_outputs = [size_output_layer]
     
-
     hdf5_directory = local_vars.hdf5_directory
     IO_directory = local_vars.IO_directory
     if not os.path.exists(IO_directory):

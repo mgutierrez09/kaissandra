@@ -80,7 +80,7 @@ def automate(*ins):
     #        disp.start()
     #        time.sleep(1)
 
-def automate_RNN(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
+def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=True):
     """  """

@@ -1450,7 +1450,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     fixed_spread_ratios = np.array([0.00005,0.0001,0.00015,0.0002,0.0003,0.0004,0.0005])
     fixed_extensions = ['.5','1','1.5','2','3','4','5']
     # fixed ratio success percent
-    NSPs = np.zeros((fixed_spread_ratios.shape[0]))
+    CSPs = np.zeros((fixed_spread_ratios.shape[0]))
+    CFPs = np.zeros((fixed_spread_ratios.shape[0]))
     eROIs = np.zeros((fixed_spread_ratios.shape))
     ROI_vector = np.array([])
     GROI_vector = np.array([])
@@ -1562,7 +1563,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                 GSCl += 1
             elif GROI>0 and direction<0:
                 GSCs += 1
-            NSPs = NSPs+((GROI-fixed_spread_ratios)>0)
+            CSPs = CSPs+((GROI-fixed_spread_ratios)>0)
+            CFPs = CFPs+((GROI-fixed_spread_ratios)<=0)
             if get_positions:
                 this_list = [Journal['Asset'].iloc[e-1],Journal[DT1].iloc[eInit][:10],
                                  Journal[DT1].iloc[eInit][11:],Journal[DT2].iloc[e-1][:10],
@@ -1646,8 +1648,16 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         
         if GROI>0:
             gross_succ_counter += 1
+#        else:
+#            gross_fail_counter += 1
         if ROI>0:
             net_succ_counter += 1
+        if GROI>0 and direction>0:
+                GSCl += 1
+        elif GROI>0 and direction<0:
+            GSCs += 1
+        CSPs = CSPs+((GROI-fixed_spread_ratios)>0)
+        CFPs = CFPs+((GROI-fixed_spread_ratios)<=0)
         if get_log:
             log = log.append({'DateTime':Journal[DT2].iloc[eInit],
                               'Message':Journal['Asset'].iloc[eInit]+
@@ -1682,13 +1692,12 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                     print("WARNING! PermissionError. Close programs using "+
                           pos_dirname+pos_filename)
                     time.sleep(1)
-#    print("count_dif_dir")
-#    print(count_dif_dir)
-#    print("percent_dif_dir")
-#    print(100*count_dif_dir/n_pos_opned)
+                    
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
-    NSPs = NSPs/n_pos_opned
+    net_fail_counter = n_pos_opned-net_succ_counter
+    NSPs = CSPs/n_pos_opned
+    NFPs = CFPs/n_pos_opned
     successes = [n_pos_opned, 100*gross_succ_per, 100*net_succ_per, 100*NSPs]
     mSpread = 100*mSpread/n_pos_opned
     try:
@@ -1705,21 +1714,17 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     else:
         sharpe = 0.0
     # Success index per spread level
-    SIs = n_pos_opned*(NSPs-.53)
-    SI = n_pos_opned*(net_succ_per-.53)
+    #SIs = n_pos_opned*(NSPs-.53)
+    #SI = n_pos_opned*(net_succ_per-.53)
+    SIs = (CSPs-CFPs)/np.sqrt(n_pos_opned)
+    SI = (net_succ_per-net_fail_counter)/np.sqrt(n_pos_opned)
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
     GROIS99, ROIS99, _, _, _ = remove_outliers(GROI_vector, spreads, thr=.99)
     GROI99 = sum(GROIS99)
-#    print("GROI99")
-#    print(GROI99)
     ROI99 = sum(ROIS99)
     ROIS99 = [100*sum(GROIS99-spread) for spread in fixed_spread_ratios]
-#    print("ROI99")
-#    print(ROI99)
-#    print("ROIS99")
-#    print(ROIS99)
     list_ext_results = [[eGROI,'eGROI'], [eROI,'eROI'], [successes[1],'GSP'], \
                         [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
                         [SI,'SI'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \

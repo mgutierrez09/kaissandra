@@ -412,7 +412,7 @@ class RNN(Model):
                     J_train= J_train/(n_mB*nChunks)
                     mess = "Cost after epoch %i: %f. Av cost %f" \
                                % (epoch, cost, J_train)
-                    
+                
                 print(mess)
                 if len(log)>0:
                     write_log(mess)
