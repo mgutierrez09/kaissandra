@@ -19,6 +19,19 @@ import time
 
 from kaissandra.local_config import local_vars
 
+def extract_result(TR, dict_inputs, list_kpis):
+    """ Extract single results """
+    # init idxs to Trues
+    idxs = TR['epoch']>=0
+    for key,func in dict_inputs.items():
+        idxs = idxs & (TR[key].apply(func))
+    dict_out = {}
+    for kpi in list_kpis:
+        maxidx = TR[kpi][idxs].idxmax()
+        dict_out[kpi] = TR.iloc[maxidx]
+        print(kpi)
+        print(dict_out[kpi].to_string())
+
 def get_last_saved_epoch2(resultsDir, ID):
     """
     <DocString>
