@@ -228,9 +228,9 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
     entries['IDweights'] = 'W'+rootname_config+tag+extW
     entries['IDresults'] = 'R'+rootname_config+tag+extR+sufix
     entries['edge_dates'] = edge_dates
+    entries['build_XY_mode'] = build_XY_mode
     config = configuration(entries)
     IDresults = config['IDresults']
-    
     dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
                                                                      log=log)
     
