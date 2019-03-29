@@ -178,7 +178,95 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
             f_IOte.close()
     if not just_build and if_merge_results:
         merge_results(IDrs, IDr_merged)
+
+def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[], 
+                        build_IDrs=False, its=15, sufix='', IDr_merged='', log='', 
+                        just_build=False, if_merge_results=True):
+    """  """
+    if 'build_XY_mode' in entries:
+        build_XY_mode = entries['build_XY_mode']
+    else:
+        build_XY_mode = 'manual'
+    assert(build_XY_mode=='manual')
+    if 'edge_dates' in entries:
+        edge_dates = entries['edge_dates']
+    else:
+        edge_dates = ['2017.09.27']
+    if 'feats_from_bids' in entries:
+        feats_from_bids = entries['feats_from_bids']
+    else:
+        feats_from_bids = False
+    if 'results_from' in entries:
+        results_from = entries['results_from']
+    else:
+        results_from = 'COMB'
+    if 'startFrom' in entries:
+        startFrom = entries['startFrom']
+    else:
+        startFrom = -1
+    if 'endAt' in entries:
+        endAt = entries['endAt']
+    else:
+        endAt = -1
+#        size_hidden_layer = 3
+    if feats_from_bids==False:
+        extW = 'A'
+        extR = 'A'
+    else:
+        extW = 'B'
+        extR = 'B'
+    if results_from=='COMB':
+        extR = extR+'C'
+    elif results_from=='ASKS':
+        extR = extR+'L'
+    elif results_from=='BIDS':
+        extR = extR+'S'
+    else:
+        raise ValueError('results_from not recognized')
+    tag = 'FE'# fixed edges
+    entries['config_name'] = 'C'+rootname_config+tag
+    entries['IDweights'] = 'W'+rootname_config+tag+extW
+    entries['IDresults'] = 'R'+rootname_config+tag+extR+sufix
+    entries['edge_dates'] = edge_dates
+    config = configuration(entries)
+    IDresults = config['IDresults']
     
+    dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
+                                                                     log=log)
+    
+    if not just_build:
+        f_IOtr = h5py.File(dirfilename_tr,'r')
+        if 'Tr' in tAt:
+            Ytr = f_IOtr['Y']
+            Xtr = f_IOtr['X']
+        f_IOte = h5py.File(dirfilename_te,'r')
+        if 'Te' in tAt:
+            Yte = f_IOte['Y']
+            Xte = f_IOte['X']
+        DTA = pickle.load( open( IO_results_name, "rb" ))
+        
+        
+        epochs_per_it = 1
+        for i in range(its):
+            mess = "Iteration "+str(i)+" of "+str(its-1)
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
+            if tAt=='TrTe':
+                RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it,log=log).\
+                    cv(Xte, Yte, DTA, IDresults=IDresults, config=config, log=log)
+            elif tAt=='Te':
+                RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
+                   startFrom=startFrom, endAt=endAt, config=config, log=log)
+            elif tAt=='Tr':
+                RNN(config).fit(Xtr,Ytr,num_epochs=epochs_per_it, log=log)
+            else:
+                raise ValueError('tAt value not known')
+            
+        f_IOtr.close()
+        f_IOte.close()
+    if not just_build and if_merge_results:
+        merge_results(IDrs, IDr_merged)
 if __name__=='__main__':
     pass
     #automate(['C3012INVO'])

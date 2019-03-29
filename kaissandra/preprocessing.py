@@ -233,16 +233,12 @@ def build_variations(config, file_temp, features, stats):
     del group_temp['variations']
     return variations_normed_new
 
-def map_index2sets(K, fold_idx, build_XY_mode='K_fold'):
+def map_index2sets(K, fold_idx):
     """  """
     assert(fold_idx<K)
     assert(fold_idx>=0)
-    if build_XY_mode=='K_fold':
-        sets_list = ['Tr' for _ in range(K)]
-        sets_list[K-(fold_idx+1)] = 'Cv'
-    elif build_XY_mode=='datebased':
-        # TODO: can be included in K_fold mode with the right K and k's (eg. [2,0])
-        sets_list = ['Tr','Cv']
+    sets_list = ['Tr' for _ in range(K)]
+    sets_list[K-(fold_idx+1)] = 'Cv'
     return sets_list
 
 def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list):
@@ -373,8 +369,8 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     pointerCv = IO['pointerCv']
     
     # get some scalars
-    nSamps = Vars.shape[0]
-    samp_remaining = nSamps-nChannels-seq_len+1
+    #nSamps = Vars.shape[0]
+    #samp_remaining = nSamps-nChannels-seq_len+1
     #assert(chunks==1)
     # init counter of samps processed
     # loop over chunks
@@ -462,10 +458,18 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         #if dts[end_idx_rets, -1]>last_day:
         #pickle.dump( dt_support, open( '.\dts', "wb" ))
         # look for last entry containing last day
+        if build_XY_mode=='K_fold':
+            list_index2sets = map_index2sets(K, fold_idx)
+        elif build_XY_mode=='manual':
+            if 'list_index2sets' in config:
+                list_index2sets = config['list_index2sets']
+            else:
+                list_index2sets = ['Tr','Cv']
+        else:
+            raise ValueError("build_XY_mode not known")
         edges_tr_idx, edges_cv_idx = find_edge_indexes(dt_support, edges_dt, 
                                                        initenddates, fold_idx, 
-                                                       map_index2sets(K, fold_idx, 
-                                                        build_XY_mode=build_XY_mode))
+                                                       list_index2sets)
         
         #samps_tr = 0
         for e in range(edges_tr_idx.shape[0]):
@@ -1125,10 +1129,10 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
         build_XY_mode = config['build_XY_mode']
     else:
         build_XY_mode = 'K_fold'
-    if 'egde_date' in config:
-        egde_date = config['egde_date']
+    if 'edge_dates' in config:
+        edge_dates = config['edge_dates']
     else:
-        egde_date = '2018.03.09'
+        edge_dates = ['2018.03.09']
     if dataset_dirfilename=='':
         dataset_dirfilename = local_vars.hdf5_directory+'IOA_mW'+str(movingWindow)+'_nE'+\
                             str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5'
@@ -1160,13 +1164,13 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
         for e, edge in enumerate(edges_loc):
             edges_idx[e] = np.argmin(abs(np.cumsum(weights_day)-edge))
         edges = [first_day+dt.timedelta(days=int(d)) for d in edges_idx]
-        edeges_dt = [dt.datetime.fromordinal((first_day+dt.timedelta(days=int(d))).toordinal())  for d in edges_idx]
-    elif build_XY_mode=='datebased':
-        edeges_dt = dt.datetime.strptime(egde_date,'%Y.%m.%d')
-        edges = edeges_dt.date()
+        edges_dt = [dt.datetime.fromordinal((first_day+dt.timedelta(days=int(d))).toordinal())  for d in edges_idx]
+    elif build_XY_mode=='manual':
+        edges_dt = [dt.datetime.strptime(edge_date,'%Y.%m.%d') for edge_date in edge_dates]
+        edges = [edge_dt.date() for edge_dt in edges_dt]
     else:
         raise ValueError("build_XY_mode not recognized")
-    return edges, edeges_dt
+    return edges, edges_dt
 
 def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False, 
                hdf5_directory='', save_pickle=False, tag='IO'):
@@ -1501,7 +1505,8 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                         str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
     
     edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
-    
+    print("Edges:")
+    print(edges)
     separators_directory = hdf5_directory+'separators/'
     filename_tr = IO_directory+'IOKF'+config['IDweights']+'.hdf5'
     filename_cv = IO_directory+'IOKF'+config['IO_results_name'][:-1]+'.hdf5'

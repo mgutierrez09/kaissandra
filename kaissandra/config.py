@@ -96,7 +96,11 @@ def configuration(*ins):
     #        dateTest = [                                               '2018.03.09',
     #                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
     #                '2018.03.19','2018.03.20']
-            
+        # if build_XY_mode=manual, this dates are used as edges
+        if 'edge_dates' in entries:
+            edge_dates = entries['edge_dates']
+        else:
+            edge_dates = ['2018.03.09']
         if 'movingWindow' in entries:
             movingWindow = entries['movingWindow']
         else:
@@ -145,7 +149,7 @@ def configuration(*ins):
         if 'build_XY_mode' in entries:
             build_XY_mode = entries['build_XY_mode']
         else:
-            build_XY_mode = 'K_fold'#'datebased'
+            build_XY_mode = 'K_fold'#'manual'
         
         # general parameters
         if 'if_build_IO' in entries:
@@ -159,7 +163,7 @@ def configuration(*ins):
         if 'IDweights' in entries:
             IDweights = entries['IDweights']
         else:
-            IDweights = '00'+config_name[1:]
+            IDweights = 'W'+config_name[1:]
         if 'inverse_load' in entries:
             inverse_load = entries['inverse_load']
         else:
@@ -223,7 +227,7 @@ def configuration(*ins):
         if 'IDresults' in entries:
             IDresults = entries['IDresults']
         else:
-            IDresults = '10'+config_name[1:]#'100310INVO'
+            IDresults = 'R'+config_name[1:]#'100310INVO'
         if 'IO_results_name' in entries:
             IO_results_name = entries['IO_results_name']
         else:
@@ -302,6 +306,7 @@ def configuration(*ins):
         config = {'config_name':config_name,
                   
                   'dateTest':dateTest,
+                  'edge_dates':edge_dates,
                   'movingWindow':movingWindow,
                   'nEventsPerStat':nEventsPerStat,
                   'lB':lB,
