@@ -13,7 +13,7 @@ from inputs import Data
 
 #
 destiny = 'D:/SDC/py/Data_test/'
-origin = 'D:/SDC/py/Data_aws_9/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
+origin = 'D:/SDC/py/Data_aws_10/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
 data = Data()
 

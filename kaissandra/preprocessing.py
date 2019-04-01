@@ -1505,15 +1505,12 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                         str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
     
     edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
-    print("Edges:")
-    print(edges)
     separators_directory = hdf5_directory+'separators/'
     filename_tr = IO_directory+'IOKF'+config['IDweights']+'.hdf5'
     filename_cv = IO_directory+'IOKF'+config['IO_results_name'][:-1]+'.hdf5'
-    print(filename_tr)
+    
     if len(log)>0:
         write_log(filename_tr)
-    print(filename_cv)
     if len(log)>0:
         write_log(filename_cv)
     f_prep_IO = h5py.File(filename_prep_IO,'r')
@@ -1751,6 +1748,9 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         pickle.dump( DTA, open( IO_results_name, "wb" ))
         f_cv.attrs.create('ass_IO_ass', ass_IO_ass_cv, dtype=int)
         f_tr.attrs.create('ass_IO_ass', ass_IO_ass_tr, dtype=int)
+        f_cv.attrs.create('totalSampsPerLevel', IO['totalSampsPerLevel'], dtype=int)
+        f_tr.attrs.create('totalSampsPerLevel', IO['totalSampsPerLevel'], dtype=int)
+        totalSampsPerLevel = IO['totalSampsPerLevel']
     # print percent of samps per level
     else:
         # get ass_IO_ass from disk
@@ -1758,20 +1758,33 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         f_tr = h5py.File(filename_tr,'r')
         ass_IO_ass_cv = f_cv.attrs.get("ass_IO_ass")
         ass_IO_ass_tr = f_tr.attrs.get("ass_IO_ass")
+        if 'totalSampsPerLevel' in f_tr:
+            totalSampsPerLevel = f_tr.attrs.get("totalSampsPerLevel")
+        elif 'totalSampsPerLevel' in f_cv:
+            totalSampsPerLevel = f_cv.attrs.get("totalSampsPerLevel")
+        else: 
+            totalSampsPerLevel = [-1]
     # get total number of samps
     m_tr = ass_IO_ass_tr[-1]
     m_cv = ass_IO_ass_cv[-1]
     m_t = m_tr+m_cv
+    print("Edges:")
+    print(edges)
+    print(filename_tr)
+    print(filename_cv)
+    print(IO_results_name)
     mess = "Samples for fitting: "+str(m_tr)+"\n"+"Samples for cross-validation: "+\
         str(m_cv)+"\n"+"Total samples: "+str(m_t)
     print(mess)
     if len(log)>0:
         write_log(mess)
-    if if_build_IO:
+    if sum(totalSampsPerLevel)>0:
         mess = "Percent per level:"+str(IO['totalSampsPerLevel']/m_t)
         print(mess)
         if len(log)>0:
             write_log(mess)
+    else:
+        print("totalSampsPerLevel not in IO :(")
     f_tr.close()
     f_cv.close()
     mess = "DONE building IO"

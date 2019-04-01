@@ -129,6 +129,8 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         entries['config_name'] = 'C'+basename
         entries['IDweights'] = 'W'+basename+extW
         entries['IDresults'] = 'R'+basename+extR+sufix
+        print('IDresults:')
+        print(entries['IDresults'])
         entries['IO_results_name'] = 'R'+basename+extR
         config = configuration(entries)
         if 'build_XY_mode' in entries:
@@ -138,6 +140,7 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         if build_XY_mode == 'datebased':
             assert(K==2 and k_init==0 and k_end==1)
         IDresults = config['IDresults']
+        print(IDresults)
         if build_IDrs:
             IDrs.append(IDresults)
         
