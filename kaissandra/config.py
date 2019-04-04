@@ -97,10 +97,22 @@ def configuration(*ins):
     #                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
     #                '2018.03.19','2018.03.20']
         # if build_XY_mode=manual, this dates are used as edges
+        if 'first_day' in entries:
+            first_day = entries['first_day']
+        else:
+            first_day = '2016.01.01'
+        if 'last_day' in entries:
+            last_day = entries['last_day']
+        else:
+            last_day = '2018.11.09'
         if 'edge_dates' in entries:
             edge_dates = entries['edge_dates']
         else:
             edge_dates = ['2018.03.09']
+        if 'list_index2sets' in entries:
+            list_index2sets = entries['list_index2sets']
+        else:
+            list_index2sets = ['Tr','Cv']
         if 'movingWindow' in entries:
             movingWindow = entries['movingWindow']
         else:
@@ -306,7 +318,10 @@ def configuration(*ins):
         config = {'config_name':config_name,
                   
                   'dateTest':dateTest,
+                  'first_day':first_day,
+                  'last_day':last_day,
                   'edge_dates':edge_dates,
+                  'list_index2sets':list_index2sets,
                   'movingWindow':movingWindow,
                   'nEventsPerStat':nEventsPerStat,
                   'lB':lB,

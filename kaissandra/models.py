@@ -458,6 +458,8 @@ class RNN(Model):
         tf.reset_default_graph()
         # build model
         self._build_model()
+        # init output
+        output = np.array([])
         # init session
         with tf.Session() as sess:
             try:
@@ -540,7 +542,7 @@ class RNN(Model):
         print(mess)
         if len(log)>0:
             write_log(mess)
-        return self
+        return output, J_test
         
     def test(self):
         """  """

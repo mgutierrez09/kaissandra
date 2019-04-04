@@ -1083,7 +1083,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     bits_mg = config['n_bits_outputs'][-1]
     resultsDir = local_vars.results_directory
     if 't_indexes' not in config:
-        t_indexes = range(seq_len)
+        t_indexes = [i for i in range(seq_len)]
     else:
         t_indexes = config['t_indexes']
     if 'thresholds_mc' not in config:
@@ -1107,7 +1107,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         
         if_combine = combine_ts['if_combine']
         if if_combine:
-            t_indexes.append(seq_len+1)
+            t_indexes.append(seq_len)
         params_combine = combine_ts['params_combine']
         columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
 
@@ -1167,32 +1167,34 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()
-    
     for t_index in t_indexes:
         # init results dictionary
         thr_idx = 0
         if t_index>=seq_len:
             t_str = params_combine[0]['alg']
             # get MRC from all indexes
-            weights_id = t_index-seq_len
+            weights_id = 0
 #            print("weights_id")
 #            print(weights_id)
-            t_soft_tilde = combine_ts_fn(seq_len, soft_tilde, weights_list[weights_id], 
-                                      map_idx2thr, thresholds_mc, thresholds_md)
+            if t_str=='adc':
+                t_soft_tilde = combine_ts_fn(seq_len, soft_tilde, weights_list[weights_id], 
+                                          map_idx2thr, thresholds_mc, thresholds_md)
+            else:
+                t_soft_tilde = np.mean(soft_tilde, axis=1)
         else:
             t_soft_tilde = soft_tilde[:,t_index,:]
             t_y = y[:,t_index,:]
             t_str = str(t_index)
             
         # loop over market change thresholds
-        for mc in range(len(thresholds_mc)):
-            thr_mc = thresholds_mc[mc]
+        for mc, thr_mc in enumerate(thresholds_mc):
+            #thr_mc = thresholds_mc[mc]
             # upper bound
             ub_mc = 1#thr_mc+granularity
             ys_mc = get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc)
             # loop over market direction thresholds
-            for md in range(len(thresholds_md)):
-                thr_md = thresholds_md[md]
+            for md, thr_md in enumerate(thresholds_md):
+                #thr_md = thresholds_md[md]
                 results = init_results_struct(epoch, thr_mc, thr_md, t_str)
                 # upper bound
                 ub_md = 1#thr_md+granularity
@@ -1734,7 +1736,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
-    GROIS99, ROIS99, _, _, _ = remove_outliers(GROI_vector, spreads, thr=.99)
+    GROIS99, ROIS99, _, _, _ = remove_outliers(GROI_vector, spreads, thr=.95)
     GROI99 = sum(GROIS99)
     ROI99 = sum(ROIS99)
     ROIS99 = [100*sum(GROIS99-spread) for spread in fixed_spread_ratios]

@@ -1200,15 +1200,25 @@ if __name__ == '__main__':
 #    list_thr_sl = [1000 for i in range(numberNetwors)]
 #    list_thr_tp = [1000 for i in range(numberNetwors)]
         
-    numberNetwors = 8
-    list_IDresults = ['RRNN01011k1K5ALR20bis','RRNN01011k2K5ALR20bis']+['RRNN01011k1K5BSR20bis','RRNN01011k2K5BSR20bis']+['RRNN01010k1K5ALR20','RRNN01010k2K5ALR20']+['RRNN01010k1K5BSR20','RRNN01010k2K5BSR20']
-    list_name = ['01011k1K5AL_12_1_.65_.55','01011k2K5AL_12_1_.65_.55']+['01040k1K5BS_12_1_.5_.65','01011k2K5BS_12_1_.5_.65']+['01040k1K5AL_9_2_.7_.6','01040k2K5AL_9_2_.7_.6']+['01040k1K5BS_10_2_.6_.6','01040k2K5BS_10_2_.6_.6']
-    list_epoch_journal = [12 for _ in range(2)]+[12 for _ in range(2)]+[9 for _ in range(2)]+[10 for _ in range(2)]
+#    numberNetwors = 8
+#    list_IDresults = ['RRNN01011k1K5ALR20bis','RRNN01011k2K5ALR20bis']+['RRNN01011k1K5BSR20bis','RRNN01011k2K5BSR20bis']+['RRNN01010k1K5ALR20','RRNN01010k2K5ALR20']+['RRNN01010k1K5BSR20','RRNN01010k2K5BSR20']
+#    list_name = ['01011k1K5AL_12_1_.65_.55','01011k2K5AL_12_1_.65_.55']+['01040k1K5BS_12_1_.5_.65','01011k2K5BS_12_1_.5_.65']+['01040k1K5AL_9_2_.7_.6','01040k2K5AL_9_2_.7_.6']+['01040k1K5BS_10_2_.6_.6','01040k2K5BS_10_2_.6_.6']
+#    list_epoch_journal = [12 for _ in range(2)]+[12 for _ in range(2)]+[9 for _ in range(2)]+[10 for _ in range(2)]
+##    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_t_index = [1 for _ in range(2)]+[1 for _ in range(2)]+[2 for _ in range(2)]+[2 for _ in range(2)]
+#    list_spread_ranges = [{'sp':[4],'th':[(.65,.55)]},{'sp':[4],'th':[(.65,.55)]}]+\
+#        [{'sp':[4],'th':[(.5,.65)]},{'sp':[4],'th':[(.5,.65)]}]+[{'sp':[3],'th':[(.7,.6)]},{'sp':[3],'th':[(.7,.6)]}]+\
+#        [{'sp':[3],'th':[(.6,.6)]},{'sp':[3],'th':[(.6,.6)]}]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
+        
+    numberNetwors = 4
+    list_IDresults = ['RRNN01010CMF180410T181109ACk1E12','RRNN01010CMF170927T180410ACk2E14']+['RRNN01011CMF180410T181109ACk1E14','RRNN01011CMF170927T180410ACk2E14']
+    list_name = ['01010k1K5AC_12_.7_.6','01010k2K5AC_14_.7_.6']+['01011k1K5AC_14_.7_.6','01010k1K5AC_14_.7_.6']
+    list_epoch_journal = [0,0,0,0]
 #    list_use_GRE = [True for i in range(numberNetwors)]
-    list_t_index = [1 for _ in range(2)]+[1 for _ in range(2)]+[2 for _ in range(2)]+[2 for _ in range(2)]
-    list_spread_ranges = [{'sp':[4],'th':[(.65,.55)]},{'sp':[4],'th':[(.65,.55)]}]+\
-        [{'sp':[4],'th':[(.5,.65)]},{'sp':[4],'th':[(.5,.65)]}]+[{'sp':[3],'th':[(.7,.6)]},{'sp':[3],'th':[(.7,.6)]}]+\
-        [{'sp':[3],'th':[(.6,.6)]},{'sp':[3],'th':[(.6,.6)]}]
+    list_t_index = [0 for _ in range(2)]+[0 for _ in range(2)]
+    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]+\
+        [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
     # depricated/not supported
     list_IDgre = [None for i in range(numberNetwors)]
@@ -1237,7 +1247,7 @@ if __name__ == '__main__':
                          str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
                          str(list_spread_ranges[i]['th'][0][1])
                          for i in range(numberNetwors)])+'.csv'
-    positions_file = start_time+'_'+'RRNN01011k1-k2K5ABR20'+'RRNN01010k1-k2K5ABR20'+'.csv'
+    positions_file = start_time+'_'+'RRNN01010-1CMF180410T181109ACk1-k2E12'+'.csv'
     
     strategys = [Strategy(direct=local_vars.results_directory,thr_sl=list_thr_sl[i], 
                           thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
@@ -1283,7 +1293,7 @@ if __name__ == '__main__':
             entry_ask_column = 'A1'
             exit_ask_column = 'A2'
             exit_bid_column = 'B2'
-            root_dir = 'D:/SDC/py/Data/'
+            root_dir = local_vars.data_dir#'D:/SDC/py/Data/'
             list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                                  list_journal_name[i], 
                                                  sep='\t').sort_values(
@@ -2326,3 +2336,16 @@ if __name__ == '__main__':
 #DONE. Total time: 99.64 mins
 #Results file: 190331195900results.p
 #Positions file: 190331195900_RRNN01011k1-k2K5ABR20RRNN01010k1-k2K5ABR20.csv
+
+# limit extGROI -.5%
+#Total GROI = 56.145% Total ROI = 27.651% Sum GROI = 65.683% Sum ROI = 31.297% Accumulated earnings 3129.71E
+#Total entries 1770 per entries 21.18 percent gross success 59.66% percent nett success 54.63% average loss 12.08p average win 13.27p RR 1 to 1.32
+#DONE. Total time: 175.53 mins
+#Results file: 190401103304results.p
+#Positions file: 190401103304_RRNN01011k1-k2K5ABR20RRNN01010k1-k2K5ABR20.csv
+    
+#Total GROI = 38.056% Total ROI = 22.909% Sum GROI = 42.193% Sum ROI = 25.379% Accumulated earnings 2537.94E
+#Total entries 783 per entries 25.19 percent gross success 61.94% percent nett success 56.96% average loss 13.08p average win 15.58p RR 1 to 1.58
+#DONE. Total time: 57.77 mins
+#Results file: 190404154828results.p
+#Positions file: 190404154828_RRNN01010-1CMF180410T181109ACk1-k2E12.csv

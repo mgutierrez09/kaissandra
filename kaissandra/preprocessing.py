@@ -241,11 +241,13 @@ def map_index2sets(K, fold_idx):
     sets_list[K-(fold_idx+1)] = 'Cv'
     return sets_list
 
-def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list):
+def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list, 
+                      first_day=dt.datetime(2016, 1, 1, 0, 0), 
+                      last_day=dt.datetime(2018, 11, 9, 0 ,0)):
     """ Find entries matching the edges """
     # find starting/end dates of the chunck
-    first_day=dt.datetime(2016, 1, 1, 0, 0)
-    last_day=dt.datetime(2018, 11, 9, 0 ,0)
+    
+    
 #    print(group_name)
     initenddates = group_name.split('/')[-1]
 #    ic_str = dts[0]
@@ -301,6 +303,16 @@ def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list):
 #    print("e_idx")
 #    print(e_idx)
     set_edges_idx = [p_idx, e_idx]
+#    print("set_edges_idx")
+#    print(set_edges_idx)
+#    print("i")
+#    print(i)
+#    print("T_idx[i+1]")
+#    print(T_idx[i+1])
+#    print("sets_list")
+#    print(sets_list)
+#    print("sets_list[T_idx[i+1]]")
+#    print(sets_list[T_idx[i+1]])
     if sets_list[T_idx[i+1]]=='Tr':
         edges_idx_tr.resize((edges_idx_tr.shape[0]+1, 2))
         edges_idx_tr[-1,:] = set_edges_idx
@@ -330,7 +342,14 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         build_XY_mode = config['build_XY_mode']
     else:
         build_XY_mode = 'K_fold'
-    
+    if 'first_day' in config:
+        first_day = dt.datetime.strptime(config['first_day'],'%Y.%m.%d')
+    else:
+        first_day = dt.datetime.strptime('2016.01.01','%Y.%m.%d')
+    if 'last_day' in config:
+        last_day = dt.datetime.strptime(config['last_day'],'%Y.%m.%d')
+    else:
+        last_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d')
     seq_len = config['seq_len']
     feature_keys_manual = config['feature_keys_manual']
     nFeatures = len(feature_keys_manual)
@@ -399,6 +418,9 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         # create support numpy vectors to speed up iterations
         v_support = Vars[:batch+seq_len, :, :]
         r_support = returns[init_idx_rets:, lookAheadIndex]
+#        print(init_idx_rets)
+#        print(returns.shape)
+#        print(r_support.shape)
 #        print("returns.shape")
 #        print(returns.shape)
 #        print("r_support.shape")
@@ -467,9 +489,13 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
                 list_index2sets = ['Tr','Cv']
         else:
             raise ValueError("build_XY_mode not known")
+#        print("print(list_index2sets)")
+#        print(list_index2sets)
         edges_tr_idx, edges_cv_idx = find_edge_indexes(dt_support, edges_dt, 
                                                        initenddates, fold_idx, 
-                                                       list_index2sets)
+                                                       list_index2sets,
+                                                       first_day=first_day,
+                                                       last_day=last_day)
         
         #samps_tr = 0
         for e in range(edges_tr_idx.shape[0]):
@@ -1477,12 +1503,16 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
     if 'filetag' in config:
         filetag = config['filetag']
     else:
-        filetag = config['IDweights'][1:]
+        filetag = config['IO_results_name']
     size_output_layer = config['size_output_layer']
     if 'n_bits_outputs' in config:
         n_bits_outputs = config['n_bits_outputs']
     else:
         n_bits_outputs = [size_output_layer]
+    if 'build_test_db' in config:
+        build_test_db = config['build_test_db']
+    else:
+        build_test_db = False
     
     hdf5_directory = local_vars.hdf5_directory
     IO_directory = local_vars.IO_directory
@@ -1500,14 +1530,20 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
             tag_stats = 'IOA'
     else:
         raise ValueError("feats_from_bids must be a bool")
-            
-    filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
-                        str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
+    
+    if not build_test_db:
+        filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
+                            str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
+        separators_directory = hdf5_directory+'separators/'
+    else:
+        filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
+                            str(nEventsPerStat)+'_nF'+str(nFeatures)+'_test.hdf5')
+        separators_directory = hdf5_directory+'separators_test/'
     
     edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
-    separators_directory = hdf5_directory+'separators/'
-    filename_tr = IO_directory+'IOKF'+config['IDweights']+'.hdf5'
-    filename_cv = IO_directory+'IOKF'+config['IO_results_name'][:-1]+'.hdf5'
+    
+    filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
+    filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
     
     if len(log)>0:
         write_log(filename_tr)
@@ -1642,7 +1678,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                 # get first day after separator
                 #day_s = separators.DateTime.iloc[s][0:10]
                 # check if number of events is not enough to build two features and one return
-                if nE>=3*nEventsPerStat+2*movingWindow:
+                if nE>=seq_len*(nEventsPerStat+movingWindow):
 #                    print("nE")
 #                    print(nE)
                     if 1:

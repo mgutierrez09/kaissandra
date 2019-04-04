@@ -139,6 +139,11 @@ def merge_separators_list(list_bussines_days, data, separators_list, thrs):
             # if there is a transition between training and testing dates
             if (time_difference.total_seconds()/60-24*60*time_difference.days>thrs or 
                 transition_train_test(data, prev_day, post_day)):
+#                print(time_difference.days)
+#                print(prev_day)
+#                print(post_day)
+#                print(time_difference.total_seconds()/60-24*60*time_difference.days)
+#                print('ifif')
                 # append day separators to separators
                 separators = separators.append(separators_list[s].iloc[-1]).append(separators_list[s+1].iloc[0])
             else:
@@ -152,6 +157,17 @@ def merge_separators_list(list_bussines_days, data, separators_list, thrs):
     # append last entry of last separator
     separators = separators.append(pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"],data=separators_list[-1].iloc[-1:]))
     return separators
+
+def find_bussines_days_v2(first_day=dt.datetime(2016, 1, 1, 0, 0).date(), 
+                          last_day=dt.datetime(2018, 11, 9, 0 ,0).date()):
+    """  """
+    delta_dates = last_day-first_day
+    dateTestDt = [first_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+    bussines_days = []
+    for d in dateTestDt:
+        if d.weekday()<5:
+            bussines_days.append(dt.date.strftime(d,'%Y.%m.%d'))
+    return bussines_days
 
 def find_bussines_days(data, directory_destination):
     # loop over all assets
@@ -212,9 +228,9 @@ if build_partial_raw and not build_test_db:
     directory_root = 'D:/SDC/py/Data/'
     separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
 elif build_test_db and not build_partial_raw:
-    hdf5_file_name = 'tradeinfo_test.hdf5'
+    hdf5_file_name = 'tradeinfo_test2.hdf5'
     directory_root = local_vars.data_test_dir
-    separators_directory_name = 'separators_test/'
+    separators_directory_name = 'separators_test3/'
     dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16',
                 '2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23',
                 '2018.11.26','2018.11.27','2018.11.28','2018.11.29','2018.11.30',
@@ -229,7 +245,11 @@ elif build_test_db and not build_partial_raw:
                 '2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01',
                 '2019.02.04','2019.02.05','2019.02.06','2019.02.07','2019.02.08',
                 '2019.02.11','2019.02.12','2019.02.13','2019.02.14','2019.02.15',
-                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22']
+                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22',
+                '2019.03.04','2019.03.05','2019.03.06','2019.03.07','2019.03.08',
+                '2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15',
+                '2019.03.18','2019.03.19','2019.03.20','2019.03.21','2019.03.22',
+                '2019.03.25','2019.03.26','2019.03.27','2019.03.28','2019.03.29']
 elif not build_test_db and not build_partial_raw:
     hdf5_file_name = 'tradeinfo.hdf5'
     separators_directory_name = 'separators/'
@@ -278,7 +298,7 @@ if not os.path.exists(directory_destination+separators_directory_name):
 # thresholds for separators
 bidThresDay = 0.0
 bidThresNight = 0.0
-minThresDay = 15
+minThresDay = 20
 minThresNight = 20
 
 # reset file
@@ -291,10 +311,14 @@ if reset_file:
 f = h5py.File(directory_destination+hdf5_file_name,'a')
 
 # get gussines days
-list_bussines_days = find_bussines_days(data, directory_destination)
+#list_bussines_days = find_bussines_days(data, directory_destination)
+first_day = dt.datetime.strptime(dateTest[0], '%Y.%m.%d').date()
+last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
+list_bussines_days = find_bussines_days_v2(first_day=first_day, 
+                                           last_day=last_day)
     
 # loop over all assets
-for ass in data.assets:
+for ass in data.assets[:1]:
     thisAsset = data.AllAssets[str(ass)]
     print(thisAsset)
     directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
@@ -438,8 +462,9 @@ for ass in data.assets:
         if tradeInfo.shape[0]>0:
             if not trusted_source:
                 # extract separators
-                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
+                this_separators = extractSeparators(tradeInfo,minThresDay,minThresNight,
                                                        bidThresDay,bidThresNight,[])
+                
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
                 list_separators_older.append(this_separators)
@@ -514,7 +539,7 @@ for ass in data.assets:
             # add old separators' bottom
             list_separators_older.append(old_separators.iloc[:1].append(old_separators.iloc[-1:]))
         # merge separators
-        new_older_separators = merge_separators_list(list_bussines_days, data, list_separators_older, inter_day_thres)
+        new_older_separators = merge_separators_list(list_bussines_days, data, list_separators_older, minThresDay)
         # save new separators
         if old_separators.shape[0]>0:
             # if separators exist, remove new older bottom sep and old newer lit sep
@@ -568,6 +593,7 @@ for ass in data.assets:
                 # get eparators from latest info
                 this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                        bidThresDay,bidThresNight,[])
+#                print(this_separators)
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
                 # update list
@@ -616,7 +642,7 @@ for ass in data.assets:
             # build separators list
             list_separators_newer.append(new_separators_newer)
         # merge separators
-        new_newer_separators = merge_separators_list(list_bussines_days, data, list_separators_newer, inter_day_thres)
+        new_newer_separators = merge_separators_list(list_bussines_days, data, list_separators_newer, minThresDay)
         # save new separators
         if old_separators.shape[0]>0:
             separators = old_separators.iloc[:-1].append(new_newer_separators.iloc[1:])

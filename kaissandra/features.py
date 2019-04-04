@@ -295,7 +295,7 @@ def get_features(*ins):
     else:
         build_partial_raw = False
         
-    
+    assert(not (build_test_db and save_stats))
     if build_partial_raw:
         # TODO: get init/end dates from dateTest in Data
         int_date = '180928'
@@ -349,7 +349,7 @@ def get_features(*ins):
         group_raw = f_raw[thisAsset]
         #bid_means[ass_idx] = np.mean(group_raw["SymbolBid"])
         # load separators
-        separators = load_separators(data, thisAsset, separators_directory, from_txt=1)
+        separators = load_separators(thisAsset, separators_directory, from_txt=1)
         
         if thisAsset==reset_asset:
             print(thisAsset+" reset")

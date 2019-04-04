@@ -184,7 +184,7 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
 
 def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[], 
                         build_IDrs=False, its=15, sufix='', IDr_merged='', log='', 
-                        just_build=False, if_merge_results=True):
+                        just_build=False, if_merge_results=False,IDweights=''):
     """  """
     if 'build_XY_mode' in entries:
         build_XY_mode = entries['build_XY_mode']
@@ -228,12 +228,18 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
         raise ValueError('results_from not recognized')
     tag = 'FE'# fixed edges
     entries['config_name'] = 'C'+rootname_config+tag
-    entries['IDweights'] = 'W'+rootname_config+tag+extW
+    if IDweights=='':
+        entries['IDweights'] = 'W'+rootname_config+tag+extW
+    else:
+        entries['IDweights'] = IDweights
     entries['IDresults'] = 'R'+rootname_config+tag+extR+sufix
+    entries['IO_results_name'] = 'R'+rootname_config+tag+extW
     entries['edge_dates'] = edge_dates
+    assert(build_XY_mode=='manual')
     entries['build_XY_mode'] = build_XY_mode
     config = configuration(entries)
     IDresults = config['IDresults']
+    
     dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
                                                                      log=log)
     
@@ -270,6 +276,94 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
         f_IOte.close()
     if not just_build and if_merge_results:
         merge_results(IDrs, IDr_merged)
+        
+def combine_models(entries, model_names, epochs, rootname_config, sufix='', 
+                   melting_func='mean', tag_from_till='',log=''):
+    """  """
+    import numpy as np
+    from kaissandra.results2 import init_results_dir, get_results
+    
+    results_directory = local_vars.results_directory
+    if 'build_XY_mode' in entries:
+        build_XY_mode = entries['build_XY_mode']
+    else:
+        build_XY_mode = 'manual'
+    assert(build_XY_mode=='manual')
+    if 'edge_dates' in entries:
+        edge_dates = entries['edge_dates']
+    else:
+        edge_dates = ['2017.09.27']
+    if 'feats_from_bids' in entries:
+        feats_from_bids = entries['feats_from_bids']
+    else:
+        feats_from_bids = False
+    if 'results_from' in entries:
+        results_from = entries['results_from']
+    else:
+        results_from = 'COMB'
+#        size_hidden_layer = 3
+    if feats_from_bids==False:
+        extW = 'A'
+        extR = 'A'
+    else:
+        extW = 'B'
+        extR = 'B'
+    if results_from=='COMB':
+        extR = extR+'C'
+    elif results_from=='ASKS':
+        extR = extR+'L'
+    elif results_from=='BIDS':
+        extR = extR+'S'
+    else:
+        raise ValueError('results_from not recognized')
+    tag = 'CM'+tag_from_till# combine models+from day till day
+    
+    entries['config_name'] = 'C'+rootname_config+tag
+#    if IDweights=='':
+#        entries['IDweights'] = 'W'+rootname_config+tag+extW
+#    else:
+    IDresults = 'R'+rootname_config+tag+extR+sufix
+    entries['IDresults'] = IDresults
+    entries['IO_results_name'] = 'R'+rootname_config+tag+extW
+    entries['edge_dates'] = edge_dates
+    assert(build_XY_mode=='manual')
+    entries['build_XY_mode'] = build_XY_mode
+    
+    config = configuration(entries)
+    seq_len = config['seq_len']
+    size_output_layer = config['size_output_layer']
+    dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
+                                                                     log=log)
+    f_IOte = h5py.File(dirfilename_te,'r')
+    Yte = f_IOte['Y']
+    Xte = f_IOte['X']
+    DTA = pickle.load( open( IO_results_name, "rb" ))
+    n_models = len(model_names)
+    outputs_stacked = np.zeros((Yte.shape[0], n_models*seq_len, size_output_layer))
+    J_tests = 0
+    for i, name in enumerate(model_names):
+        config['IDweights'] = name
+        startFrom = epochs[i]
+        endAt = epochs[i]
+        output, J_test = RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
+                       startFrom=startFrom, endAt=endAt, config=config, 
+                       if_get_results=False, log=log)
+        J_tests += J_test
+        outputs_stacked[:,i*seq_len:(i+1)*seq_len,:] = output
+    J_tests = J_tests/n_models
+    # apply melting function
+    if melting_func=='mean':
+        outputs_melted = np.zeros((Yte.shape[0], 1, size_output_layer))
+        outputs_melted[:,0,:] = np.mean(outputs_stacked, axis=1)
+    else:
+        raise ValueError("melting_func not supported")
+    # get resutls
+    results_filename, costs_filename = init_results_dir(results_directory, IDresults)
+    epoch = 0
+    costs_dict = {str(epoch):0.0}
+    get_results(config, Yte, DTA, J_test, outputs_melted, costs_dict, epoch, -1, 
+                results_filename, costs_filename, from_var=False)
+        
 if __name__=='__main__':
     pass
     #automate(['C3012INVO'])

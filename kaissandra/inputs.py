@@ -387,7 +387,7 @@ def extractFeaturesLive(tradeInfoLive, data, featuresLive,parSarStruct,em, list_
     
     return featuresLive,parSarStruct,em
 
-def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNight,dateTest, tOt="tr"):
+def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNight,dateTest, tOt="tr", inter_day_thres=20):
     """
     <DocString>
     """
@@ -434,7 +434,7 @@ def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNi
     deltasInsSecs = (dTs2-dTs1).astype('timedelta64[s]')
     # Find days transition indexes
     dayChange = (dTs1.DateTime.dt.day!=dTs2.DateTime.dt.day)
-    deltasInsSecs.DateTime = deltasInsSecs.DateTime-60*6*dayChange
+    deltasInsSecs.DateTime = deltasInsSecs.DateTime-60*inter_day_thres*dayChange
 
     # Find weekend transition indexes
     weekChange = (dTs1.DateTime.dt.dayofweek==4) & (dTs2.DateTime.dt.dayofweek==0)
