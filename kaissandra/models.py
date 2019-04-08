@@ -78,7 +78,7 @@ class Model:
         cost[str(epoch)] = epoch_cost
         pickle.dump(cost, open( directory+"cost.p", "wb" ))
         
-    def _load_graph(self, sess, ID, epoch=-1):
+    def _load_graph(self, sess, ID, epoch=-1, live='n'):
         """ <DocString> """
         # Create placeholders
         if os.path.exists(local_vars.weights_directory+ID+"/"):
@@ -94,10 +94,12 @@ class Model:
             print("Parameters loaded. Epoch "+str(epoch))
             epoch += 1
             
-        else:
+        elif live=='n':
             #init_op = tf.global_variables_initializer()
             sess.run(tf.global_variables_initializer())
             epoch = 0
+        else:
+            raise ValueError("ERROR! Weights don't exist for live session")
         return epoch
             
     def save_output_fn(self, output, cost, method='pickle', tag='NNIO'):
@@ -568,11 +570,11 @@ class RNN(Model):
         Wb["b"] = [b_mc, b_md, b_mg]
         return Wb
 
-    def predict(self, X, epoch=0):
+    def predict(self, X):
         """ Predict output for features input X. If an interactive session
         has not yet been initialzed, this function does it. """
-        if not hasattr(self, '_live_session'):
-            self.init_interactive_session(epoch=epoch)
+#        if not hasattr(self, '_live_session'):
+#            self.init_interactive_session(epoch=epoch)
         test_data_feed = {
             self.input: X,
             self.dropout: 1.0
@@ -582,15 +584,44 @@ class RNN(Model):
     
     def init_interactive_session(self, epoch=0):
         """ Initialize an interactive session for live predictions """
+        print(self.IDweights)
+        print(epoch)
+        print("Initing interactive session of "+self.IDweights+" E "+str(epoch))
         graph = tf.Graph()
         with graph.as_default():
             self._build_model()
             self._saver = tf.train.Saver(max_to_keep = None)
             self._live_session = tf.Session()
-            self._load_graph(self._sess, self.IDweights, epoch)
+            self._load_graph(self._live_session, self.IDweights, epoch)
             
         return self
 
+class StackedModel(Model):
+    """  """
+    def __init__(self, configs, model_names):
+        self.model_names = model_names
+        self.n_models = len(self.model_names)
+        self.size_output_layer = configs[0]['size_output_layer']
+        self.seq_len = configs[0]['seq_len']
+        self.combine = configs[0]['combine_ts']['params_combine'][0]['alg']
+        self.models = [RNN(config) for config in configs]
+    
+    def predict(self, X):
+        """ Predict output for features input X. """
+        output = np.zeros((1, self.n_models*self.seq_len, self.size_output_layer))
+        # loop over models to run predict on each one
+        for m, model in enumerate(self.models):
+            output[:,m*self.seq_len:(m+1)*self.seq_len,:] = model.predict(X)
+        if self.combine == 'mean':
+            # reduce mean
+            output = np.mean(output, axis=1, keepdims=True)
+        return output
+    
+    def init_interactive_session(self, epochs=['12', '14']):
+        """ Initialize the interactive sessions for live predictions """
+        self.models = [model.init_interactive_session(epoch=epochs[e]) for e,model in enumerate(self.models)]
+        return self
+    
 class DNN(Model):
     """ Deep neural network model """
     def __init__(self, params={}):

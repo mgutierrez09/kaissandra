@@ -22,14 +22,14 @@ def write_log(log_message, log_file):
         file.close()
         return None
 
-def configuration(*ins):
+def configuration(entries, save=True):
     """
     <DocString>
     """
-    if len(ins)>0:
-        entries = ins[0]
-    else:
-        entries = {}
+#    if len(ins)>0:
+#        entries = ins[0]
+#    else:
+#        entries = {}
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
@@ -375,11 +375,15 @@ def configuration(*ins):
     
         # save config file for later use
     
-        if not os.path.exists(local_vars.config_directory):
+        if not os.path.exists(local_vars.config_directory) and save:
             os.mkdir(local_vars.config_directory)
-        pickle.dump( config, open( config_filename, "wb" ))
         print(config)
-        print("Config file "+config_filename+" saved")
+        if save:
+            pickle.dump( config, open( config_filename, "wb" ))
+            print("Config file "+config_filename+" saved")
+        else:
+            print("Config file NOT saved")
+        
     else:
         config = pickle.load( open( config_filename, "rb" ))
         for key, val in entries.items():
@@ -480,7 +484,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TTEST'
+    config_name = 'T01011k1k2'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -498,36 +502,147 @@ def configuration_trader(*ins):
                 '2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01',
                 '2019.02.04','2019.02.05','2019.02.06','2019.02.07','2019.02.08',
                 '2019.02.11','2019.02.12','2019.02.13','2019.02.14','2019.02.15',
-                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22']
+                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22',
+                '2019.02.25','2019.02.26','2019.02.27','2019.02.28','2019.03.01',
+                '2019.03.04','2019.03.05','2019.03.06','2019.03.07','2019.03.08',
+                '2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15',
+                '2019.03.18','2019.03.19','2019.03.20','2019.03.21','2019.03.22',
+                '2019.03.25','2019.03.26','2019.03.27','2019.03.28','2019.03.29']
+        
+        # T01010-1
+#        numberNetworks = 2
+#        IDresults = ['RRNN01010CMF181112T190329ACk1k2E12E14','RRNN01011CMF181112T190329ACk1k2E14E14']
+#        IDweights = [[['WRNN01010k1K5A','WRNN01010k2K5A']],[['WRNN01011k1K5A','WRNN01011k2K5A']]]
+#        list_name = ['01010k1k2K5ACE1214MC7MD6','01010k1k2K5ACE14MC65MD6']
+#        #list_epoch_journal = [0 for _ in range(numberNetworks)]
+#    #    list_use_GRE = [True for i in range(numberNetwors)]
+#        #list_t_index = [0 for _ in range(2)]
+#        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'},
+#                               {'sp':[5],'th':[(.65,.6)],'dir':'COMB'}]
+#        list_lim_groi_ext = [-10.0 for i in range(numberNetworks)]
+#        
+#        mWs = [500,500]
+#        nExSs = [5000,5000]
+#        outputGains = [1, .8]
+#        #lBs = [1300]
+#        list_feats_from_bids = [False,False]
+#        combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
+#        first_day = '2018.11.12'
+#        last_day = '2019.03.29'
+#        config_names = ['config_name'+str(i) for i in range(numberNetworks)]
+#        
+#        entries_list = [{'config_name':config_names[i],'results_from':list_spread_ranges[i]['dir'],
+#                         'feats_from_bids':list_feats_from_bids[i],
+#                       'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
+#                       'outputGain':outputGains[i],'movingWindow':mWs[i],
+#                       'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
+#                       'combine_ts':combine_ts} for i in range(numberNetworks)]
+#        config_list = [configuration(entries, save=False) for entries in entries_list]
+#        IDepoch = [[12,14],[14,14]]
+#        netNames = ['RRNN01010','RRNN01011']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+#        list_t_indexs = [[0],[0]]
+#        list_inv_out = [True for i in range(numberNetworks)]
+#        #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
+#        list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+#        # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
+#        #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
+#        list_priorities = [[0],[1]]#[[3],[2],[1],[0]]
+#        phase_shifts = [1 for i in range(numberNetworks)]
+#        list_thr_sl = [1000 for i in range(numberNetworks)]
+#        list_thr_tp = [1000 for i in range(numberNetworks)]
+        
+        
+        #list_lim_groi_ext = [-100 for i in range(numberNetworks)]
+        
+        
+        
+        # 'T01010-1k1k2'
+#        numberNetworks = 2
+#        IDresults = ['RRNN01010CMF181112T190329ACk1E12','RRNN01011CMF181112T190329ACk1E14']
+#        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01011k1K5A','WRNN01011k2K5A']]
+#        list_name = ['01010k1k2K5ACE1214MC7MD6','01011k1k2K5ACE1214MC65MD6']
+#        #list_epoch_journal = [0 for _ in range(numberNetworks)]
+#    #    list_use_GRE = [True for i in range(numberNetwors)]
+#        #list_t_index = [0 for _ in range(2)]
+#        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'},
+#                              {'sp':[5],'th':[(.65,.6)],'dir':'COMB'}]
+#        
+#        mWs = [500,500]
+#        nExSs = [5000,5000]
+#        outputGains = [1,.8]
+#        #lBs = [1300]
+#        list_feats_from_bids = [False,False]
+#        combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
+#        first_day = '2018.11.12'
+#        last_day = '2019.03.29'
+#        config_names = ['config_name'+str(i) for i in range(numberNetworks)]
+#        stacked = [2,2]
+#        
+#        entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
+#                         'results_from':list_spread_ranges[i]['dir'],
+#                         'feats_from_bids':list_feats_from_bids[i],
+#                       'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
+#                       'outputGain':outputGains[i],'movingWindow':mWs[i],
+#                       'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
+#                       'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
+#        config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
+#        IDepoch = [[12,14],[14,14]]
+#        netNames = ['RRNN01010k1k2','RRNN01011k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+#        list_t_indexs = [[0],[0]]
+#        list_inv_out = [True for i in range(numberNetworks)]
+#        #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
+#        list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+#        # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
+#        #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
+#        list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
+#        phase_shifts = [1 for i in range(numberNetworks)]
+        
+        # T01011k1k2
         numberNetworks = 1
-        IDweights = ['000318INVO']
-        IDresults = ['100318INVO']
-        lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
-        list_name = ['15e_1t_77m_2p']
-        IDepoch = ['15']
-        netNames = ['31815']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
-        list_t_indexs = [[1]]
+        IDresults = ['RRNN01011CMF181112T190329ACk1E14']
+        IDweights = [['WRNN01011k1K5A','WRNN01011k2K5A']]
+        list_name = ['01011k1k2K5ACE1214MC65MD6']
+        #list_epoch_journal = [0 for _ in range(numberNetworks)]
+    #    list_use_GRE = [True for i in range(numberNetwors)]
+        #list_t_index = [0 for _ in range(2)]
+        list_spread_ranges = [{'sp':[5],'th':[(.65,.6)],'dir':'COMB'}]
+        
+        mWs = [500]
+        nExSs = [5000]
+        outputGains = [.8]
+        #lBs = [1300]
+        list_feats_from_bids = [False]
+        combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
+        first_day = '2018.11.12'
+        last_day = '2019.03.29'
+        config_names = ['config_name'+str(i) for i in range(numberNetworks)]
+        stacked = [2]
+        
+        entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
+                         'results_from':list_spread_ranges[i]['dir'],
+                         'feats_from_bids':list_feats_from_bids[i],
+                       'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
+                       'outputGain':outputGains[i],'movingWindow':mWs[i],
+                       'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
+                       'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
+        config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
+        IDepoch = [[14,14]]
+        netNames = ['RRNN01011k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+        list_t_indexs = [[0]]
         list_inv_out = [True for i in range(numberNetworks)]
-        list_feats_from = ['B']#['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
+        #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
-        list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
+        #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
         list_priorities = [[0]]#[[3],[2],[1],[0]]
         phase_shifts = [1 for i in range(numberNetworks)]
-        list_thr_sl = [1000]
+        
+        
+        list_lim_groi_ext = [-10.0 for i in range(numberNetworks)]
+        list_thr_sl = [1000 for i in range(numberNetworks)]
         list_thr_tp = [1000 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
-        mWs = [100]#[500,500,200,200]
-        nExSs = [1000]#[5000,5000,2000,2000]
-        lBs = [1300]#[6500,6500,2600,2600]#[1300]
-        list_lim_groi_ext = [-100 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
-        
-        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
-                      'L':[3 for i in range(numberNetworks)],
-                      'size_output_layer':[5 for i in range(numberNetworks)],
-                      'outputGain':[1 for i in range(numberNetworks)]}
-        
         list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
         list_lb_mc_op = [.5 for i in range(numberNetworks)]
         list_lb_md_op = [.8 for i in range(numberNetworks)]
@@ -544,12 +659,18 @@ def configuration_trader(*ins):
         list_if_dir_change_close = [False for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
         
+        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
+                      'L':[3 for i in range(numberNetworks)],
+                      'size_output_layer':[5 for i in range(numberNetworks)],
+                      'outputGain':[1 for i in range(numberNetworks)]}
+        
         config = {'config_name':config_name,
+                  'config_list':config_list,
                   'dateTest':dateTest,
                   'numberNetworks':numberNetworks,
                   'IDweights':IDweights,
                   'IDresults':IDresults,
-                  'lIDs':lIDs,
+                  #'lIDs':lIDs,
                   'list_name':list_name,
                   'IDepoch':IDepoch,
                   'netNames':netNames,
@@ -558,14 +679,14 @@ def configuration_trader(*ins):
                   'list_entry_strategy':list_entry_strategy,
                   'list_spread_ranges':list_spread_ranges,
                   'list_priorities':list_priorities,
-                  'list_feats_from':list_feats_from,
+                  #'list_feats_from':list_feats_from,
                   'phase_shifts':phase_shifts,
                   'list_thr_sl':list_thr_sl,
                   'list_thr_tp':list_thr_tp,
                   'delays':delays,
                   'mWs':mWs,
                   'nExSs':nExSs,
-                  'lBs':lBs,
+                  #'lBs':lBs,
                   'list_lim_groi_ext':list_lim_groi_ext,
                   'list_w_str':list_w_str,
                   'model_dict':model_dict,

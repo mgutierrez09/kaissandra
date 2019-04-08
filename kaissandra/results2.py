@@ -1246,7 +1246,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                 # save results
                 save_results_fn(results_filename, results)
                 # save journal
-                if save_journal and (thr_mc>.5 or thr_md>.5):
+                if save_journal:# and (thr_mc>.5 or thr_md>.5):
                     journal_dir = resultsDir+IDresults+'/journal/'
                     journal_id = 'J_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
                     ext = '.csv'
