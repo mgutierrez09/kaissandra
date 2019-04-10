@@ -409,6 +409,7 @@ class Trader:
         bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
         p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
         p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
+        entry_time = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
         #entry_time = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
         
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]] = self.next_candidate
@@ -419,6 +420,7 @@ class Trader:
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet = bet
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc = p_mc
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md = p_md
+        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time = entry_time
         #self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time = entry_time
     
     def is_opened(self, idx):
@@ -1158,17 +1160,29 @@ if __name__ == '__main__':
 #    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
 #    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
     
-    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN01010-1CMF180410T181109ACk1-k2E12'+'.csv'
+    
 #    TEST CASE: 190405174821_RRNN01010-1CMF180410T181109ACk1-k2E12
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF181112T190329ACk1k2E12E14','RRNN01011CMF181112T190329ACk1k2E14E14']
+#    list_name = ['01010k1k2K5ACE1214MC7MD.6','01010k1k2K5ACE14MC65MD6']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+##    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(2)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.65,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+    
+    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+    positions_file = start_time+'_'+'RRNN01010-1RiCMF180410T181109ACk12E12141414MC765MD6'+'.csv'
+#    190409154124_RRNN01010RiCMF181112T190329ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011RiCMF181112T190329ACk1k2E14E14E0TI0MC0.65MD0.6
     numberNetwors = 2
-    list_IDresults = ['RRNN01010CMF181112T190329ACk1k2E12E14','RRNN01011CMF181112T190329ACk1k2E14E14']
-    list_name = ['01010k1k2K5ACE1214MC7MD.6','01010k1k2K5ACE14MC65MD6']
+    list_IDresults = ['RRNN01010RiCMF181112T190329ACk1k2E12E14','RRNN01011RiCMF181112T190329ACk1k2E14E14']
+    list_name = ['01010Rik1k2K5ACE1214MC7MD.6','01011Rik1k2K5ACE14MC55MD55']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
 #    list_use_GRE = [True for i in range(numberNetwors)]
     list_t_index = [0 for _ in range(2)]
     list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.65,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+    
     # depricated/not supported
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
     list_IDgre = [None for i in range(numberNetwors)]
@@ -2346,3 +2360,10 @@ if __name__ == '__main__':
 #DONE. Total time: 22.59 mins
 #Results file: 190405174821results.p
 #Positions file: 190405174821_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
+
+
+#Total GROI = 23.464% Total ROI = 11.428% Sum GROI = 24.063% Sum ROI = 11.554% Accumulated earnings 1155.40E
+#Total entries 533 per entries 17.48 percent gross success 59.66% percent nett success 54.41% average loss 15.74p average win 17.18p RR 1 to 1.30
+#DONE. Total time: 23.86 mins
+#Results file: 190409154124results.p
+#Positions file: 190409154124_RRNN01010RiCMF181112T190329ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011RiCMF181112T190329ACk1k2E14E14E0TI0MC0.65MD0.6.csv

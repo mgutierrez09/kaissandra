@@ -221,7 +221,7 @@ class Strategy():
                  priorities=[0],lim_groi_ext=-.02):
         
         self.name = name
-        self.dir_origin = directw
+        self.dir_origin = direct
         self.thr_sl=thr_sl
         self.thr_tp=thr_tp
         

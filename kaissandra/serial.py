@@ -602,7 +602,7 @@ class Trader:
     def check_contition_for_opening(self, t):
         '''
         '''
-        
+        reason = ''
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
         margin = 0.0
@@ -621,24 +621,39 @@ class Trader:
         elif not this_strategy.fix_spread and this_strategy.entry_strategy=='gre':
             condition_open = self.next_candidate.profitability>e_spread+margin
         elif this_strategy.entry_strategy=='spread_ranges':
-            condition_open= self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
-                e_spread<=this_strategy.info_spread_ranges['sp'][t] and\
-                self.direction_map(self.next_candidate.direction, 
-                                   self.next_candidate.strategy.info_spread_ranges['dir'][t])
+            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
+            cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][t]
+            cond_bet = self.direction_map(self.next_candidate.direction, 
+                                   self.next_candidate.strategy.info_spread_ranges['dir'])
+            condition_open= cond_pmc and\
+                cond_pmd and\
+                cond_spread and\
+                cond_bet
+            if not cond_pmc:
+                reason += 'pmc'
+            if not cond_pmd:
+                reason += 'pmd'
+            if not cond_spread:
+                reason += 'spread'
+            if not cond_bet:
+                reason += 'bet'
         else:
             #print("ERROR: fix_spread cannot be fixed if GRE is in use")
             raise ValueError("fix_spread cannot be fixed if GRE is in use")
             
-        return condition_open
+        return condition_open, reason
     
     def check_same_direction(self, ass_id):
-        """  """
+        """ Check that extension candidate is in the same direction as current
+        position. """
         return self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]\
                                 .direction==self.next_candidate.direction
     
     def check_remain_samps(self, ass_id):
-        """  """
+        """ Check that the number of samples for extantion is larger than the 
+        remaining ones. This situation can happen in multi-network environments
+        if the number of events of one network is smaller than others. """
         samps_extension = self.next_candidate.deadline
         samps_remaining = self.list_deadlines[self.map_ass_idx2pos_idx[ass_id]]-\
             self.list_count_events[self.map_ass_idx2pos_idx[ass_id]]
@@ -663,13 +678,29 @@ class Trader:
             condition_extension = (self.next_candidate.profitability>margin and 
                                   100*curr_GROI>=this_strategy.lim_groi_ext)
         elif this_strategy.entry_strategy=='spread_ranges':
-            condition_extension = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and \
-                100*curr_GROI>=this_strategy.lim_groi_ext and self.direction_map(self.next_candidate.direction, 
-                                   this_strategy.info_spread_ranges['dir'][t] and not force_no_extesion)
+            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
+            cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
+            cond_bet = self.direction_map(self.next_candidate.direction, 
+                                   this_strategy.info_spread_ranges['dir'])
+            condition_extension = cond_pmc and\
+                cond_pmd and \
+                cond_groi and cond_bet \
+                and not force_no_extesion
         else:
             raise ValueError("Wrong entry strategy")            
-        return condition_extension
+        reason = ''
+        if not cond_pmc:
+            reason+='pmc'
+        if not cond_pmd:
+            reason+='pmd'
+        if not cond_groi:
+            reason+='groi'
+        if not cond_bet:
+            reason+='bet'
+        if force_no_extesion:
+            reason+='bet'
+        return condition_extension, reason
 
     def update_stoploss(self, idx, bid):
         # update stoploss
@@ -1146,7 +1177,7 @@ class Trader:
                 # open market
                 if not self.is_opened(ass_id):
                     # check if condition for opening is met
-                    condition_open = self.check_contition_for_opening(t)
+                    condition_open, reason = self.check_contition_for_opening(t)
                     if condition_open:
                         # assign budget
                         lots = self.assign_lots(new_entry[entry_time_column])
@@ -1174,13 +1205,17 @@ class Trader:
                                 ### possible
                                 #self.initialize_resources_swap(directory_MT5_ass)
                     else:
-                        pass
-        #                print(" Condition not met")
+                        out = new_entry[entry_time_column]+" not opened "+\
+                                  thisAsset+" due to "+reason
+                        if verbose_trader:
+                            print("\r"+out)
+                        self.write_log(out)
                 else: # position is opened
                     # check for extension
                     if self.check_primary_condition_for_extention(ass_id):
                         curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
-                        if self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t):    
+                        extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t)
+                        if extention:    
                             # include third condition for thresholds
                             # extend deadline
                             if not run_back_test:
@@ -1208,7 +1243,10 @@ class Trader:
                             self.write_log(out)
                         else: # if candidate for extension does not meet requirements
                             out = new_entry[entry_time_column]+" not extended "+\
-                                  thisAsset+" current GROI={0:.2f}p".format(1/self.pip*curr_GROI)
+                                  thisAsset+" due to "+reason
+                            if verbose_trader:
+                                print("\r"+out)
+                            self.write_log(out)
                     else: # if direction is different
                         this_strategy = self.next_candidate.strategy
                         if this_strategy.if_dir_change_close:
@@ -1477,7 +1515,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
     channels = config['channels']
     noVarFeats = config['noVarFeatsManual']
     lookAheadIndex = config['lookAheadIndex']
-    size_output_layer = config['size_output_layer']
+    n_bits_mg = config['n_bits_outputs'][-1]
     seq_len = config['seq_len']
     outputGain = config['outputGain']
 #    thr_md = 0.5
@@ -1672,11 +1710,15 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 prob_mc = np.array([soft_tilde_t[0,0]])
                             
                 if prob_mc>thr_mc:
-                    Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#np.argmax(soft_tilde_t[0,1:3])#np.array([])
+                    Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
                 else:
-                    Y_tilde_idx = int((size_output_layer-1)/2) # zero index
-                                
-                Y_tilde = np.array([Y_tilde_idx-(size_output_layer-1)/2]).astype(int)
+                    Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
+                Y_tilde = np.array([Y_tilde_idx-(n_bits_mg-1)/2]).astype(int)
+#                
+#                if prob_mc>thr_mc:
+#                    Y_tilde = np.array([(-1)**(1-np.argmax(soft_tilde_t[0,1:3]))]).astype(int)
+#                else:
+#                    Y_tilde = np.array([0])
                 prob_md = np.array([np.max([soft_tilde_t[0,1],soft_tilde_t[0,2]])])
                 prob_mg = soft_tilde_t[0:,np.argmax(soft_tilde_t[0,3:])]
                 
@@ -1696,8 +1738,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     countOut+=1
                                 
                     Y = (np.minimum(np.maximum(np.sign(Output_i)*np.round(
-                            abs(Output_i)*outputGain),-(size_output_layer
-                               -1)/2),(size_output_layer-1)/2)).astype(int)
+                            abs(Output_i)*outputGain),-(n_bits_mg
+                               -1)/2),(n_bits_mg-1)/2)).astype(int)
                     look_back_index = -(min(nChannels+1,list_Ylive[sc][t_index].shape[0]))#model.seq_len+3#+2#-nChannels-t_indexes[t_index]-1
                     #print("look_back_index")
                     #print(look_back_index)
@@ -1719,7 +1761,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     countOuts[t_index][c]+=1
                     
                     # if prediction is different than 0, evaluate
-                    if pred!=0:
+                    if p_mc>.5:#pred!=0:
                         
                         # entry ask and bid
                         Ai = EOF.SymbolAsk.iloc[c]
@@ -1761,8 +1803,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         #resultInfo = pd.DataFrame(columns = columnsResultInfo)
                         resultInfo = pd.DataFrame(newEntry,index=[0])[pd.DataFrame(
                                      columns = columnsResultInfo).columns.tolist()]
-                        if p_mc>.5:
-                            resultInfo.to_csv(results_network[t_index]+results_file[t_index],mode="a",
+                        #if p_mc>.5:
+                        resultInfo.to_csv(results_network[t_index]+results_file[t_index],mode="a",
                                               header=False,index=False,sep='\t',
                                               float_format='%.5f')
                         # print entry
@@ -2578,8 +2620,7 @@ def run(config_traders_list, running_assets, start_time):
         list_if_dir_change_close = config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
         list_if_dir_change_extend = config_trader['list_if_dir_change_extend']#[False for i in range(numberNetworks)]
 #        list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
-#                          dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]
-        
+#                          dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]        
         # add unique networks
         for nn in range(numberNetworks):
             if netNames[nn] not in unique_nets:
@@ -3018,10 +3059,9 @@ def launch(*ins):
 #            #config_trader = retrieve_config(ins[0])
 #            list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T01011k1k2')]
-    synchroned_run = True
-    assets = [7]#[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
-    
+        list_config_traders = [retrieve_config('T01010-1k1k2')]
+    synchroned_run = False
+    assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
     running_assets = assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets, directory_MT5)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
