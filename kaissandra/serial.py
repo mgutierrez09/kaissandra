@@ -2000,13 +2000,13 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
             
         if not os.path.exists(directory_MT5_ass):
             #try:
-            os.mkdir(directory_MT5_ass)
+            os.makedirs(directory_MT5_ass)
             print(directory_MT5_ass+" Directiory created")
             #except:
                 #print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
         
         if not os.path.exists(io_ass_dir):
-            os.mkdir(io_ass_dir)
+            os.makedirs(io_ass_dir)
             print(io_ass_dir+" Directiory created")
 
 #def start_timer(ass_idx):
