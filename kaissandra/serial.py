@@ -649,6 +649,11 @@ class Trader:
         position. """
         return self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]\
                                 .direction==self.next_candidate.direction
+                                
+    def check_same_strategy(self, ass_id):
+        """ Check if candidate and current position share same strategy """
+        return self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]\
+                                .strategy.name==self.next_candidate.strategy.name
     
     def check_remain_samps(self, ass_id):
         """ Check that the number of samples for extantion is larger than the 
@@ -1173,7 +1178,7 @@ class Trader:
                 self.add_new_candidate(position)
                 ass_idx = self.ass2index_mapping[thisAsset]
                 ass_id = self.running_assets[ass_idx]
-        
+                
                 # open market
                 if not self.is_opened(ass_id):
                     # check if condition for opening is met
@@ -1226,7 +1231,7 @@ class Trader:
                             self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
                             # print out
                             
-                            out = (new_entry[entry_time_column]+
+                            out = (new_entry[entry_time_column]+" "+
                                    thisAsset+" Extended "+str(self.list_deadlines[
                                        self.map_ass_idx2pos_idx[ass_id]])+" samps "+
 #                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
@@ -1249,22 +1254,23 @@ class Trader:
                             self.write_log(out)
                     else: # if direction is different
                         this_strategy = self.next_candidate.strategy
-                        if this_strategy.if_dir_change_close:
-                            if not self.check_same_direction(ass_id) and \
-                                this_strategy.entry_strategy=='spread_ranges' and \
-                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
-                                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
-                                    # close position due to direction change
-                                    out = new_entry[entry_time_column]+" "+thisAsset\
-                                        +" closing due to direction change!"
-                                    if verbose_trader:
-                                        print("\r"+out)
-                                    self.write_log(out)
-                                    if run_back_test:
-                                        self.close_position(new_entry[entry_time_column], 
-                                                        thisAsset, ass_id, results)
-                                    else:
-                                        send_close_command(thisAsset)
+                        #if this_strategy.if_dir_change_close:
+                        if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                        this_strategy.entry_strategy=='spread_ranges' and \
+                        self.check_same_strategy(ass_id):
+#                        self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
+#                        self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
+                            # close position due to direction change
+                            out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
+                            +" closing due to direction change!"
+                            if verbose_trader:
+                                print("\r"+out)
+                            self.write_log(out)
+                            if run_back_test:
+                                self.close_position(new_entry[entry_time_column], 
+                                                    thisAsset, ass_id, results)
+                            else:
+                                send_close_command(thisAsset)
 #                        # if new position has higher GRE, close
 #                        if self.next_candidate.profitability>=self.list_opened_positions[
 #                                self.map_ass_idx2pos_idx[ass_id]].profitability:
@@ -1711,14 +1717,16 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             
                 if prob_mc>thr_mc:
                     Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
+                    Y_tilde_check = np.array([(-1)**(1-np.argmax(soft_tilde_t[0,1:3]))]).astype(int)
                 else:
                     Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
+                    Y_tilde_check = np.array([0])
                 Y_tilde = np.array([Y_tilde_idx-(n_bits_mg-1)/2]).astype(int)
-#                
-#                if prob_mc>thr_mc:
-#                    Y_tilde = np.array([(-1)**(1-np.argmax(soft_tilde_t[0,1:3]))]).astype(int)
-#                else:
-#                    Y_tilde = np.array([0])
+                
+                if np.sign(Y_tilde)!=np.sign(Y_tilde_check):
+                    out = "WARNING! Sign Y_tilde!=sign Y_tilde_check"
+                    print("\r"+out)
+                    write_log(out, log_file)
                 prob_md = np.array([np.max([soft_tilde_t[0,1],soft_tilde_t[0,2]])])
                 prob_mg = soft_tilde_t[0:,np.argmax(soft_tilde_t[0,3:])]
                 
