@@ -2548,10 +2548,10 @@ def run(config_traders_list, running_assets, start_time):
     #dir_results_trader = dir_results+"trader/"
     dir_results_netorks = dir_results+'networks/'
     if not os.path.exists(dir_results_netorks):
-        os.mkdir(dir_results_netorks)
+        os.makedirs(dir_results_netorks)
     dir_log = dir_results+'log/'
     if not os.path.exists(dir_log):
-        os.mkdir(dir_log)
+        os.makedirs(dir_log)
     AllAssets = Data().AllAssets
     # unique network list
     unique_nets = []
@@ -2754,7 +2754,7 @@ def run(config_traders_list, running_assets, start_time):
         for t in range(len(unique_t_indexs[nn])):
             if not os.path.exists(resultsDir[nn][t]):
                 try:
-                    os.mkdir(resultsDir[nn][t])
+                    os.makedirs(resultsDir[nn][t])
                         
                 except:
                     print("Warning. Error when creating directory")
