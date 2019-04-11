@@ -584,15 +584,13 @@ class RNN(Model):
     
     def init_interactive_session(self, epoch=0):
         """ Initialize an interactive session for live predictions """
-        print(self.IDweights)
-        print(epoch)
         print("Initing interactive session of "+self.IDweights+" E "+str(epoch))
         graph = tf.Graph()
         with graph.as_default():
             self._build_model()
             self._saver = tf.train.Saver(max_to_keep = None)
             self._live_session = tf.Session()
-            self._load_graph(self._live_session, self.IDweights, epoch)
+            self._load_graph(self._live_session, self.IDweights, epoch, live='y')
             
         return self
 
