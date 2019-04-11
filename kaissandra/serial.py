@@ -2665,6 +2665,7 @@ def run(config_traders_list, running_assets, start_time):
                     # only get long bets (positive directions)
                     tag = 'IOA_mW'
                     tag_stats = 'IOA'
+                print(tag_stats)
                 list_tags.append(tag_stats)
                 filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
                                     str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5')
@@ -2741,9 +2742,9 @@ def run(config_traders_list, running_assets, start_time):
                       for t in unique_t_indexs[nn]] for nn in range(nUniqueNetworks)]
     #print(results_files)
     nCxAxN = np.zeros((len(running_assets),nUniqueNetworks))
-    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff",
-                         "Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md",
-                         "P_mg"]
+#    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff",
+#                         "Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md",
+#                         "P_mg"]
         
     for nn in range(nUniqueNetworks):
         
