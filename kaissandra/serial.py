@@ -12,22 +12,15 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import pickle
-import h5py
 import re
 import tensorflow as tf
-#from multiprocessing import Process
 from kaissandra.simulateTrader import load_in_memory
-from kaissandra.inputs import (Data, 
-                               initFeaturesLive, 
-                               extractFeaturesLive, 
-                               load_stats_manual, 
-                               load_stats_output,
+from kaissandra.inputs import (Data,
                                initFeaturesLive_v2,
                                extractFeaturesLive_v2)
 from kaissandra.preprocessing import (load_stats_manual_v2,
                                       load_stats_output_v2,)
-from kaissandra.RNN import modelRNN
-from kaissandra.models import RNN, StackedModel
+from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars
 
@@ -40,22 +33,25 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = True
 verbose_trader = True
-test = False
-run_back_test = True
+test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 
 # TODO: add it in parameters
 n_samps_buffer = 500
-columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet",
-                     "Outcome","Diff","Bi","Ai","Bo","Ao",
-                     "GROI","Spread","ROI","P_mc","P_md",
+nFiles = 100
+extension = ".txt"
+deli = "_"
+flag_cl_name = "CL"
+flag_sl_name = "SL"
+# TODO: Save entire output vector
+columnsResultInfo = ["Asset","Entry Time","Exit Time","GROI","Spread","ROI","Bet",
+                     "Outcome","Diff","Bi","Ai","Bo","Ao","P_mc","P_md",
                      "P_mg"]
-
 data_dir = local_vars.data_test_dir
-directory_MT5 = local_vars.directory_MT5#("C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+
-                #     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/IOlive/")
+directory_MT5_IO = local_vars.directory_MT5_IO
 io_dir = local_vars.io_dir
 ADsDir = local_vars.ADsDir
 hdf5_directory = local_vars.hdf5_directory
@@ -426,8 +422,8 @@ class Trader:
         
         if start_time=='':
             
-            raise ValueError("Depricated. String start_time cannot be empty")
-            
+            #raise ValueError("Depricated. String start_time cannot be empty")
+            pass
         else:
             if run_back_test:
                 tag = '_BT_'
@@ -443,24 +439,24 @@ class Trader:
             self.ban_currencies_dir = io_dir+'/ban'+config_name+'/'
             
         
-        self.start_time = start_time
-        
-        if not os.path.exists(self.results_dir_trader):
-            os.makedirs(self.results_dir_trader)
-        if not os.path.exists(self.dir_positions):
-                os.makedirs(self.dir_positions)
-        if not os.path.exists(self.ban_currencies_dir):
-                os.makedirs(self.ban_currencies_dir)
-        # little pause to garantee no 2 processes access at the same time
-        time.sleep(np.random.rand())
-        # results tracking
-        if not os.path.exists(self.log_positions_soll):
-            resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
-                "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,strategy,Profit,E_spread,stoploss,stGROI,stROI"
-            write_log(resultsInfoHeader, self.log_positions_soll)
-            if not run_back_test:
-                write_log(resultsInfoHeader, self.log_positions_ist)
-            write_log(str(self.available_bugdet_in_lots), self.budget_file)
+            self.start_time = start_time
+            
+            if not os.path.exists(self.results_dir_trader):
+                os.makedirs(self.results_dir_trader)
+            if not os.path.exists(self.dir_positions):
+                    os.makedirs(self.dir_positions)
+            if not os.path.exists(self.ban_currencies_dir):
+                    os.makedirs(self.ban_currencies_dir)
+            # little pause to garantee no 2 processes access at the same time
+            time.sleep(np.random.rand())
+            # results tracking
+            if not os.path.exists(self.log_positions_soll):
+                resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
+                    "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,strategy,Profit,E_spread,stoploss,stGROI,stROI"
+                write_log(resultsInfoHeader, self.log_positions_soll)
+                if not run_back_test:
+                    write_log(resultsInfoHeader, self.log_positions_ist)
+                write_log(str(self.available_bugdet_in_lots), self.budget_file)
         # flow control
         self.EXIT = 0
         self.rewind = 0
@@ -1257,7 +1253,9 @@ class Trader:
                         #if this_strategy.if_dir_change_close:
                         if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
                         this_strategy.entry_strategy=='spread_ranges' and \
-                        self.check_same_strategy(ass_id):
+                        self.check_same_strategy(ass_id) and \
+                        self.next_candidate.p_mc>=.6 and \
+                        self.next_candidate.p_md>=.6:
 #                        self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
 #                        self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
                             # close position due to direction change
@@ -1349,7 +1347,7 @@ class Trader:
         print(out)
         #send close command if running live
         if not run_back_test:
-            directory_MT5_ass2close = directory_MT5+\
+            directory_MT5_ass2close = directory_MT5_IO+\
                 self.list_opened_positions[self.swap_pos].asset+"/"
             self.send_close_command(directory_MT5_ass2close)
         # activate swap pending flag
@@ -1721,12 +1719,18 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 else:
                     Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
                     Y_tilde_check = np.array([0])
-                Y_tilde = np.array([Y_tilde_idx-(n_bits_mg-1)/2]).astype(int)
-                
-                if np.sign(Y_tilde)!=np.sign(Y_tilde_check):
-                    out = "WARNING! Sign Y_tilde!=sign Y_tilde_check"
-                    print("\r"+out)
-                    write_log(out, log_file)
+#                Y_tilde = np.array([Y_tilde_idx-(n_bits_mg-1)/2]).astype(int)
+                Y_tilde = Y_tilde_check
+#                if np.sign(Y_tilde)!=np.sign(Y_tilde_check):
+#                    out = "WARNING! Sign Y_tilde!=sign Y_tilde_check"
+#                    print("\r"+out)
+#                    write_log(out, log_file)
+#                    print("Y_tilde")
+#                    print(Y_tilde)
+#                    print("Y_tilde_check")
+#                    print(Y_tilde_check)
+#                    print(soft_tilde_t[0,:])
+#                    a=p
                 prob_md = np.array([np.max([soft_tilde_t[0,1],soft_tilde_t[0,2]])])
                 prob_mg = soft_tilde_t[0:,np.argmax(soft_tilde_t[0,3:])]
                 
@@ -1973,23 +1977,77 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
 #              ". No support for multiple outputs at the same time yet.") 
     return outputs, new_outputs
 
-def renew_directories(AllAssets, running_assets, directory_MT5):
+def renew_mt5_dir(AllAssets, running_assets):
+    """ Renew MT5 directory for synch between py and trader """
+    # init list with files index for each running asset to zero
+    directory_MT5_IO = local_vars.directory_MT5_IO
+    directory_MT5_log = local_vars.directory_MT5_log
+    file_ids = [0 for _ in range(len(running_assets))]
+    log_ids = ['' for _ in range(len(running_assets))]
+    # loop over assets
+    for ass_idx, ass_id in enumerate(running_assets):
+        thisAsset = AllAssets[str(ass_id)]
+        # this asset directory
+        directory_MT5_IO_ass = directory_MT5_IO+thisAsset+"/"
+        directory_MT5_log_ass = directory_MT5_log+thisAsset+"/"
+        # check if IO asset directory exists
+        if os.path.exists(directory_MT5_IO_ass):
+            # list of all files in MT5 directory
+            listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
+            for file in listAllDir:
+                try:
+                    # try to delete file
+                    os.remove(directory_MT5_IO_ass+file)
+                except:
+                    print(thisAsset+" Warning. Error when deleting "+file)
+                    # check file belongs to Symbols stream
+                    m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
+                    # if does, update its file id
+                    if m!=None:
+                        fileid = re.search('\d+',m.group()).group()
+                        file_ids[ass_idx] = int(fileid)
+        else:
+            #create directory
+            os.makedirs(directory_MT5_IO_ass)
+            print(directory_MT5_IO_ass+" Directiory created")
+        # create log directory
+        if not os.path.exists(directory_MT5_log_ass):
+            os.makedirs(directory_MT5_log_ass)
+            print(directory_MT5_log_ass+" Directiory created")
+        else:
+            listAllDir = sorted(os.listdir(directory_MT5_log_ass))
+            for file in listAllDir:
+                try:
+                    # try to delete file
+                    os.remove(directory_MT5_log_ass+file)
+                except:
+                    print(thisAsset+" Warning. Error when deleting "+file)
+                    # check file belongs to log files
+                    m = re.search('^'+thisAsset+'_\d+'+'.log$',file)
+                    # if does, update its file id
+                    if m!=None:
+                        logid = re.search('\d+',m.group()).group()
+                        log_ids[ass_idx] = logid
+    return file_ids, log_ids
+
+def renew_directories(AllAssets, running_assets):
     """ Renew MT5 directories """
     for ass_id in running_assets:
         thisAsset = AllAssets[str(ass_id)]
         
-        directory_MT5_ass = directory_MT5+thisAsset+"/"
-        io_ass_dir = io_dir+thisAsset+"/"
-        
-        if os.path.exists(io_ass_dir):
-            try:
-                shutil.rmtree(directory_MT5_ass)
-                time.sleep(1)
-            except:
-                print(thisAsset+" Warning. Error when renewing MT5 directory")
-                # TODO: Synch fetcher with current file if MT5 is recording
+        #directory_MT5_ass = directory_MT5+thisAsset+"/"
+
+#        if os.path.exists(directory_MT5_ass):
+#            try:
+#                shutil.rmtree(directory_MT5_ass)
+#                
+#                time.sleep(1)
+#            except:
+#                print(thisAsset+" Warning. Error when renewing MT5 directory")
+#                # TODO: Synch fetcher with current file if MT5 is recording
             
         #try:
+        io_ass_dir = io_dir+thisAsset+"/"
         if os.path.exists(io_ass_dir):
             try:
                 shutil.rmtree(io_ass_dir)
@@ -1998,10 +2056,7 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
             except:
                 print(thisAsset+" Warning. Error when renewing IO directory") 
             
-        if not os.path.exists(directory_MT5_ass):
-            #try:
-            os.makedirs(directory_MT5_ass)
-            print(directory_MT5_ass+" Directiory created")
+        
             #except:
                 #print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
         
@@ -2023,7 +2078,7 @@ def renew_directories(AllAssets, running_assets, directory_MT5):
     
 def send_close_command(asset):
         """ Send command for closeing position to MT5 software """
-        directory_MT5_ass2close = directory_MT5+asset+"/"
+        directory_MT5_ass2close = directory_MT5_IO+asset+"/"
         success = 0
         # load network output
         while not success:
@@ -2034,24 +2089,19 @@ def send_close_command(asset):
             except PermissionError:
                 print("Error writing LC")
     
-def fetch(lists, trader, directory_MT5, 
-          AllAssets, running_assets, 
-          log_file, results):
+def fetch(lists, trader, directory_MT5, AllAssets, 
+          running_assets, log_file, results):
     """ Fetch info coming from MT5 """
-    
-    nAssets = len(running_assets)
-    
     print("Fetcher lauched")
-
-    extension = ".txt"
-    deli = "_"
-    fileExt = [0 for ass in range(nAssets)]
-    nFiles = 100
+    #nAssets = len(running_assets)
+    # renew MT5 directories
+    fileExt, list_log_ids = renew_mt5_dir(AllAssets, running_assets)
+    
+    #fileExt = [0 for ass in range(nAssets)]
     
     first_info_fetched = False
     
-    flag_cl_name = "CL"
-    flag_sl_name = "SL"
+    
     nMaxFilesInDir = 0
     tic = time.time()
     run = True
@@ -2587,6 +2637,7 @@ def run(config_traders_list, running_assets, start_time):
         print("config_name")
         print(config_name)
         dateTest = config_trader['dateTest']
+        dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
         numberNetworks = config_trader['numberNetworks']
         IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
         IDresults = config_trader['IDresults']#['100318INVO','000318INVO','000318INVO']
@@ -2625,7 +2676,7 @@ def run(config_traders_list, running_assets, start_time):
         list_fixed_spread_pips = config_trader['list_fixed_spread_pips']#[4 for i in range(numberNetworks)]
         list_max_lots_per_pos = config_trader['list_max_lots_per_pos']#[.1 for i in range(numberNetworks)]
         list_flexible_lot_ratio = config_trader['list_flexible_lot_ratio']#[False for i in range(numberNetworks)]
-        list_if_dir_change_close = config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
+        list_if_dir_change_close = [True, True]#config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
         list_if_dir_change_extend = config_trader['list_if_dir_change_extend']#[False for i in range(numberNetworks)]
 #        list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
 #                          dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]        
@@ -2723,11 +2774,11 @@ def run(config_traders_list, running_assets, start_time):
     # end of for idx_tr, config_trader in enumerate(config_list):
     ### MAP CONFIGS TO NETWORKS ###
     nUniqueNetworks = len(unique_nets)
-    print("nUniqueNetworks")
-    print(nUniqueNetworks)
-    print(unique_nets)
-    print("list_net2strategy")
-    print(list_net2strategy)
+#    print("nUniqueNetworks")
+#    print(nUniqueNetworks)
+#    print(unique_nets)
+#    print("list_net2strategy")
+#    print(list_net2strategy)
     ADs = [np.array([]) for i in range(nUniqueNetworks)]
     
     nChans = (np.array(list_nExS)/np.array(list_mW)).astype(int).tolist()
@@ -2810,11 +2861,11 @@ def run(config_traders_list, running_assets, start_time):
                 nv += 1
         
     ass2index_mapping = {}
-    ass_index = 0
+    #ass_index = 0
     
-    for ass in running_assets:
+    for ass_index, ass in enumerate(running_assets):
         ass2index_mapping[AllAssets[str(ass)]] = ass_index
-        ass_index += 1
+        #ass_index += 1
     
     tic = time.time()
     
@@ -2827,6 +2878,7 @@ def run(config_traders_list, running_assets, start_time):
         if run_back_test:
             day_index = 0
             #t_journal_entries = 0
+            week_counter = 0
             while day_index<len(dateTest) and not shutdown:
                 counter_back = 0
                 init_list_index = day_index#data.dateTest[day_index]
@@ -2838,8 +2890,8 @@ def run(config_traders_list, running_assets, start_time):
                     day_index += 1
                 
                 end_list_index = day_index+counter_back
-                out = "Week from "+dateTest[init_list_index]+" to "+dateTest[end_list_index]
-                print(out)
+#                out = "Week from "+dateTest[init_list_index]+" to "+dateTest[end_list_index]
+#                print(out)
                 
                 day_index += counter_back+1
                 
@@ -2916,12 +2968,18 @@ def run(config_traders_list, running_assets, start_time):
                                     start_time=start_time, config_name=config_trader['config_name'],
                                     net2strategy=list_net2strategy[idx_tr])
                     
-                    if not os.path.exists(trader.log_file):
-                        write_log(out, trader.log_file)
-                        write_log(out, trader.log_summary)
+#                    if not os.path.exists(trader.log_file):
+#                        write_log(out, trader.log_file)
+#                        write_log(out, trader.log_summary)
                     
                     traders.append(trader)
-                    
+                out = ("Week counter "+str(week_counter)+". From "+dateTest[init_list_index]+
+                       " to "+dateTest[end_list_index])
+                week_counter += 1
+                print(out)
+                #if not os.path.exists(trader.log_file):
+                trader.write_log(out)
+                write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
                                    end_list_index, root_dir=data_dir)
@@ -2997,8 +3055,9 @@ def run(config_traders_list, running_assets, start_time):
             lists['list_inv_out'] = list_inv_out
             #lists['list_feats_from'] = list_feats_from
             # init traders
+            
             traders = []
-            for idx_tr, config_trader in enumerate(config_list):
+            for idx_tr, config_trader in enumerate(config_traders_list):
                 trader = Trader(running_assets,
                                 ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
@@ -3016,7 +3075,7 @@ def run(config_traders_list, running_assets, start_time):
 #                                log_file, results_dir=dir_results, 
 #                                start_time=start_time)
             # launch fetcher
-            fetch(lists, trader, directory_MT5, AllAssets, 
+            fetch(lists, trader, directory_MT5_IO, AllAssets, 
                   running_assets, log_file, results)
         
         for idx, trader in enumerate(traders):
@@ -3068,11 +3127,11 @@ def launch(*ins):
 #            #config_trader = retrieve_config(ins[0])
 #            list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('T01010-1k1k2')]
-    synchroned_run = False
+        list_config_traders = [retrieve_config('TTEST500')]
+    synchroned_run = True
     assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
-    running_assets = assets#[12,7,14]#
-    renew_directories(Data().AllAssets, running_assets, directory_MT5)
+    running_assets = [10]#assets#[12,7,14]#
+    renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
         run(list_config_traders, running_assets, start_time)
@@ -3086,8 +3145,8 @@ def launch(*ins):
         time.sleep(30)
     print("All RNNs launched")
 if __name__=='__main__':
-    
-        launch()
+    #pass
+    launch()
         
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
