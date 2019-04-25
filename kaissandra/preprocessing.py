@@ -1199,7 +1199,7 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
     return edges, edges_dt
 
 def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False, 
-               hdf5_directory='', save_pickle=False, tag='IO'):
+               hdf5_directory='', save_pickle=False, tag='IOB'):
     """
     Function that loads stats
     """
@@ -1210,11 +1210,11 @@ def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False,
     if 'movingWindow' in config:
         movingWindow = config['movingWindow']
     else:
-        movingWindow = 1000
+        movingWindow = 50
     if 'nEventsPerStat' in config:
         nEventsPerStat = config['nEventsPerStat']
     else:
-        nEventsPerStat = 1000
+        nEventsPerStat = 500
     nF = len(feature_keys_manual)
     # init or load total stats
     stats = {}
@@ -1251,7 +1251,7 @@ def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False,
                                  '_nF'+str(nF)+".p", "wb" ))
     return stats
 
-def load_stats_output_v2(config, hdf5_directory, thisAsset, tag='IOA'):
+def load_stats_output_v2(config, hdf5_directory, thisAsset, tag='IOB'):
     """
     Load output stats
     """
@@ -1262,11 +1262,11 @@ def load_stats_output_v2(config, hdf5_directory, thisAsset, tag='IOA'):
     if 'movingWindow' in config:
         movingWindow = config['movingWindow']
     else:
-        movingWindow = 1000
+        movingWindow = 50
     if 'nEventsPerStat' in config:
         nEventsPerStat = config['nEventsPerStat']
     else:
-        nEventsPerStat = 1000
+        nEventsPerStat = 500
     nF = len(feature_keys_manual)
     # TODO: pass output stats to their own container and load them from there
     stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+

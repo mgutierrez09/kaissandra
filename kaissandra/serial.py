@@ -56,9 +56,7 @@ io_dir = local_vars.io_dir
 ADsDir = local_vars.ADsDir
 hdf5_directory = local_vars.hdf5_directory
 
-init_budget = 10000.0
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-
 
 class Results:
         
@@ -380,12 +378,13 @@ class Trader:
         self.journal_idx = 0
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
         
+        init_budget, leverage, _, _ = self.get_account_status()
         self.budget = init_budget
         self.init_budget = init_budget
         self.LOT = 100000.0
         
         self.pip = 0.0001
-        self.leverage = 30
+        self.leverage = leverage
         #self.budget_in_lots = self.leverage*self.budget/self.LOT
         self.available_budget = self.budget*self.leverage
         self.available_bugdet_in_lots = self.available_budget/self.LOT
@@ -463,6 +462,38 @@ class Trader:
         self.approached = 0
         self.swap_pending = 0
     
+    def get_account_status(self):
+        """ Get account status from broker """
+        success = 0
+        dirfilename = local_vars.directory_MT5_account+'Status.txt'
+        if os.path.exists(dirfilename):
+            # load network output
+            while not success:
+                try:
+                    fh = open(dirfilename,"r", encoding='utf_16_le')
+                    info_close = fh.read()[1:-1]
+                    # close file
+                    fh.close()
+                    success = 1
+                    #stop_timer(ass_idx)
+                except PermissionError:
+                    print("Error writing TT")
+            info_str = info_close.split(',')
+            #print(info_close)
+            balance = float(info_str[0])
+            leverage = float(info_str[1])
+            equity = float(info_str[2])
+            profits = float(info_str[3])
+        else:
+            print("WARNING! Account Status file not found. Turning to default")
+            balance = 10000.0
+            leverage = 30
+            equity = balance
+            profits = 0.0
+        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
+              .format(balance,leverage,equity,profits))
+        return balance, leverage, equity, profits
+        
     def _get_thr_sl_vector(self):
         '''
         '''
@@ -882,7 +913,13 @@ class Trader:
                       ". Remeining open "+str(len(self.list_opened_positions)))
         self.write_log(out)
         print("\r"+out)
+        # compare budget with real one
+        balance, leverage, equity, profits = self.get_account_status()
+        out = date_time+" "+ass+" budget difference: "+str(balance-self.budget)
+        self.write_log(out)
+        print("\r"+out)
         
+        self.budget = balance
         
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
@@ -1590,7 +1627,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
         if listFillingX[sc]:
             if verbose_RNN:
                 out = tradeInfoLive.DateTime.iloc[-1]+" "+\
-                    thisAsset+netName+" Filling X sc "+str(sc)
+                    thisAsset+netName+" Filling X sc "+str(sc)+\
+                    " t "+str(listCountPos[sc])+" of "+str(seq_len-1)
                 print("\r"+out)
                 write_log(out, log_file)
                 
@@ -2015,19 +2053,20 @@ def renew_mt5_dir(AllAssets, running_assets):
             os.makedirs(directory_MT5_log_ass)
             print(directory_MT5_log_ass+" Directiory created")
         else:
-            listAllDir = sorted(os.listdir(directory_MT5_log_ass))
-            for file in listAllDir:
-                try:
-                    # try to delete file
-                    os.remove(directory_MT5_log_ass+file)
-                except:
-                    print(thisAsset+" Warning. Error when deleting "+file)
-                    # check file belongs to log files
-                    m = re.search('^'+thisAsset+'_\d+'+'.log$',file)
-                    # if does, update its file id
-                    if m!=None:
-                        logid = re.search('\d+',m.group()).group()
-                        log_ids[ass_idx] = logid
+            pass
+#            listAllDir = sorted(os.listdir(directory_MT5_log_ass))
+#            for file in listAllDir:
+#                try:
+#                    # try to delete file
+#                    os.remove(directory_MT5_log_ass+file)
+#                except:
+#                    print(thisAsset+" Warning. Error when deleting "+file)
+#                    # check file belongs to log files
+#                    m = re.search('^'+thisAsset+'_\d+'+'.log$',file)
+#                    # if does, update its file id
+#                    if m!=None:
+#                        logid = re.search('\d+',m.group()).group()
+#                        log_ids[ass_idx] = logid
     return file_ids, log_ids
 
 def renew_directories(AllAssets, running_assets):
@@ -2118,7 +2157,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
             
             directory_MT5_ass = directory_MT5+thisAsset+"/"
             # Fetching buffers
-            fileID = thisAsset+deli+str(fileExt[ass_idx])+extension
+            fileID = thisAsset+deli+str(fileExt[ass_idx]).zfill(2)+extension
             success = 0
             
             try:
@@ -2145,6 +2184,10 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     os.remove(io_ass_dir+'SD')
                     run = False
                     time.sleep(5*np.random.rand(1))
+                elif os.path.exists(io_ass_dir+'RESET'):
+                    print("RESET command found.")
+                    os.remove(io_ass_dir+'RESET')
+                    lists = flush_asset(lists, ass_idx, 0.0)
                 time.sleep(.01)
             # update file extension
             if success:
@@ -2428,6 +2471,11 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         elif os.path.exists(io_ass_dir+'RE'):
             print("WARNING! RESUME command found. Send first PAUSE command")
             os.remove(io_ass_dir+'RE')
+        elif os.path.exists(io_ass_dir+'RESET'):
+            print("RESET command found.")
+            os.remove(io_ass_dir+'RESET')
+            lists = flush_asset(lists, ass_idx, bid)
+            
         ###################### End of Trader ###########################
         event_idx += 1
     # end of while events
@@ -2634,8 +2682,8 @@ def run(config_traders_list, running_assets, start_time):
         config_list = config_trader['config_list']
 #        log_files.append(log_file)
         config_name = config_trader['config_name']
-        print("config_name")
-        print(config_name)
+#        print("config_name")
+#        print(config_name)
         dateTest = config_trader['dateTest']
         dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
         numberNetworks = config_trader['numberNetworks']
@@ -2827,18 +2875,24 @@ def run(config_traders_list, running_assets, start_time):
     
     #print(h5py.File(list_filenames[0],'r')[AllAssets[str(running_assets[0])]])
 #    f_prep_IO = h5py.File(filename_prep_IO,'r')
-    list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
-                    None, 
-                    from_stats_file=True, hdf5_directory=hdf5_directory+'stats/',tag=list_tags[nn]) 
-                    for nn in range(nNets)] for ass in range(nAssets)]
-    list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], hdf5_directory+
-                    'stats/', AllAssets[str(running_assets[ass])], 
-                    tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
-    if test:
-        gain = .000000001
-        
-    else: 
+    if not test:
+        list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
+                        None, 
+                        from_stats_file=True, hdf5_directory=hdf5_directory+'stats/',tag=list_tags[nn]) 
+                        for nn in range(nNets)] for ass in range(nAssets)]
+        list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], hdf5_directory+
+                        'stats/', AllAssets[str(running_assets[ass])], 
+                        tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
+    else:
+        list_stats_feats = [[load_stats_manual_v2({}, AllAssets[str(running_assets[ass])], 
+                        None, 
+                        from_stats_file=True, hdf5_directory=hdf5_directory+'stats/') 
+                        for nn in range(nNets)] for ass in range(nAssets)]
+        list_stats_rets = [[load_stats_output_v2({}, hdf5_directory+
+                        'stats/', AllAssets[str(running_assets[ass])]) 
+                        for nn in range(nNets)] for ass in range(nAssets)]
+        gain = .000000001
     
     list_means_in =  [[list_stats_feats[ass][nn]['means_t_in'] for nn in range(nNets)] 
                                                              for ass in range(nAssets)]
@@ -3128,9 +3182,9 @@ def launch(*ins):
 #            list_config_traders.append(retrieve_config(config_name))
     else:
         list_config_traders = [retrieve_config('TTEST500')]
-    synchroned_run = True
+    synchroned_run = False
     assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
-    running_assets = [10]#assets#[12,7,14]#
+    running_assets = [7,10,12,14]#assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
