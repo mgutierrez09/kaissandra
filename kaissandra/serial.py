@@ -914,10 +914,12 @@ class Trader:
         self.write_log(out)
         print("\r"+out)
         # compare budget with real one
-        balance, leverage, equity, profits = self.get_account_status()
-        out = date_time+" "+ass+" budget difference: "+str(balance-self.budget)
-        self.write_log(out)
-        print("\r"+out)
+        if not run_back_test:
+            balance, leverage, equity, profits = self.get_account_status()
+            out = date_time+" "+ass+" equity "+str(equity)+" Balance "+str(balance)+\
+            " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
+            self.write_log(out)
+            print("\r"+out)
         
         self.budget = balance
         
@@ -1337,9 +1339,7 @@ class Trader:
         return None
     
     def send_open_command(self, directory_MT5_ass, ass_idx):
-        """
-        Send command for opening position to MT5 software   
-        """
+        """ Send command for opening position to broker """
         success = 0
         # load network output
         while not success:
@@ -1347,7 +1347,8 @@ class Trader:
                 fh = open(directory_MT5_ass+"TT","w", encoding='utf_16_le')
                 fh.write(str(self.next_candidate.direction)+","+
                          str(self.next_candidate.strategy.max_lots_per_pos)+
-                         ","+str(self.next_candidate.deadline))
+                         ","+str(self.next_candidate.deadline)+","+
+                         str(self.next_candidate.strategy.thr_sl))
                 fh.close()
                 success = 1
                 #stop_timer(ass_idx)
@@ -1846,8 +1847,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         newEntry["P_mg"] = p_mg
                         newEntry['Bi'] = EOF.SymbolBid.iloc[c]
                         newEntry['Ai'] = EOF.SymbolAsk.iloc[c]
-                        newEntry['Bo'] = tradeInfoLive.SymbolBid.iloc[-2]
-                        newEntry['Ao'] = tradeInfoLive.SymbolAsk.iloc[-2]
+                        newEntry['Bo'] = int(np.round(tradeInfoLive.SymbolBid.iloc[-2]*100000))/100000
+                        newEntry['Ao'] = int(np.round(tradeInfoLive.SymbolAsk.iloc[-2]*100000))/100000
                         
                         
                         #resultInfo = pd.DataFrame(columns = columnsResultInfo)
@@ -2022,51 +2023,77 @@ def renew_mt5_dir(AllAssets, running_assets):
     directory_MT5_log = local_vars.directory_MT5_log
     file_ids = [0 for _ in range(len(running_assets))]
     log_ids = ['' for _ in range(len(running_assets))]
+    nonsynched_assets = [i for i in running_assets]
+    waitings = [True for _ in running_assets]
+    its = 0
     # loop over assets
-    for ass_idx, ass_id in enumerate(running_assets):
-        thisAsset = AllAssets[str(ass_id)]
-        # this asset directory
-        directory_MT5_IO_ass = directory_MT5_IO+thisAsset+"/"
-        directory_MT5_log_ass = directory_MT5_log+thisAsset+"/"
-        # check if IO asset directory exists
-        if os.path.exists(directory_MT5_IO_ass):
-            # list of all files in MT5 directory
-            listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
-            for file in listAllDir:
-                try:
-                    # try to delete file
-                    os.remove(directory_MT5_IO_ass+file)
-                except:
-                    print(thisAsset+" Warning. Error when deleting "+file)
-                    # check file belongs to Symbols stream
-                    m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
-                    # if does, update its file id
-                    if m!=None:
-                        fileid = re.search('\d+',m.group()).group()
-                        file_ids[ass_idx] = int(fileid)
-        else:
-            #create directory
-            os.makedirs(directory_MT5_IO_ass)
-            print(directory_MT5_IO_ass+" Directiory created")
-        # create log directory
-        if not os.path.exists(directory_MT5_log_ass):
-            os.makedirs(directory_MT5_log_ass)
-            print(directory_MT5_log_ass+" Directiory created")
-        else:
-            pass
-#            listAllDir = sorted(os.listdir(directory_MT5_log_ass))
-#            for file in listAllDir:
-#                try:
-#                    # try to delete file
-#                    os.remove(directory_MT5_log_ass+file)
-#                except:
-#                    print(thisAsset+" Warning. Error when deleting "+file)
-#                    # check file belongs to log files
-#                    m = re.search('^'+thisAsset+'_\d+'+'.log$',file)
-#                    # if does, update its file id
-#                    if m!=None:
-#                        logid = re.search('\d+',m.group()).group()
-#                        log_ids[ass_idx] = logid
+    while len(nonsynched_assets)>0:
+        
+        for ass_idx, ass_id in enumerate(running_assets):
+            if ass_id in nonsynched_assets:
+                thisAsset = AllAssets[str(ass_id)]
+                print(thisAsset+" Synching buffer with broker")
+                # this asset directory
+                directory_MT5_IO_ass = directory_MT5_IO+thisAsset+"/"
+                directory_MT5_log_ass = directory_MT5_log+thisAsset+"/"
+                # check if IO asset directory exists
+                if os.path.exists(directory_MT5_IO_ass):
+                    # list of all files in MT5 directory
+                    listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
+                    for file in listAllDir:
+                        try:
+                            # try to delete file
+                            os.remove(directory_MT5_IO_ass+file)
+                        except:
+                            #print(thisAsset+" Warning. Error when deleting "+file)
+                            # check file belongs to Symbols stream
+                            m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
+                            # if does, update its file id
+                            if m!=None:
+                                fileid = re.search('\d+',m.group()).group()
+                                file_ids[ass_idx] = int(fileid)
+                                # delete asset from nonsynched assets list
+                                if ass_id in nonsynched_assets:
+                                    nonsynched_assets.remove(ass_id)
+                                    its += 1
+                                else:
+                                    #while 1:
+                                    print(thisAsset+" WARNING! ass_id "+str(ass_id)+
+                                              " not in nonsynched_assets "+str(nonsynched_assets)+
+                                              " iterations "+str(its)+" file_ids "+str(file_ids)+
+                                              " running_assets "+str(running_assets)+
+                                              " len(nonsynched_assets) "+str(len(nonsynched_assets)))
+                                        #time.sleep(2)
+                                print(thisAsset+" Buffer synched with broker: Starting file "+file)
+                                waitings[ass_idx] = False
+                                
+                else:
+                    #create directory
+                    os.makedirs(directory_MT5_IO_ass)
+                    print(directory_MT5_IO_ass+" Directiory created")
+                    
+            # create log directory
+            if not os.path.exists(directory_MT5_log_ass):
+                os.makedirs(directory_MT5_log_ass)
+                print(directory_MT5_log_ass+" Directiory created")
+            else:
+                pass
+    #            listAllDir = sorted(os.listdir(directory_MT5_log_ass))
+    #            for file in listAllDir:
+    #                try:
+    #                    # try to delete file
+    #                    os.remove(directory_MT5_log_ass+file)
+    #                except:
+    #                    print(thisAsset+" Warning. Error when deleting "+file)
+    #                    # check file belongs to log files
+    #                    m = re.search('^'+thisAsset+'_\d+'+'.log$',file)
+    #                    # if does, update its file id
+    #                    if m!=None:
+    #                        logid = re.search('\d+',m.group()).group()
+    #                        log_ids[ass_idx] = logid
+        if sum(waitings)>0:
+            time.sleep(2)
+            
     return file_ids, log_ids
 
 def renew_directories(AllAssets, running_assets):
@@ -3181,10 +3208,11 @@ def launch(*ins):
 #            #config_trader = retrieve_config(ins[0])
 #            list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('TTEST500')]
+        list_config_traders = [retrieve_config('TTEST10')]
     synchroned_run = False
-    assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
-    running_assets = [7,10,12,14]#assets#[12,7,14]#
+    # GOLD: 15
+    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]#[1]
+    running_assets = assets#[7,10,12,14]#assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:

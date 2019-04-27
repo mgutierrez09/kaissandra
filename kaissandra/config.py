@@ -484,7 +484,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TTEST100'
+    config_name = 'TTEST10'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -550,7 +550,7 @@ def configuration_trader(*ins):
         numberNetworks = 1
         IDresults = ['RRNN01010CMF181112T190329ACk1E12']
         IDweights = [['WRNN01010k1K5A']]
-        list_name = ['TEST1000']
+        list_name = ['TEST10']
         list_spread_ranges = [{'sp':[10],'th':[(.5,.5)],'dir':'COMB'}]
         
         mWs = [10]
