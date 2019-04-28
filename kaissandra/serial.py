@@ -33,7 +33,7 @@ exit_bid_column = 'Bo'
 
 verbose_RNN = True
 verbose_trader = True
-test = True
+test = False
 run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
@@ -3208,10 +3208,10 @@ def launch(*ins):
 #            #config_trader = retrieve_config(ins[0])
 #            list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('TTEST10')]
+        list_config_traders = [retrieve_config('TPRODN01010')]
     synchroned_run = False
     # GOLD: 15
-    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]#[1]
+    assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
     running_assets = assets#[7,10,12,14]#assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')

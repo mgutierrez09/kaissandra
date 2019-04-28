@@ -313,6 +313,12 @@ def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list,
 #    print(sets_list)
 #    print("sets_list[T_idx[i+1]]")
 #    print(sets_list[T_idx[i+1]])
+#    print("sets_list")
+#    print(sets_list)
+#    print("T_idx")
+#    print(T_idx)
+#    print("i")
+#    print(i)
     if sets_list[T_idx[i+1]]=='Tr':
         edges_idx_tr.resize((edges_idx_tr.shape[0]+1, 2))
         edges_idx_tr[-1,:] = set_edges_idx

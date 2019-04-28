@@ -16,7 +16,7 @@ from scipy.stats import linregress
 from scipy.signal import cwt, find_peaks_cwt, ricker
 
 #from kaissandra.inputs import Data, load_separators, get_features_results_stats_from_raw
-from kaissandra.config import configuration
+from kaissandra.config import configuration, retrieve_config
 from kaissandra.local_config import local_vars
 
 
@@ -249,7 +249,7 @@ def get_features(*ins):
     if len(ins)>0:
         config = ins[0]
     else:    
-        config = configuration('C01100')
+        config = retrieve_config('CTESTFEATURES')
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],

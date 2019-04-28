@@ -1009,10 +1009,11 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     #edges=[dt.date(2016, 8, 2), dt.date(2017, 3, 6), dt.date(2017, 9, 27), dt.date(2018, 4, 10)]
-    init_day = dt.datetime.strptime('2017.09.27','%Y.%m.%d').date()
-    end_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()
-#    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
+#    init_day = dt.datetime.strptime('2017.09.27','%Y.%m.%d').date()
+#    end_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()
+    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
 #    end_day = dt.datetime.strptime('2019.03.29','%Y.%m.%d').date()
+    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
 #    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
 #    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
     delta_dates = end_day-init_day
@@ -1191,7 +1192,7 @@ if __name__ == '__main__':
 #    list_lb_md_ext = [.6 for i in range(numberNetwors)]
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN01010CMF170927T181109ACk1k2E12E14_6MAXPARLOTS'+'.csv'
+    positions_file = start_time+'_'+'RRNN01010CMF181112T190427'+'RRNN01011CMF181112T190427'+'.csv'
 #    190415143545_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6
     # WARNING! Difference in ROI is due to the allowance of position close when direction changes
 #    numberNetwors = 1
@@ -1207,17 +1208,17 @@ if __name__ == '__main__':
 #    list_max_lots_per_pos = [.5 for i in range(numberNetwors)]
     
 #    190415154706_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6
-    numberNetwors = 1
-    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-    list_name = ['01010k1k2K5AC_12_.7_.6']
+    numberNetwors = 2
+    list_IDresults = ['RRNN01010CMF181112T190426ACk1k2E12E14','RRNN01011CMF181112T190426ACk1k2E14E14']
+    list_name = ['01010k1k2K5AC_12_.7_.6','01011k1k2K5AC_12_.7_.6']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
     list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-    #list_max_lots_per_pos = [1 for i in range(numberNetwors)]
-    list_max_lots_per_pos = [np.inf for i in range(numberNetwors)]
+    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    #list_max_lots_per_pos = [np.inf for i in range(numberNetwors)]
     
     
     # depricated/not supported
@@ -1292,7 +1293,7 @@ if __name__ == '__main__':
             entry_ask_column = 'A1'
             exit_ask_column = 'A2'
             exit_bid_column = 'B2'
-            root_dir = local_vars.data_dir#'D:/SDC/py/Data/'
+            root_dir = local_vars.data_dir##'D:/SDC/py/Data/'
             
             list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                                  list_journal_name[i], 
@@ -1316,7 +1317,7 @@ if __name__ == '__main__':
             exit_ask_column = 'Ao'
             exit_bid_column = 'Bo'
             root_dir = local_vars.data_dir
-            #root_dir = local_vars.data_test_dir
+            root_dir = local_vars.data_test_dir
             list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                                  list_journal_name[i], 
                                                  sep='\t').sort_values(
@@ -1605,23 +1606,24 @@ if __name__ == '__main__':
                                 # close due to change direction
 #                                close_dueto_dirchange += 1
                                 #out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
-                                
-                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                                       Assets[event_idx].decode("utf-8")+
-                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
-                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                                      " pofitability {0:.3f}".format(profitability)+
-                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
-                                      str(trader.next_candidate.bet)+
-                                      " cGROI {0:.2f} ".format(100*curr_GROI))
-                                print(out)
-                                trader.write_log(out)
-                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
-                                print(out)
-                                trader.write_log(out)
-                                trader.close_position(DateTimes[event_idx], 
-                                              Assets[event_idx].decode("utf-8"), 
-                                              ass_idx)
+                                pass
+#                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
+#                                       Assets[event_idx].decode("utf-8")+
+#                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
+#                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+#                                      " pofitability {0:.3f}".format(profitability)+
+#                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+#                                      str(trader.next_candidate.bet)+
+#                                      " cGROI {0:.2f} ".format(100*curr_GROI))
+#                                print(out)
+#                                trader.write_log(out)
+#                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
+                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
+#                                print(out)
+#                                trader.write_log(out)
+#                                trader.close_position(DateTimes[event_idx], 
+#                                              Assets[event_idx].decode("utf-8"), 
+#                                              ass_idx)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0
@@ -2426,3 +2428,15 @@ if __name__ == '__main__':
 #DONE. Total time: 65.32 mins
 #Results file: 190415154706results.p
 #Positions file: 190415154706_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6.csv
+    
+#Total GROI = 22.370% Total ROI = 11.400% Sum GROI = 23.242% Sum ROI = 11.435% Accumulated earnings 1143.51E
+#Total entries 483 per entries 27.26 percent gross success 61.70% percent nett success 55.49% average loss 16.59p average win 17.58p RR 1 to 1.32
+#DONE. Total time: 23.99 mins
+#Results file: 190427164721results.p
+#Positions file: 190427164721_RRNN01010CMF181112T190426ACk1k2E12E14E0TI0MC0.7MD0.6.csv
+    
+#Total GROI = 24.348% Total ROI = 11.993% Sum GROI = 25.602% Sum ROI = 12.195% Accumulated earnings 1219.51E
+#Total entries 540 per entries 23.27 percent gross success 61.48% percent nett success 55.37% average loss 16.14p average win 17.09p RR 1 to 1.31
+#DONE. Total time: 30.47 mins
+#Results file: 190428121505results.p
+#Positions file: 190428121505_RRNN01010CMF181112T190426ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011CMF181112T190426ACk1k2E14E14E0TI0MC0.7MD0.6.csv

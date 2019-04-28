@@ -33,7 +33,7 @@ def configuration(entries, save=True):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'C0317INVO'
+        config_name = 'CTESTFEATURES'
     
     config_filename = local_vars.config_directory+config_name+config_extension
     
@@ -104,7 +104,7 @@ def configuration(entries, save=True):
         if 'last_day' in entries:
             last_day = entries['last_day']
         else:
-            last_day = '2018.11.09'
+            last_day = '2019.04.26'
         if 'edge_dates' in entries:
             edge_dates = entries['edge_dates']
         else:
@@ -116,11 +116,11 @@ def configuration(entries, save=True):
         if 'movingWindow' in entries:
             movingWindow = entries['movingWindow']
         else:
-            movingWindow = 1000
+            movingWindow = 500
         if 'nEventsPerStat' in entries:
             nEventsPerStat = entries['nEventsPerStat']
         else:
-            nEventsPerStat = 10000
+            nEventsPerStat = 5000
         if 'lB' in entries:
             lB = entries['lB']
         else:
@@ -299,7 +299,7 @@ def configuration(entries, save=True):
         if 'save_stats' in entries:
             save_stats = entries['save_stats']
         else:
-            save_stats = True
+            save_stats = False
         if 'load_features_from' in entries:
             load_features_from = entries['load_features_from']
         else:
@@ -311,7 +311,7 @@ def configuration(entries, save=True):
         if 'build_test_db' in entries:
             build_test_db = entries['build_test_db']
         else:
-            build_test_db = False
+            build_test_db = True
         assert(not (build_test_db and save_stats))
         
         # add parameters to config dictionary
@@ -484,7 +484,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TTEST10'
+    config_name = 'TPRODN01010'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -548,21 +548,21 @@ def configuration_trader(*ins):
 #        phase_shifts = [1 for i in range(numberNetworks)]
         
         numberNetworks = 1
-        IDresults = ['RRNN01010CMF181112T190329ACk1E12']
-        IDweights = [['WRNN01010k1K5A']]
-        list_name = ['TEST10']
-        list_spread_ranges = [{'sp':[10],'th':[(.5,.5)],'dir':'COMB'}]
+        IDresults = ['RRNN01010CMF181112T190329ACk1E12','RRNN01011CMF181112T190329ACk1E12']
+        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01011k1K5A','WRNN01011k2K5A']]
+        list_name = ['01010E1214MC7MD6','01011E1414MC7MD6']
+        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'},{'sp':[5],'th':[(.7,.6)],'dir':'COMB'}]
         
-        mWs = [10]
-        nExSs = [100]
-        outputGains = [1]
+        mWs = [500,500]
+        nExSs = [5000,5000]
+        outputGains = [1,.8]
         #lBs = [1300]
-        list_feats_from_bids = [True]
+        list_feats_from_bids = [False,False]
         combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
         first_day = '2018.11.12'
         last_day = '2019.03.29'
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
-        stacked = [1]
+        stacked = [2,2]
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
                          'results_from':list_spread_ranges[i]['dir'],
@@ -572,15 +572,15 @@ def configuration_trader(*ins):
                        'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[12]]
-        netNames = ['TEST1000']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
-        list_t_indexs = [[0]]
+        IDepoch = [[12,14],[14,14]]
+        netNames = ['RRNN01010k1k2','RRNN01011k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+        list_t_indexs = [[0],[0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
-        list_priorities = [[0]]#[[3],[2],[1],[0]]
+        list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
         phase_shifts = [1 for i in range(numberNetworks)]
         
 #        # T01011k1k2
@@ -625,7 +625,7 @@ def configuration_trader(*ins):
         
         
         list_lim_groi_ext = [-10.0 for i in range(numberNetworks)]
-        list_thr_sl = [1000 for i in range(numberNetworks)]
+        list_thr_sl = [50 for i in range(numberNetworks)]
         list_thr_tp = [1000 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
