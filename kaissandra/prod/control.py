@@ -19,7 +19,7 @@ def control(running_assets, timeout=15):
         - running_assets (list): list of assets being tracked by trader 
         - timeout (int): max timeout in minutes before reseting networks """
     directory_MT5 = local_vars.directory_MT5_IO
-    directory_io = local_vars.io_dir
+    directory_io = local_vars.io_live_dir
     reset_command = 'RESET'
     reset = False
     AllAssets = Data().AllAssets

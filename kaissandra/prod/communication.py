@@ -27,7 +27,7 @@ def send_command(directory_MT5_ass, command, msg=''):
     
 def shutdown():
     """  """
-    io_dir = local_vars.io_dir
+    io_dir = local_vars.io_live_dir
     AllAssets = Data().AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -40,7 +40,7 @@ def shutdown():
     
 def pause():
     """  """
-    io_dir = local_vars.io_dir
+    io_dir = local_vars.io_live_dir
     AllAssets = Data().AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -53,7 +53,7 @@ def pause():
 
 def resume():
     """  """
-    io_dir = local_vars.io_dir
+    io_dir = local_vars.io_live_dir
     AllAssets = Data().AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -87,7 +87,7 @@ def close_position(thisAsset):
         
 def reset_networks():
     """  """
-    directory_io = local_vars.io_dir
+    directory_io = local_vars.io_live_dir
     command = "RESET"
     AllAssets = Data().AllAssets
     for asset_key in AllAssets:
@@ -108,4 +108,4 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     from kaissandra.inputs import Data
-    from kaissandra.local_config import local_vars
+    from kaissandra.local_config_test import local_vars

@@ -2646,9 +2646,9 @@ def run(config_traders_list, running_assets, start_time):
         raise ValueError("Live execution not compatible with more than one trader")
     # directories
     if run_back_test:
-        dir_results = local_vars.RNN_dir+"resultsLive/back_test/"    
+        dir_results = local_vars.live_results_dict+"back_test/"    
     else:
-        dir_results = local_vars.RNN_dir+"resultsLive/live/"
+        dir_results = local_vars.live_results_dict+"live/"
     #dir_results_trader = dir_results+"trader/"
     dir_results_netorks = dir_results+'networks/'
     if not os.path.exists(dir_results_netorks):
@@ -2676,7 +2676,6 @@ def run(config_traders_list, running_assets, start_time):
     unique_netNames = []
     unique_inv_out = []
     list_net2strategy = [[] for _ in range(len(config_traders_list))]
-    list_filenames = []
     list_unique_configs = []
     list_tags = []
     #log_files = []
@@ -2756,25 +2755,25 @@ def run(config_traders_list, running_assets, start_time):
                 unique_inv_out.append(list_inv_out[nn])
                 list_models.append(StackedModel(configs,IDweights[nn]).init_interactive_session(epochs=IDepoch[nn]))
                 feats_from_bids = configs[0]['feats_from_bids']
-                movingWindow = configs[0]['movingWindow']
-                nEventsPerStat = configs[0]['nEventsPerStat']
+#                movingWindow = configs[0]['movingWindow']
+#                nEventsPerStat = configs[0]['nEventsPerStat']
                 feature_keys_manual = configs[0]['feature_keys_manual']
                 n_feats_manual = len(feature_keys_manual)
                 noVarFeats = configs[0]['noVarFeatsManual']
                 # load stats
                 if feats_from_bids:
                     # only get short bets (negative directions)
-                    tag = 'IO_mW'
+                    #tag = 'IO_mW'
                     tag_stats = 'IOB'
                 else:
                     # only get long bets (positive directions)
-                    tag = 'IOA_mW'
+                    #tag = 'IOA_mW'
                     tag_stats = 'IOA'
                 print(tag_stats)
                 list_tags.append(tag_stats)
-                filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
-                                    str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5')
-                list_filenames.append(filename_prep_IO)
+#                filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
+#                                    str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5')
+#                list_filenames.append(filename_prep_IO)
                 list_unique_configs.append(configs[0])
             #else:
             list_net2strategy[idx_tr].append(netNames[nn])
@@ -2803,7 +2802,7 @@ def run(config_traders_list, running_assets, start_time):
 #        print(len(list_spread_ranges))
 #        print(len(list_priorities))
 #        print(len(list_lim_groi_ext))
-        strategies = [Strategy(direct=local_vars.ADsDir,thr_sl=list_thr_sl[i], 
+        strategies = [Strategy(direct=ADsDir,thr_sl=list_thr_sl[i], 
                               thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                               fixed_spread_pips=list_fixed_spread_pips[i], 
                               max_lots_per_pos=list_max_lots_per_pos[i], 
@@ -3042,7 +3041,7 @@ def run(config_traders_list, running_assets, start_time):
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir=data_dir)
+                                   end_list_index, root_dir=local_vars.data_test_dir)
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
@@ -3193,6 +3192,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
     else:
         list_config_traders = [retrieve_config('TTEST10')]
         print("WARNING! TEST ON")
+    print("synchroned_run: "+str(synchroned_run))
     #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
@@ -3207,6 +3207,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
             time.sleep(2)
         time.sleep(30)
     print("All RNNs launched")
+    
 if __name__=='__main__':
     import sys
     this_path = os.getcwd()
@@ -3217,10 +3218,11 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
-    synchroned_run = False
+    synchroned_run = True
+    
     for arg in sys.argv:
-        if re.search('^synchroned_run=True',arg)!=None:
-            synchroned_run = True
+        if re.search('^synchroned_run=False',arg)!=None:
+            synchroned_run = False
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (Data,
@@ -3230,7 +3232,7 @@ from kaissandra.preprocessing import (load_stats_manual_v2,
                                       load_stats_output_v2)
 from kaissandra.models import StackedModel
 import shutil
-from kaissandra.local_config import local_vars
+from kaissandra.local_config_test import local_vars
 
 verbose_RNN = True
 verbose_trader = True
@@ -3240,10 +3242,9 @@ spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 
-data_dir = local_vars.data_test_dir
 directory_MT5_IO = local_vars.directory_MT5_IO
-io_dir = local_vars.io_dir
-ADsDir = local_vars.ADsDir
+io_dir = local_vars.io_live_dir
+ADsDir = local_vars.results_directory
 hdf5_directory = local_vars.hdf5_directory
 
 if __name__=='__main__':
