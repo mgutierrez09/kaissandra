@@ -2004,6 +2004,7 @@ def renew_mt5_dir(AllAssets, running_assets):
     nonsynched_assets = [i for i in running_assets]
     waitings = [True for _ in running_assets]
     its = 0
+    run = True
     # loop over assets
     while len(nonsynched_assets)>0:
         
@@ -2070,9 +2071,19 @@ def renew_mt5_dir(AllAssets, running_assets):
     #                        logid = re.search('\d+',m.group()).group()
     #                        log_ids[ass_idx] = logid
         if sum(waitings)>0:
+            for w in range(len(waitings)):
+                if waitings[w]:
+                    thisAsset = AllAssets[str(running_assets[w])]
+                    io_ass_dir = io_dir+thisAsset+"/"
+                    if os.path.exists(io_ass_dir+'SD'):
+                        print(thisAsset+" Shutting down")
+                        os.remove(io_ass_dir+'SD')
+                        run = False
+                        waitings = [False for _ in running_assets]
+                        nonsynched_assets = []
             time.sleep(2)
             
-    return file_ids, log_ids
+    return file_ids, log_ids, run
 
 def renew_directories(AllAssets, running_assets):
     """ Renew MT5 directories """
@@ -2139,7 +2150,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
     print("Fetcher lauched")
     #nAssets = len(running_assets)
     # renew MT5 directories
-    fileExt, list_log_ids = renew_mt5_dir(AllAssets, running_assets)
+    fileExt, list_log_ids, run = renew_mt5_dir(AllAssets, running_assets)
     
     #fileExt = [0 for ass in range(nAssets)]
     
@@ -2148,7 +2159,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
     
     nMaxFilesInDir = 0
     tic = time.time()
-    run = True
+    
     while run:
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
@@ -3208,6 +3219,8 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
         time.sleep(30)
     print("All RNNs launched")
     
+test = True
+
 if __name__=='__main__':
     import sys
     this_path = os.getcwd()
@@ -3220,9 +3233,20 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = True
     
+    config_names = []
+    print(sys.argv)
     for arg in sys.argv:
+        print(arg)
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False
+        if re.search('^test=False',arg)!=None:
+            test = False
+        print(test)
+        if re.search('^config_names',arg)!=None and not test:
+            config_names = (arg.split('=')[-1]).split(',')
+            print(config_names)
+        elif re.search('^config_names',arg)!=None and test:
+            raise ValueError("test cannot be False if config_names is not empty")
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (Data,
@@ -3236,7 +3260,7 @@ from kaissandra.local_config_test import local_vars
 
 verbose_RNN = True
 verbose_trader = True
-test = True
+
 run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
@@ -3249,7 +3273,7 @@ hdf5_directory = local_vars.hdf5_directory
 
 if __name__=='__main__':
     # lauch
-    launch(synchroned_run=synchroned_run)
+    launch(config_names=config_names,synchroned_run=synchroned_run,running_assets=[15])
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%

@@ -13,7 +13,7 @@ if __name__=='__main__':
     
     if 'build' in sys.argv:
         import datetime as dt
-        py_directories = ['IO/','config/','weights/','results/','resultsLive/','IOlive/','DB/','log/']
+        py_directories = ['IO/','config/','weights/','results/','resultsLive/','IOlive/','DB/','log/','Data/','Data_test/']
         mt5_root_dir = "C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+\
                      "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/"
         mt5_directories = ['Account','IOlive','Data','Log']
@@ -51,8 +51,8 @@ if __name__=='__main__':
             "\tio_live_dir = '"+root_path+py_directories[5]+"'\n"+
             "\tconfig_directory = '"+root_path+py_directories[1]+"'\n"+
             "\tlog_directory = '"+root_path+py_directories[7]+"'\n"+
-            "\tdata_dir = ''\n"+
-            "\tdata_test_dir = ''\n"+
+            "\tdata_dir = '"+root_path+py_directories[8]+"'\n"+
+            "\tdata_test_dir = '"+root_path+py_directories[9]+"'\n"+
             "local_vars = Local()\n")
         local_config_filepath = path+'kaissandra/local_config_test.py'
         if not os.path.exists(local_config_filepath):
