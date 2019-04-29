@@ -14,15 +14,6 @@ import datetime as dt
 import pickle
 import re
 import tensorflow as tf
-from kaissandra.simulateTrader import load_in_memory
-from kaissandra.inputs import (Data,
-                               initFeaturesLive_v2,
-                               extractFeaturesLive_v2)
-from kaissandra.preprocessing import (load_stats_manual_v2,
-                                      load_stats_output_v2,)
-from kaissandra.models import StackedModel
-import shutil
-from kaissandra.local_config import local_vars
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -30,14 +21,6 @@ entry_bid_column = 'Bi'
 entry_ask_column = 'Ai'
 exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
-
-verbose_RNN = True
-verbose_trader = True
-test = False
-run_back_test = False
-spread_ban = False
-ban_only_if_open = False # not in use
-force_no_extesion = False
 
 # TODO: add it in parameters
 n_samps_buffer = 500
@@ -50,17 +33,12 @@ flag_sl_name = "SL"
 columnsResultInfo = ["Asset","Entry Time","Exit Time","GROI","Spread","ROI","Bet",
                      "Outcome","Diff","Bi","Ai","Bo","Ao","P_mc","P_md",
                      "P_mg"]
-data_dir = local_vars.data_test_dir
-directory_MT5_IO = local_vars.directory_MT5_IO
-io_dir = local_vars.io_dir
-ADsDir = local_vars.ADsDir
-hdf5_directory = local_vars.hdf5_directory
 
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
 class Results:
         
-    def __init__(self, IDresults, IDepoch, list_t_indexs, 
+    def __init__(self, IDresults, IDepoch, list_t_indexs, numberNetworks,
                  list_w_str, start_time, dir_results_trader, config_name=''):
         """ Init Results attributs """
         self.total_GROI = 0.0
@@ -95,7 +73,7 @@ class Results:
         
         self.sl_levels = np.array([5, 10, 15, 20])
         self.n_slots = 10
-        numberNetworks = len(IDresults)
+        #numberNetworks = len(IDresults)
         self.results_file_name = '_'.join([IDresults[i]+'E'+str(IDepoch[i])+'T'+
                          str(list_t_indexs[i])+'W'+list_w_str[i]
                          for i in range(numberNetworks)])
@@ -470,7 +448,7 @@ class Trader:
             # load network output
             while not success:
                 try:
-                    fh = open(dirfilename,"r", encoding='utf_16_le')
+                    fh = open(dirfilename,"r")
                     info_close = fh.read()[1:-1]
                     # close file
                     fh.close()
@@ -1344,7 +1322,7 @@ class Trader:
         # load network output
         while not success:
             try:
-                fh = open(directory_MT5_ass+"TT","w", encoding='utf_16_le')
+                fh = open(directory_MT5_ass+"TT","w")
                 fh.write(str(self.next_candidate.direction)+","+
                          str(self.next_candidate.strategy.max_lots_per_pos)+
                          ","+str(self.next_candidate.deadline)+","+
@@ -1702,8 +1680,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
 #                        print("\r"+out)
 #                        write_log(out, log_file)
                 elif verbose_RNN:
-                    Bi = tradeInfoLive.SymbolBid.iloc[-1]
-                    Ai = tradeInfoLive.SymbolAsk.iloc[-1]
+                    Bi = int(np.round(tradeInfoLive.SymbolBid.iloc[-1]*100000))/100000
+                    Ai = int(np.round(tradeInfoLive.SymbolAsk.iloc[-1]*100000))/100000
                     out = thisAsset+netName+\
                         tradeInfoLive.DateTime.iloc[-1]+\
                         " Bi "+str(Bi)+" Ai "+str(Ai)+\
@@ -1815,11 +1793,11 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     if p_mc>.5:#pred!=0:
                         
                         # entry ask and bid
-                        Ai = EOF.SymbolAsk.iloc[c]
-                        Bi = EOF.SymbolBid.iloc[c]
+                        Ai = int(np.round(EOF.SymbolAsk.iloc[c]*100000))/100000
+                        Bi = int(np.round(EOF.SymbolBid.iloc[c]*100000))/100000
                         # exit ask and bid
-                        Ao = tradeInfoLive.SymbolAsk.iloc[-2]
-                        Bo = tradeInfoLive.SymbolBid.iloc[-2]
+                        Ao = int(np.round(tradeInfoLive.SymbolAsk.iloc[-2]*100000))/100000
+                        Bo = int(np.round(tradeInfoLive.SymbolBid.iloc[-2]*100000))/100000
                         # long position prediction
                         #print(pred)
                         if pred>0:
@@ -1845,10 +1823,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         newEntry["P_mc"] = p_mc
                         newEntry["P_md"] = p_md
                         newEntry["P_mg"] = p_mg
-                        newEntry['Bi'] = EOF.SymbolBid.iloc[c]
-                        newEntry['Ai'] = EOF.SymbolAsk.iloc[c]
-                        newEntry['Bo'] = int(np.round(tradeInfoLive.SymbolBid.iloc[-2]*100000))/100000
-                        newEntry['Ao'] = int(np.round(tradeInfoLive.SymbolAsk.iloc[-2]*100000))/100000
+                        newEntry['Bi'] = Bi
+                        newEntry['Ai'] = Ai
+                        newEntry['Bo'] = Bo
+                        newEntry['Ao'] = Ao
                         
                         
                         #resultInfo = pd.DataFrame(columns = columnsResultInfo)
@@ -2149,7 +2127,7 @@ def send_close_command(asset):
         # load network output
         while not success:
             try:
-                fh = open(directory_MT5_ass2close+"LC","w", encoding='utf_16_le')
+                fh = open(directory_MT5_ass2close+"LC","w")
                 fh.close()
                 success = 1
             except PermissionError:
@@ -2188,7 +2166,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
             success = 0
             
             try:
-                buffer = pd.read_csv(directory_MT5_ass+fileID, encoding='utf_16_le')#
+                buffer = pd.read_csv(directory_MT5_ass+fileID)#
                 #print(thisAsset+" new buffer received")
                 os.remove(directory_MT5_ass+fileID)
                 success = 1
@@ -2196,6 +2174,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 #start_timer(ass_idx)
                 if not first_info_fetched:
                     print(thisAsset+" First info fetched")
+                    #print(buffer)
                     first_info_fetched = True
                 elif nMaxFilesInDir<nFilesDir:
                     nMaxFilesInDir = nFilesDir
@@ -2203,7 +2182,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     print(out)
                     write_log(out, log_file)
                     
-            except (FileNotFoundError,PermissionError):
+            except (FileNotFoundError,PermissionError,OSError):
                 io_ass_dir = io_dir+thisAsset+"/"
                 # check shut down command
                 if os.path.exists(io_ass_dir+'SD'):
@@ -2245,7 +2224,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 success = 0
                 while not success:
                     try:
-                        fh = open(directory_MT5_ass+flag_cl_name,"r",encoding='utf_16_le')
+                        fh = open(directory_MT5_ass+flag_cl_name,"r")
                         # read output
                         info_close = fh.read()[1:-1]
                         #print(info_close)
@@ -2259,7 +2238,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                         else:
                             pass
                             #print("Error in reading file. Length "+str(len(info_close)))
-                    except (FileNotFoundError,PermissionError):
+                    except (FileNotFoundError,PermissionError,OSError):
                         pass
                 
                 
@@ -2270,7 +2249,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 while not success:
                     try:
                         #print(dirOr+flag_name)
-                        fh = open(directory_MT5_ass+flag_sl_name,"r",encoding='utf_16_le')
+                        fh = open(directory_MT5_ass+flag_sl_name,"r")
                         # read output
                         info_close = fh.read()[1:-1]
                         # close file
@@ -2284,7 +2263,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                             out = "Error in reading file. Length "+str(len(info_close))
                             print(out)
                             write_log(out, log_file)
-                    except (FileNotFoundError,PermissionError):
+                    except (FileNotFoundError,PermissionError,OSError):
                         pass
 
             # check if asset has been banned from outside
@@ -2843,8 +2822,8 @@ def run(config_traders_list, running_assets, start_time):
                               lim_groi_ext=list_lim_groi_ext[i]) for i in range(numberNetworks)]
         list_strategies.append(strategies)
         
-        results = Results(IDresults, IDepoch, list_t_indexs, list_w_str, start_time,
-                          dir_results, config_name=config_name)
+        results = Results(IDresults, IDepoch, list_t_indexs, numberNetworks,
+                          list_w_str, start_time, dir_results, config_name=config_name)
         list_results.append(results)
     # end of for idx_tr, config_trader in enumerate(config_list):
     ### MAP CONFIGS TO NETWORKS ###
@@ -3195,24 +3174,26 @@ def run(config_traders_list, running_assets, start_time):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
         
-def launch(*ins):
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
+           synchroned_run=True):
     # runLive in multiple processes
     from multiprocessing import Process
     import datetime as dt
     import time
     from kaissandra.config import retrieve_config
-    
-    if len(ins)>0:
-        list_config_traders = [retrieve_config(config_name) for config_name in ins]
-#        for config_name in ins:
-#            #config_trader = retrieve_config(ins[0])
-#            list_config_traders.append(retrieve_config(config_name))
+    if not test:
+        if len(config_names)>0:
+            list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+    #        for config_name in ins:
+    #            #config_trader = retrieve_config(ins[0])
+    #            list_config_traders.append(retrieve_config(config_name))
+        else:
+            list_config_traders = [retrieve_config('TPRODN01010')]
+    # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TPRODN01010')]
-    synchroned_run = False
-    # GOLD: 15
-    assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]#[1]
-    running_assets = assets#[7,10,12,14]#assets#[12,7,14]#
+        list_config_traders = [retrieve_config('TTEST10')]
+        print("WARNING! TEST ON")
+    #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
@@ -3227,9 +3208,47 @@ def launch(*ins):
         time.sleep(30)
     print("All RNNs launched")
 if __name__=='__main__':
-    #pass
-    launch()
-        
+    import sys
+    this_path = os.getcwd()
+    path = '\\'.join(this_path.split('\\')[:-1])+'\\'
+    print(path)
+    if path not in sys.path:
+        sys.path.insert(0, path)
+        print(path+" added to python path")
+    else:
+        print(path+" already added to python path")
+    synchroned_run = False
+    for arg in sys.argv:
+        if re.search('^synchroned_run=True',arg)!=None:
+            synchroned_run = True
+    #
+from kaissandra.simulateTrader import load_in_memory
+from kaissandra.inputs import (Data,
+                               initFeaturesLive_v2,
+                               extractFeaturesLive_v2)
+from kaissandra.preprocessing import (load_stats_manual_v2,
+                                      load_stats_output_v2)
+from kaissandra.models import StackedModel
+import shutil
+from kaissandra.local_config import local_vars
+
+verbose_RNN = True
+verbose_trader = True
+test = True
+run_back_test = False
+spread_ban = False
+ban_only_if_open = False # not in use
+force_no_extesion = False
+
+data_dir = local_vars.data_test_dir
+directory_MT5_IO = local_vars.directory_MT5_IO
+io_dir = local_vars.io_dir
+ADsDir = local_vars.ADsDir
+hdf5_directory = local_vars.hdf5_directory
+
+if __name__=='__main__':
+    # lauch
+    launch(synchroned_run=synchroned_run)
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
