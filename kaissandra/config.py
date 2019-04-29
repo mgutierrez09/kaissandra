@@ -484,7 +484,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TPRODN01010'
+    config_name = 'TPRODN01010N01011'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -547,7 +547,7 @@ def configuration_trader(*ins):
 #        list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
 #        phase_shifts = [1 for i in range(numberNetworks)]
         
-        numberNetworks = 1
+        numberNetworks = 2
         IDresults = ['RRNN01010CMF181112T190329ACk1E12','RRNN01011CMF181112T190329ACk1E12']
         IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01011k1K5A','WRNN01011k2K5A']]
         list_name = ['01010E1214MC7MD6','01011E1414MC7MD6']
@@ -581,7 +581,7 @@ def configuration_trader(*ins):
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
         list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
-        phase_shifts = [1 for i in range(numberNetworks)]
+        phase_shifts = [2 for i in range(numberNetworks)]
         
 #        # T01011k1k2
 #        numberNetworks = 1

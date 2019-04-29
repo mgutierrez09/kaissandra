@@ -54,7 +54,7 @@ if __name__=='__main__':
             "\tdata_dir = '"+root_path+py_directories[8]+"'\n"+
             "\tdata_test_dir = '"+root_path+py_directories[9]+"'\n"+
             "local_vars = Local()\n")
-        local_config_filepath = path+'kaissandra/local_config_test.py'
+        local_config_filepath = path+'kaissandra/local_config.py'
         if not os.path.exists(local_config_filepath):
             f = open(local_config_filepath,'w+')
             f.write(config_file)

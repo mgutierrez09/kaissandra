@@ -229,7 +229,7 @@ void checkForOpening(){
             bool reset = false;
             int tries = 0;
             do{
-               filehandle_trader = FileOpen(directoryNameLive+TTfile,FILE_READ);
+               filehandle_trader = FileOpen(directoryNameLive+TTfile,FILE_READ|FILE_ANSI);
                predictionString = FileReadString(filehandle_trader);
                k = StringSplit(predictionString,StringGetCharacter(",",0),chunks);
                FileClose(filehandle_trader);
@@ -453,7 +453,7 @@ int OnInit()
    LCfile = "LC";
    // set milisecond timer
    //timer_bool = EventSetMillisecondTimer(10);
-   Print(thisSymbol+" Fetcher-Trader-Recorder version 1.0 launched");
+   Print(thisSymbol+" Fetcher-Trader-Recorder version 2.0 launched");
    
    // Test to check open/close instants and synchronizity with Python
    
