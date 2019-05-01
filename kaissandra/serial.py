@@ -3227,7 +3227,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
         time.sleep(30)
     print("All RNNs launched")
     
-test = True
+test = False
 
 if __name__=='__main__':
     import sys
