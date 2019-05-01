@@ -640,7 +640,7 @@ def configuration_trader(*ins):
         list_ub_md_ext = [1 for i in range(numberNetworks)]
         list_fix_spread = [False for i in range(numberNetworks)]
         list_fixed_spread_pips = [4 for i in range(numberNetworks)]
-        list_max_lots_per_pos = [.1 for i in range(numberNetworks)]
+        list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
         list_flexible_lot_ratio = [False for i in range(numberNetworks)]
         list_if_dir_change_close = [False for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]

@@ -357,6 +357,7 @@ class Trader:
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
         
         init_budget, leverage, _, _ = self.get_account_status()
+        #print("Init budget: "+str(init_budget)+" Leverage: "+str(leverage))
         self.budget = init_budget
         self.init_budget = init_budget
         self.LOT = 100000.0
@@ -366,6 +367,7 @@ class Trader:
         #self.budget_in_lots = self.leverage*self.budget/self.LOT
         self.available_budget = self.budget*self.leverage
         self.available_bugdet_in_lots = self.available_budget/self.LOT
+        print("Available budget in lots: "+str(self.available_bugdet_in_lots))
         self.budget_in_lots = self.available_bugdet_in_lots
         self.gross_earnings = 0.0
         self.nett_earnigs = 0.0
@@ -417,13 +419,15 @@ class Trader:
             
         
             self.start_time = start_time
-            
-            if not os.path.exists(self.results_dir_trader):
-                os.makedirs(self.results_dir_trader)
-            if not os.path.exists(self.dir_positions):
-                    os.makedirs(self.dir_positions)
-            if not os.path.exists(self.ban_currencies_dir):
-                    os.makedirs(self.ban_currencies_dir)
+            try:
+                if not os.path.exists(self.results_dir_trader):
+                    os.makedirs(self.results_dir_trader)
+                if not os.path.exists(self.dir_positions):
+                        os.makedirs(self.dir_positions)
+                if not os.path.exists(self.ban_currencies_dir):
+                        os.makedirs(self.ban_currencies_dir)
+            except FileExistsError:
+                print("WARNING! File already exists. Moving on")
             # little pause to garantee no 2 processes access at the same time
             time.sleep(np.random.rand())
             # results tracking
@@ -443,7 +447,8 @@ class Trader:
     def get_account_status(self):
         """ Get account status from broker """
         success = 0
-        dirfilename = local_vars.directory_MT5_account+'Status.txt'
+        ##### WARNING! #####
+        dirfilename = local_vars.directory_MT5_account+'NOStatus.txt'
         if os.path.exists(dirfilename):
             # load network output
             while not success:
@@ -464,10 +469,16 @@ class Trader:
             profits = float(info_str[3])
         else:
             print("WARNING! Account Status file not found. Turning to default")
-            balance = 10000.0
-            leverage = 30
-            equity = balance
-            profits = 0.0
+            if not hasattr(self, 'budget'):
+                balance = 500.0
+                leverage = 30
+                equity = balance
+                profits = 0.0
+            else:
+                balance = self.budget
+                leverage = 30
+                equity = balance
+                profits = 0.0
         print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
               .format(balance,leverage,equity,profits))
         return balance, leverage, equity, profits
@@ -1145,10 +1156,6 @@ class Trader:
                         #print(strategy_index)
                         profitability = self.strategies[strategy_index].get_profitability(
                                 t, p_mc, p_md, int(np.abs(Y_tilde)-1))
-                        if network_name=='327T21E0S':
-                            out = "327T21E0S network_name in self.net2strategy"
-                            print(out)
-                            self.write_log(out)
                         yield {entry_time_column:DateTime,
                                'Asset':thisAsset,
                                'Bet':Y_tilde,
@@ -1271,10 +1278,11 @@ class Trader:
                         if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
                         this_strategy.entry_strategy=='spread_ranges' and \
                         self.check_same_strategy(ass_id) and \
-                        self.next_candidate.p_mc>=.6 and \
-                        self.next_candidate.p_md>=.6:
-#                        self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
-#                        self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
+                        self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
+                        self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
+#                        self.next_candidate.p_mc>=.6 and \
+#                        self.next_candidate.p_md>=.6:
+
                             # close position due to direction change
                             out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
                             +" closing due to direction change!"
