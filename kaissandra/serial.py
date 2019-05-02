@@ -148,6 +148,10 @@ class Results:
                            'EmBid':ems})
         df.to_csv(self.dir_positions+filename+'.txt', index=False)
     
+    def save_pos_evolution_live(self, filename, df):
+        """  """
+        df.to_csv(self.dir_positions+filename+'.txt', index=False)
+    
 #class stats:
 #    
 #    def __init__():
@@ -352,6 +356,7 @@ class Trader:
         self.list_sl_thr_vector = []
         self.list_deadlines = []
         self.positions_tracker = []
+        self.list_symbols_tracking = []
         
         self.journal_idx = 0
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
@@ -448,7 +453,7 @@ class Trader:
         """ Get account status from broker """
         success = 0
         ##### WARNING! #####
-        dirfilename = local_vars.directory_MT5_account+'NOStatus.txt'
+        dirfilename = local_vars.directory_MT5_account+'Status.txt'
         if os.path.exists(dirfilename):
             # load network output
             while not success:
@@ -506,6 +511,7 @@ class Trader:
         self.list_EM.append([bid])
         self.list_last_ask.append([ask])
         self.list_last_dt.append([datetime])
+        self.list_symbols_tracking.append(pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk']))
         self.map_ass_idx2pos_idx[idx] = len(self.list_count_events)-1
         self.list_stop_losses.append(self.next_candidate.entry_bid*\
                                 (1-self.next_candidate.direction*\
@@ -517,8 +523,7 @@ class Trader:
         
         
     def remove_position(self, idx):
-        '''
-        '''
+        """  """
         self.list_opened_positions = self.list_opened_positions\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_opened_positions\
             [self.map_ass_idx2pos_idx[idx]+1:]
@@ -557,6 +562,9 @@ class Trader:
             [self.map_ass_idx2pos_idx[idx]+1:]
         self.positions_tracker = self.positions_tracker\
             [:self.map_ass_idx2pos_idx[idx]]+self.positions_tracker\
+            [self.map_ass_idx2pos_idx[idx]+1:]
+        self.list_symbols_tracking = self.list_symbols_tracking\
+            [:self.map_ass_idx2pos_idx[idx]]+self.list_symbols_tracking\
             [self.map_ass_idx2pos_idx[idx]+1:]
             
         
@@ -782,8 +790,18 @@ class Trader:
         bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
         Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]][-1]
-        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]][-1]
+        if run_back_test:
+            Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]][-1]
+            Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]][-1]
+        else:
+            try:
+                Ao = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].SymbolAsk.iloc[-1]
+                Bo = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].SymbolBid.iloc[-1]
+            except:
+                print("WARNING! Error when reading last symbol from list_symbols_tracking. "+
+                      "Reading info from list_last_bid instead.")
+                Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]][-1]
+                Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]][-1]
         
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -814,7 +832,8 @@ class Trader:
         
     
     def close_position(self, date_time, ass, idx, results,
-                       lot_ratio=None, partial_close=False, from_sl=0):
+                       lot_ratio=None, partial_close=False, from_sl=0, 
+                       DTi_real=''):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -869,14 +888,22 @@ class Trader:
         info_close = info+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
             str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
         write_log(info_close, self.log_positions_soll)
-        pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
-                                              self.list_last_dt[list_idx][-1])
+        
         # save position evolution
+        
+        if run_back_test:
+            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+                                              self.list_last_dt[list_idx][-1])
+            results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
+                                       self.list_last_bid[list_idx], 
+                                       self.list_last_ask[list_idx], 
+                                       self.list_EM[list_idx])
+        else:
+            #last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
+            pos_filename = get_positions_filename(ass, DTi_real, date_time)
+            results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[list_idx])
+            
         self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename)
-        results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
-                                   self.list_last_bid[list_idx], 
-                                   self.list_last_ask[list_idx], 
-                                   self.list_EM[list_idx])
         # update output lists
         results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
         
@@ -948,7 +975,7 @@ class Trader:
         self.track_position('open', DateTime)
             
         out = (DateTime+" Open "+self.list_opened_positions[-1].asset+
-              " Lots {0:.1f}".format(lots)+" "+str(self.list_opened_positions[-1].bet)+
+              " Lots {0:.2f}".format(lots)+" "+str(self.list_opened_positions[-1].bet)+
               " p_mc={0:.2f}".format(self.list_opened_positions[-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
               " spread={0:.3f} ".format(e_spread)+" strategy "+
@@ -996,7 +1023,10 @@ class Trader:
             pos_info['strategy'].append(strategy_name)
         elif event=='close':
             pos_info = self.positions_tracker[self.map_ass_idx2pos_idx[idx]]
-            n_ticks = len(self.list_last_bid[self.map_ass_idx2pos_idx[idx]])
+            if run_back_test:
+                n_ticks = len(self.list_last_bid[self.map_ass_idx2pos_idx[idx]])
+            else:
+                n_ticks = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].shape[0]
             pos_info['dts'].append(DateTime)
             pos_info['p_mcs'].append(None)
             pos_info['p_mds'].append(None)
@@ -1408,8 +1438,13 @@ class Trader:
                                self.new_swap_candidate.deadline)
             self.swap_pending = 0
     
+    def update_symbols_tracking(self, list_idx, buffer):
+        """ Update bids and asks list with new value from live """
+        # update bid and ask lists if exist
+        if list_idx>-1:
+            self.list_symbols_tracking[list_idx] = self.list_symbols_tracking[list_idx].append(buffer)
     def update_list_last(self, list_idx, datetime, bid, ask):
-        """ Update bids and asks list with new value """
+        """ Update bids and asks list with new value from backtest """
         # update bid and ask lists if exist
         if list_idx>-1:
             self.list_last_bid[list_idx].append(bid)
@@ -1419,22 +1454,22 @@ class Trader:
             em = self.list_EM[list_idx][-1]
             self.list_EM[list_idx].append(w*em+(1-w)*bid)
             
-    def save_pos_evolution(self, asset, list_idx):
-        """ Save evolution of the position from opening till close """
-        # format datetime for filename
-        dt_open = dt.datetime.strftime(dt.datetime.strptime(
-                        self.list_last_dt[list_idx][0],'%Y.%m.%d %H:%M:%S'),
-                '%y%m%d%H%M%S')
-        dt_close = dt.datetime.strftime(dt.datetime.strptime(
-                        self.list_last_dt[list_idx][-1],'%Y.%m.%d %H:%M:%S'),
-                '%y%m%d%H%M%S')
-        filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
-        direct = self.dir_positions
-        df = pd.DataFrame({'DateTime':self.list_last_dt[list_idx],
-                           'SymbolBid':self.list_last_bid[list_idx],
-                           'SymbolAsk':self.list_last_ask[list_idx],
-                           'EmBid':self.list_EM[list_idx]})
-        df.to_csv(direct+filename, index=False)
+#    def save_pos_evolution(self, asset, list_idx):
+#        """ Save evolution of the position from opening till close """
+#        # format datetime for filename
+#        dt_open = dt.datetime.strftime(dt.datetime.strptime(
+#                        self.list_last_dt[list_idx][0],'%Y.%m.%d %H:%M:%S'),
+#                '%y%m%d%H%M%S')
+#        dt_close = dt.datetime.strftime(dt.datetime.strptime(
+#                        self.list_last_dt[list_idx][-1],'%Y.%m.%d %H:%M:%S'),
+#                '%y%m%d%H%M%S')
+#        filename = 'O'+dt_open+'C'+dt_close+asset+'.txt'
+#        direct = self.dir_positions
+#        df = pd.DataFrame({'DateTime':self.list_last_dt[list_idx],
+#                           'SymbolBid':self.list_last_bid[list_idx],
+#                           'SymbolAsk':self.list_last_ask[list_idx],
+#                           'EmBid':self.list_EM[list_idx]})
+#        df.to_csv(direct+filename, index=False)
     
     def ban_currencies(self, lists, thisAsset, DateTime, results, direction):
         """ Ban currency pairs related to ass_idx asset. WARNING! Assets 
@@ -1473,8 +1508,11 @@ class Trader:
                             self.write_log(out)
                             
                             list_idx = self.map_ass_idx2pos_idx[ass_id]
-                            bid = self.list_last_bid[list_idx][-1]
                             self.close_position(DateTime, asset, ass_id, results, from_sl=1)
+                            if run_back_test:
+                                bid = self.list_last_bid[list_idx][-1]
+                            else:
+                                bid = self.list_symbols_tracking[list_idx].SymbolBid.iloc[-1]
                             lists = flush_asset(lists, ass_idx, bid)
                         else:
                             out = asset+" NOT banned due to different directions"
@@ -1671,7 +1709,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     soft_tilde_t = np.sum(weights*soft_tilde, axis=1)
                                 
     ###########################################################################
-                            
+                if 0:#test:
+                    soft_tilde_t = np.ones(soft_tilde_t.shape)
     ################################# Send prediciton to trader ###############
                 # get condition to 
                 condition = soft_tilde_t[0,0]>thr_mc
@@ -2219,11 +2258,13 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
                 # update list
                 list_idx = trader.map_ass_idx2pos_idx[ass_id]
-                bid = buffer.SymbolBid.iloc[-1]
-                ask = buffer.SymbolAsk.iloc[-1]
-                DateTime = buffer.DateTime.iloc[-1]
-                trader.update_list_last(list_idx, DateTime, bid, ask)
+                
+                
                 if list_idx>-1:
+#                    bid = buffer.SymbolBid.iloc[-1]
+#                    ask = buffer.SymbolAsk.iloc[-1]
+#                    DateTime = buffer.DateTime.iloc[-1]
+                    trader.update_symbols_tracking(list_idx, buffer)
                     trader.count_events(ass_id, buffer.shape[0])
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
@@ -2245,11 +2286,16 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     try:
                         fh = open(directory_MT5_ass+flag_cl_name,"r")
                         # read output
-                        info_close = fh.read()[1:-1]
+                        out = fh.read()
+                        info_close = out[:-1]
+                        
                         #print(info_close)
                         # close file
                         fh.close()
-                        
+#                        print("out")
+#                        print(out)
+#                        print("info_close")
+                        print(info_close)
                         flag_cl = 1
                         if len(info_close)>1:
                             os.remove(directory_MT5_ass+flag_cl_name)
@@ -2270,7 +2316,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                         #print(dirOr+flag_name)
                         fh = open(directory_MT5_ass+flag_sl_name,"r")
                         # read output
-                        info_close = fh.read()[1:-1]
+                        info_close = fh.read()[:-1]
+                        
                         # close file
                         fh.close()
                         
@@ -2323,13 +2370,13 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # update postiions vector
                 info_split = info_close.split(",")
                 list_idx = trader.map_ass_idx2pos_idx[ass_id]
-                bid = float(info_split[6])
-                ask = float(info_split[7])
+#                bid = float(info_split[6])
+#                ask = float(info_split[7])
                 DateTime = info_split[2]
                 # update bid and ask lists if exist
-                trader.update_list_last(list_idx, DateTime, bid, ask)
+                #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
                     
-                trader.close_position(DateTime, thisAsset, ass_id, results)
+                trader.close_position(info_split[2], thisAsset, ass_id, results, DTi_real=info_split[1])
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
@@ -2341,12 +2388,12 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # update positions vector
                 info_split = info_close.split(",")
                 list_idx = trader.map_ass_idx2pos_idx[ass_id]
-                bid = float(info_split[6])
-                ask = float(info_split[7])
+#                bid = float(info_split[6])
+#                ask = float(info_split[7])
                 DateTime = info_split[2]
                 direction = int(info_split[3])
                 # update bid and ask lists if exist
-                trader.update_list_last(list_idx, DateTime, bid, ask)
+                #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
                     
                 #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
@@ -3212,6 +3259,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
         list_config_traders = [retrieve_config('TTEST10')]
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
+    print("Test "+str(test))
     #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
@@ -3227,7 +3275,14 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
         time.sleep(30)
     print("All RNNs launched")
     
-test = False
+
+verbose_RNN = True
+verbose_trader = True
+test = True
+run_back_test = False
+spread_ban = False
+ban_only_if_open = False # not in use
+force_no_extesion = False
 
 if __name__=='__main__':
     import sys
@@ -3240,15 +3295,17 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = True
-    
     config_names = []
     print(sys.argv)
     for arg in sys.argv:
         print(arg)
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False
-        if re.search('^test=False',arg)!=None:
-            test = False
+#        if re.search('^test=False',arg)!=None:
+#            test_arg = False
+#        else:
+#            test_arg = True
+        #test = test_arg
         if re.search('^config_names',arg)!=None and not test:
             config_names = (arg.split('=')[-1]).split(',')
             print(config_names)
@@ -3257,21 +3314,13 @@ if __name__=='__main__':
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (Data,
-                               initFeaturesLive_v2,
-                               extractFeaturesLive_v2)
+                                   initFeaturesLive_v2,
+                                   extractFeaturesLive_v2)
 from kaissandra.preprocessing import (load_stats_manual_v2,
-                                      load_stats_output_v2)
+                                          load_stats_output_v2)
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars
-
-verbose_RNN = True
-verbose_trader = True
-
-run_back_test = False
-spread_ban = False
-ban_only_if_open = False # not in use
-force_no_extesion = False
 
 directory_MT5_IO = local_vars.directory_MT5_IO
 io_dir = local_vars.io_live_dir
@@ -3280,7 +3329,7 @@ hdf5_directory = local_vars.hdf5_directory
 
 if __name__=='__main__':
     # lauch
-    launch(config_names=config_names,synchroned_run=synchroned_run)
+    launch(config_names=config_names,synchroned_run=synchroned_run, running_assets=[7,10,12,14])#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
