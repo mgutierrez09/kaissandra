@@ -14,8 +14,8 @@ if __name__=='__main__':
     if 'build' in sys.argv:
         import datetime as dt
         py_directories = ['IO/','config/','weights/','results/','resultsLive/','IOlive/','DB/','log/','Data/','Data_test/']
-        mt5_root_dir = "C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/"+\
-                     "D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/"
+        mt5_root_dir = "C:/Users/Administrator/AppData/Roaming/MetaQuotes/Terminal/"+\
+                     "24F345EB9F291441AFE537834F9D8A19/MQL5/Files/"
         mt5_directories = ['Account','IOlive','Data','Log']
         root_path = '/'.join(path.split('\\')[:-2])+'/'
         for directory in py_directories:

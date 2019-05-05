@@ -109,3 +109,5 @@ if __name__=='__main__':
         print(path+" already added to python path")
     from kaissandra.inputs import Data
     from kaissandra.local_config import local_vars
+    
+    shutdown()
