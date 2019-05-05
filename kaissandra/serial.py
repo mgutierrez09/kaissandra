@@ -3329,7 +3329,7 @@ hdf5_directory = local_vars.hdf5_directory
 
 if __name__=='__main__':
     # lauch
-    launch(config_names=config_names,synchroned_run=synchroned_run, running_assets=[7,10,12,14])#
+    launch(config_names=config_names,synchroned_run=synchroned_run)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
