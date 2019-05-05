@@ -3278,7 +3278,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
 
 verbose_RNN = True
 verbose_trader = True
-test = True
+test = False
 run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
