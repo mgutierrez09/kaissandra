@@ -6,6 +6,7 @@ Created on Mon Apr 29 11:20:05 2019
 """
 import sys
 import os
+import re
 
 def send_command(directory_MT5_ass, command, msg=''):
     """
@@ -107,7 +108,19 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
+    
     from kaissandra.inputs import Data
     from kaissandra.local_config import local_vars
     
-    shutdown()
+    for arg in sys.argv:
+        print(arg)
+        if re.search('^shutdown',arg)!=None:
+            shutdown()
+        elif re.search('^reset_networks',arg)!=None:
+            reset_networks()
+        elif re.search('^close_positions',arg)!=None:
+            close_positions()
+        elif re.search('^pause',arg)!=None:
+            pause()
+        elif re.search('^resume',arg)!=None:
+            resume()
