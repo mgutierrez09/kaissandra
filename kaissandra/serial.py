@@ -273,8 +273,8 @@ class Strategy():
             
             self.GRE = self.weights[0]*GRE+self.weights[1]*GREex
             
-            if test:
-                self.GRE = self.GRE+20
+#            if test:
+#                self.GRE = self.GRE+20
 #            print("GRE combined level 1:")
 #            print(self.GRE[:,:,0])
 #            print("GRE combined level 2:")
@@ -420,7 +420,7 @@ class Trader:
             self.log_summary = self.results_dir_trader+start_time+tag+config_name+"summary.log"
             self.dir_positions = results_dir+'/positions/'+start_time+config_name+'/'
             self.budget_file = self.results_dir_trader+start_time+tag+config_name+"budget.log"
-            self.ban_currencies_dir = io_dir+'/ban'+config_name+'/'
+            self.ban_currencies_dir = LC.io_live_dir+'/ban'+config_name+'/'
             
         
             self.start_time = start_time
@@ -453,7 +453,7 @@ class Trader:
         """ Get account status from broker """
         success = 0
         ##### WARNING! #####
-        dirfilename = local_vars.directory_MT5_account+'Status.txt'
+        dirfilename = LC.directory_MT5_account+'Status.txt'
         if os.path.exists(dirfilename):
             # load network output
             while not success:
@@ -1401,7 +1401,7 @@ class Trader:
         print(out)
         #send close command if running live
         if not run_back_test:
-            directory_MT5_ass2close = directory_MT5_IO+\
+            directory_MT5_ass2close = LC.directory_MT5_IO+\
                 self.list_opened_positions[self.swap_pos].asset+"/"
             self.send_close_command(directory_MT5_ass2close)
         # activate swap pending flag
@@ -1778,10 +1778,11 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 prob_mc = np.array([soft_tilde_t[0,0]])
                             
                 if prob_mc>thr_mc:
-                    Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
+                    #Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
                     Y_tilde_check = np.array([(-1)**(1-np.argmax(soft_tilde_t[0,1:3]))]).astype(int)
                 else:
-                    Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
+                    pass
+                    #Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
                     Y_tilde_check = np.array([0])
 #                Y_tilde = np.array([Y_tilde_idx-(n_bits_mg-1)/2]).astype(int)
                 Y_tilde = Y_tilde_check
@@ -2044,8 +2045,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
 def renew_mt5_dir(AllAssets, running_assets):
     """ Renew MT5 directory for synch between py and trader """
     # init list with files index for each running asset to zero
-    directory_MT5_IO = local_vars.directory_MT5_IO
-    directory_MT5_log = local_vars.directory_MT5_log
+    directory_MT5_IO = LC.directory_MT5_IO
+    directory_MT5_log = LC.directory_MT5_log
     file_ids = [0 for _ in range(len(running_assets))]
     log_ids = ['' for _ in range(len(running_assets))]
     nonsynched_assets = [i for i in running_assets]
@@ -2121,7 +2122,7 @@ def renew_mt5_dir(AllAssets, running_assets):
             for w in range(len(waitings)):
                 if waitings[w]:
                     thisAsset = AllAssets[str(running_assets[w])]
-                    io_ass_dir = io_dir+thisAsset+"/"
+                    io_ass_dir = LC.io_live_dir+thisAsset+"/"
                     if os.path.exists(io_ass_dir+'SD'):
                         print(thisAsset+" Shutting down")
                         os.remove(io_ass_dir+'SD')
@@ -2149,7 +2150,7 @@ def renew_directories(AllAssets, running_assets):
 #                # TODO: Synch fetcher with current file if MT5 is recording
             
         #try:
-        io_ass_dir = io_dir+thisAsset+"/"
+        io_ass_dir = LC.io_live_dir+thisAsset+"/"
         if os.path.exists(io_ass_dir):
             try:
                 shutil.rmtree(io_ass_dir)
@@ -2180,7 +2181,7 @@ def renew_directories(AllAssets, running_assets):
     
 def send_close_command(asset):
         """ Send command for closeing position to MT5 software """
-        directory_MT5_ass2close = directory_MT5_IO+asset+"/"
+        directory_MT5_ass2close = LC.directory_MT5_IO+asset+"/"
         success = 0
         # load network output
         while not success:
@@ -2241,7 +2242,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     write_log(out, log_file)
                     
             except (FileNotFoundError,PermissionError,OSError):
-                io_ass_dir = io_dir+thisAsset+"/"
+                io_ass_dir = LC.io_live_dir+thisAsset+"/"
                 # check shut down command
                 if os.path.exists(io_ass_dir+'SD'):
                     print(thisAsset+" Shutting down")
@@ -2526,7 +2527,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                     trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
         
         ###################### Check for control commands ##############
-        io_ass_dir = io_dir+thisAsset+"/"
+        io_ass_dir = LC.io_live_dir+thisAsset+"/"
         # check shut down command
         if os.path.exists(io_ass_dir+'SD'):
             print(thisAsset+" Shutting down")
@@ -2698,23 +2699,23 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time):
+def run_carefully(config_trader, running_assets, start_time, test):
     """  """
     try:
-        run(config_trader, running_assets, start_time)
+        run(config_trader, running_assets, start_time, test)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time):
+def run(config_traders_list, running_assets, start_time, test):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
         raise ValueError("Live execution not compatible with more than one trader")
     # directories
     if run_back_test:
-        dir_results = local_vars.live_results_dict+"back_test/"    
+        dir_results = LC.live_results_dict+"back_test/"    
     else:
-        dir_results = local_vars.live_results_dict+"live/"
+        dir_results = LC.live_results_dict+"live/"
     #dir_results_trader = dir_results+"trader/"
     dir_results_netorks = dir_results+'networks/'
     if not os.path.exists(dir_results_netorks):
@@ -2868,7 +2869,7 @@ def run(config_traders_list, running_assets, start_time):
 #        print(len(list_spread_ranges))
 #        print(len(list_priorities))
 #        print(len(list_lim_groi_ext))
-        strategies = [Strategy(direct=ADsDir,thr_sl=list_thr_sl[i], 
+        strategies = [Strategy(direct=LC.results_directory,thr_sl=list_thr_sl[i], 
                               thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                               fixed_spread_pips=list_fixed_spread_pips[i], 
                               max_lots_per_pos=list_max_lots_per_pos[i], 
@@ -2949,18 +2950,18 @@ def run(config_traders_list, running_assets, start_time):
     if not test:
         list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
                         None, 
-                        from_stats_file=True, hdf5_directory=hdf5_directory+'stats/',tag=list_tags[nn]) 
+                        from_stats_file=True, hdf5_directory=LC.hdf5_directory+'stats/',tag=list_tags[nn]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], hdf5_directory+
+        list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], LC.hdf5_directory+
                         'stats/', AllAssets[str(running_assets[ass])], 
                         tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
     else:
         list_stats_feats = [[load_stats_manual_v2({}, AllAssets[str(running_assets[ass])], 
                         None, 
-                        from_stats_file=True, hdf5_directory=hdf5_directory+'stats/') 
+                        from_stats_file=True, hdf5_directory=LC.hdf5_directory+'stats/') 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2({}, hdf5_directory+
+        list_stats_rets = [[load_stats_output_v2({}, LC.hdf5_directory+
                         'stats/', AllAssets[str(running_assets[ass])]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
         gain = .000000001
@@ -3107,7 +3108,7 @@ def run(config_traders_list, running_assets, start_time):
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir=local_vars.data_test_dir)
+                                   end_list_index, root_dir=LC.data_test_dir)
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
@@ -3200,7 +3201,7 @@ def run(config_traders_list, running_assets, start_time):
 #                                log_file, results_dir=dir_results, 
 #                                start_time=start_time)
             # launch fetcher
-            fetch(lists, trader, directory_MT5_IO, AllAssets, 
+            fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
                   running_assets, log_file, results)
         
         for idx, trader in enumerate(traders):
@@ -3238,9 +3239,9 @@ def run(config_traders_list, running_assets, start_time):
             write_log(out, trader.log_file)
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
-        
+
 def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
-           synchroned_run=True):
+           synchroned_run=True, test=False):
     # runLive in multiple processes
     from multiprocessing import Process
     import datetime as dt
@@ -3264,12 +3265,12 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
     renew_directories(Data().AllAssets, running_assets)
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     if synchroned_run:
-        run(list_config_traders, running_assets, start_time)
+        run(list_config_traders, running_assets, start_time, test)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1],start_time])
+            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test])
             disp.start()
             time.sleep(2)
         time.sleep(30)
@@ -3278,7 +3279,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
 
 verbose_RNN = True
 verbose_trader = True
-test = False
+#test = False
 run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
@@ -3295,22 +3296,20 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = True
-    config_names = []
-    print(sys.argv)
+    config_names = ['TTEST10']
+    test = False
     for arg in sys.argv:
-        print(arg)
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False
-#        if re.search('^test=False',arg)!=None:
-#            test_arg = False
-#        else:
-#            test_arg = True
-        #test = test_arg
-        if re.search('^config_names',arg)!=None and not test:
+        if re.search('^test',arg)!=None:
+            print(arg)
+            if (arg.split('=')[-1])=='True' or (arg.split('=')[-1])=='true':
+                test = True
+        if re.search('^config_names',arg)!=None:
             config_names = (arg.split('=')[-1]).split(',')
             print(config_names)
-        elif re.search('^config_names',arg)!=None and test:
-            raise ValueError("test cannot be False if config_names is not empty")
+    if ('TTEST10' not in config_names or len(config_names)>1) and test:
+        raise ValueError("test cannot be False if config_names is TTEST")
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (Data,
@@ -3320,16 +3319,16 @@ from kaissandra.preprocessing import (load_stats_manual_v2,
                                           load_stats_output_v2)
 from kaissandra.models import StackedModel
 import shutil
-from kaissandra.local_config import local_vars
+from kaissandra.local_config import local_vars as LC
 
-directory_MT5_IO = local_vars.directory_MT5_IO
-io_dir = local_vars.io_live_dir
-ADsDir = local_vars.results_directory
-hdf5_directory = local_vars.hdf5_directory
+#directory_MT5_IO = local_vars.directory_MT5_IO
+#io_dir = local_vars.io_live_dir
+#ADsDir = local_vars.results_directory
+#hdf5_directory = local_vars.hdf5_directory
 
 if __name__=='__main__':
     # lauch
-    launch(config_names=config_names,synchroned_run=synchroned_run)#
+    launch(config_names=config_names,synchroned_run=synchroned_run, test=test)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
