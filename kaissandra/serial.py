@@ -459,7 +459,7 @@ class Trader:
             while not success:
                 try:
                     fh = open(dirfilename,"r")
-                    info_close = fh.read()[1:-1]
+                    info_close = fh.read()[:-1]
                     # close file
                     fh.close()
                     success = 1
