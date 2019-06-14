@@ -449,6 +449,7 @@ class Trader:
         self.approached = 0
         self.swap_pending = 0
     
+    @staticmethod
     def get_account_status(self):
         """ Get account status from broker """
         success = 0
@@ -3240,7 +3241,7 @@ def run(config_traders_list, running_assets, start_time, test):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
            synchroned_run=True, test=False):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3262,8 +3263,14 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,
     print("synchroned_run: "+str(synchroned_run))
     print("Test "+str(test))
     #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
-    renew_directories(Data().AllAssets, running_assets)
+    if run_back_test:
+        sessiontype = 'backtest'
+    else:
+        sessiontype = 'live'
+    renew_directories(Data().AllAssets, running_assets, sessiontype)
+    
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
+    api.intit_all(list_config_traders[0], running_assets, )
     if synchroned_run:
         run(list_config_traders, running_assets, start_time, test)
 #        disp = Process(target=run, args=[running_assets,start_time])
@@ -3320,6 +3327,8 @@ from kaissandra.preprocessing import (load_stats_manual_v2,
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
+from kaissandra.prod.api import API
+api = API()
 
 #directory_MT5_IO = local_vars.directory_MT5_IO
 #io_dir = local_vars.io_live_dir

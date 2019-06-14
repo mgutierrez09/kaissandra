@@ -13,6 +13,44 @@ from kaissandra.local_config import local_vars
 
 config_extension = ".config"
 
+class Config():
+    """ Config class containing general information """
+    
+    AllAssets = {"0":"[USDX]",
+             "1":'AUDCAD',
+             "2":'EURAUD',
+             "3":'EURCAD',
+             "4":'EURCHF',
+             "5":'EURCZK',
+             "6":'EURDKK',
+             "7":'EURGBP',
+             "8":'EURNZD',
+             "9":'EURPLN',
+             "10":'EURUSD',
+             "11":'GBPAUD',
+             "12":'GBPCAD',
+             "13":'GBPCHF',
+             "14":'GBPUSD',
+             "15":'GOLD',
+             "16":'USDCAD',
+             "17":'USDCHF',
+             "18":'USDHKD',
+             "19":'USDJPY',
+             "20":'USDMXN',
+             "21":'USDNOK',
+             "22":'USDPLN',
+             "23":'USDRUB',
+             "24":'USDSGD',
+             "25":'XAGUSD',
+             "26":'XAUUSD',
+             "27":"CADJPY",
+             "28":"EURJPY",
+             "29":"AUDJPY",
+             "30":"CHFJPY",
+             "31":"GBPJPY",
+             "32":"NZDUSD",
+             "33":"AUDUSD"}
+
 def write_log(log_message, log_file):
         """
         Write in log file
@@ -627,6 +665,7 @@ def configuration_trader(*ins):
         list_lim_groi_ext = [-10.0 for i in range(numberNetworks)]
         list_thr_sl = [50 for i in range(numberNetworks)]
         list_thr_tp = [1000 for i in range(numberNetworks)]
+        list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
         list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
@@ -640,7 +679,7 @@ def configuration_trader(*ins):
         list_ub_md_ext = [1 for i in range(numberNetworks)]
         list_fix_spread = [False for i in range(numberNetworks)]
         list_fixed_spread_pips = [4 for i in range(numberNetworks)]
-        list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
+        
         list_flexible_lot_ratio = [False for i in range(numberNetworks)]
         list_if_dir_change_close = [False for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
@@ -703,6 +742,15 @@ def configuration_trader(*ins):
             print("WARNING! Arguments not taken into consideration")
         print("Config file "+config_filename+" exists. Loaded from disk")
     return config
+
+class CommConfig(object):
+    """ Configuration object providing necessary fields to connect with server """
+    URL = os.environ.get('URL') or 'http://localhost:5000/api/'
+    USERNAME = os.environ.get('USERNAME') or 'kaissandra'
+    PASSWORD = os.environ.get('PASSWORD') or "*********"
+    TRADERNAME = 'farnamstreet'
+    MACHINE = 'aws_i-0db4c8daa833808b4'
+    MAGICNUMBER = 12345
         
 if __name__=='__main__':
     #configuration()

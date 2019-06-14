@@ -22,7 +22,7 @@ def control(running_assets, timeout=15):
     directory_io = local_vars.io_live_dir
     reset_command = 'RESET'
     reset = False
-    AllAssets = Data().AllAssets
+    AllAssets = Config.AllAssets
     timeouts = [time.time() for _ in range(len(running_assets))]
     # get last file in asset channel if not empty, empty string otherwise
     list_last_file = [sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/"))[-1] \
@@ -93,9 +93,9 @@ if __name__=='__main__':
                 
     print("Timeout={0} mins".format(timeout))
 
-from kaissandra.inputs import Data
+from kaissandra.config import Config
 from kaissandra.local_config import local_vars
-from kaissandra.prod.communication import send_command 
+from kaissandra.prod.communication import send_command
 
 if __name__=='__main__':
     # launch control
