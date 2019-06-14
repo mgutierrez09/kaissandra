@@ -985,8 +985,22 @@ class Trader:
             print("\r"+out)
         self.write_log(out)
         
+        # Send open position command to api
+        self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
+        
         
         return None
+    
+    def send_open_pos_api(self, DateTime, bid, ask, e_spread, lots):
+        """  """
+        params = {'asset':self.list_opened_positions[-1].asset,
+                  'dtisoll':DateTime.replace(' ', '_', 1),
+                  'bi':bid,
+                  'ai':ask,
+                  'espread':e_spread,
+                  'lots':lots,
+                  'direction':self.list_opened_positions[-1].bet}
+        api.open_position(params)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1247,6 +1261,7 @@ class Trader:
                                                self.next_candidate.entry_bid, 
                                                self.next_candidate.entry_ask, 
                                                self.next_candidate.deadline)
+                            # send position info to API
                         else: # no opening due to budget lack
                             out = "Not enough budget"
                             print("\r"+out)
@@ -1293,6 +1308,8 @@ class Trader:
                                " spread={0:.3f}".format(new_entry['E_spread'])+
                                " strategy "+strategy_name+
                                " current GROI = {0:.2f}%".format(100*curr_GROI))
+                            # TODO:send position extended command to api
+                            #  
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
                             if verbose_trader:
                                 print("\r"+out)
