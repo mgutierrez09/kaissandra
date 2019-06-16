@@ -23,7 +23,7 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 # TODO: add it in parameters
-n_samps_buffer = 500
+n_samps_buffer = 50
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -449,7 +449,6 @@ class Trader:
         self.approached = 0
         self.swap_pending = 0
     
-    @staticmethod
     def get_account_status(self):
         """ Get account status from broker """
         success = 0
@@ -829,7 +828,7 @@ class Trader:
                   str(Ao)+","+"0"+","+str(100*GROI_live)+","+
                   str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
         
-        return GROI_live, ROI_live, spread, info
+        return GROI_live, ROI_live, spread, Bo, Ao, info
         
     
     def close_position(self, date_time, ass, idx, results,
@@ -847,7 +846,7 @@ class Trader:
         if np.isnan(roi_ratio):
             raise AssertionError("np.isnan(roi_ratio)")
         # get returns
-        GROI_live, ROI_live, spread, info = self.get_rois(idx, 
+        GROI_live, ROI_live, spread, Bo, Ao, info = self.get_rois(idx, 
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
@@ -937,8 +936,10 @@ class Trader:
             " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
             self.write_log(out)
             print("\r"+out)
-        
-        self.budget = balance
+            self.budget = balance
+        if send_info_api:
+            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 100*GROI_live, 
+                                    100*ROI_live, nett_win)
         
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
@@ -986,13 +987,13 @@ class Trader:
         self.write_log(out)
         
         # Send open position command to api
-        self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
-        
+        if send_info_api:
+            self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
         
         return None
     
     def send_open_pos_api(self, DateTime, bid, ask, e_spread, lots):
-        """  """
+        """ Send command to API for position opening """
         params = {'asset':self.list_opened_positions[-1].asset,
                   'dtisoll':DateTime.replace(' ', '_', 1),
                   'bi':bid,
@@ -1001,6 +1002,24 @@ class Trader:
                   'lots':lots,
                   'direction':self.list_opened_positions[-1].bet}
         api.open_position(params)
+        
+    def send_extend_pos_api(self, thisAsset):
+        """ Send command to API for position extension """
+        # TODO: add datetime of extension to API
+        api.extend_position(thisAsset)
+        
+    def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
+                           roisoll, returns):
+        """ Send command to API for position closing """
+        params = {'dtosoll':DateTime,
+                  'bo':bid,
+                  'ao':ask,
+                  'spread':spread,
+                  'groisoll':groisoll,
+                  'roisoll':roisoll,
+                  'returns':returns
+                }
+        api.close_postition(thisAsset, params)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1261,7 +1280,6 @@ class Trader:
                                                self.next_candidate.entry_bid, 
                                                self.next_candidate.entry_ask, 
                                                self.next_candidate.deadline)
-                            # send position info to API
                         else: # no opening due to budget lack
                             out = "Not enough budget"
                             print("\r"+out)
@@ -1284,7 +1302,7 @@ class Trader:
                 else: # position is opened
                     # check for extension
                     if self.check_primary_condition_for_extention(ass_id):
-                        curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                        curr_GROI, _, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                         extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t)
                         if extention:    
                             # include third condition for thresholds
@@ -1308,8 +1326,9 @@ class Trader:
                                " spread={0:.3f}".format(new_entry['E_spread'])+
                                " strategy "+strategy_name+
                                " current GROI = {0:.2f}%".format(100*curr_GROI))
-                            # TODO:send position extended command to api
-                            #  
+                            # send position extended command to api
+                            if send_info_api:
+                                self.send_extend_pos_api(thisAsset)
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
                             if verbose_trader:
                                 print("\r"+out)
@@ -2775,7 +2794,7 @@ def run(config_traders_list, running_assets, start_time, test):
 #        print("config_name")
 #        print(config_name)
         dateTest = config_trader['dateTest']
-        dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
+        #dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
         numberNetworks = config_trader['numberNetworks']
         IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
         IDresults = config_trader['IDresults']#['100318INVO','000318INVO','000318INVO']
@@ -3257,7 +3276,7 @@ def run(config_traders_list, running_assets, start_time, test):
             write_log(out, trader.log_file)
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
-
+#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
            synchroned_run=True, test=False):
     # runLive in multiple processes
@@ -3284,10 +3303,12 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
         sessiontype = 'backtest'
     else:
         sessiontype = 'live'
-    renew_directories(Data().AllAssets, running_assets, sessiontype)
+    renew_directories(Data().AllAssets, running_assets)
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-    api.intit_all(list_config_traders[0], running_assets, )
+    if send_info_api:
+        api.intit_all(list_config_traders[0], running_assets, sessiontype)
+        #a=p
     if synchroned_run:
         run(list_config_traders, running_assets, start_time, test)
 #        disp = Process(target=run, args=[running_assets,start_time])
@@ -3304,10 +3325,11 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
+send_info_api = True
 
 if __name__=='__main__':
     import sys
@@ -3321,7 +3343,7 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = True
     config_names = ['TTEST10']
-    test = False
+    test = True
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False

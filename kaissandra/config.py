@@ -746,7 +746,7 @@ def configuration_trader(*ins):
 class CommConfig(object):
     """ Configuration object providing necessary fields to connect with server """
     URL = os.environ.get('URL') or 'http://localhost:5000/api/'
-    USERNAME = os.environ.get('USERNAME') or 'kaissandra'
+    USERNAME = os.environ.get('USER') or 'kaissandra'
     PASSWORD = os.environ.get('PASSWORD') or "*********"
     TRADERNAME = 'farnamstreet'
     MACHINE = 'aws_i-0db4c8daa833808b4'
