@@ -23,7 +23,7 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 # TODO: add it in parameters
-n_samps_buffer = 50
+n_samps_buffer = 500
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -338,7 +338,7 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  AllAssets, log_file, results_dir="", 
-                 start_time='', config_name='',net2strategy=[]):
+                 start_time='', config_name='',net2strategy=[], api=None):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
@@ -448,6 +448,7 @@ class Trader:
         self.rewind = 0
         self.approached = 0
         self.swap_pending = 0
+        self.api = api
     
     def get_account_status(self):
         """ Get account status from broker """
@@ -1001,12 +1002,12 @@ class Trader:
                   'espread':e_spread,
                   'lots':lots,
                   'direction':self.list_opened_positions[-1].bet}
-        api.open_position(params)
+        self.api.open_position(params, asynch=True)
         
     def send_extend_pos_api(self, thisAsset):
         """ Send command to API for position extension """
         # TODO: add datetime of extension to API
-        api.extend_position(thisAsset)
+        self.api.extend_position(thisAsset, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
                            roisoll, returns):
@@ -1019,7 +1020,7 @@ class Trader:
                   'roisoll':roisoll,
                   'returns':returns
                 }
-        api.close_postition(thisAsset, params)
+        self.api.close_postition(thisAsset, params, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -2570,6 +2571,9 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             print(thisAsset+" Shutting down")
             os.remove(io_ass_dir+'SD')
             shutdown = True
+            for idx, trader in enumerate(traders):
+                if trader.is_opened(ass_id):
+                    trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
             break
         elif os.path.exists(io_ass_dir+'PA'):
             
@@ -2736,14 +2740,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time, test):
+def run_carefully(config_trader, running_assets, start_time, test, api):
     """  """
     try:
-        run(config_trader, running_assets, start_time, test)
+        run(config_trader, running_assets, start_time, test, api)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time, test):
+def run(config_traders_list, running_assets, start_time, test, api):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
@@ -3129,7 +3133,7 @@ def run(config_traders_list, running_assets, start_time, test):
                                     ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                     log_file, results_dir=dir_results, 
                                     start_time=start_time, config_name=config_trader['config_name'],
-                                    net2strategy=list_net2strategy[idx_tr])
+                                    net2strategy=list_net2strategy[idx_tr], api=api)
                     
 #                    if not os.path.exists(trader.log_file):
 #                        write_log(out, trader.log_file)
@@ -3225,7 +3229,7 @@ def run(config_traders_list, running_assets, start_time, test):
                                 ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
                                 start_time=start_time, config_name=config_trader['config_name'],
-                                net2strategy=list_net2strategy[idx_tr])
+                                net2strategy=list_net2strategy[idx_tr], api=api)
                     
 #                if not os.path.exists(trader.log_file):
 #                    write_log(out, trader.log_file)
@@ -3278,7 +3282,7 @@ def run(config_traders_list, running_assets, start_time, test):
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
-           synchroned_run=True, test=False):
+           synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
     import datetime as dt
@@ -3294,7 +3298,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
             list_config_traders = [retrieve_config('TPRODN01010')]
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TTEST10')]
+        list_config_traders = [retrieve_config('TPRODN01010N01011')]
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     print("Test "+str(test))
@@ -3310,12 +3314,12 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
         api.intit_all(list_config_traders[0], running_assets, sessiontype)
         #a=p
     if synchroned_run:
-        run(list_config_traders, running_assets, start_time, test)
+        run(list_config_traders, running_assets, start_time, test, api)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test])
+            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, api])
             disp.start()
             time.sleep(2)
         time.sleep(30)
@@ -3342,7 +3346,7 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = True
-    config_names = ['TTEST10']
+    config_names = ['TPRODN01010N01011']#['TTEST10']
     test = True
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
@@ -3354,8 +3358,8 @@ if __name__=='__main__':
         if re.search('^config_names',arg)!=None:
             config_names = (arg.split('=')[-1]).split(',')
             print(config_names)
-    if ('TTEST10' not in config_names or len(config_names)>1) and test:
-        raise ValueError("test cannot be False if config_names is TTEST")
+#    if ('TTEST10' not in config_names or len(config_names)>1) and test:
+#        raise ValueError("test cannot be False if config_names is TTEST")
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (Data,
@@ -3367,7 +3371,7 @@ from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
 from kaissandra.prod.api import API
-api = API()
+
 
 #directory_MT5_IO = local_vars.directory_MT5_IO
 #io_dir = local_vars.io_live_dir
@@ -3376,7 +3380,8 @@ api = API()
 
 if __name__=='__main__':
     # lauch
-    launch(config_names=config_names,synchroned_run=synchroned_run, test=test)#
+    api = API()
+    launch(config_names=config_names,synchroned_run=synchroned_run, test=test, api=api)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%

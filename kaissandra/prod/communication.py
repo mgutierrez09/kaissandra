@@ -26,7 +26,7 @@ def send_command(directory_MT5_ass, command, msg=''):
             print("Error writing")
     print(" "+directory_MT5_ass+command+" command sent")
     
-def shutdown():
+def shutdown(id=None):
     """  """
     io_dir = local_vars.io_live_dir
     AllAssets = Config.AllAssets
@@ -36,8 +36,16 @@ def shutdown():
         try:
             fh = open(io_dir+asset+'/SD',"w")
             fh.close()
+            
         except FileNotFoundError:
             print("FileNotFoundError")
+    if id!=None:
+        close_session(id)
+
+def close_session(id):
+    """  """
+    from kaissandra.prod.api import API
+    API().close_session(id)
     
 def pause():
     """  """
@@ -115,7 +123,12 @@ if __name__=='__main__':
     for arg in sys.argv:
         print(arg)
         if re.search('^shutdown',arg)!=None:
-            shutdown()
+            if re.search('--id=',arg)!=None:
+                id = int(arg.split('=')[-1])
+                print("session id found: "+str(id))
+                shutdown(id=id)
+            else:
+                shutdown()
         elif re.search('^reset_networks',arg)!=None:
             reset_networks()
         elif re.search('^close_positions',arg)!=None:
@@ -124,3 +137,9 @@ if __name__=='__main__':
             pause()
         elif re.search('^resume',arg)!=None:
             resume()
+        elif re.search('^close_session',arg)!=None:
+            if re.search('--id=',arg)!=None:
+                id = int(arg.split('=')[-1])
+            else:
+                raise ValueError("session id must be specified")
+            close_session(id)
