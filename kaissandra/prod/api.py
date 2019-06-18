@@ -7,11 +7,13 @@ Created on Thu Jun 13 11:58:56 2019
 
 import requests
 import os
+import json
 import datetime as dt
 from requests_futures.sessions import FuturesSession
 from kaissandra.config import CommConfig as CC
 from kaissandra.config import Config
 from kaissandra.local_config import local_vars as LC
+#from requests.exceptions.ConnectTimeout import ConnectTimeoutError
 
 #def nonblock_func(func):
 #    """  """
@@ -35,11 +37,16 @@ class API():
     
     def __init__(self):
         """ """
-        self.futureSession = FuturesSession()
+        
         self.post_token()
+        
+    def init_session(self):
+        """  """
+        self.futureSession = FuturesSession()
     
     def intit_all(self, config_trader, ass_idx, sessiontype):
         """ Init trader, strategy, networks, session and assets """
+        
         balance, leverage, equity, profits = self.read_budget()
         params_trader = {'tradername':CC.TRADERNAME,
                        'machine':CC.MACHINE,
@@ -47,6 +54,12 @@ class API():
                        'budget':balance}
         if not self.set_trader(params_trader):
             print("WARNING! Request set trader failed")
+            
+        sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')
+        params_session = {'sessionname':sessionname,
+                          'sessiontype':sessiontype}
+        if not self.open_session(params_session):
+            print("WARNING! Request open session failed")
         
         params_strategies = []
         params_networks = []
@@ -66,7 +79,8 @@ class API():
                                      'mcthr':config_trader['list_spread_ranges'][s]['th'][0][0],
                                      'mdthr':config_trader['list_spread_ranges'][s]['th'][0][1],
                                      'combine':str(config_trader['config_list'][s][0]['combine_ts']['if_combine']),
-                                     'combineparams':config_trader['config_list'][s][0]['combine_ts']['params_combine'][0]['alg']}
+                                     'combineparams':config_trader['config_list'][s][0]['combine_ts']['params_combine'][0]['alg'],
+                                     'sessionname':sessionname}
             if not self.set_strategy(params_strategy):
                 print("WARNING! Request set strategy failed")
             params_strategies.append(params_strategy)
@@ -85,11 +99,7 @@ class API():
                     print("WARNING! Request set network failed")
                 params_networks[s].append(params_network)
         
-        sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')
-        params_session = {'sessionname':sessionname,
-                          'sessiontype':sessiontype}
-        if not self.open_session(params_session):
-            print("WARNING! Request open session failed")
+        
         
         assets = ','.join([Config.AllAssets[str(id)] for id in ass_idx])
         if not self.set_assets({'assets':assets}):
@@ -129,7 +139,8 @@ class API():
     
     def post_token(self):
         """ POST request to create new token if expired or retrieve current one """
-        response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD))
+        print(CC.URL+'tokens')
+        response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=False)
         if response.status_code == 200:
             self.token = response.json()['token']
             return True
@@ -144,10 +155,10 @@ class API():
             return False
         if req_type == "POST":
             response = requests.post(CC.URL+'traders', json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         elif req_type == "PUT":
             response = requests.put(CC.URL+'traders', json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         else:
             return False
         print("Status code: "+str(response.status_code))
@@ -167,10 +178,10 @@ class API():
         url_ext = 'traders/'+str(self.trader_json['id'])+'/strategies'
         if req_type == "POST":
             response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         elif req_type == "PUT":
             response = requests.put(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         else:
             return False
         print("Status code: "+str(response.status_code))
@@ -190,10 +201,10 @@ class API():
         url_ext = 'traders/networks'
         if req_type == "POST":
             response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         elif req_type == "PUT":
             response = requests.put(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         else:
             return False
         print("Status code: "+str(response.status_code))
@@ -211,7 +222,7 @@ class API():
             return False
         url_ext = 'traders/'+str(self.trader_json['id'])+'/assets'
         response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
@@ -227,7 +238,7 @@ class API():
             return False
         url_ext = 'traders/'+str(self.trader_json['id'])+'/sessions'
         response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
@@ -245,7 +256,7 @@ class API():
             id = self.session_json['id']
         url_ext = 'traders/sessions/'+str(id)+'/close'
         response = requests.put(CC.URL+url_ext, headers=
-                                     self.build_token_header())
+                                     self.build_token_header(), verify=False)
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
@@ -257,35 +268,43 @@ class API():
     
     def open_position(self, params, asynch=False):
         """ POST request to open a position """
-        # check if close position waiting to be retrieved
-        if asynch and params['asset'] in self.list_asset_positions:
-            id_list_futures = self.list_asset_positions.index(params['asset'])
-            self.retrieve_response_close_position(params['asset'], id_list_futures)
-        if not self.token or not self.session_json or 'id' not in self.session_json:
+        try:
+            # check if close position waiting to be retrieved
+            if asynch and params['asset'] in self.list_asset_positions:
+                id_list_futures = self.list_asset_positions.index(params['asset'])
+                self.retrieve_response_close_position(params['asset'], id_list_futures)
+            if not self.token or not self.session_json or 'id' not in self.session_json:
+                return False
+            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/positions/open'
+            if not asynch:
+                response = requests.post(CC.URL+url_ext, json=params, headers=
+                                             self.build_token_header(), verify=False)
+                print("Status code: "+str(response.status_code))
+                if response.status_code == 200:
+                    print(response.json())
+                    self.positions_json_list.append(response.json()['Position'][0])
+                    return True
+                else:
+                    print(response.text)
+                return False
+            # asynch
+            self.list_futures.append(self.futureSession.post(CC.URL+url_ext, 
+                                    json=params, headers=self.build_token_header(), verify=False, timeout=1))
+            # add position asset as identifier
+            self.list_asset_positions.append(params['asset'])
+            self.list_lastevent_positions.append('open')
+            return True
+        except:
+            print("WARNING! Error when requesting opening position. Skiiped")
             return False
-        url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/positions/open'
-        if not asynch:
-            response = requests.post(CC.URL+url_ext, json=params, headers=
-                                         self.build_token_header())
-            print("Status code: "+str(response.status_code))
-            if response.status_code == 200:
-                print(response.json())
-                self.positions_json_list.append(response.json()['Position'][0])
-                return True
-            else:
-                print(response.text)
-            return False
-        # asynch
-        self.list_futures.append(self.futureSession.post(CC.URL+url_ext, 
-                                json=params, headers=self.build_token_header()))
-        # add position asset as identifier
-        self.list_asset_positions.append(params['asset'])
-        self.list_lastevent_positions.append('open')
-        return True
     
     def retrieve_response_open_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
-        response = self.list_futures[id_list_futures].result()
+        try:
+            response = self.list_futures[id_list_futures].result()
+        except :
+            print("WARNING! Timeout eror. Skipping connection")
+            return False
         # print result
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
@@ -302,43 +321,53 @@ class API():
             print(response.text)
         return False
     
-    def extend_position(self, assetname, asynch=False):
+    def extend_position(self, assetname, params, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        if asynch:
-            id_list_futures = self.list_asset_positions.index(assetname)
-            if self.list_lastevent_positions[id_list_futures] == 'open':
-                self.retrieve_response_open_position(assetname, id_list_futures)
-            elif self.list_lastevent_positions[id_list_futures] == 'extend':
-                self.retrieve_response_extend_position(assetname, id_list_futures)
-        id = [pos['id'] for pos in self.positions_json_list if \
-              pos['asset']==assetname and not pos['closed']][0]
-        url_ext = 'traders/positions/'+str(id)+'/extend'
-        if not asynch:
-            response = requests.put(CC.URL+url_ext, headers=
-                                         self.build_token_header())
-            print("Status code: "+str(response.status_code))
-            if response.status_code == 200:
-                print(response.json())
-                id_list = [i for i in range(len(self.positions_json_list)) if \
-                           self.positions_json_list[i]['asset']==assetname and not \
-                           self.positions_json_list[i]['closed']][0]
-                self.positions_json_list[id_list] = response.json()['Position'][0]
-                return True
-            else:
-                print(response.text)
-            return False
-        # asynch
-        self.list_futures.append(self.futureSession.put(CC.URL+url_ext,
-                                headers=self.build_token_header()))
-        # add position asset as identifier
-        self.list_asset_positions.append(assetname)
-        self.list_lastevent_positions.append('extend')
-        return True
+        print(params)
+        if 1:
+            if asynch:
+                id_list_futures = self.list_asset_positions.index(assetname)
+                if self.list_lastevent_positions[id_list_futures] == 'open':
+                    self.retrieve_response_open_position(assetname, id_list_futures)
+                elif self.list_lastevent_positions[id_list_futures] == 'extend':
+                    self.retrieve_response_extend_position(assetname, id_list_futures)
+            id = [pos['id'] for pos in self.positions_json_list if \
+                  pos['asset']==assetname and not pos['closed']][0]
+            url_ext = 'traders/positions/'+str(id)+'/extend'
+            if not asynch:
+                response = requests.post(CC.URL+url_ext, json=params, headers=
+                                             self.build_token_header(), verify=False)
+                print("Status code: "+str(response.status_code))
+                if response.status_code == 200:
+                    print(response.json())
+                    id_list = [i for i in range(len(self.positions_json_list)) if \
+                               self.positions_json_list[i]['asset']==assetname and not \
+                               self.positions_json_list[i]['closed']][0]
+                    self.positions_json_list[id_list] = response.json()['Position'][0]
+                    return True
+                else:
+                    print(response.text)
+                return False
+            # asynch
+            self.list_futures.append(self.futureSession.post(CC.URL+url_ext, json=params,#{'groi':params['groi']} 
+                                    headers=self.build_token_header(), verify=False, timeout=1))
+            #print(self.list_futures)
+            # add position asset as identifier
+            self.list_asset_positions.append(assetname)
+            self.list_lastevent_positions.append('extend')
+            return True
+#        except:
+#            print("WARNING! Error when requesting extending position. Skipped")
+#            return False
     
     def retrieve_response_extend_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
+        #try:
         response = self.list_futures[id_list_futures].result()
+        #except :
+            #print("WARNING! Timeout eror. Skipping connection")
+            #return False
         # print result
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
@@ -358,43 +387,65 @@ class API():
             print(response.text)
         return False
     
-    def close_postition(self, assetname, params, asynch=False):
+    def close_postition(self, assetname, params, dirfilename, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        if asynch:
-            id_list_futures = self.list_asset_positions.index(assetname)
-            if self.list_lastevent_positions[id_list_futures] == 'open':
-                self.retrieve_response_open_position(assetname, id_list_futures)
-            elif self.list_lastevent_positions[id_list_futures] == 'extend':
-                self.retrieve_response_extend_position(assetname, id_list_futures)
-        id = [pos['id'] for pos in self.positions_json_list if \
-              pos['asset']==assetname and not pos['closed']][0]
-        url_ext = 'traders/positions/'+str(id)+'/close'
-        if not asynch:
-            response = requests.put(CC.URL+url_ext, json=params, headers=
-                                         self.build_token_header())
-            print("Status code: "+str(response.status_code))
-            if response.status_code == 200:
-                print(response.json())
-                id_list = [i for i in range(len(self.positions_json_list)) if \
-                           self.positions_json_list[i]['asset']==assetname and not\
-                           self.positions_json_list[i]['closed']][0]
-                self.positions_json_list[id_list] = response.json()['Position'][0]
-                return True
-            else:
-                print(response.text)
+        try:
+            if asynch:
+                id_list_futures = self.list_asset_positions.index(assetname)
+                if self.list_lastevent_positions[id_list_futures] == 'open':
+                    self.retrieve_response_open_position(assetname, id_list_futures)
+                elif self.list_lastevent_positions[id_list_futures] == 'extend':
+                    self.retrieve_response_extend_position(assetname, id_list_futures)
+            # prepare file for upload
+            #files = {'file':open(dirfilename, 'rb'), 'data':('json',json.dumps(params))}
+            files={'file': open(dirfilename,'rb')}
+            id = [pos['id'] for pos in self.positions_json_list if \
+                  pos['asset']==assetname and not pos['closed']][0]
+            url_ext = 'traders/positions/'+str(id)+'/close'
+            url_file = 'traders/positions/'+str(id)+'/upload'
+            if not asynch:
+                response = requests.put(CC.URL+url_ext, json=params, 
+                                        headers=self.build_token_header(), verify=False)
+                response_file = requests.post(CC.URL+url_file, files=files, 
+                                        headers=self.build_token_header(), verify=False)
+                print("Status code: "+str(response.status_code))
+                if response.status_code == 200:
+                    print(response.json())
+                    id_list = [i for i in range(len(self.positions_json_list)) if \
+                               self.positions_json_list[i]['asset']==assetname and not\
+                               self.positions_json_list[i]['closed']][0]
+                    self.positions_json_list[id_list] = response.json()['Position'][0]
+                    if response_file.status_code != 200:
+                        print("WARNING! File not saved in DB")
+                    return True
+                else:
+                    print(response.text)
+                return False
+            # asynch
+            self.list_futures.append(self.futureSession.put(CC.URL+url_ext, 
+                                        json=params, 
+                                        headers=self.build_token_header(), verify=False, timeout=1))
+            self.futureSession.post(CC.URL+url_file, 
+                                        files=files, 
+                                        headers=self.build_token_header(), verify=False, timeout=10)
+    
+            # add position asset as identifier
+            self.list_asset_positions.append(assetname)
+            self.list_lastevent_positions.append('close')
+            return True
+        except:
+            print("WARNING! Error when requesting closing position. Skiiped")
             return False
-        # asynch
-        self.list_futures.append(self.futureSession.put(CC.URL+url_ext, 
-                                json=params, headers=self.build_token_header()))
-        # add position asset as identifier
-        self.list_asset_positions.append(assetname)
-        self.list_lastevent_positions.append('close')
-        return True
+            
     
     def retrieve_response_close_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
-        response = self.list_futures[id_list_futures].result()
+        try:
+            response = self.list_futures[id_list_futures].result()
+        except :
+            print("WARNING! Timeout eror. Skipping connection")
+            return False
         # print result
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:

@@ -138,19 +138,20 @@ class Results:
               direction change, ...} """
         pass
     
-    def save_pos_evolution(self, filename, dts, bids, asks, ems):
+    def save_pos_evolution(self, filename, dts, bids, asks):
         """ Save evolution of the position from opening till close """
         # format datetime for filename
         
         df = pd.DataFrame({'DateTime':dts,
                            'SymbolBid':bids,
-                           'SymbolAsk':asks,
-                           'EmBid':ems})
+                           'SymbolAsk':asks})
         df.to_csv(self.dir_positions+filename+'.txt', index=False)
+        return self.dir_positions+filename+'.txt'
     
     def save_pos_evolution_live(self, filename, df):
         """  """
         df.to_csv(self.dir_positions+filename+'.txt', index=False)
+        return self.dir_positions+filename+'.txt'
     
 #class stats:
 #    
@@ -891,19 +892,20 @@ class Trader:
         write_log(info_close, self.log_positions_soll)
         
         # save position evolution
-        
+        pos_filename = get_positions_filename(ass, self.list_opened_positions\
+                                              [self.map_ass_idx2pos_idx[idx]].entry_time, 
+                                              date_time)
         if run_back_test:
-            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
-                                              self.list_last_dt[list_idx][-1])
-            results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
+#            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+#                                              self.list_last_dt[list_idx][-1])
+            dirfilename = results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
                                        self.list_last_bid[list_idx], 
-                                       self.list_last_ask[list_idx], 
-                                       self.list_EM[list_idx])
+                                       self.list_last_ask[list_idx])
         else:
-            #last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
-            pos_filename = get_positions_filename(ass, DTi_real, date_time)
-            results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[list_idx])
-            
+            ##last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
+            #pos_filename = get_positions_filename(ass, DTi_real, date_time)
+            dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[list_idx])
+        
         self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename)
         # update output lists
         results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
@@ -939,9 +941,9 @@ class Trader:
             print("\r"+out)
             self.budget = balance
         if send_info_api:
-            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 100*GROI_live, 
-                                    100*ROI_live, nett_win)
-        
+            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
+                                    100*GROI_live, 100*ROI_live, nett_win, 
+                                    pos_filename, dirfilename)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
@@ -996,21 +998,33 @@ class Trader:
     def send_open_pos_api(self, DateTime, bid, ask, e_spread, lots):
         """ Send command to API for position opening """
         params = {'asset':self.list_opened_positions[-1].asset,
-                  'dtisoll':DateTime.replace(' ', '_', 1),
+                  'dtisoll':DateTime,#.replace(' ', '_', 1)
                   'bi':bid,
                   'ai':ask,
                   'espread':e_spread,
                   'lots':lots,
-                  'direction':self.list_opened_positions[-1].bet}
+                  'direction':self.list_opened_positions[-1].bet,
+                  'strategyname':self.list_opened_positions[-1].strategy.name,
+                  'p_mc':self.list_opened_positions[-1].p_mc,
+                  'p_md':self.list_opened_positions[-1].p_md}
         self.api.open_position(params, asynch=True)
         
-    def send_extend_pos_api(self, thisAsset):
+    def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
+                            direction, strategy, roi, ticks):
         """ Send command to API for position extension """
         # TODO: add datetime of extension to API
-        self.api.extend_position(thisAsset, asynch=True)
+        params = {'groi':groi,
+                  'dt':DateTime,
+                  'p_mc':p_mc,
+                  'p_md':p_md,
+                  'tickscounter':ticks,
+                  'direction':direction,
+                  'strategyname':strategy,
+                  'roi':roi}
+        self.api.extend_position(thisAsset, params, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
-                           roisoll, returns):
+                           roisoll, returns, filename, dirfilename):
         """ Send command to API for position closing """
         params = {'dtosoll':DateTime,
                   'bo':bid,
@@ -1018,9 +1032,10 @@ class Trader:
                   'spread':spread,
                   'groisoll':groisoll,
                   'roisoll':roisoll,
-                  'returns':returns
+                  'returns':returns,
+                  'filename':filename
                 }
-        self.api.close_postition(thisAsset, params, asynch=True)
+        self.api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1303,7 +1318,7 @@ class Trader:
                 else: # position is opened
                     # check for extension
                     if self.check_primary_condition_for_extention(ass_id):
-                        curr_GROI, _, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                        curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                         extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t)
                         if extention:    
                             # include third condition for thresholds
@@ -1329,7 +1344,12 @@ class Trader:
                                " current GROI = {0:.2f}%".format(100*curr_GROI))
                             # send position extended command to api
                             if send_info_api:
-                                self.send_extend_pos_api(thisAsset)
+                                self.send_extend_pos_api(new_entry[entry_time_column], 
+                                                         thisAsset, 100*curr_GROI, 
+                                                         new_entry['P_mc'], new_entry['P_md'], 
+                                                         int(new_entry['Bet']), strategy_name, 
+                                                         100*curr_ROI, 
+                                                         self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
                             if verbose_trader:
                                 print("\r"+out)
@@ -2245,6 +2265,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
     
     nMaxFilesInDir = 0
     tic = time.time()
+    delayed_stop_run = False
     
     while run:
 #        tic = time.time()
@@ -2285,7 +2306,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 if os.path.exists(io_ass_dir+'SD'):
                     print(thisAsset+" Shutting down")
                     os.remove(io_ass_dir+'SD')
-                    run = False
+                    send_close_command(thisAsset)
+                    delayed_stop_run = True
                     time.sleep(5*np.random.rand(1))
                 elif os.path.exists(io_ass_dir+'RESET'):
                     print("RESET command found.")
@@ -2421,7 +2443,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # open position if swap process is on
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
-                
+                if delayed_stop_run:
+                    run = False
                 
             elif flag_sl:
                 # update positions vector
@@ -2752,6 +2775,10 @@ def run(config_traders_list, running_assets, start_time, test, api):
     
     if len(config_traders_list)>1 and not run_back_test:
         raise ValueError("Live execution not compatible with more than one trader")
+    
+    # init futures session of API
+    if send_info_api:
+        api.init_session()
     # directories
     if run_back_test:
         dir_results = LC.live_results_dict+"back_test/"    
@@ -3281,7 +3308,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[1], 
            synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3345,7 +3372,7 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
-    synchroned_run = True
+    synchroned_run = False
     config_names = ['TPRODN01010N01011']#['TTEST10']
     test = True
     for arg in sys.argv:
