@@ -267,7 +267,7 @@ def configuration(entries, save=True):
         if 'loss_funcs' in entries:
             loss_funcs = entries['loss_funcs']
         else:
-            loss_funcs = ['cross_entropy']
+            loss_funcs = ['cross_entropy','cross_entropy','cross_entropy']
         if 'n_bits_outputs' in entries:
             n_bits_outputs = entries['n_bits_outputs']
         else:
@@ -745,12 +745,14 @@ def configuration_trader(*ins):
 
 class CommConfig(object):
     """ Configuration object providing necessary fields to connect with server """
-    URL = os.environ.get('URL') or 'https://localhost:5000/api/'
+    URL = os.environ.get('URL') or 'https://kaissandra-webapp.herokuapp.com/api/'#os.environ.get('URL') or 'https://localhost:5000/api/'#
     USERNAME = os.environ.get('USER') or 'kaissandra'
-    PASSWORD = os.environ.get('PASSWORD') or "*********"
-    TRADERNAME = 'farnamstreet'
-    MACHINE = 'aws_i-0db4c8daa833808b4'
-    MAGICNUMBER = 12345
+    PASSWORD = os.environ.get('PASSWORD') or "kaissandra"
+    TRADERNAME = os.environ.get('TRADERNAME') or 'farnamstreet'
+    MACHINE = os.environ.get('MACHINE')# or 'aws_i-0db4c8daa833808b4'
+#    if MACHINE == None:
+#        raise ValueError("MACHINE environment variable cannot be None.")
+    MAGICNUMBER = os.environ.get('MAGICNUMBER') or 123456
         
 if __name__=='__main__':
     #configuration()

@@ -7,7 +7,7 @@ Created on Thu Jun 13 11:58:56 2019
 
 import requests
 import os
-import json
+#import json
 import datetime as dt
 from requests_futures.sessions import FuturesSession
 from kaissandra.config import CommConfig as CC
@@ -324,8 +324,7 @@ class API():
     def extend_position(self, assetname, params, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        print(params)
-        if 1:
+        try:
             if asynch:
                 id_list_futures = self.list_asset_positions.index(assetname)
                 if self.list_lastevent_positions[id_list_futures] == 'open':
@@ -357,9 +356,9 @@ class API():
             self.list_asset_positions.append(assetname)
             self.list_lastevent_positions.append('extend')
             return True
-#        except:
-#            print("WARNING! Error when requesting extending position. Skipped")
-#            return False
+        except:
+            print("WARNING! Error when requesting extending position. Skipped")
+            return False
     
     def retrieve_response_extend_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """

@@ -2308,7 +2308,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     os.remove(io_ass_dir+'SD')
                     send_close_command(thisAsset)
                     delayed_stop_run = True
-                    time.sleep(5*np.random.rand(1))
+                    run = False
+                    time.sleep(5*np.random.rand(1)+1)
                 elif os.path.exists(io_ass_dir+'RESET'):
                     print("RESET command found.")
                     os.remove(io_ass_dir+'RESET')
@@ -3308,7 +3309,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1], 
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
            synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3322,10 +3323,10 @@ def launch(config_names=[], running_assets=[1],
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TPRODN01010')]
+            list_config_traders = [retrieve_config('TPRODN01010N01011')]
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TPRODN01010N01011')]
+        list_config_traders = [retrieve_config('TTEST10')]#
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     print("Test "+str(test))
@@ -3356,7 +3357,7 @@ def launch(config_names=[], running_assets=[1],
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
@@ -3373,8 +3374,8 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-    config_names = ['TPRODN01010N01011']#['TTEST10']
-    test = True
+    config_names = ['TPRODN01010N01011']#['TTEST10']#
+    test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False

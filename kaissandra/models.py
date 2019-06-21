@@ -496,6 +496,8 @@ class RNN(Model):
                             self.target: Y[chunck*alloc:(chunck+1)*alloc],
                             self.dropout: 1.0
                         }
+#                        print("self.output.shape")
+#                        print(self.output.shape)
                         J_test_chuck, output_chunck = sess.run([loss, self.output], \
                                                                test_data_feed)
                         J_test += J_test_chuck
