@@ -100,24 +100,56 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
         print("J_test = "+str(J_test)+", J_train = "+
               str(J_train)+", Accuracy="+str(results["Acc"]))
     
-    print("RD = {0:d} ".format(results["RD"])+
-           "NZ = {0:d} ".format(results["NZ"])+
-           "NZA = {0:d} ".format(results["NZA"])+
-           "pNZ = {0:.3f}% ".format(results["pNZ"])+
-           "pNZA = {0:.3f}% ".format(results["pNZA"])+
-           "AD = {0:.2f}% ".format(results["AD"])+
-           "ADA = {0:.2f}% ".format(results["ADA"])+
-           "NO = {0:d} ".format(results["NO"])+
-           "GSP = {0:.2f}% ".format(results["GSP"])+
-           "NSP = {0:.2f}%".format(results["NSP"]))
+#    print("RD = {0:d} ".format(results["RD"])+
+#           "NZ = {0:d} ".format(results["NZ"])+
+#           "NZA = {0:d} ".format(results["NZA"])+
+#           "pNZ = {0:.3f}% ".format(results["pNZ"])+
+#           "pNZA = {0:.3f}% ".format(results["pNZA"])+
+#           "AD = {0:.2f}% ".format(results["AD"])+
+#           "ADA = {0:.2f}% ".format(results["ADA"])+
+#           "NO = {0:d} ".format(results["NO"])+
+#           "GSP = {0:.2f}% ".format(results["GSP"])+
+#           "NSP = {0:.2f}%".format(results["NSP"]))
+#
+#    print("SI2 = {0:.2f} ".format(results["SI2"])+
+#          "SI = {0:.2f} ".format(results["SI"])+
+#          "eGROI = {0:.2f}% ".format(results["eGROI"])+
+#          "eROI = {0:.2f}% ".format(results["eROI"])+
+#          "eROI2 = {0:.2f}% ".format(results["eROI2"])+
+#          "eROI3 = {0:.2f}% ".format(results["eROI3"])+
+#          "mSpread = {0:.4f}%".format(results["mSpread"]))
+    
+    print("AD = {0:.2f}% ".format(results["AD"])+
+          "ADA = {0:.2f}% ".format(results["ADA"])+
+          "RD = {0:d} ".format(results["RD"])+
+          "NZ = {0:d} ".format(results["NZ"])+
+          "NZA = {0:d} ".format(results["NZA"])+
+          "pNZ = {0:.4f}% ".format(results["pNZ"])+
+          "pNZA = {0:.4f}% ".format(results["pNZA"]))
+    
+    print("NO = {0:d} ".format(results["NO"])+
+          "NOL = {0:d} ".format(results["NOL"])+
+          "NOS = {0:d} ".format(results["NOS"])+
+          "GSP = {0:.2f}% ".format(results["GSP"])+
+          "NSP = {0:.2f}% ".format(results["NSP"])+
+          "NSP1 = {0:.2f}% ".format(results["NSP1"])+
+          "NSP1.5 = {0:.2f}% ".format(results["NSP1.5"])+
+          "NSP2 = {0:.2f}% ".format(results["NSP2"])+
+          "NSP3 = {0:.2f}% ".format(results["NSP3"]))
 
-    print("SI2 = {0:.2f} ".format(results["SI2"])+
-          "SI = {0:.2f} ".format(results["SI"])+
-          "eGROI = {0:.2f}% ".format(results["eGROI"])+
+    print("eGROI = {0:.2f}% ".format(results["eGROI"])+
           "eROI = {0:.2f}% ".format(results["eROI"])+
+          "eROI1 = {0:.2f}% ".format(results["eROI1"])+
+          "eROI1.5 = {0:.2f}% ".format(results["eROI1.5"])+
           "eROI2 = {0:.2f}% ".format(results["eROI2"])+
           "eROI3 = {0:.2f}% ".format(results["eROI3"])+
-          "mSpread = {0:.4f}%".format(results["mSpread"]))
+          "mSpread = {0:.4f}% ".format(results["mSpread"]))
+    
+    print("SI = {0:.2f} ".format(results["SI"])+
+          "SI1 = {0:.2f} ".format(results["SI1"])+
+          "SI1.5 = {0:.2f} ".format(results["SI1.5"])+
+          "SI2 = {0:.2f} ".format(results["SI2"]))
+    
     return None
 
 def get_results_entries():
