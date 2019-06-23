@@ -13,7 +13,7 @@ if __name__=='__main__':
     
     if 'build' in sys.argv:
         import datetime as dt
-        py_directories = ['IO/','config/','weights/','results/','resultsLive/','IOlive/','DB/','log/','Data/','Data_test/','DB/stats/']
+        py_directories = ['IO/','config/','weights/','results/','resultsLive/','IOlive/','DB/','log/','Data/','Data_test/','DB/stats/','gre/']
         
         if os.environ.get('MT5_ROOT_DIR')!=None:
             mt5_root_dir = os.environ.get('MT5_ROOT_DIR')
@@ -52,7 +52,7 @@ if __name__=='__main__':
                     print("WARNING! "+dirpath+" could not be created. Revise MT5_ROOT_DIR environment variable.")
             elif os.path.exists(dirpath):
                 print(dirpath+" already exists")
-        # build local_config.py file
+    # build local_config.py file
         config_file = ("#Automatically created on "+str(dt.datetime.now())+"\n\n"+
             "\nclass Local:\n"+
             "\tdirectory_MT5 = '"+mt5_root_dir+"'\n"+
@@ -71,6 +71,7 @@ if __name__=='__main__':
             "\tlog_directory = '"+root_path+py_directories[7]+"'\n"+
             "\tdata_dir = '"+root_path+py_directories[8]+"'\n"+
             "\tdata_test_dir = '"+root_path+py_directories[9]+"'\n"+
+            "\tgre_directory = '"+root_path+py_directories[11]+"'\n"+
             "local_vars = Local()\n")
         local_config_filepath = path+'kaissandra\\local_config.py'
         if not os.path.exists(local_config_filepath):
