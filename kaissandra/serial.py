@@ -459,7 +459,7 @@ class Trader:
             while not success:
                 try:
                     fh = open(dirfilename,"r")
-                    info_close = fh.read()[1:-1]
+                    info_close = fh.read()[:-1]
                     # close file
                     fh.close()
                     success = 1
@@ -3239,7 +3239,7 @@ def run(config_traders_list, running_assets, start_time):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
         
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
            synchroned_run=True):
     # runLive in multiple processes
     from multiprocessing import Process
