@@ -239,6 +239,11 @@ class Strategy():
             print(self.GRE[:,:,0])
             print("GRE combined level 2:")
             print(self.GRE[:,:,1])
+        elif self.entry_strategy=='gre_v2':
+            # New GRE implementation
+            [GRE, model] = pickle.load( open( local_vars.gre_directory+self.IDgre+".p", "rb" ))
+            self.GRE = GRE
+            self.gre_model = model
         else:
             self.GRE = None
     
@@ -263,11 +268,14 @@ class Strategy():
         return idx
     
     def get_profitability(self, p_mc, p_md, level):
-        '''
-        '''
+        """ """
         if self.entry_strategy=='gre':
             
             return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
+        elif self.entry_strategy=='gre_v2':
+#            print("self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]")
+#            print(self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0])
+            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
         else:
             return 0.0
 
@@ -492,6 +500,13 @@ class Trader:
                                     self.next_candidate.p_md, 
                                     int(np.abs(self.next_candidate.bet
                                     )-1))>e_spread/self.pip+margin)
+        elif this_strategy.entry_strategy=='gre_v2':
+            second_condition_open = (self.next_candidate!= None and 
+                                     this_strategy.get_profitability(
+                                             self.next_candidate.p_mc, 
+                                    self.next_candidate.p_md, 
+                                    int(np.abs(self.next_candidate.bet
+                                    )-1))>2*e_spread/self.pip)
         elif this_strategy.entry_strategy=='spread_ranges':
 #            print("\n\n\n")
 #            print(e_spread/self.pip)
@@ -539,10 +554,10 @@ class Trader:
                         self.next_candidate.p_md>=this_strategy.lb_md_ext and
                         self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                         self.next_candidate.p_md<this_strategy.ub_md_ext)
-        elif this_strategy.entry_strategy=='gre':
-            previous_p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
-            previous_p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
-            sum_previous_p = previous_p_mc+previous_p_md
+        elif this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2':
+#            previous_p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
+#            previous_p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
+#            sum_previous_p = previous_p_mc+previous_p_md
             #print("sum_previous_p: "+str(sum_previous_p))
             #self.next_candidate.p_mc+self.next_candidate.p_md>=sum_previous_p
 #            if self.next_candidate!= None:
@@ -1009,11 +1024,11 @@ if __name__ == '__main__':
 #                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
 #                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
     #edges=[dt.date(2016, 8, 2), dt.date(2017, 3, 6), dt.date(2017, 9, 27), dt.date(2018, 4, 10)]
-#    init_day = dt.datetime.strptime('2017.09.27','%Y.%m.%d').date()
-#    end_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()
-    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
+    init_day = dt.datetime.strptime('2017.09.27','%Y.%m.%d').date()
+    end_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()
+#    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
 #    end_day = dt.datetime.strptime('2019.03.29','%Y.%m.%d').date()
-    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
+#    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
 #    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
 #    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
     delta_dates = end_day-init_day
@@ -1219,36 +1234,67 @@ if __name__ == '__main__':
     #list_max_lots_per_pos = [np.inf for i in range(numberNetwors)]
     
 #    190430115541_RRNN01010CMF181112T190426ACk1-5E12E14-14E0TI0MC0.7MD0.6
-    numberNetwors = 1
-    list_IDresults = ['RRNN01010CMF181112T190426ACk1-5E12E14-14']
-    list_name = ['01010k1-5K5E1214AC_.7_.6']
-    list_epoch_journal = [0 for _ in range(numberNetwors)]
-    list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    numberNetwors = 1
+#    list_IDresults = ['RRNN01010CMF181112T190426ACk1-5E12E14-14']
+#    list_name = ['01010k1-5K5E1214AC_.7_.6']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     
+    
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN01010CMF181112T190426ACk1-5E1214131109'+'.csv'
+#    numberNetwors = 1
+#    list_IDresults = ['RRNN01010CMF181112T190426ACk1-5E1214131109']
+#    list_name = ['01010k1-5K5E1214AC_.7_.6']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    # depricated/not supported
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = [None for i in range(numberNetwors)]
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]    
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN01010CMF181112T190426ACk1-5E1214131109'+'.csv'
+    positions_file = start_time+'_'+'RRNN01010CMF170927T181109ACk1k2E12E14'+'.csv'
     numberNetwors = 1
-    list_IDresults = ['RRNN01010CMF181112T190426ACk1-5E1214131109']
-    list_name = ['01010k1-5K5E1214AC_.7_.6']
+    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
+    list_name = ['01010k1-2E12-14GREV2']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+    list_lb_md_ext = [.55 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_IDgre = ['RRNN01010CMF170927T181109ACk1k2E12E14R20INT' for i in range(numberNetwors)]
     # depricated/not supported
-    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-    list_IDgre = [None for i in range(numberNetwors)]
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-    list_w_str = ["" for i in range(numberNetwors)]    
+    list_w_str = ["" for i in range(numberNetwors)]   
+    
+    #    numberNetwors = 1
+#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
+#    list_name = ['01010k1k2K5AC_12_.7_.6']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+##    list_use_GRE = [True for i in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
+#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
@@ -1339,7 +1385,7 @@ if __name__ == '__main__':
             exit_ask_column = 'Ao'
             exit_bid_column = 'Bo'
             root_dir = local_vars.data_dir
-            root_dir = local_vars.data_test_dir
+            #root_dir = local_vars.data_test_dir
             list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                                  list_journal_name[i], 
                                                  sep='\t').sort_values(
@@ -1629,23 +1675,23 @@ if __name__ == '__main__':
 #                                close_dueto_dirchange += 1
                                 #out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
                                 pass
-                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                                       Assets[event_idx].decode("utf-8")+
-                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
-                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                                      " pofitability {0:.3f}".format(profitability)+
-                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
-                                      str(trader.next_candidate.bet)+
-                                      " cGROI {0:.2f} ".format(100*curr_GROI))
-                                print(out)
-                                trader.write_log(out)
-                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
-#                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
-                                print(out)
-                                trader.write_log(out)
-                                trader.close_position(DateTimes[event_idx], 
-                                              Assets[event_idx].decode("utf-8"), 
-                                              ass_idx)
+#                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
+#                                       Assets[event_idx].decode("utf-8")+
+#                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
+#                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+#                                      " pofitability {0:.3f}".format(profitability)+
+#                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+#                                      str(trader.next_candidate.bet)+
+#                                      " cGROI {0:.2f} ".format(100*curr_GROI))
+#                                print(out)
+#                                trader.write_log(out)
+#                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
+##                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
+#                                print(out)
+#                                trader.write_log(out)
+#                                trader.close_position(DateTimes[event_idx], 
+#                                              Assets[event_idx].decode("utf-8"), 
+#                                              ass_idx)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0
@@ -2474,3 +2520,9 @@ if __name__ == '__main__':
 #DONE. Total time: 19.74 mins
 #Results file: 190430152449results.p
 #Positions file: 190430152449_RRNN01010CMF181112T190426ACk1-5E1214131109E0TI0MC0.7MD0.6.csv
+    
+#Total GROI = 44.643% Total ROI = 22.804% Sum GROI = 51.002% Sum ROI = 24.826% Accumulated earnings 2482.59E
+#Total entries 1883 per entries 2.16 percent gross success 57.89% percent nett success 55.23% average loss 16.07p average win 15.41p RR 1 to 1.18
+#DONE. Total time: 253.97 mins
+#Results file: 190623141541results.p
+#Positions file: 190623141541_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6.csv

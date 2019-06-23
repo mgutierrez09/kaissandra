@@ -1252,7 +1252,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                 # init positions dir and filename
                 if save_journal:
                     pos_dirname = resultsDir+IDresults+'/positions/'
-                    pos_filename = 'P_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+                    pos_filename = 'P_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
                 else:
                     pos_dirname = ''
                     pos_filename = ''
@@ -1467,11 +1467,11 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         while not success:
             try:
                 pd.DataFrame(columns=columns_positions).to_csv(pos_dirname+
-                        pos_filename, mode="w",index=False,sep='\t')
+                        pos_filename+'.csv', mode="w",index=False,sep='\t')
                 success = 1
             except PermissionError:
                 print("WARNING! PermissionError. Close programs using "+pos_dirname+
-                        pos_filename)
+                        pos_filename+'.csv')
                 time.sleep(1)
 
         
@@ -1732,12 +1732,12 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             success = 0
             while not success:
                 try:
-                    df.to_csv(pos_dirname+pos_filename, mode='a', 
+                    df.to_csv(pos_dirname+pos_filename+'.csv', mode='a', 
                       header=False, index=False, sep='\t')
                     success = 1
                 except PermissionError:
                     print("WARNING! PermissionError. Close programs using "+
-                          pos_dirname+pos_filename)
+                          pos_dirname+pos_filename+'.csv')
                     time.sleep(1)
                     
     gross_succ_per = gross_succ_counter/n_pos_opned
@@ -1785,6 +1785,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
 #    print("list_ext_results")
 #    print(list_ext_results)
     res_w_ext = build_extended_res_struct(list_ext_results)
+    if get_positions:
+        pickle.dump(res_w_ext, open( pos_dirname+pos_filename+'.p', "wb" ))
 #    plt.figure(np.random.randint(1000))
 #    plt.plot(np.real(corr_signal))
 #    plt.plot(np.imag(corr_signal))
@@ -2004,6 +2006,88 @@ def merge_results(IDrs, IDr_merged, from_mg=False):
     #merge_t_index_results(results_dir, IDr_m1, IDr_m2)
     
     return None
+
+def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_str, 
+            size_output_layer):
+    """ Function that calculates GROI efficiency matrix """
+    t = 0
+    eROIpp = np.zeros((len(t_indexes_str), len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
+    NZpp = np.zeros((len(t_indexes_str), len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2))).astype(int)
+    GRE = np.zeros((len(t_indexes_str), len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
+#    GREav = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
+#    GREex = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
+    for t_index in t_indexes_str:
+        for mc, thr_mc in enumerate(thresholds_mc):
+            for md, thr_md in enumerate(thresholds_mc):
+                print(t_index +" "+str(thr_mc)+" "+str(thr_md))
+                if thr_mc==.5 and thr_md==.5:
+                    print("Skipped")
+                    continue
+                # Get extended results
+                summary_filename = journal_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
+                    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.p'
+                #print(summary_filename)
+                if not os.path.exists(summary_filename):
+                    journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
+                        +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+                    Journal = pd.read_csv(journal_filename,sep='\t')
+                    positions_summary, log = get_extended_results(Journal, 5, 0)
+                else:
+                    positions_summary = pickle.load( open( summary_filename, "rb" ))
+                #print(positions_summary)
+                # load rSampsXlevel, rROIxLevel
+                rSampsXlevel = [positions_summary['NOl1'],positions_summary['NOl2']]
+                rROIxLevel = [positions_summary['eGl1'],positions_summary['eGl2']]
+                for b in range(int((size_output_layer-1)/2)):
+                    NZpp[t,mc,md, b] = int(rSampsXlevel[b])
+                    eROIpp[t,mc,md, b] = rROIxLevel[b]/100
+                    if NZpp[t,mc,md, b]>0:
+                        GRE[t,mc,md, b] = eROIpp[t,mc,md, b]/(NZpp[t,mc,md, b]*0.0001)
+                    print("Nonzero entries = "+str(NZpp[t,mc,md, b]))
+                    print("GRE level "+str(b)+": "+str(GRE[t,mc,md, b])+" pips")
+                    
+                    # GRE new
+#                    if rSampsXlevel[b,1]>0:
+#                        GREav[t,mc,md, b] = rROIxLevel[b,0]/(100*rSampsXlevel[b,1])
+#                    print("GRE av level "+str(b)+": "+str(GREav[t,mc,md, b]/0.0001)+" pips")
+#                    print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
+#                    if rSampsXlevel[b,1]>0:
+#                        GREex[t,mc,md, b] = eROIpp[t,mc,md, b, 1]/rSampsXlevel[b,1]
+#                    print("GRE ex level "+str(b)+": "+str(GREex[t,mc,md, b]/0.0001)+" pips")
+#                    print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
+        t += 1
+    print("eROIpp for mc between "+
+          str(round(thr_mc*10)/10)+
+          " and md "+str(round(thr_md*10)/10))
+    
+    
+    return [GRE, eROIpp, NZpp]
+
+def interpolate_GRE(GRE, thresholds_mc, thresholds_md):
+    """ Interpolate GRE values to fill the gaps """
+    from sklearn.linear_model import LinearRegression
+    points = np.zeros((0,3))
+    values = np.array([])
+    GREt0 = GRE[0,:,:,:]
+    levels = GREt0.shape[-1]
+    for mc, thr_mc in enumerate(thresholds_mc):
+        for md, thr_md in enumerate(thresholds_md):
+            for l in range(levels):
+                if GREt0[mc,md,l]!=0:
+                    points = np.append(points,np.array([[thr_mc,thr_md,l]]),axis=0)
+                    values = np.append(values,GREt0[mc,md,l])
+    
+    model = LinearRegression().fit(points, values)
+    r_sq = model.score(points, values)
+    print(r_sq)
+    GRE_predict = np.zeros(GREt0.shape)
+    for mc, thr_mc in enumerate(thresholds_mc):
+        for md, thr_md in enumerate(thresholds_md):
+            for l in range(levels):
+                GRE_predict[mc, md, l] = model.predict(np.array([[thr_mc,thr_md,l]]))[0]
+    print(GREt0[2,:,:])
+    print(GRE_predict[2,:,:])
+    return GRE_predict, model
 
 def merge_GREs(dir_origin, dir_destiny, gre_id, list_IDrs, epoch):
     """ Merge GREs to create a new one with statistics from all IDs.

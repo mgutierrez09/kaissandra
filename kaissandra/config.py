@@ -521,32 +521,42 @@ def add_to_config(config_name,key,value):
 
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
+    import datetime as dt
     
-    config_name = 'TPRODN01010N01011'
+    config_name = 'TPRODN01010GREV2'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
-        dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16',
-                '2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23',
-                '2018.11.26','2018.11.27','2018.11.28','2018.11.29','2018.11.30',
-                '2018.12.03','2018.12.04','2018.12.05','2018.12.06','2018.12.07',
-                '2018.12.10','2018.12.11','2018.12.12','2018.12.13','2018.12.14',
-                '2018.12.17','2018.12.18','2018.12.19','2018.12.20','2018.12.21',
-                '2018.12.24','2018.12.25','2018.12.26','2018.12.27','2018.12.28',
-                '2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04',
-                '2019.01.07','2019.01.08','2019.01.09','2019.01.10','2019.01.11',
-                '2019.01.14','2019.01.15','2019.01.16','2019.01.17','2019.01.18',
-                '2019.01.21','2019.01.22','2019.01.23','2019.01.24','2019.01.25',
-                '2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01',
-                '2019.02.04','2019.02.05','2019.02.06','2019.02.07','2019.02.08',
-                '2019.02.11','2019.02.12','2019.02.13','2019.02.14','2019.02.15',
-                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22',
-                '2019.02.25','2019.02.26','2019.02.27','2019.02.28','2019.03.01',
-                '2019.03.04','2019.03.05','2019.03.06','2019.03.07','2019.03.08',
-                '2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15',
-                '2019.03.18','2019.03.19','2019.03.20','2019.03.21','2019.03.22',
-                '2019.03.25','2019.03.26','2019.03.27','2019.03.28','2019.03.29']
-                
+#        dateTest = ['2018.11.12','2018.11.13','2018.11.14','2018.11.15','2018.11.16',
+#                '2018.11.19','2018.11.20','2018.11.21','2018.11.22','2018.11.23',
+#                '2018.11.26','2018.11.27','2018.11.28','2018.11.29','2018.11.30',
+#                '2018.12.03','2018.12.04','2018.12.05','2018.12.06','2018.12.07',
+#                '2018.12.10','2018.12.11','2018.12.12','2018.12.13','2018.12.14',
+#                '2018.12.17','2018.12.18','2018.12.19','2018.12.20','2018.12.21',
+#                '2018.12.24','2018.12.25','2018.12.26','2018.12.27','2018.12.28',
+#                '2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04',
+#                '2019.01.07','2019.01.08','2019.01.09','2019.01.10','2019.01.11',
+#                '2019.01.14','2019.01.15','2019.01.16','2019.01.17','2019.01.18',
+#                '2019.01.21','2019.01.22','2019.01.23','2019.01.24','2019.01.25',
+#                '2019.01.28','2019.01.29','2019.01.30','2019.01.31','2019.02.01',
+#                '2019.02.04','2019.02.05','2019.02.06','2019.02.07','2019.02.08',
+#                '2019.02.11','2019.02.12','2019.02.13','2019.02.14','2019.02.15',
+#                '2019.02.18','2019.02.19','2019.02.20','2019.02.21','2019.02.22',
+#                '2019.02.25','2019.02.26','2019.02.27','2019.02.28','2019.03.01',
+#                '2019.03.04','2019.03.05','2019.03.06','2019.03.07','2019.03.08',
+#                '2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15',
+#                '2019.03.18','2019.03.19','2019.03.20','2019.03.21','2019.03.22',
+#                '2019.03.25','2019.03.26','2019.03.27','2019.03.28','2019.03.29']
+        first_day = '2018.11.12'
+        last_day = '2019.03.29'
+        init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
+        end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
+        delta_dates = end_day-init_day
+        dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+        dateTest = []
+        for d in dateTestDt:
+            if d.weekday()<5:
+                dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
         # 'T01010-1k1k2'
 #        numberNetworks = 2
 #        IDresults = ['RRNN01010CMF181112T190329ACk1E12','RRNN01011CMF181112T190329ACk1E14']
@@ -585,22 +595,58 @@ def configuration_trader(*ins):
 #        list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
 #        phase_shifts = [1 for i in range(numberNetworks)]
         
-        numberNetworks = 2
-        IDresults = ['RRNN01010CMF181112T190329ACk1E12','RRNN01011CMF181112T190329ACk1E12']
-        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01011k1K5A','WRNN01011k2K5A']]
-        list_name = ['01010E1214MC7MD6','01011E1414MC7MD6']
-        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'},{'sp':[5],'th':[(.7,.6)],'dir':'COMB'}]
+#        numberNetworks = 2
+#        IDresults = ['RRNN01010CMF181112T190329ACk1E12','RRNN01011CMF181112T190329ACk1E12']
+#        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01011k1K5A','WRNN01011k2K5A']]
+#        list_name = ['01010E1214MC7MD6','01011E1414MC7MD6']
+#        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'},{'sp':[5],'th':[(.7,.6)],'dir':'COMB'}]
+#        
+#        mWs = [500,500]
+#        nExSs = [5000,5000]
+#        outputGains = [1,.8]
+#        #lBs = [1300]
+#        list_feats_from_bids = [False,False]
+#        combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
+#        first_day = '2018.11.12'
+#        last_day = '2019.03.29'
+#        config_names = ['config_name'+str(i) for i in range(numberNetworks)]
+#        stacked = [2,2]
+#        
+#        entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
+#                         'results_from':list_spread_ranges[i]['dir'],
+#                         'feats_from_bids':list_feats_from_bids[i],
+#                       'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
+#                       'outputGain':outputGains[i],'movingWindow':mWs[i],
+#                       'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
+#                       'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
+#        config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
+#        IDepoch = [[12,14],[14,14]]
+#        netNames = ['RRNN01010k1k2','RRNN01011k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+#        list_t_indexs = [[0],[0]]
+#        list_inv_out = [True for i in range(numberNetworks)]
+#        #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
+#        list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#        # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
+#        #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
+#        list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
+#        phase_shifts = [2 for i in range(numberNetworks)]
         
-        mWs = [500,500]
-        nExSs = [5000,5000]
-        outputGains = [1,.8]
+        
+        numberNetworks = 1
+        IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
+        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A']]
+        list_name = ['01010E1214GREV2']
+        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'}]
+        
+        mWs = [500]
+        nExSs = [5000]
+        outputGains = [1]
         #lBs = [1300]
-        list_feats_from_bids = [False,False]
+        list_feats_from_bids = [False]
         combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
-        first_day = '2018.11.12'
-        last_day = '2019.03.29'
+        
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
-        stacked = [2,2]
+        stacked = [2]
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
                          'results_from':list_spread_ranges[i]['dir'],
@@ -610,15 +656,15 @@ def configuration_trader(*ins):
                        'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[12,14],[14,14]]
-        netNames = ['RRNN01010k1k2','RRNN01011k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
-        list_t_indexs = [[0],[0]]
+        IDepoch = [[12,14]]
+        netNames = ['RRNN01010k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+        list_t_indexs = [[0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
-        list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges'
+        list_entry_strategy = ['gre_v2' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
-        list_priorities = [[0],[0]]#[[3],[2],[1],[0]]
+        list_priorities = [[0]]#[[3],[2],[1],[0]]
         phase_shifts = [2 for i in range(numberNetworks)]
         
 #        # T01011k1k2

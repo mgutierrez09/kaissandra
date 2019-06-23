@@ -23,7 +23,7 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 # TODO: add it in parameters
-n_samps_buffer = 500
+n_samps_buffer = 250
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -235,6 +235,7 @@ class Strategy():
         # load GRE
         self.entry_strategy = entry_strategy
         self.IDr = IDr
+        self.IDgre = IDr+'R20INT'
         self.epoch = epoch
         self.t_indexs = t_indexs
         self.weights = weights
@@ -280,6 +281,11 @@ class Strategy():
 #            print(self.GRE[:,:,0])
 #            print("GRE combined level 2:")
 #            print(self.GRE[:,:,1])
+        elif self.entry_strategy=='gre_v2':
+            # New GRE implementation
+            [GRE, model] = pickle.load( open( LC.gre_directory+self.IDgre+".p", "rb" ))
+            self.GRE = GRE
+            self.gre_model = model
         else:
             self.GRE = None
     
@@ -330,6 +336,8 @@ class Strategy():
         """ get profitability for a t_index, prob and output level """
         if self.entry_strategy=='gre':
             return self.GRE[t, self._get_idx(p_mc), self._get_idx(p_md), level]
+        elif self.entry_strategy=='gre_v2':
+            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
         else:
             # here it represents a priority
             return self.priorities[t]
@@ -589,6 +597,7 @@ class Trader:
         p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
         p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
         strategy = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy
+        profitability = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].profitability
         
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]] = self.next_candidate
         
@@ -600,6 +609,7 @@ class Trader:
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc = p_mc
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md = p_md
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy = strategy
+        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].profitability = profitability
     
     def is_opened(self, idx):
         '''
@@ -631,7 +641,7 @@ class Trader:
         reason = ''
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
-        margin = 0.0
+        margin = 2
         if this_strategy.fix_spread and this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate.p_mc>=this_strategy.lb_mc_op and \
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
@@ -644,8 +654,15 @@ class Trader:
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and 
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and this_strategy.entry_strategy=='gre':
-            condition_open = self.next_candidate.profitability>e_spread+margin
+        elif not this_strategy.fix_spread and (this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2'):
+            cond_prof = self.next_candidate.profitability>margin*e_spread#+margin
+            cond_bet = self.direction_map(self.next_candidate.direction, 
+                                   self.next_candidate.strategy.info_spread_ranges['dir'])
+            condition_open = cond_prof and cond_bet
+            if not cond_prof:
+                reason += str(self.next_candidate.profitability)+'<'+str(margin*e_spread)+' '
+            if not cond_bet:
+                reason += 'bet'
         elif this_strategy.entry_strategy=='spread_ranges':
             cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
             cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
@@ -700,14 +717,20 @@ class Trader:
         '''
         this_strategy = self.next_candidate.strategy
         margin = 0.5
+        reason = ''
         if this_strategy.entry_strategy=='fixed_thr':
             condition_extension = (self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
                               self.next_candidate.p_md>=this_strategy.lb_md_ext and
                               self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
-        elif this_strategy.entry_strategy=='gre':
-            condition_extension = (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=this_strategy.lim_groi_ext)
+        elif this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2':
+            cond_prof = self.next_candidate.profitability>margin
+            cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
+            condition_extension = cond_prof and cond_groi
+            if not cond_prof:
+                reason += str(self.next_candidate.profitability)+'<'+str(margin)+' '
+            if not cond_groi:
+                reason += 'groi'
         elif this_strategy.entry_strategy=='spread_ranges':
             cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
             cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
@@ -718,19 +741,19 @@ class Trader:
                 cond_pmd and \
                 cond_groi and cond_bet \
                 and not force_no_extesion
+            if not cond_pmc:
+                reason+='pmc'
+            if not cond_pmd:
+                reason+='pmd'
+            if not cond_groi:
+                reason+='groi'
+            if not cond_bet:
+                reason+='bet'
+            if force_no_extesion:
+                reason+='bet'
         else:
             raise ValueError("Wrong entry strategy")            
-        reason = ''
-        if not cond_pmc:
-            reason+='pmc'
-        if not cond_pmd:
-            reason+='pmd'
-        if not cond_groi:
-            reason+='groi'
-        if not cond_bet:
-            reason+='bet'
-        if force_no_extesion:
-            reason+='bet'
+        
         return condition_extension, reason
 
     def update_stoploss(self, idx, bid):
@@ -985,6 +1008,8 @@ class Trader:
               " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
               " spread={0:.3f} ".format(e_spread)+" strategy "+
               self.list_opened_positions[-1].strategy.name)
+        if self.next_candidate.strategy.entry_strategy == 'gre_v2':
+            out += out+' prof '+str(self.next_candidate.profitability)
         if verbose_trader:
             print("\r"+out)
         self.write_log(out)
@@ -1362,15 +1387,24 @@ class Trader:
                             self.write_log(out)
                     else: # if direction is different
                         this_strategy = self.next_candidate.strategy
+                        close_pos = False
                         #if this_strategy.if_dir_change_close:
-                        if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
-                        this_strategy.entry_strategy=='spread_ranges' and \
-                        self.check_same_strategy(ass_id) and \
-                        self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
-                        self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
-#                        self.next_candidate.p_mc>=.6 and \
-#                        self.next_candidate.p_md>=.6:
-
+                        if this_strategy.entry_strategy=='spread_ranges':
+                            if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                            self.check_same_strategy(ass_id) and \
+                            self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
+                            self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
+                                close_pos = True
+                        elif this_strategy.entry_strategy=='gre_v2':
+                            if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                            self.check_same_strategy(ass_id) and \
+                            self.next_candidate.profitability>=self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
+                                print("self.next_candidate.profitability")
+                                print(self.next_candidate.profitability)
+                                print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
+                                print(self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability)
+                                close_pos = True
+                        if close_pos:
                             # close position due to direction change
                             out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
                             +" closing due to direction change!"
@@ -3323,10 +3357,10 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TPRODN01010N01011')]
+            list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TTEST10')]#
+        list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     print("Test "+str(test))
@@ -3338,6 +3372,8 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     renew_directories(Data().AllAssets, running_assets)
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
+    print("send_info_api")
+    print(send_info_api)
     if send_info_api:
         api.intit_all(list_config_traders[0], running_assets, sessiontype)
         #a=p
@@ -3374,7 +3410,7 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-    config_names = ['TPRODN01010N01011']#['TTEST10']#
+    config_names = ['TPRODN01010GREV2']#['TTEST10']#'TPRODN01010N01011'
     test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
@@ -3408,7 +3444,10 @@ from kaissandra.prod.api import API
 
 if __name__=='__main__':
     # lauch
-    api = API()
+    if send_info_api:
+        api = API()
+    else:
+        api = None
     launch(config_names=config_names,synchroned_run=synchroned_run, test=test, api=api)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
