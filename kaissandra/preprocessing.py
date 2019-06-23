@@ -1232,7 +1232,7 @@ def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False,
     
     elif from_stats_file:
         try:
-            stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
+            stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
@@ -1275,7 +1275,7 @@ def load_stats_output_v2(config, hdf5_directory, thisAsset, tag='IOB'):
         nEventsPerStat = 500
     nF = len(feature_keys_manual)
     # TODO: pass output stats to their own container and load them from there
-    stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
+    stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))

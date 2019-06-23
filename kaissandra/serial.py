@@ -23,7 +23,7 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 # TODO: add it in parameters
-n_samps_buffer = 500
+n_samps_buffer = 250
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -138,19 +138,20 @@ class Results:
               direction change, ...} """
         pass
     
-    def save_pos_evolution(self, filename, dts, bids, asks, ems):
+    def save_pos_evolution(self, filename, dts, bids, asks):
         """ Save evolution of the position from opening till close """
         # format datetime for filename
         
         df = pd.DataFrame({'DateTime':dts,
                            'SymbolBid':bids,
-                           'SymbolAsk':asks,
-                           'EmBid':ems})
+                           'SymbolAsk':asks})
         df.to_csv(self.dir_positions+filename+'.txt', index=False)
+        return self.dir_positions+filename+'.txt'
     
     def save_pos_evolution_live(self, filename, df):
         """  """
         df.to_csv(self.dir_positions+filename+'.txt', index=False)
+        return self.dir_positions+filename+'.txt'
     
 #class stats:
 #    
@@ -234,6 +235,7 @@ class Strategy():
         # load GRE
         self.entry_strategy = entry_strategy
         self.IDr = IDr
+        self.IDgre = IDr+'R20INT'
         self.epoch = epoch
         self.t_indexs = t_indexs
         self.weights = weights
@@ -273,12 +275,17 @@ class Strategy():
             
             self.GRE = self.weights[0]*GRE+self.weights[1]*GREex
             
-            if test:
-                self.GRE = self.GRE+20
+#            if test:
+#                self.GRE = self.GRE+20
 #            print("GRE combined level 1:")
 #            print(self.GRE[:,:,0])
 #            print("GRE combined level 2:")
 #            print(self.GRE[:,:,1])
+        elif self.entry_strategy=='gre_v2':
+            # New GRE implementation
+            [GRE, model] = pickle.load( open( LC.gre_directory+self.IDgre+".p", "rb" ))
+            self.GRE = GRE
+            self.gre_model = model
         else:
             self.GRE = None
     
@@ -329,6 +336,8 @@ class Strategy():
         """ get profitability for a t_index, prob and output level """
         if self.entry_strategy=='gre':
             return self.GRE[t, self._get_idx(p_mc), self._get_idx(p_md), level]
+        elif self.entry_strategy=='gre_v2':
+            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
         else:
             # here it represents a priority
             return self.priorities[t]
@@ -338,7 +347,7 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  AllAssets, log_file, results_dir="", 
-                 start_time='', config_name='',net2strategy=[]):
+                 start_time='', config_name='',net2strategy=[], api=None):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
@@ -420,7 +429,7 @@ class Trader:
             self.log_summary = self.results_dir_trader+start_time+tag+config_name+"summary.log"
             self.dir_positions = results_dir+'/positions/'+start_time+config_name+'/'
             self.budget_file = self.results_dir_trader+start_time+tag+config_name+"budget.log"
-            self.ban_currencies_dir = io_dir+'/ban'+config_name+'/'
+            self.ban_currencies_dir = LC.io_live_dir+'/ban'+config_name+'/'
             
         
             self.start_time = start_time
@@ -448,12 +457,13 @@ class Trader:
         self.rewind = 0
         self.approached = 0
         self.swap_pending = 0
+        self.api = api
     
     def get_account_status(self):
         """ Get account status from broker """
         success = 0
         ##### WARNING! #####
-        dirfilename = local_vars.directory_MT5_account+'Status.txt'
+        dirfilename = LC.directory_MT5_account+'Status.txt'
         if os.path.exists(dirfilename):
             # load network output
             while not success:
@@ -587,6 +597,7 @@ class Trader:
         p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
         p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
         strategy = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy
+        profitability = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].profitability
         
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]] = self.next_candidate
         
@@ -598,6 +609,7 @@ class Trader:
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc = p_mc
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md = p_md
         self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy = strategy
+        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].profitability = profitability
     
     def is_opened(self, idx):
         '''
@@ -629,7 +641,7 @@ class Trader:
         reason = ''
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
-        margin = 0.0
+        margin = 2
         if this_strategy.fix_spread and this_strategy.entry_strategy=='fixed_thr':
             condition_open = (self.next_candidate.p_mc>=this_strategy.lb_mc_op and \
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
@@ -642,8 +654,15 @@ class Trader:
                               self.next_candidate.p_md>=this_strategy.lb_md_op and \
                               self.next_candidate.p_mc<this_strategy.ub_mc_op and 
                               self.next_candidate.p_md<this_strategy.ub_md_op)
-        elif not this_strategy.fix_spread and this_strategy.entry_strategy=='gre':
-            condition_open = self.next_candidate.profitability>e_spread+margin
+        elif not this_strategy.fix_spread and (this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2'):
+            cond_prof = self.next_candidate.profitability>margin*e_spread#+margin
+            cond_bet = self.direction_map(self.next_candidate.direction, 
+                                   self.next_candidate.strategy.info_spread_ranges['dir'])
+            condition_open = cond_prof and cond_bet
+            if not cond_prof:
+                reason += str(self.next_candidate.profitability)+'<'+str(margin*e_spread)+' '
+            if not cond_bet:
+                reason += 'bet'
         elif this_strategy.entry_strategy=='spread_ranges':
             cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
             cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
@@ -698,14 +717,20 @@ class Trader:
         '''
         this_strategy = self.next_candidate.strategy
         margin = 0.5
+        reason = ''
         if this_strategy.entry_strategy=='fixed_thr':
             condition_extension = (self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
                               self.next_candidate.p_md>=this_strategy.lb_md_ext and
                               self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                               self.next_candidate.p_md<this_strategy.ub_md_ext)
-        elif this_strategy.entry_strategy=='gre':
-            condition_extension = (self.next_candidate.profitability>margin and 
-                                  100*curr_GROI>=this_strategy.lim_groi_ext)
+        elif this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2':
+            cond_prof = self.next_candidate.profitability>margin
+            cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
+            condition_extension = cond_prof and cond_groi
+            if not cond_prof:
+                reason += str(self.next_candidate.profitability)+'<'+str(margin)+' '
+            if not cond_groi:
+                reason += 'groi'
         elif this_strategy.entry_strategy=='spread_ranges':
             cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
             cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
@@ -716,19 +741,19 @@ class Trader:
                 cond_pmd and \
                 cond_groi and cond_bet \
                 and not force_no_extesion
+            if not cond_pmc:
+                reason+='pmc'
+            if not cond_pmd:
+                reason+='pmd'
+            if not cond_groi:
+                reason+='groi'
+            if not cond_bet:
+                reason+='bet'
+            if force_no_extesion:
+                reason+='bet'
         else:
             raise ValueError("Wrong entry strategy")            
-        reason = ''
-        if not cond_pmc:
-            reason+='pmc'
-        if not cond_pmd:
-            reason+='pmd'
-        if not cond_groi:
-            reason+='groi'
-        if not cond_bet:
-            reason+='bet'
-        if force_no_extesion:
-            reason+='bet'
+        
         return condition_extension, reason
 
     def update_stoploss(self, idx, bid):
@@ -828,7 +853,7 @@ class Trader:
                   str(Ao)+","+"0"+","+str(100*GROI_live)+","+
                   str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
         
-        return GROI_live, ROI_live, spread, info
+        return GROI_live, ROI_live, spread, Bo, Ao, info
         
     
     def close_position(self, date_time, ass, idx, results,
@@ -846,7 +871,7 @@ class Trader:
         if np.isnan(roi_ratio):
             raise AssertionError("np.isnan(roi_ratio)")
         # get returns
-        GROI_live, ROI_live, spread, info = self.get_rois(idx, 
+        GROI_live, ROI_live, spread, Bo, Ao, info = self.get_rois(idx, 
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
@@ -890,19 +915,20 @@ class Trader:
         write_log(info_close, self.log_positions_soll)
         
         # save position evolution
-        
+        pos_filename = get_positions_filename(ass, self.list_opened_positions\
+                                              [self.map_ass_idx2pos_idx[idx]].entry_time, 
+                                              date_time)
         if run_back_test:
-            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
-                                              self.list_last_dt[list_idx][-1])
-            results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
+#            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+#                                              self.list_last_dt[list_idx][-1])
+            dirfilename = results.save_pos_evolution(pos_filename, self.list_last_dt[list_idx],
                                        self.list_last_bid[list_idx], 
-                                       self.list_last_ask[list_idx], 
-                                       self.list_EM[list_idx])
+                                       self.list_last_ask[list_idx])
         else:
-            #last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
-            pos_filename = get_positions_filename(ass, DTi_real, date_time)
-            results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[list_idx])
-            
+            ##last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
+            #pos_filename = get_positions_filename(ass, DTi_real, date_time)
+            dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[list_idx])
+        
         self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename)
         # update output lists
         results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
@@ -936,9 +962,11 @@ class Trader:
             " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
             self.write_log(out)
             print("\r"+out)
-        
-        self.budget = balance
-        
+            self.budget = balance
+        if send_info_api:
+            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
+                                    100*GROI_live, 100*ROI_live, nett_win, 
+                                    pos_filename, dirfilename)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
@@ -980,12 +1008,59 @@ class Trader:
               " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
               " spread={0:.3f} ".format(e_spread)+" strategy "+
               self.list_opened_positions[-1].strategy.name)
+        if self.next_candidate.strategy.entry_strategy == 'gre_v2':
+            out += out+' prof '+str(self.next_candidate.profitability)
         if verbose_trader:
             print("\r"+out)
         self.write_log(out)
         
+        # Send open position command to api
+        if send_info_api:
+            self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
         
         return None
+    
+    def send_open_pos_api(self, DateTime, bid, ask, e_spread, lots):
+        """ Send command to API for position opening """
+        params = {'asset':self.list_opened_positions[-1].asset,
+                  'dtisoll':DateTime,#.replace(' ', '_', 1)
+                  'bi':bid,
+                  'ai':ask,
+                  'espread':e_spread,
+                  'lots':lots,
+                  'direction':self.list_opened_positions[-1].bet,
+                  'strategyname':self.list_opened_positions[-1].strategy.name,
+                  'p_mc':self.list_opened_positions[-1].p_mc,
+                  'p_md':self.list_opened_positions[-1].p_md}
+        self.api.open_position(params, asynch=True)
+        
+    def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
+                            direction, strategy, roi, ticks):
+        """ Send command to API for position extension """
+        # TODO: add datetime of extension to API
+        params = {'groi':groi,
+                  'dt':DateTime,
+                  'p_mc':p_mc,
+                  'p_md':p_md,
+                  'tickscounter':ticks,
+                  'direction':direction,
+                  'strategyname':strategy,
+                  'roi':roi}
+        self.api.extend_position(thisAsset, params, asynch=True)
+        
+    def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
+                           roisoll, returns, filename, dirfilename):
+        """ Send command to API for position closing """
+        params = {'dtosoll':DateTime,
+                  'bo':bid,
+                  'ao':ask,
+                  'spread':spread,
+                  'groisoll':groisoll,
+                  'roisoll':roisoll,
+                  'returns':returns,
+                  'filename':filename
+                }
+        self.api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1268,7 +1343,7 @@ class Trader:
                 else: # position is opened
                     # check for extension
                     if self.check_primary_condition_for_extention(ass_id):
-                        curr_GROI, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                        curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                         extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t)
                         if extention:    
                             # include third condition for thresholds
@@ -1292,6 +1367,14 @@ class Trader:
                                " spread={0:.3f}".format(new_entry['E_spread'])+
                                " strategy "+strategy_name+
                                " current GROI = {0:.2f}%".format(100*curr_GROI))
+                            # send position extended command to api
+                            if send_info_api:
+                                self.send_extend_pos_api(new_entry[entry_time_column], 
+                                                         thisAsset, 100*curr_GROI, 
+                                                         new_entry['P_mc'], new_entry['P_md'], 
+                                                         int(new_entry['Bet']), strategy_name, 
+                                                         100*curr_ROI, 
+                                                         self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
                             #out = new_entry[entry_time_column]+" Extended "+thisAsset
                             if verbose_trader:
                                 print("\r"+out)
@@ -1304,15 +1387,24 @@ class Trader:
                             self.write_log(out)
                     else: # if direction is different
                         this_strategy = self.next_candidate.strategy
+                        close_pos = False
                         #if this_strategy.if_dir_change_close:
-                        if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
-                        this_strategy.entry_strategy=='spread_ranges' and \
-                        self.check_same_strategy(ass_id) and \
-                        self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
-                        self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
-#                        self.next_candidate.p_mc>=.6 and \
-#                        self.next_candidate.p_md>=.6:
-
+                        if this_strategy.entry_strategy=='spread_ranges':
+                            if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                            self.check_same_strategy(ass_id) and \
+                            self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
+                            self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
+                                close_pos = True
+                        elif this_strategy.entry_strategy=='gre_v2':
+                            if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                            self.check_same_strategy(ass_id) and \
+                            self.next_candidate.profitability>=self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
+                                print("self.next_candidate.profitability")
+                                print(self.next_candidate.profitability)
+                                print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
+                                print(self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability)
+                                close_pos = True
+                        if close_pos:
                             # close position due to direction change
                             out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
                             +" closing due to direction change!"
@@ -1401,7 +1493,7 @@ class Trader:
         print(out)
         #send close command if running live
         if not run_back_test:
-            directory_MT5_ass2close = directory_MT5_IO+\
+            directory_MT5_ass2close = LC.directory_MT5_IO+\
                 self.list_opened_positions[self.swap_pos].asset+"/"
             self.send_close_command(directory_MT5_ass2close)
         # activate swap pending flag
@@ -1778,10 +1870,11 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 prob_mc = np.array([soft_tilde_t[0,0]])
                             
                 if prob_mc>thr_mc:
-                    Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
+                    #Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
                     Y_tilde_check = np.array([(-1)**(1-np.argmax(soft_tilde_t[0,1:3]))]).astype(int)
                 else:
-                    Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
+                    pass
+                    #Y_tilde_idx = int((n_bits_mg-1)/2) # zero index
                     Y_tilde_check = np.array([0])
 #                Y_tilde = np.array([Y_tilde_idx-(n_bits_mg-1)/2]).astype(int)
                 Y_tilde = Y_tilde_check
@@ -2044,8 +2137,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
 def renew_mt5_dir(AllAssets, running_assets):
     """ Renew MT5 directory for synch between py and trader """
     # init list with files index for each running asset to zero
-    directory_MT5_IO = local_vars.directory_MT5_IO
-    directory_MT5_log = local_vars.directory_MT5_log
+    directory_MT5_IO = LC.directory_MT5_IO
+    directory_MT5_log = LC.directory_MT5_log
     file_ids = [0 for _ in range(len(running_assets))]
     log_ids = ['' for _ in range(len(running_assets))]
     nonsynched_assets = [i for i in running_assets]
@@ -2121,7 +2214,7 @@ def renew_mt5_dir(AllAssets, running_assets):
             for w in range(len(waitings)):
                 if waitings[w]:
                     thisAsset = AllAssets[str(running_assets[w])]
-                    io_ass_dir = io_dir+thisAsset+"/"
+                    io_ass_dir = LC.io_live_dir+thisAsset+"/"
                     if os.path.exists(io_ass_dir+'SD'):
                         print(thisAsset+" Shutting down")
                         os.remove(io_ass_dir+'SD')
@@ -2149,7 +2242,7 @@ def renew_directories(AllAssets, running_assets):
 #                # TODO: Synch fetcher with current file if MT5 is recording
             
         #try:
-        io_ass_dir = io_dir+thisAsset+"/"
+        io_ass_dir = LC.io_live_dir+thisAsset+"/"
         if os.path.exists(io_ass_dir):
             try:
                 shutil.rmtree(io_ass_dir)
@@ -2180,7 +2273,7 @@ def renew_directories(AllAssets, running_assets):
     
 def send_close_command(asset):
         """ Send command for closeing position to MT5 software """
-        directory_MT5_ass2close = directory_MT5_IO+asset+"/"
+        directory_MT5_ass2close = LC.directory_MT5_IO+asset+"/"
         success = 0
         # load network output
         while not success:
@@ -2206,6 +2299,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
     
     nMaxFilesInDir = 0
     tic = time.time()
+    delayed_stop_run = False
     
     while run:
 #        tic = time.time()
@@ -2241,13 +2335,15 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     write_log(out, log_file)
                     
             except (FileNotFoundError,PermissionError,OSError):
-                io_ass_dir = io_dir+thisAsset+"/"
+                io_ass_dir = LC.io_live_dir+thisAsset+"/"
                 # check shut down command
                 if os.path.exists(io_ass_dir+'SD'):
                     print(thisAsset+" Shutting down")
                     os.remove(io_ass_dir+'SD')
+                    send_close_command(thisAsset)
+                    delayed_stop_run = True
                     run = False
-                    time.sleep(5*np.random.rand(1))
+                    time.sleep(5*np.random.rand(1)+1)
                 elif os.path.exists(io_ass_dir+'RESET'):
                     print("RESET command found.")
                     os.remove(io_ass_dir+'RESET')
@@ -2382,7 +2478,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # open position if swap process is on
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
-                
+                if delayed_stop_run:
+                    run = False
                 
             elif flag_sl:
                 # update positions vector
@@ -2526,12 +2623,15 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                     trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
         
         ###################### Check for control commands ##############
-        io_ass_dir = io_dir+thisAsset+"/"
+        io_ass_dir = LC.io_live_dir+thisAsset+"/"
         # check shut down command
         if os.path.exists(io_ass_dir+'SD'):
             print(thisAsset+" Shutting down")
             os.remove(io_ass_dir+'SD')
             shutdown = True
+            for idx, trader in enumerate(traders):
+                if trader.is_opened(ass_id):
+                    trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
             break
         elif os.path.exists(io_ass_dir+'PA'):
             
@@ -2698,23 +2798,27 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time):
+def run_carefully(config_trader, running_assets, start_time, test, api):
     """  """
     try:
-        run(config_trader, running_assets, start_time)
+        run(config_trader, running_assets, start_time, test, api)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time):
+def run(config_traders_list, running_assets, start_time, test, api):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
         raise ValueError("Live execution not compatible with more than one trader")
+    
+    # init futures session of API
+    if send_info_api:
+        api.init_session()
     # directories
     if run_back_test:
-        dir_results = local_vars.live_results_dict+"back_test/"    
+        dir_results = LC.live_results_dict+"back_test/"    
     else:
-        dir_results = local_vars.live_results_dict+"live/"
+        dir_results = LC.live_results_dict+"live/"
     #dir_results_trader = dir_results+"trader/"
     dir_results_netorks = dir_results+'networks/'
     if not os.path.exists(dir_results_netorks):
@@ -2756,7 +2860,7 @@ def run(config_traders_list, running_assets, start_time):
 #        print("config_name")
 #        print(config_name)
         dateTest = config_trader['dateTest']
-        dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
+        #dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
         numberNetworks = config_trader['numberNetworks']
         IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
         IDresults = config_trader['IDresults']#['100318INVO','000318INVO','000318INVO']
@@ -2868,7 +2972,7 @@ def run(config_traders_list, running_assets, start_time):
 #        print(len(list_spread_ranges))
 #        print(len(list_priorities))
 #        print(len(list_lim_groi_ext))
-        strategies = [Strategy(direct=ADsDir,thr_sl=list_thr_sl[i], 
+        strategies = [Strategy(direct=LC.results_directory,thr_sl=list_thr_sl[i], 
                               thr_tp=list_thr_tp[i], fix_spread=list_fix_spread[i], 
                               fixed_spread_pips=list_fixed_spread_pips[i], 
                               max_lots_per_pos=list_max_lots_per_pos[i], 
@@ -2949,18 +3053,18 @@ def run(config_traders_list, running_assets, start_time):
     if not test:
         list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
                         None, 
-                        from_stats_file=True, hdf5_directory=hdf5_directory+'stats/',tag=list_tags[nn]) 
+                        from_stats_file=True, hdf5_directory=LC.hdf5_directory+'stats/',tag=list_tags[nn]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], hdf5_directory+
+        list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], LC.hdf5_directory+
                         'stats/', AllAssets[str(running_assets[ass])], 
                         tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
     else:
         list_stats_feats = [[load_stats_manual_v2({}, AllAssets[str(running_assets[ass])], 
                         None, 
-                        from_stats_file=True, hdf5_directory=hdf5_directory+'stats/') 
+                        from_stats_file=True, hdf5_directory=LC.hdf5_directory+'stats/') 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2({}, hdf5_directory+
+        list_stats_rets = [[load_stats_output_v2({}, LC.hdf5_directory+
                         'stats/', AllAssets[str(running_assets[ass])]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
         gain = .000000001
@@ -3091,7 +3195,7 @@ def run(config_traders_list, running_assets, start_time):
                                     ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                     log_file, results_dir=dir_results, 
                                     start_time=start_time, config_name=config_trader['config_name'],
-                                    net2strategy=list_net2strategy[idx_tr])
+                                    net2strategy=list_net2strategy[idx_tr], api=api)
                     
 #                    if not os.path.exists(trader.log_file):
 #                        write_log(out, trader.log_file)
@@ -3107,7 +3211,7 @@ def run(config_traders_list, running_assets, start_time):
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir=local_vars.data_test_dir)
+                                   end_list_index, root_dir=LC.data_test_dir)
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
@@ -3187,7 +3291,7 @@ def run(config_traders_list, running_assets, start_time):
                                 ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
                                 start_time=start_time, config_name=config_trader['config_name'],
-                                net2strategy=list_net2strategy[idx_tr])
+                                net2strategy=list_net2strategy[idx_tr], api=api)
                     
 #                if not os.path.exists(trader.log_file):
 #                    write_log(out, trader.log_file)
@@ -3200,7 +3304,7 @@ def run(config_traders_list, running_assets, start_time):
 #                                log_file, results_dir=dir_results, 
 #                                start_time=start_time)
             # launch fetcher
-            fetch(lists, trader, directory_MT5_IO, AllAssets, 
+            fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
                   running_assets, log_file, results)
         
         for idx, trader in enumerate(traders):
@@ -3238,9 +3342,9 @@ def run(config_traders_list, running_assets, start_time):
             write_log(out, trader.log_file)
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
-        
+#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
-           synchroned_run=True):
+           synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
     import datetime as dt
@@ -3253,23 +3357,33 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TPRODN01010')]
+            list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TTEST10')]
+        list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     print("Test "+str(test))
     #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
+    if run_back_test:
+        sessiontype = 'backtest'
+    else:
+        sessiontype = 'live'
     renew_directories(Data().AllAssets, running_assets)
+    
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
+    print("send_info_api")
+    print(send_info_api)
+    if send_info_api:
+        api.intit_all(list_config_traders[0], running_assets, sessiontype)
+        #a=p
     if synchroned_run:
-        run(list_config_traders, running_assets, start_time)
+        run(list_config_traders, running_assets, start_time, test, api)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1],start_time])
+            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, api])
             disp.start()
             time.sleep(2)
         time.sleep(30)
@@ -3278,11 +3392,12 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 
 verbose_RNN = True
 verbose_trader = True
-test = False
+#test = False
 run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
+send_info_api = True
 
 if __name__=='__main__':
     import sys
@@ -3294,23 +3409,21 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
-    synchroned_run = True
-    config_names = []
-    print(sys.argv)
+    synchroned_run = False
+    config_names = ['TPRODN01010GREV2']#['TTEST10']#'TPRODN01010N01011'
+    test = False
     for arg in sys.argv:
-        print(arg)
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False
-#        if re.search('^test=False',arg)!=None:
-#            test_arg = False
-#        else:
-#            test_arg = True
-        #test = test_arg
-        if re.search('^config_names',arg)!=None and not test:
+        if re.search('^test',arg)!=None:
+            print(arg)
+            if (arg.split('=')[-1])=='True' or (arg.split('=')[-1])=='true':
+                test = True
+        if re.search('^config_names',arg)!=None:
             config_names = (arg.split('=')[-1]).split(',')
             print(config_names)
-        elif re.search('^config_names',arg)!=None and test:
-            raise ValueError("test cannot be False if config_names is not empty")
+#    if ('TTEST10' not in config_names or len(config_names)>1) and test:
+#        raise ValueError("test cannot be False if config_names is TTEST")
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (Data,
@@ -3320,16 +3433,22 @@ from kaissandra.preprocessing import (load_stats_manual_v2,
                                           load_stats_output_v2)
 from kaissandra.models import StackedModel
 import shutil
-from kaissandra.local_config import local_vars
+from kaissandra.local_config import local_vars as LC
+from kaissandra.prod.api import API
 
-directory_MT5_IO = local_vars.directory_MT5_IO
-io_dir = local_vars.io_live_dir
-ADsDir = local_vars.results_directory
-hdf5_directory = local_vars.hdf5_directory
+
+#directory_MT5_IO = local_vars.directory_MT5_IO
+#io_dir = local_vars.io_live_dir
+#ADsDir = local_vars.results_directory
+#hdf5_directory = local_vars.hdf5_directory
 
 if __name__=='__main__':
     # lauch
-    launch(config_names=config_names,synchroned_run=synchroned_run)#
+    if send_info_api:
+        api = API()
+    else:
+        api = None
+    launch(config_names=config_names,synchroned_run=synchroned_run, test=test, api=api)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%

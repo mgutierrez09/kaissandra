@@ -26,23 +26,31 @@ def send_command(directory_MT5_ass, command, msg=''):
             print("Error writing")
     print(" "+directory_MT5_ass+command+" command sent")
     
-def shutdown():
+def shutdown(id=None):
     """  """
     io_dir = local_vars.io_live_dir
-    AllAssets = Data().AllAssets
+    AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
         print(asset)
         try:
             fh = open(io_dir+asset+'/SD',"w")
             fh.close()
+            
         except FileNotFoundError:
             print("FileNotFoundError")
+    if id!=None:
+        close_session(id)
+
+def close_session(id):
+    """  """
+    from kaissandra.prod.api import API
+    API().close_session(id)
     
 def pause():
     """  """
     io_dir = local_vars.io_live_dir
-    AllAssets = Data().AllAssets
+    AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
         print(asset)
@@ -55,7 +63,7 @@ def pause():
 def resume():
     """  """
     io_dir = local_vars.io_live_dir
-    AllAssets = Data().AllAssets
+    AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
         print(asset)
@@ -69,7 +77,7 @@ def close_positions():
     """ Close all positions from py """
     directory_MT5 = local_vars.directory_MT5_IO
     command = "LC"
-    AllAssets = Data().AllAssets
+    AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         thisAsset = AllAssets[asset_key]
         directory_MT5_ass = directory_MT5+thisAsset+"/"
@@ -90,7 +98,7 @@ def reset_networks():
     """  """
     directory_io = local_vars.io_live_dir
     command = "RESET"
-    AllAssets = Data().AllAssets
+    AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         thisAsset = AllAssets[asset_key]
         directory_io_ass = directory_io+thisAsset+"/"
@@ -109,13 +117,18 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     
-    from kaissandra.inputs import Data
+    from kaissandra.config import Config
     from kaissandra.local_config import local_vars
     
     for arg in sys.argv:
         print(arg)
         if re.search('^shutdown',arg)!=None:
-            shutdown()
+            if re.search('--id=',arg)!=None:
+                id = int(arg.split('=')[-1])
+                print("session id found: "+str(id))
+                shutdown(id=id)
+            else:
+                shutdown()
         elif re.search('^reset_networks',arg)!=None:
             reset_networks()
         elif re.search('^close_positions',arg)!=None:
@@ -124,3 +137,9 @@ if __name__=='__main__':
             pause()
         elif re.search('^resume',arg)!=None:
             resume()
+        elif re.search('^close_session',arg)!=None:
+            if re.search('--id=',arg)!=None:
+                id = int(arg.split('=')[-1])
+            else:
+                raise ValueError("session id must be specified")
+            close_session(id)
