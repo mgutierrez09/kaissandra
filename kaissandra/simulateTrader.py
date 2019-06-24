@@ -243,6 +243,7 @@ class Strategy():
             # New GRE implementation
             [GRE, model] = pickle.load( open( local_vars.gre_directory+self.IDgre+".p", "rb" ))
             self.GRE = GRE
+            print(GRE)
             self.gre_model = model
         else:
             self.GRE = None
@@ -275,7 +276,8 @@ class Strategy():
         elif self.entry_strategy=='gre_v2':
 #            print("self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]")
 #            print(self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0])
-            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
+            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
+#            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
         else:
             return 0.0
 

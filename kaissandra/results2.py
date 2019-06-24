@@ -79,6 +79,8 @@ def get_md_vectors(t_soft_tilde, t_y, ys_mc, n_classes, thr_md, ub_md):
              'y_md_up_tilde':y_md_up_tilde,
              'y_md_tilde':y_md_tilde, #non-zeros market direction up ([y_c1,y_c2]=01)
              'nz_indexes':ys_mc['y_mc'] & y_md_tilde, # non-zero indexes index
+             'nz_indexes_down':ys_mc['y_mc'] & y_md_down_tilde, # non-zero down indexes index
+             'nz_indexes_up':ys_mc['y_mc'] & y_md_up_tilde, # non-zero down indexes index
              'y_md_down_intersect':ys_mc['y_md_down'] & y_md_down_tilde, # indicates up bits (y_c2) correctly predicted
              'y_md_up_intersect':ys_mc['y_md_up'] & y_md_up_tilde, # indicates up bits (y_c2) correctly predicted
              'y_dec_md':y_dec_md, # real output in decimal
@@ -124,6 +126,16 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
           "RD = {0:d} ".format(results["RD"])+
           "NZ = {0:d} ".format(results["NZ"])+
           "NZA = {0:d} ".format(results["NZA"])+
+          "ADl = {0:.2f}% ".format(results["ADl"])+
+          "ADAl = {0:.2f}% ".format(results["ADAl"])+
+          "RDl = {0:d} ".format(results["RDl"])+
+          "NZl = {0:d} ".format(results["NZl"])+
+          "NZAl = {0:d} ".format(results["NZAl"])+
+          "ADs = {0:.2f}% ".format(results["ADs"])+
+          "ADAs = {0:.2f}% ".format(results["ADAs"])+
+          "RDs = {0:d} ".format(results["RDs"])+
+          "NZs = {0:d} ".format(results["NZs"])+
+          "NZAs = {0:d} ".format(results["NZAs"])+
           "pNZ = {0:.4f}% ".format(results["pNZ"])+
           "pNZA = {0:.4f}% ".format(results["pNZA"]))
     
@@ -132,6 +144,8 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
           "NOS = {0:d} ".format(results["NOS"])+
           "GSP = {0:.2f}% ".format(results["GSP"])+
           "NSP = {0:.2f}% ".format(results["NSP"])+
+          "GSPl = {0:.2f}% ".format(results["GSPl"])+
+          "GSPs = {0:.2f}% ".format(results["GSPs"])+
           "NSP1 = {0:.2f}% ".format(results["NSP1"])+
           "NSP1.5 = {0:.2f}% ".format(results["NSP1.5"])+
           "NSP2 = {0:.2f}% ".format(results["NSP2"])+
@@ -161,7 +175,8 @@ def get_results_entries():
                        'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
                        'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
                        'NOL','NOS','GSPl','GSPs','99eGROI','99eROI','99eROI.5',
-                       '99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
+                       '99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5',
+                       'NZl','NZs','NZAl','NZAs','RDl','RDs']
     # GRL: GROI for Long positions
     # GRS: GROI for short positions
     # NOL: Number of long openings
@@ -196,7 +211,7 @@ def get_performance_entries():
                'SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
                '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5',
                'mSpread','eRl1','eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
-               'NOL','NOS','GSPl','GSPs']
+               'NOL','NOS','GSPl','GSPs','NZl','NZs','NZAl','NZAs','RDl','RDs']
     return entries
 
 def kpi2func_merge():
@@ -359,18 +374,41 @@ def get_basic_results_struct(ys_mc, ys_md, results, m):
     # market change accuracy
     results['Acc'] = 1-np.sum(np.abs(ys_mc['y_mc']^ys_mc['y_mc_tilde']))/m
     results['NZA'] = np.sum(ys_md['y_md_tilde']) # number of non-zeros all
+    results['NZAl'] = np.sum(ys_md['y_md_up_tilde']) # number of non-zeros all
+    results['NZAs'] = np.sum(ys_md['y_md_down_tilde']) # number of non-zeros all
     results['NZ'] = np.sum(ys_md['nz_indexes']) # Number of non-zeros
+    results['NZl'] = np.sum(ys_md['nz_indexes_up']) # Number of non-zeros
+    results['NZs'] = np.sum(ys_md['nz_indexes_down']) # Number of non-zeros
+    results['RDl'] = np.sum(ys_md['y_md_up_intersect'])
+    results['RDs'] = np.sum(ys_md['y_md_down_intersect'])
     results['RD'] =  np.sum(ys_md['y_md_down_intersect'])+\
                      np.sum(ys_md['y_md_up_intersect']) # right direction
+                     
     #a=p
     if results['NZ']>0:
         results['AD'] = 100*results['RD']/results['NZ'] # accuracy direction
     else:
         results['AD'] = 0
+    if results['NZl']>0:
+        results['ADl'] = 100*results['RDl']/results['NZl'] # accuracy direction
+    else:
+        results['ADl'] = 0
+    if results['NZs']>0:
+        results['ADs'] = 100*results['RDs']/results['NZs'] # accuracy direction
+    else:
+        results['ADs'] = 0
     if results['NZA']>0:
         results['ADA'] = 100*results['RD']/results['NZA'] # accuracy direction all
     else:
         results['ADA'] = 0
+    if results['NZAl']>0:
+        results['ADAl'] = 100*results['RDl']/results['NZAl'] # accuracy direction all
+    else:
+        results['ADAl'] = 0
+    if results['NZAs']>0:
+        results['ADAs'] = 100*results['RDs']/results['NZAs'] # accuracy direction all
+    else:
+        results['ADAs'] = 0
     results['pNZ'] = 100*results['NZ']/m # percent of non-zeros
     results['pNZA'] = 100*results['NZA']/m # percent of non-zeros all
     
@@ -1262,7 +1300,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                                                     n_days, get_positions=save_journal,
                                                     pNZA=results['pNZA'],
                                                     pos_dirname=pos_dirname,
-                                                    pos_filename=pos_filename)
+                                                    pos_filename=pos_filename, 
+                                                    feats_from_bids=config['feats_from_bids'])
                 results.update(res_ext)
                 # combine ts
                 if if_combine:
@@ -1439,13 +1478,13 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                          get_positions=False, pNZA=0,
                          pos_dirname='', pos_filename='', reference_date='2018.03.09',
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
-                         corr_filename='', corr_dirname=''):
+                         corr_filename='', corr_dirname='', feats_from_bids=None):
     """
     Function that calculates real ROI, GROI, spread...
     """
     print('Getting extended results...')
     from tqdm import tqdm
-    import matplotlib.pyplot as plt
+    #import matplotlib.pyplot as plt
     
     DT1 = 'DTi'
     DT2 = 'DTo'
@@ -1541,7 +1580,6 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             level = int(np.abs(Journal['Bet'].iloc[eInit])-1)
             rSampsXlevel[level,0] += 1
             
-            
         else:
             direction = np.sign(Journal['Bet'].iloc[eInit])
             Ao = Journal[A2].iloc[e-1]
@@ -1568,7 +1606,9 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                     corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
             thisSpread = GROI-ROI
             e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
-            if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
+            if not feats_from_bids and direction<0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
+                count_dif_dir += 1
+            elif feats_from_bids and direction>0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
             ### TEMP ###
 #            GROI = -direction*(Bi-Bo)/Ao
@@ -1668,7 +1708,10 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             NOS += 1
             if get_corr_signal:
                 corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
-        if np.sign(Ao-Ai)!=np.sign(Bo-Bi):
+        
+        if not feats_from_bids and direction<0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
+            count_dif_dir += 1
+        elif feats_from_bids and direction>0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
             count_dif_dir += 1
         thisSpread = GROI-ROI
         e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
@@ -1796,7 +1839,13 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         if not os.path.exists(corr_dirname):
             os.makedirs(corr_dirname)
         pickle.dump(corr_signal, open( corr_dirname+corr_filename, "wb" ))
-    return res_w_ext, log
+    if count_dif_dir>0:
+        if not feats_from_bids:
+            NO_dir = NOS
+        else:
+            NO_dir = NOL
+        print("WARNING! count_dif_dir "+str(count_dif_dir)+" I.E. {0:.2f} %".format(100*count_dif_dir/NO_dir))
+    return res_w_ext, [log, count_dif_dir]
 
 def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread_thr=1):
     """
