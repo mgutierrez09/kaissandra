@@ -86,7 +86,7 @@ def get_md_vectors(t_soft_tilde, t_y, ys_mc, n_classes, thr_md, ub_md):
              'y_dec_md':y_dec_md, # real output in decimal
              'y_dec_md_tilde':y_dec_md_tilde, 
              'y_dec_mg':np.argmax(t_y[y_md_tilde,3:], 1)-(n_classes-1)/2,
-             'y_dec_mg_tilde':(-1)**(1-np.argmax(t_soft_tilde[y_md_tilde,1:3], 1)),#np.argmax(t_soft_tilde[y_md_tilde,3:], 1)-(n_classes-1)/2,#
+             'y_dec_mg_tilde':(-1)**(1-np.argmax(t_soft_tilde[y_md_tilde,1:3], 1))*np.abs(np.argmax(t_soft_tilde[y_md_tilde,3:], 1)-(n_classes-1)/2),
              # difference between y and y_tilde {0=no error, 1=error in mc. 2=error in md}
              'diff_y_y_tilde':np.abs(np.sign(y_dec_md_tilde[y_md_tilde])-np.sign(y_dec_md[y_md_tilde])),
              'probs_md':np.maximum(t_soft_tilde[y_md_tilde,2],t_soft_tilde[y_md_tilde,1])
