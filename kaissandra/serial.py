@@ -1444,6 +1444,8 @@ class Trader:
             file = open(self.log_file_trader,"a")
             file.write(log+"\n")
             file.close()
+        if send_info_api:
+            self.api.send_trader_log(log)
         return None
     
     def send_open_command(self, directory_MT5_ass, ass_idx):
@@ -1658,7 +1660,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
                   list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
-                  results_file, model, config, log_file, nonVarIdx, list_inv_out):
+                  results_file, model, config, log_file, nonVarIdx, list_inv_out, api):
     """
     <DocString>
     """
@@ -1982,6 +1984,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                                                                header=False)
                             print("\r"+out)
                             write_log(out, log_file)
+                            if send_info_api:
+                                api.send_network_log(out)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -2050,7 +2054,7 @@ def flush_asset(lists, ass_idx, bid):
     print("Flushed")
     return lists
 
-def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
+def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, api):
     #AllAssets, assets, running_assets, nCxAxN, buffSizes, simulation, delays, PA, verbose
     '''
     inputs: AllAssets
@@ -2113,7 +2117,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_unique_configs'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn])
+                                       lists['list_inv_out'][nn],
+                                       api)
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -2285,7 +2290,7 @@ def send_close_command(asset):
                 print("Error writing LC")
     
 def fetch(lists, trader, directory_MT5, AllAssets, 
-          running_assets, log_file, results):
+          running_assets, log_file, results, api):
     """ Fetch info coming from MT5 """
     print("Fetcher lauched")
     #nAssets = len(running_assets)
@@ -2365,7 +2370,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
-                                                log_file)
+                                                log_file, api)
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
@@ -2512,7 +2517,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               traders, list_results, running_assets, ass2index_mapping, lists,
-              AllAssets, log_file):
+              AllAssets, log_file, api):
     """
     <DocString>
     """
@@ -2591,7 +2596,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         if sampsBuffersCounter[ass_idx]==0:
             outputs, new_outputs = dispatch(lists, buffers[ass_idx], AllAssets, 
                                             ass_id, ass_idx, 
-                                            log_file)
+                                            log_file, api)
 
             ####### Update counters and buffers ##########
             fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
@@ -3216,7 +3221,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
                                         ass2index_mapping, lists, AllAssets, 
-                                        log_file)
+                                        log_file, api)
         else:
             
             buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
@@ -3305,7 +3310,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
 #                                start_time=start_time)
             # launch fetcher
             fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
-                  running_assets, log_file, results)
+                  running_assets, log_file, results, api)
         
         for idx, trader in enumerate(traders):
             # gather results
@@ -3343,7 +3348,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[1], 
            synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3393,7 +3398,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False

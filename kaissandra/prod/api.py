@@ -463,3 +463,20 @@ class API():
             del self.list_lastevent_positions[id_list_futures]
             print(response.text)
         return False
+    
+    def send_trader_log(self, message):
+        """ Send trader log to server """
+        url_ext = 'logs/traders'
+        response = requests.post(CC.URL+url_ext, json={'Message':message,'Name':self.trader_json['tradername']},
+                                headers=self.build_token_header(), verify=False, timeout=1)
+        print(response.json())
+        
+    def send_network_log(self, message):
+        """ Send network log to server """
+        url_ext = 'logs/networks'
+#        self.futureSession.post(CC.URL+url_ext, json={'Message':message},
+#                                headers=self.build_token_header(), verify=False, timeout=1)
+        response = requests.post(CC.URL+url_ext, json={'Message':message},
+                                headers=self.build_token_header(), verify=False, timeout=1)
+        print(response.json())
+        

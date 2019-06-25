@@ -5,6 +5,7 @@ Created on Tue Mar 12 04:29:36 2019
 @author: mgutierrez
 """
 import numpy as np
+from threading import Thread
 import tensorflow as tf
 import pickle
 import time
@@ -526,11 +527,15 @@ class RNN(Model):
                                                         self.size_output_layer,
                                                         t_indexes,
                                                         get_performance=True)
-                            
-                            get_results_mg(config, Y, output, costs_dict, epoch, 
+                            Thread(target=get_results_mg,
+                                   args=(config, Y, output, costs_dict, epoch, 
                                            J_test, costs_filename, results_filename,
-                                           performance_filename,
-                                           get_performance=True, DTA=DTA)
+                                           performance_filename),
+                                   kwargs={'get_performance':True,'DTA':DTA}).start()
+#                            get_results_mg(config, Y, output, costs_dict, epoch, 
+#                                           J_test, costs_filename, results_filename,
+#                                           performance_filename,
+#                                           get_performance=True, DTA=DTA)
                         else:
                             if it==0:
                                 results_filename, costs_filename = init_results_dir(results_directory, IDresults)
