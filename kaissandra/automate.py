@@ -348,7 +348,7 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
         endAt = epochs[i]
         output, J_test = RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
                        startFrom=startFrom, endAt=endAt, config=config, 
-                       if_get_results=False, log=log)
+                       if_get_results=False, log=log, save_cost=False)
         J_tests += J_test
         outputs_stacked[:,i*seq_len:(i+1)*seq_len,:] = output
     J_tests = J_tests/n_models

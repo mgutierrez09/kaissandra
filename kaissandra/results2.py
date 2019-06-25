@@ -149,7 +149,9 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
           "NSP1 = {0:.2f}% ".format(results["NSP1"])+
           "NSP1.5 = {0:.2f}% ".format(results["NSP1.5"])+
           "NSP2 = {0:.2f}% ".format(results["NSP2"])+
-          "NSP3 = {0:.2f}% ".format(results["NSP3"]))
+          "NSP3 = {0:.2f}% ".format(results["NSP3"])+
+          "eGl1 = {0:.2f}% ".format(results["eGl1"])+
+          "eGl2 = {0:.2f}% ".format(results["eGl2"]))
 
     print("eGROI = {0:.2f}% ".format(results["eGROI"])+
           "eROI = {0:.2f}% ".format(results["eROI"])+
@@ -1275,6 +1277,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                 else:
                     DTAt = DTA.iloc[::seq_len,:]
                 # get journal
+#                print("Number of entries with gain > 1:")
+#                print(sum(np.abs(ys_md['y_dec_mg_tilde'])>1))
                 Journal = get_journal(DTAt.iloc[ys_md['y_md_tilde']], 
                                       ys_md['y_dec_mg_tilde'], 
                                       ys_md['y_dec_mg'],

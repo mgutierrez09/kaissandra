@@ -276,8 +276,8 @@ class Strategy():
         elif self.entry_strategy=='gre_v2':
 #            print("self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]")
 #            print(self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0])
-            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
-#            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
+#            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
+            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
         else:
             return 0.0
 
@@ -1267,24 +1267,44 @@ if __name__ == '__main__':
 #    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
 #    list_w_str = ["" for i in range(numberNetwors)]    
     
+#    190623141541_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6.csv
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN01010CMF170927T181109ACk1k2E12E14'+'.csv'
+#    numberNetwors = 1
+#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
+#    list_name = ['01010k1-2E12-14GREV2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ACk1k2E12E14R20INT' for i in range(numberNetwors)]
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]   
+    
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN01010CMF170927T181109ACk1k2E12E14'+'.csv'
-    numberNetwors = 1
-    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-    list_name = ['01010k1-2E12-14GREV2']
+    positions_file = start_time+'_'+'RRNN01010CMF170927T181109ACk1k2E14l-s'+'.csv'
+    numberNetwors = 2
+    list_IDresults = ['RRNN01010CMF170927T181109ALk1-2E14l-s','RRNN01010CMF170927T181109BSk1-2E14l-s']
+    list_name = ['01010k1-2E14ALGREV2','01010k1-2E14BSGREV2']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+    list_spread_ranges = [{'sp':[5],'th':[(.7,.55)]},{'sp':[5],'th':[(.55,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.55 for i in range(numberNetwors)]
     list_lb_md_ext = [.55 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['RRNN01010CMF170927T181109ACk1k2E12E14R20INT' for i in range(numberNetwors)]
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-    list_w_str = ["" for i in range(numberNetwors)]   
+    list_w_str = ["" for i in range(numberNetwors)]
     
     #    numberNetwors = 1
 #    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
@@ -1564,7 +1584,14 @@ if __name__ == '__main__':
                               trader.check_primary_condition_for_opening() and 
                               trader.check_secondary_contition_for_opening() and 
                               ban_condition)
-    
+#            print("trader.chech_ground_condition_for_opening()")
+#            print(trader.chech_ground_condition_for_opening())
+#            print("trader.check_primary_condition_for_opening()")
+#            print(trader.check_primary_condition_for_opening())
+#            print("trader.check_secondary_contition_for_opening()")
+#            print(trader.check_secondary_contition_for_opening())
+#            print("ban_condition")
+#            print(ban_condition)
             if condition_open:
                 profitability = strategys[name2str_map[trader.next_candidate.strategy
                                                        ]].get_profitability(
@@ -1878,10 +1905,16 @@ if __name__ == '__main__':
         total_entries = int(np.sum(results.number_entries))
         total_successes = int(np.sum(results.net_successes))
         total_failures = total_entries-total_successes
-        per_gross_success = 100*np.sum(results.gross_successes)/total_entries
-        per_net_succsess = 100*np.sum(results.net_successes)/total_entries
-        av_groi = results.sum_GROI/total_entries
-        av_roi = results.sum_ROI/total_entries
+        if total_entries>0:
+            per_gross_success = 100*np.sum(results.gross_successes)/total_entries
+            per_net_succsess = 100*np.sum(results.net_successes)/total_entries
+            av_groi = results.sum_GROI/total_entries
+            av_roi = results.sum_ROI/total_entries
+        else:
+            per_gross_success = 0
+            per_net_succsess = 0
+            av_groi = 0
+            av_roi = 0
         average_loss = np.sum(results.total_losses)/((
                 total_entries-np.sum(results.net_successes))*trader.pip)
         average_win = np.sum(results.total_wins)/(np.sum(
