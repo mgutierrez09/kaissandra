@@ -788,17 +788,6 @@ def configuration_trader(*ins):
             print("WARNING! Arguments not taken into consideration")
         print("Config file "+config_filename+" exists. Loaded from disk")
     return config
-
-class CommConfig(object):
-    """ Configuration object providing necessary fields to connect with server """
-    URL = os.environ.get('URL') or 'https://kaissandra-webapp.herokuapp.com/api/'#os.environ.get('URL') or 'https://localhost:5000/api/'#
-    USERNAME = os.environ.get('USER') or 'kaissandra'
-    PASSWORD = os.environ.get('PASSWORD') or "kaissandra"
-    TRADERNAME = os.environ.get('TRADERNAME') or 'farnamstreet'
-    MACHINE = os.environ.get('MACHINE')# or 'aws_i-0db4c8daa833808b4'
-#    if MACHINE == None:
-#        raise ValueError("MACHINE environment variable cannot be None.")
-    MAGICNUMBER = os.environ.get('MAGICNUMBER') or 123456
         
 if __name__=='__main__':
     #configuration()

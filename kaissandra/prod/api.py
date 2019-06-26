@@ -10,9 +10,9 @@ import os
 #import json
 import datetime as dt
 from requests_futures.sessions import FuturesSession
-from kaissandra.config import CommConfig as CC
 from kaissandra.config import Config
 from kaissandra.local_config import local_vars as LC
+from kaissandra.prod.config import Config as CC
 #from requests.exceptions.ConnectTimeout import ConnectTimeoutError
 
 #def nonblock_func(func):
@@ -20,7 +20,7 @@ from kaissandra.local_config import local_vars as LC
 #    def run_as_new_process(*args):
 #        disp = Process(target=run_carefully, args=[])
 #            disp.start()
-
+    
 class API():
     """ Class that handles API calls to server """
     token = None

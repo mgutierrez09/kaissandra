@@ -2069,6 +2069,7 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
     GRE = np.zeros((len(t_indexes_str), len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
 #    GREav = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
 #    GREex = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
+    resolution = 1/(2*len(thresholds_mc))
     for t_index in t_indexes_str:
         for mc, thr_mc in enumerate(thresholds_mc):
             for md, thr_md in enumerate(thresholds_mc):
@@ -2077,13 +2078,17 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
                     print("Skipped")
                     continue
                 # Get extended results
-                summary_filename = journal_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
-                    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.p'
+                summary_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
+                    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'UC'+str(thr_mc+resolution)+'UD'+str(thr_md+resolution)+'.p'
                 #print(summary_filename)
                 if not os.path.exists(summary_filename):
                     journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
                         +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
                     Journal = pd.read_csv(journal_filename,sep='\t')
+                    Journal = Journal[Journal['P_mc']<thr_mc+resolution]
+                    Journal = Journal[Journal['P_md']<thr_md+resolution]
+#                    print(Journal)
+#                    a=p
                     positions_summary, log = get_extended_results(Journal, 5, 0)
                 else:
                     positions_summary = pickle.load( open( summary_filename, "rb" ))
@@ -2115,6 +2120,64 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
     
     
     return [GRE, eROIpp, NZpp]
+
+def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, pip_limit, t_index='0', epoch=0):
+    """  """
+    # Get extended results
+    positions_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
+    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+    #print(summary_filename)
+    if not os.path.exists(positions_filename):
+        journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
+        +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+        Journal = pd.read_csv(journal_filename,sep='\t')
+        positions_summary, log = get_extended_results(Journal, 5, 0)
+        positions = pd.read_csv(positions_filename,sep='\t')
+    else:
+        #positions_summary = pickle.load( open( summary_filename, "rb" ))
+        positions = pd.read_csv(positions_filename,sep='\t')
+    GROIS99, ROIS99, idx_sorted, low_arg_goi, high_arg_goi = remove_outliers(np.array(positions.GROI),
+                                                                             np.array(positions.spread), thr=.99)
+    
+    pos_under_2p = positions['espread']<pip_limit
+    #pos_under_thr_99 = positions['espread']<pip_limit
+    #GROIS99 = GROIS99[pos_under_2p]
+    #ROIS99 = ROIS99[pos_under_2p]
+    positions['DTo'] = positions["Do"] +" "+ positions["To"]
+    pos_under_thr = positions[pos_under_2p]#.sort_values(by=['DTo'])
+    per_under_2p = 100*sum(pos_under_2p)/positions.shape[0]
+    tgsr = 100*sum(positions['GROI']>0)/positions.shape[0]
+    gsr = 100*sum(pos_under_thr['GROI']>0)/sum(pos_under_2p)
+    tsr = 100*sum(positions['ROI']>0)/positions.shape[0]
+    sr = 100*sum(positions[pos_under_2p]['ROI']>0)/sum(pos_under_2p)
+    mean_spread = positions[pos_under_2p]['spread'].mean()
+    print("total mean GROI")
+    print(positions['GROI'].mean())
+    print("mean GROI of selected")
+    print(positions[pos_under_2p]['GROI'].mean())
+    print("mean_spread of selected")
+    print(mean_spread)
+    print("Number of pos under "+str(pip_limit))
+    print(positions[pos_under_2p].shape[0])
+    print("per under pip_limit")
+    print(per_under_2p)
+    print("total gross success rate")
+    print(tgsr)
+    print("gross success rate")
+    print(gsr)
+    print("total success rate")
+    print(tsr)
+    print("success rate")
+    print(sr)
+    print("GROI for positions under "+str(pip_limit))
+    print(positions[pos_under_2p]['GROI'].sum())
+    print("ROI for positions under "+str(pip_limit))
+    print(positions[pos_under_2p]['ROI'].sum())
+    print("positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0]")
+    print(positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0])
+    print("# Assets")
+    print(positions['Asset'][pos_under_2p].unique().shape[0])
+    #pos_under_thr.to_csv(pos_dirname+pos_filename+str(100*pip_limit)+'pFilt.csv', index=False, sep='\t')
 
 def interpolate_GRE(GRE, thresholds_mc, thresholds_md):
     """ Interpolate GRE values to fill the gaps """

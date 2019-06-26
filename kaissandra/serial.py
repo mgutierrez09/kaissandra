@@ -33,7 +33,7 @@ flag_sl_name = "SL"
 columnsResultInfo = ["Asset","Entry Time","Exit Time","GROI","Spread","ROI","Bet",
                      "Outcome","Diff","Bi","Ai","Bo","Ao","P_mc","P_md",
                      "P_mg"]
-
+    
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
 class Results:
