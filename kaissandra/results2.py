@@ -943,7 +943,7 @@ def get_performance_meta(config, y, soft_tilde, DTA, epoch,
                 pos_dirname = ''
                 pos_filename = ''
                 corr_filename = ''
-            results_extended, log = get_extended_results(Journal,
+            results_extended, log, _ = get_extended_results(Journal,
                                                 n_classes,
                                                 n_days,
                                                 get_corr_signal=get_corr_signal,
@@ -951,7 +951,8 @@ def get_performance_meta(config, y, soft_tilde, DTA, epoch,
                                                 pos_dirname=pos_dirname,
                                                 pos_filename=pos_filename,
                                                 corr_filename=corr_filename,
-                                                corr_dirname=corr_dirname)
+                                                corr_dirname=corr_dirname, 
+                                                save_positions=save_journal)
             results_extended.update({'epoch':epoch,
                                      't_index':t_idx,
                                      'thr_mg':thr_mg})
@@ -1047,7 +1048,7 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
                 pos_dirname = ''
                 pos_filename = ''
                 corr_filename = ''
-            results_extended, log = get_extended_results(Journal,
+            results_extended, log, _ = get_extended_results(Journal,
                                                 n_classes,
                                                 n_days,
                                                 get_corr_signal=get_corr_signal,
@@ -1055,7 +1056,8 @@ def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
                                                 pos_dirname=pos_dirname,
                                                 pos_filename=pos_filename,
                                                 corr_filename=corr_filename,
-                                                corr_dirname=corr_dirname)
+                                                corr_dirname=corr_dirname,
+                                                save_positions=save_journal)
             results_extended.update({'epoch':epoch,
                                      't_index':t_idx,
                                      'thr_mg':thr_mg})
@@ -1299,13 +1301,14 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                     pos_dirname = ''
                     pos_filename = ''
                 # get results with extensions
-                res_ext, log = get_extended_results(Journal,
+                res_ext, log, _ = get_extended_results(Journal,
                                                     bits_mg,
                                                     n_days, get_positions=save_journal,
                                                     pNZA=results['pNZA'],
                                                     pos_dirname=pos_dirname,
                                                     pos_filename=pos_filename, 
-                                                    feats_from_bids=config['feats_from_bids'])
+                                                    feats_from_bids=config['feats_from_bids'], 
+                                                    save_positions=save_journal)
                 results.update(res_ext)
                 # combine ts
                 if if_combine:
@@ -1482,12 +1485,14 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                          get_positions=False, pNZA=0,
                          pos_dirname='', pos_filename='', reference_date='2018.03.09',
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
-                         corr_filename='', corr_dirname='', feats_from_bids=None):
+                         corr_filename='', corr_dirname='', feats_from_bids=None,
+                         save_positions=False, assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]):
     """
     Function that calculates real ROI, GROI, spread...
     """
     print('Getting extended results...')
     from tqdm import tqdm
+    from kaissandra.config import Config as C
     #import matplotlib.pyplot as plt
     
     DT1 = 'DTi'
@@ -1499,23 +1504,25 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     ref_date_dt = dt.datetime.strptime(reference_date,"%Y.%m.%d")
     log = pd.DataFrame(columns=['DateTime','Message'])
     # init positions
+    df = []
     if get_positions:
         columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread',
                              'espread','ext','Dir','Bi','Bo','Ai','Ao']
         
-        if not os.path.exists(pos_dirname):
+        if not os.path.exists(pos_dirname) and save_positions:
             os.makedirs(pos_dirname)
         #if not os.path.exists(positions_dir+positions_filename):
         success = 0
-        while not success:
-            try:
-                pd.DataFrame(columns=columns_positions).to_csv(pos_dirname+
-                        pos_filename+'.csv', mode="w",index=False,sep='\t')
-                success = 1
-            except PermissionError:
-                print("WARNING! PermissionError. Close programs using "+pos_dirname+
-                        pos_filename+'.csv')
-                time.sleep(1)
+        if save_positions:
+            while not success:
+                try:
+                    pd.DataFrame(columns=columns_positions).to_csv(pos_dirname+
+                            pos_filename+'.csv', mode="w",index=False,sep='\t')
+                    success = 1
+                except PermissionError:
+                    print("WARNING! PermissionError. Close programs using "+pos_dirname+
+                            pos_filename+'.csv')
+                    time.sleep(1)
 
         
     # Add GROI and ROI with real spreads
@@ -1555,7 +1562,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     eInit = 0
     if get_corr_signal and Journal.shape[0]>0:
         n_secs = int((dt.datetime.strptime(end_date,"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
-        corr_signal = np.zeros((n_secs))+1j*np.zeros((n_secs))
+        corr_signal = np.zeros((n_secs,len(assets)))
         secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
     e = 0
     if get_positions:
@@ -1600,14 +1607,20 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                 eGROIL += GROI
                 NOL += 1
                 if get_corr_signal:
-                    corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1
+                    asset = Journal['Asset'].iloc[eInit]
+                    idx = int([k for k, v in C.AllAssets.items() if v == asset][0])
+                    ass_idx = assets.index(idx)
+                    corr_signal[secInit:secEnd, ass_idx] = corr_signal[secInit:secEnd, ass_idx]+1
             else:
                 GROI = (Bi-Bo)/Ao
                 ROI = (Bi-Ao)/Ao
                 eGROIS += GROI
                 NOS += 1
                 if get_corr_signal:
-                    corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
+                    asset = Journal['Asset'].iloc[eInit]
+                    idx = int([k for k, v in C.AllAssets.items() if v == asset][0])
+                    ass_idx = assets.index(idx)
+                    corr_signal[secInit:secEnd, ass_idx] = corr_signal[secInit:secEnd, ass_idx]-1
             thisSpread = GROI-ROI
             e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
             if not feats_from_bids and direction<0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
@@ -1704,14 +1717,20 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             eGROIL += GROI
             NOL += 1
             if get_corr_signal:
-                corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1
+                asset = Journal['Asset'].iloc[eInit]
+                idx = int([k for k, v in C.AllAssets.items() if v == asset][0])
+                ass_idx = assets.index(idx)
+                corr_signal[secInit:secEnd, ass_idx] = corr_signal[secInit:secEnd, ass_idx]+1
         else:
             GROI = (Bi-Bo)/Ao
             ROI = (Bi-Ao)/Ao
             eGROIS += GROI
             NOS += 1
             if get_corr_signal:
-                corr_signal[secInit:secEnd] = corr_signal[secInit:secEnd]+1j
+                asset = Journal['Asset'].iloc[eInit]
+                idx = int([k for k, v in C.AllAssets.items() if v == asset][0])
+                ass_idx = assets.index(idx)
+                corr_signal[secInit:secEnd, ass_idx] = corr_signal[secInit:secEnd, ass_idx]-1
         
         if not feats_from_bids and direction<0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
             count_dif_dir += 1
@@ -1777,15 +1796,16 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             df['DTo'] = df["Do"] +" "+ df["To"]
             df = df.sort_values(by=['DTo']).drop('DTo',1)
             success = 0
-            while not success:
-                try:
-                    df.to_csv(pos_dirname+pos_filename+'.csv', mode='a', 
-                      header=False, index=False, sep='\t')
-                    success = 1
-                except PermissionError:
-                    print("WARNING! PermissionError. Close programs using "+
-                          pos_dirname+pos_filename+'.csv')
-                    time.sleep(1)
+            if save_positions:
+                while not success:
+                    try:
+                        df.to_csv(pos_dirname+pos_filename+'.csv', mode='a', 
+                          header=False, index=False, sep='\t')
+                        success = 1
+                    except PermissionError:
+                        print("WARNING! PermissionError. Close programs using "+
+                              pos_dirname+pos_filename+'.csv')
+                        time.sleep(1)
                     
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
@@ -1840,16 +1860,19 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
 #    plt.figure(np.random.randint(1000))
 #    plt.plot(np.abs(corr_signal))
     if get_corr_signal and Journal.shape[0]>0:
-        if not os.path.exists(corr_dirname):
-            os.makedirs(corr_dirname)
-        pickle.dump(corr_signal, open( corr_dirname+corr_filename, "wb" ))
+        second_arg = [log, count_dif_dir, corr_signal]
+#        if not os.path.exists(corr_dirname):
+#            os.makedirs(corr_dirname)
+#        pickle.dump(corr_signal, open( corr_dirname+corr_filename, "wb" ))
+    else:
+        second_arg = [log, count_dif_dir]
     if count_dif_dir>0:
         if not feats_from_bids:
             NO_dir = NOS
         else:
             NO_dir = NOL
         print("WARNING! count_dif_dir "+str(count_dif_dir)+" I.E. {0:.2f} %".format(100*count_dif_dir/NO_dir))
-    return res_w_ext, [log, count_dif_dir]
+    return res_w_ext, second_arg, df
 
 def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread_thr=1):
     """
@@ -2121,46 +2144,54 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
     
     return [GRE, eROIpp, NZpp]
 
-def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, pip_limit, t_index='0', epoch=0):
+def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, pip_limit, 
+                                 pip_init=0, t_index='0', epoch=0, get_corr_signal=False,
+                                 reference_date='2018.11.12',end_date='2019.04.26 23:59:59'):
     """  """
     # Get extended results
     positions_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
     +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
     #print(summary_filename)
-    if not os.path.exists(positions_filename):
-        journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
-        +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
-        Journal = pd.read_csv(journal_filename,sep='\t')
-        positions_summary, log = get_extended_results(Journal, 5, 0)
-        positions = pd.read_csv(positions_filename,sep='\t')
-    else:
-        #positions_summary = pickle.load( open( summary_filename, "rb" ))
-        positions = pd.read_csv(positions_filename,sep='\t')
+    #if not os.path.exists(positions_filename):
+    journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
+    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+    Journal = pd.read_csv(journal_filename,sep='\t')
+    Journal = Journal[Journal['Espread']<pip_limit]
+    Journal = Journal[Journal['Espread']>=pip_init]
+    positions_summary, second_arg, positions = get_extended_results(Journal, 5, 0,
+                                                             get_positions=True,
+                                                             get_corr_signal=get_corr_signal,
+                                                             reference_date=reference_date,
+                                                             end_date=end_date)
+#    positions = pd.read_csv(positions_filename,sep='\t')
+#    else:
+#        #positions_summary = pickle.load( open( summary_filename, "rb" ))
+#        positions = pd.read_csv(positions_filename,sep='\t')
     GROIS99, ROIS99, idx_sorted, low_arg_goi, high_arg_goi = remove_outliers(np.array(positions.GROI),
                                                                              np.array(positions.spread), thr=.99)
     
-    pos_under_2p = positions['espread']<pip_limit
+    pos_under_limit = ((positions['espread']<pip_limit) & (positions['espread']>=pip_init))
     #pos_under_thr_99 = positions['espread']<pip_limit
     #GROIS99 = GROIS99[pos_under_2p]
     #ROIS99 = ROIS99[pos_under_2p]
     positions['DTo'] = positions["Do"] +" "+ positions["To"]
-    pos_under_thr = positions[pos_under_2p]#.sort_values(by=['DTo'])
-    per_under_2p = 100*sum(pos_under_2p)/positions.shape[0]
+    pos_under_thr = positions[pos_under_limit]#.sort_values(by=['DTo'])
+    per_under_limit = 100*sum(pos_under_limit)/positions.shape[0]
     tgsr = 100*sum(positions['GROI']>0)/positions.shape[0]
-    gsr = 100*sum(pos_under_thr['GROI']>0)/sum(pos_under_2p)
+    gsr = 100*sum(pos_under_thr['GROI']>0)/sum(pos_under_limit)
     tsr = 100*sum(positions['ROI']>0)/positions.shape[0]
-    sr = 100*sum(positions[pos_under_2p]['ROI']>0)/sum(pos_under_2p)
-    mean_spread = positions[pos_under_2p]['spread'].mean()
+    sr = 100*sum(positions[pos_under_limit]['ROI']>0)/sum(pos_under_limit)
+    mean_spread = positions[pos_under_limit]['spread'].mean()
     print("total mean GROI")
     print(positions['GROI'].mean())
     print("mean GROI of selected")
-    print(positions[pos_under_2p]['GROI'].mean())
+    print(positions[pos_under_limit]['GROI'].mean())
     print("mean_spread of selected")
     print(mean_spread)
     print("Number of pos under "+str(pip_limit))
-    print(positions[pos_under_2p].shape[0])
+    print(positions[pos_under_limit].shape[0])
     print("per under pip_limit")
-    print(per_under_2p)
+    print(per_under_limit)
     print("total gross success rate")
     print(tgsr)
     print("gross success rate")
@@ -2170,14 +2201,15 @@ def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, pip_limit,
     print("success rate")
     print(sr)
     print("GROI for positions under "+str(pip_limit))
-    print(positions[pos_under_2p]['GROI'].sum())
+    print(positions[pos_under_limit]['GROI'].sum())
     print("ROI for positions under "+str(pip_limit))
-    print(positions[pos_under_2p]['ROI'].sum())
+    print(positions[pos_under_limit]['ROI'].sum())
     print("positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0]")
     print(positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0])
     print("# Assets")
-    print(positions['Asset'][pos_under_2p].unique().shape[0])
+    print(positions['Asset'][pos_under_limit].unique().shape[0])
     #pos_under_thr.to_csv(pos_dirname+pos_filename+str(100*pip_limit)+'pFilt.csv', index=False, sep='\t')
+    return second_arg
 
 def interpolate_GRE(GRE, thresholds_mc, thresholds_md):
     """ Interpolate GRE values to fill the gaps """

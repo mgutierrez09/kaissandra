@@ -113,8 +113,8 @@ class Position:
         self.p_md = journal_entry['P_md']
         self.ADm = self._get_ADm(AD_resume)
         self.strategy = journal_entry.strategy
-        self.idx_mc = strategys[name2str_map[self.strategy]]._get_idx(self.p_mc)
-        self.idx_md = strategys[name2str_map[self.strategy]]._get_idx(self.p_md)
+#        self.idx_mc = strategys[name2str_map[self.strategy]]._get_idx(self.p_mc)
+#        self.idx_md = strategys[name2str_map[self.strategy]]._get_idx(self.p_md)
                 
         
     def _get_ADm(self, AD_resume):
@@ -241,30 +241,36 @@ class Strategy():
             print(self.GRE[:,:,1])
         elif self.entry_strategy=='gre_v2':
             # New GRE implementation
-            [GRE, model] = pickle.load( open( local_vars.gre_directory+self.IDgre+".p", "rb" ))
-            self.GRE = GRE
-            print(GRE)
-            self.gre_model = model
+            gre_list = pickle.load( open( local_vars.gre_directory+self.IDgre+".p", "rb" ))
+            self.GRE = gre_list[0]
+            
+            self.gre_model = gre_list[1]
+            if len(gre_list)>2:
+                # weighted LLS
+                print("weighted LLS model")
+                self.gre_model = gre_list[2]
+            #print(self.gre_model)
+            self.resolution = self.GRE.shape[0]
         else:
             self.GRE = None
     
     def _get_idx(self, p):
         """ Get probability index """
-        
-        if p>=0.5 and p<=0.6:
-            idx = 0
-        elif p>0.6 and p<=0.7:
-            idx = 1
-        elif p>0.7 and p<=0.8:
-            idx = 2
-        elif p>0.8 and p<=0.9:
-            idx = 3
-        elif p>0.9:
-            idx = 4
-        else:
-            print(p)
-            print("WARNING: p<0.5")
-            idx = 0
+        idx = max(int(np.floor(p*2*self.resolution)-self.resolution),0)
+#        if p>=0.5 and p<=0.6:
+#            idx = 0
+#        elif p>0.6 and p<=0.7:
+#            idx = 1
+#        elif p>0.7 and p<=0.8:
+#            idx = 2
+#        elif p>0.8 and p<=0.9:
+#            idx = 3
+#        elif p>0.9:
+#            idx = 4
+#        else:
+#            print(p)
+#            print("WARNING: p<0.5")
+#            idx = 0
             
         return idx
     
@@ -276,8 +282,8 @@ class Strategy():
         elif self.entry_strategy=='gre_v2':
 #            print("self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]")
 #            print(self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0])
-#            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
-            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
+            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
+#            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
         else:
             return 0.0
 
@@ -508,14 +514,18 @@ class Trader:
                                              self.next_candidate.p_mc, 
                                     self.next_candidate.p_md, 
                                     int(np.abs(self.next_candidate.bet
-                                    )-1))>2*e_spread/self.pip)
+                                    )-1))>1.5*e_spread/self.pip)
         elif this_strategy.entry_strategy=='spread_ranges':
 #            print("\n\n\n")
 #            print(e_spread/self.pip)
 #            print("\n\n\n")
-            second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1] and\
-                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][0]
+            for t in range(len(this_strategy.info_spread_ranges['th'])):
+                second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                    self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
+                    e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
+                if second_condition_open:
+                    return second_condition_open
+                    
         else:
             raise ValueError("Unknown entry strategy")
             
@@ -771,9 +781,16 @@ class Trader:
 #            partial_string = ' Partial'
 #        else:
 #            partial_string = ' Full'
+#        " Bi {0:.5f} ".format(Bi)+"Bo {0:.5f} ".format(Bo)+
+#              "Ai {0:.5f} ".format(Ai)+"Ao {0:.5f} ".format(Ao)+
+#        profitability = strategys[name2str_map[
+#                self.next_candidate.strategy]
+#            ].get_profitability(self.next_candidate.p_mc, 
+#            self.next_candidate.p_md, 
+#            int(np.abs(self.next_candidate.bet)-1))
         out =( date_time.decode("utf-8")+" "+str(direction)+" close "+ass+
-              " Bi {0:.5f} ".format(Bi)+"Bo {0:.5f} ".format(Bo)+
-              "Ai {0:.5f} ".format(Ai)+"Ao {0:.5f} ".format(Ao)+
+              " p_mc={0:.2f}".format(self.list_opened_positions[-1].p_mc)+
+              " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
                       100*ROI_live,100*spread,100*GROI_live)+
                       " TGROI {1:.3f}% TROI = {0:.3f}%".format(
@@ -1328,39 +1345,94 @@ if __name__ == '__main__':
 #    #root_dir = local_vars.data_dir
 #    root_dir = local_vars.data_test_dir
     
+#    190626163514_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.7MD0.6_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.7MD0.6.csv
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN01010CMF191112T190426k1k2E14GREV2'+'.csv'
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF191112T190426ALk1k2E14l-s','RRNN01010CMF191112T190426BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
+    
+#    190626182148_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.7MD0.6_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.7MD0.6
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN01010CMF191112T190426k1k2E14GREV2'+'.csv'
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF191112T190426ALk1k2E14l-s','RRNN01010CMF191112T190426BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
+
+#    190627161447_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.6MD0.55_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.55MD0.55
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN01010CMF191112T190426k1k2E14GREV2'+'.csv'
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF191112T190426ALk1k2E14l-s','RRNN01010CMF191112T190426BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[1,5],'th':[(.6,.55),(.7,.6)]},{'sp':[1,5],'th':[(.55,.55),(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
+    
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN01010CMF191112T190426k1k2E14GREV2'+'.csv'
-    numberNetwors = 2
-    list_IDresults = ['RRNN01010CMF191112T190426ALk1k2E14l-s','RRNN01010CMF191112T190426BSk1k2E14l-s']
-    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
+    positions_file = start_time+'_'+'RRNN0101-40CMF191112T190426k1-2E14'+'.csv'
+    numberNetwors = 4
+    list_IDresults = ['RRNN01010CMF191112T190426ALk1k2E14l-s','RRNN01010CMF191112T190426BSk1k2E14l-s',
+                      'RRNN01040CMF191112T190426ALk1k2E14l-s','RRNN01040CMF191112T190426BSk1k2E14l-s']
+    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR','01040k1-2E14ALSR','01040k1-2E14BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
+    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}, {'sp':[5],'th':[(.7,.6)]},
+                          {'sp':[1],'th':[(.65,.6)]}, {'sp':[1],'th':[(.85,.55)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.55 for i in range(numberNetwors)]
     list_lb_md_ext = [.55 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_IDgre = ['','','','']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
     list_w_str = ["" for i in range(numberNetwors)]
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
-    
-    #    numberNetwors = 1
-#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-#    list_name = ['01010k1k2K5AC_12_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
@@ -1953,10 +2025,10 @@ if __name__ == '__main__':
             av_groi = results.sum_GROI/total_entries
             av_roi = results.sum_ROI/total_entries
         else:
-            per_gross_success = 0
-            per_net_succsess = 0
-            av_groi = 0
-            av_roi = 0
+            per_gross_success = 0.0
+            per_net_succsess = 0.0
+            av_groi = 0.0
+            av_roi = 0.0
         average_loss = np.sum(results.total_losses)/((
                 total_entries-np.sum(results.net_successes))*trader.pip)
         average_win = np.sum(results.total_wins)/(np.sum(
@@ -2615,3 +2687,22 @@ if __name__ == '__main__':
 #DONE. Total time: 90.79 mins
 #Results file: 190626141308results.p
 #Positions file: 190626141308_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.7MD0.6_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.7MD0.6.csv
+    
+#Total GROI = 10.371% Total ROI = -0.176% Sum GROI = 10.142% Sum ROI = -0.339% Accumulated earnings -33.92E
+#Total entries 681 per entries 2.50 percent gross success 55.95% percent nett success 51.69% average loss 16.07p average win 14.92p RR 1 to 0.99
+#DONE. Total time: 100.11 mins
+#Results file: 190626163514results.p
+#Positions file: 190626163514_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.7MD0.6_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.7MD0.6.csv
+
+# Weighted LLSE model    
+#Total GROI = 9.779% Total ROI = 0.856% Sum GROI = 9.626% Sum ROI = 0.679% Accumulated earnings 67.86E
+#Total entries 612 per entries 2.25 percent gross success 56.05% percent nett success 51.96% average loss 15.82p average win 14.84p RR 1 to 1.01
+#DONE. Total time: 967.48 mins
+#Results file: 190626182148results.p
+#Positions file: 190626182148_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.7MD0.6_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.7MD0.6.csv
+    
+#Total GROI = 28.978% Total ROI = 18.339% Sum GROI = 31.264% Sum ROI = 19.350% Accumulated earnings 1934.99E
+#Total entries 682 per entries 2.50 percent gross success 59.68% percent nett success 56.30% average loss 16.16p average win 17.58p RR 1 to 1.40
+#DONE. Total time: 105.97 mins
+#Results file: 190627161447results.p
+#Positions file: 190627161447_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.6MD0.55_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.55MD0.55.csv
