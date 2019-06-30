@@ -724,6 +724,8 @@ class Trader:
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
+        p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
+        p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
 #        
 #        if direction>0:
 #            GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -789,8 +791,8 @@ class Trader:
 #            self.next_candidate.p_md, 
 #            int(np.abs(self.next_candidate.bet)-1))
         out =( date_time.decode("utf-8")+" "+str(direction)+" close "+ass+
-              " p_mc={0:.2f}".format(self.list_opened_positions[-1].p_mc)+
-              " p_md={0:.2f}".format(self.list_opened_positions[-1].p_md)+
+              " p_mc={0:.2f}".format(p_mc)+
+              " p_md={0:.2f}".format(p_md)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
                       100*ROI_live,100*spread,100*GROI_live)+
                       " TGROI {1:.3f}% TROI = {0:.3f}%".format(
@@ -1045,8 +1047,9 @@ if __name__ == '__main__':
     #edges=[dt.date(2016, 8, 2), dt.date(2017, 3, 6), dt.date(2017, 9, 27), dt.date(2018, 4, 10)]
 #    init_day = dt.datetime.strptime('2017.09.27','%Y.%m.%d').date()
 #    end_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()
-    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
-    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
+    init_day = dt.datetime.strptime('2019.04.29','%Y.%m.%d').date()
+    end_day = dt.datetime.strptime('2019.06.28','%Y.%m.%d').date()
+#    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
 #    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
 #    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
     delta_dates = end_day-init_day
@@ -1411,22 +1414,66 @@ if __name__ == '__main__':
 #    #root_dir = local_vars.data_dir
 #    root_dir = local_vars.data_test_dir
     
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN0101-40CMF191112T190426k1-2E14'+'.csv'
+#    numberNetwors = 4
+#    list_IDresults = ['RRNN01010CMF181112T190426ALk1k2E14l-s','RRNN01010CMF181112T190426BSk1k2E14l-s',
+#                      'RRNN01040CMF181112T190426ALk1k2E14l-s','RRNN01040CMF181112T190426BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR','01040k1-2E14ALSR','01040k1-2E14BSSR']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}, {'sp':[5],'th':[(.7,.6)]},
+#                          {'sp':[1],'th':[(.65,.6)]}, {'sp':[1],'th':[(.85,.55)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['','','','']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
+    
+#    190629181911.csv 
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    positions_file = start_time+'_'+'RRNN0101-40CMF190429T19628k1-2E14'+'.csv'
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[1,5],'th':[(.6,.55),(.7,.6)]},{'sp':[1,5],'th':[(.55,.55),(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
+    
+#    190629184132.csv
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN0101-40CMF191112T190426k1-2E14'+'.csv'
-    numberNetwors = 4
-    list_IDresults = ['RRNN01010CMF191112T190426ALk1k2E14l-s','RRNN01010CMF191112T190426BSk1k2E14l-s',
-                      'RRNN01040CMF191112T190426ALk1k2E14l-s','RRNN01040CMF191112T190426BSk1k2E14l-s']
-    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR','01040k1-2E14ALSR','01040k1-2E14BSSR']
+    positions_file = start_time+'_'+'RRNN0101-40CMF190429T19628k1-2E14'+'.csv'
+    numberNetwors = 2
+    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
+    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}, {'sp':[5],'th':[(.7,.6)]},
-                          {'sp':[1],'th':[(.65,.6)]}, {'sp':[1],'th':[(.85,.55)]}]
+    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.55 for i in range(numberNetwors)]
     list_lb_md_ext = [.55 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['','','','']
+    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
@@ -1448,10 +1495,11 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    positions_file = start_time+'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
-                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
-                         str(list_spread_ranges[i]['th'][0][1])
-                         for i in range(numberNetwors)])+'.csv'
+    positions_file = start_time+'.csv'
+#    +'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
+#                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
+#                         str(list_spread_ranges[i]['th'][0][1])
+#                         for i in range(numberNetwors)])
     
     
     strategys = [Strategy(direct=local_vars.results_directory,thr_sl=list_thr_sl[i], 
@@ -2706,3 +2754,15 @@ if __name__ == '__main__':
 #DONE. Total time: 105.97 mins
 #Results file: 190627161447results.p
 #Positions file: 190627161447_RRNN01010CMF191112T190426ALk1k2E14l-sE0TI0MC0.6MD0.55_RRNN01010CMF191112T190426BSk1k2E14l-sE0TI0MC0.55MD0.55.csv
+
+#Total GROI = 4.624% Total ROI = 3.298% Sum GROI = 4.675% Sum ROI = 3.337% Accumulated earnings 333.71E
+#Total entries 106 per entries 0.34 percent gross success 65.09% percent nett success 61.32% average loss 9.23p average win 10.96p RR 1 to 1.88
+#DONE. Total time: 20.27 mins
+#Results file: 190629181911results.p
+#Positions file: 190629181911.csv
+    
+#Total GROI = 1.719% Total ROI = 0.912% Sum GROI = 1.726% Sum ROI = 0.914% Accumulated earnings 91.43E
+#Total entries 36 per entries 0.12 percent gross success 66.67% percent nett success 61.11% average loss 12.18p average win 11.90p RR 1 to 1.54
+#DONE. Total time: 14.03 mins
+#Results file: 190629184132results.p
+#Positions file: 190629184132.csv

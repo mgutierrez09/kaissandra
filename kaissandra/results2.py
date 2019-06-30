@@ -2144,7 +2144,7 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
     
     return [GRE, eROIpp, NZpp]
 
-def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, pip_limit, 
+def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, ub_mc, ub_md, pip_limit, 
                                  pip_init=0, t_index='0', epoch=0, get_corr_signal=False,
                                  reference_date='2018.11.12',end_date='2019.04.26 23:59:59'):
     """  """
@@ -2158,6 +2158,8 @@ def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, pip_limit,
     Journal = pd.read_csv(journal_filename,sep='\t')
     Journal = Journal[Journal['Espread']<pip_limit]
     Journal = Journal[Journal['Espread']>=pip_init]
+    Journal = Journal[Journal['P_mc']<ub_mc]
+    Journal = Journal[Journal['P_md']<ub_md]
     positions_summary, second_arg, positions = get_extended_results(Journal, 5, 0,
                                                              get_positions=True,
                                                              get_corr_signal=get_corr_signal,

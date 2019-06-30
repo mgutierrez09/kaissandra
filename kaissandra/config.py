@@ -17,26 +17,26 @@ class Config():
     """ Config class containing general information """
     
     AllAssets = {"0":"[USDX]",
-             "1":'AUDCAD',
-             "2":'EURAUD',
-             "3":'EURCAD',
-             "4":'EURCHF',
+             "1":'AUDCAD',# yes
+             "2":'EURAUD', # yes
+             "3":'EURCAD', # yes
+             "4":'EURCHF', # yes
              "5":'EURCZK',
              "6":'EURDKK',
              "7":'EURGBP',
              "8":'EURNZD',
              "9":'EURPLN',
              "10":'EURUSD',
-             "11":'GBPAUD',
+             "11":'GBPAUD', # yes but as AUDGBP
              "12":'GBPCAD',
              "13":'GBPCHF',
              "14":'GBPUSD',
              "15":'GOLD',
              "16":'USDCAD',
              "17":'USDCHF',
-             "18":'USDHKD',
+             "18":'USDHKD', # yes
              "19":'USDJPY',
-             "20":'USDMXN',
+             "20":'USDMXN', # no
              "21":'USDNOK',
              "22":'USDPLN',
              "23":'USDRUB',
@@ -45,7 +45,7 @@ class Config():
              "26":'XAUUSD',
              "27":"CADJPY",
              "28":"EURJPY",
-             "29":"AUDJPY",
+             "29":"AUDJPY", # yes
              "30":"CHFJPY",
              "31":"GBPJPY",
              "32":"NZDUSD",
@@ -523,7 +523,7 @@ def configuration_trader(*ins):
     """ Function to generate a trader config file """
     import datetime as dt
     
-    config_name = 'TPRODN01010GREV2'
+    config_name = 'TPRODN01010SRv2'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -632,21 +632,21 @@ def configuration_trader(*ins):
 #        phase_shifts = [2 for i in range(numberNetworks)]
         
         
-        numberNetworks = 1
-        IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A']]
-        list_name = ['01010E1214GREV2']
-        list_spread_ranges = [{'sp':[5],'th':[(.7,.6)],'dir':'COMB'}]
+        numberNetworks = 2
+        IDresults = ['RRNN01010CMF181112T190426ALk1k2E14l-s','RRNN01010CMF181112T190426ALk1k2E14l-s']
+        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01010k1K5B','WRNN01010k2K5B']]
+        list_name = ['01010k1-2K5E14ASR','01010k1-2K5E14BSR']
+        list_spread_ranges = [{'sp':[1,5],'th':[(.6,.55),(.7,.6)],'dir':'ASKS'},{'sp':[1,5],'th':[(.55,.55),(.7,.6)],'dir':'BIDS'}]
         
-        mWs = [500]
-        nExSs = [5000]
-        outputGains = [1]
+        mWs = [500, 500]
+        nExSs = [5000, 5000]
+        outputGains = [1, 1]
         #lBs = [1300]
-        list_feats_from_bids = [False]
+        list_feats_from_bids = [False, True]
         combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
         
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
-        stacked = [2]
+        stacked = [2, 2]
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
                          'results_from':list_spread_ranges[i]['dir'],
@@ -656,15 +656,15 @@ def configuration_trader(*ins):
                        'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[12,14]]
-        netNames = ['RRNN01010k1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
-        list_t_indexs = [[0]]
+        IDepoch = [[14,14], [14,14]]
+        netNames = ['RRNN01010Ak1k2', 'RRNN01010Bk1k2']#['350E13T3S', '350E6T2L', '327T21E0S', '500E29T3L']
+        list_t_indexs = [[0], [0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
-        list_entry_strategy = ['gre_v2' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+        list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
-        list_priorities = [[0]]#[[3],[2],[1],[0]]
+        list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
         phase_shifts = [2 for i in range(numberNetworks)]
         
 #        # T01011k1k2

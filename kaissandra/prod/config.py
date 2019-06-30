@@ -14,6 +14,11 @@ class Config(object):
     TRADERNAME = os.environ.get('TRADERNAME') #or 'farnamstreet'
     MACHINE = os.environ.get('MACHINE')# or 'aws_i-0db4c8daa833808b4'
     MAGICNUMBER = os.environ.get('MAGICNUMBER') or 123456
+    VERBOSE_RNN = os.environ.get('VERBOSE_RNN') or True
+    VERBOSE_TRADER = os.environ.get('VERBOSE_TRADER') or True
+    TEST = os.environ.get('TEST') or False
+    RUN_BACK_TEST = os.environ.get('RUN_BACK_TEST') or True
+    SEND_INFO_API = os.environ.get('SEND_INFO_API') or True
     if URL == None:
         raise ValueError("URL environment variable cannot be None.")
     if TRADERNAME == None:
