@@ -155,6 +155,7 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
 
     print("eGROI = {0:.2f}% ".format(results["eGROI"])+
           "eROI = {0:.2f}% ".format(results["eROI"])+
+          "eROI.5 = {0:.2f}% ".format(results["eROI.5"])+
           "eROI1 = {0:.2f}% ".format(results["eROI1"])+
           "eROI1.5 = {0:.2f}% ".format(results["eROI1.5"])+
           "eROI2 = {0:.2f}% ".format(results["eROI2"])+
@@ -1486,7 +1487,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                          pos_dirname='', pos_filename='', reference_date='2018.03.09',
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
                          corr_filename='', corr_dirname='', feats_from_bids=None,
-                         save_positions=False, assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]):
+                         save_positions=False, assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
+                         min_percent=50):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -1568,7 +1570,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     if get_positions:
         list_pos = [[] for i in columns_positions]#[None for i in range(500)]
     # skip loop if both thresholds are .5
-    if pNZA<10:
+    if pNZA<min_percent:
         end_of_loop = Journal.shape[0]
     else:
         end_of_loop = 0
@@ -2178,18 +2180,21 @@ def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, ub_mc, ub_
     #ROIS99 = ROIS99[pos_under_2p]
     positions['DTo'] = positions["Do"] +" "+ positions["To"]
     pos_under_thr = positions[pos_under_limit]#.sort_values(by=['DTo'])
-    per_under_limit = 100*sum(pos_under_limit)/positions.shape[0]
+    per_under_limit = 100*pos_under_thr.shape[0]/positions.shape[0]
     tgsr = 100*sum(positions['GROI']>0)/positions.shape[0]
     gsr = 100*sum(pos_under_thr['GROI']>0)/sum(pos_under_limit)
     tsr = 100*sum(positions['ROI']>0)/positions.shape[0]
     sr = 100*sum(positions[pos_under_limit]['ROI']>0)/sum(pos_under_limit)
     mean_spread = positions[pos_under_limit]['spread'].mean()
+    mean_espread = positions[pos_under_limit]['espread'].mean()
     print("total mean GROI")
     print(positions['GROI'].mean())
     print("mean GROI of selected")
     print(positions[pos_under_limit]['GROI'].mean())
     print("mean_spread of selected")
     print(mean_spread)
+    print("mean Expected spread")
+    print(mean_espread)
     print("Number of pos under "+str(pip_limit))
     print(positions[pos_under_limit].shape[0])
     print("per under pip_limit")
@@ -2206,8 +2211,8 @@ def print_performance_under_pips(results_dirfilename, thr_mc, thr_md, ub_mc, ub_
     print(positions[pos_under_limit]['GROI'].sum())
     print("ROI for positions under "+str(pip_limit))
     print(positions[pos_under_limit]['ROI'].sum())
-    print("positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0]")
-    print(positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0])
+#    print("positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0]")
+#    print(positions['GROI'].sum()-pip_limit*positions['GROI'].shape[0])
     print("# Assets")
     print(positions['Asset'][pos_under_limit].unique().shape[0])
     #pos_under_thr.to_csv(pos_dirname+pos_filename+str(100*pip_limit)+'pFilt.csv', index=False, sep='\t')

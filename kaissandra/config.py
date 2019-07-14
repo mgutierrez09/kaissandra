@@ -50,6 +50,96 @@ class Config():
              "31":"GBPJPY",
              "32":"NZDUSD",
              "33":"AUDUSD"}
+    # feature indexes
+    FI = {"symbol":0,
+          "EMA01":1,
+          "EMA05":2,
+          "EMA1":3,
+          "EMA5":4,
+          "EMA10":5,
+          "EMA50":6,
+          "EMA100":7,
+          "variance":8,
+          "timeInterval":9,
+          "parSARhigh20":10,
+          "parSARlow20":11,
+          "time":12,
+          "parSARhigh2":13,
+          "parSARlow2":14,
+          "difVariance":15,
+          "difTimeInterval":16,
+          "maxValue":17,
+          "minValue":18,
+          "difMaxValue":19,
+          "difMinValue":20,
+          "minOmax":21,
+          "difMinOmax":22,
+          "symbolOema01":23,
+          "symbolOema05":24,
+          "symbolOema1":25,
+          "symbolOema5":26,
+          "symbolOema10":27,
+          "symbolOema50":28,
+          "symbolOema100":29,
+          "difSymbolOema01":30,
+          "difSymbolOema05":31,
+          "difSymbolOema1":32,
+          "difSymbolOema5":33,
+          "difSymbolOema10":34,
+          "difSymbolOema50":35,
+          "difSymbolOema100":36}
+    # Primary features
+    PF = {FI["symbol"]:"symbol",
+          FI["EMA01"]:"EMA01",
+          FI["EMA05"]:"EMA05",
+          FI["EMA1"]:"EMA1",
+          FI["EMA5"]:"EMA5",
+          FI["EMA10"]:"EMA10",
+          FI["EMA50"]:"EMA50",
+          FI["EMA100"]:"EMA100",
+          FI["variance"]:"variance",
+          FI["timeInterval"]:"timeInterval",
+          FI["parSARhigh20"]:"parSARhigh20",
+          FI["parSARlow20"]:"parSARlow20",
+          FI["time"]: "time",
+          FI["parSARhigh2"]:"parSARhigh2",
+          FI["parSARlow2"]:"parSARlow2",
+          FI["difVariance"]:"difVariance",
+          FI["difTimeInterval"]:"difTimeInterval",
+          FI["maxValue"]:"maxValue",
+          FI["minValue"]:"minValue",
+          FI["difMaxValue"]:"difMaxValue",
+          FI["difMinValue"]:"difMinValue",
+          FI["minOmax"]:"minOmax",
+          FI["difMinOmax"]:"difMinOmax",
+          FI["symbolOema01"]:"symbolOema01",
+          FI["symbolOema05"]:"symbolOema05",
+          FI["symbolOema1"]:"symbolOema1",
+          FI["symbolOema5"]:"symbolOema5",
+          FI["symbolOema10"]:"symbolOema10",
+          FI["symbolOema50"]:"symbolOema50",
+          FI["symbolOema100"]:"symbolOema100",
+          FI["difSymbolOema01"]:"difSymbolOema01",
+          FI["difSymbolOema05"]:"difSymbolOema05",
+          FI["difSymbolOema1"]:"difSymbolOema1",
+          FI["difSymbolOema5"]:"difSymbolOema5",
+          FI["difSymbolOema10"]:"difSymbolOema10",
+          FI["difSymbolOema50"]:"difSymbolOema50",
+          FI["difSymbolOema100"]:"difSymbolOema100"}
+    
+    secsInDay = 86400.0
+    
+    emas_ext = ['01','05','1','5','10','50','100']
+    
+    n_sars = 2
+    maxStepSars = [20, 2]
+    stepAF = 0.02
+    sar_ext = ['20','2']
+    
+    std_var = 0.1
+    std_time = 0.1
+    
+    non_var_features = [8,9,12,17,18,21,23,24,25,26,27,28,29]
 
 def write_log(log_message, log_file):
         """
@@ -164,6 +254,10 @@ def configuration(entries, save=True):
         else:
             lB = int(nEventsPerStat+movingWindow*3)
         seq_len = int((lB-nEventsPerStat)/movingWindow+1)
+        if 'lbd' in entries:
+            lbd = entries['lbd']
+        else:
+            lbd = 1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))
         if 'assets' in entries:
             assets = entries['assets']
         else:
@@ -180,6 +274,18 @@ def configuration(entries, save=True):
             feature_keys_manual = entries['feature_keys_manual']
         else:
             feature_keys_manual = [i for i in range(37)]
+        if 'feature_keys' in entries:
+            feature_keys = entries['feature_keys']
+        else:
+            feature_keys = [i for i in range(37)]
+        if 'force_calculation_features' in entries:
+            force_calculation_features = entries['force_calculation_features']
+        else:
+            force_calculation_features = [False for i in range(len(feature_keys))]
+        if 'force_calulation_output' in entries:
+            force_calulation_output = entries['force_calulation_output']
+        else:
+            force_calulation_output = False
         if 'noVarFeatsManual' in entries:
             noVarFeatsManual = entries['noVarFeatsManual']
         else:
@@ -196,6 +302,10 @@ def configuration(entries, save=True):
             lookAheadIndex = entries['lookAheadIndex']
         else:
             lookAheadIndex = 3
+        if 'lookAheadVector' in entries:
+            lookAheadVector = entries['lookAheadVector']
+        else:
+            lookAheadVector=[.1,.2,.5,1]
         if 'build_XY_mode' in entries:
             build_XY_mode = entries['build_XY_mode']
         else:
@@ -363,15 +473,20 @@ def configuration(entries, save=True):
                   'movingWindow':movingWindow,
                   'nEventsPerStat':nEventsPerStat,
                   'lB':lB,
+                  'lbd':lbd,
                   'seq_len':seq_len,
                   'assets':assets,
                   'channels':channels,
                   'max_var':max_var,
                   'feature_keys_manual':feature_keys_manual,
+                  'feature_keys':feature_keys,
+                  'force_calculation_features':force_calculation_features,
+                  'force_calulation_output':force_calulation_output,
                   'noVarFeatsManual':noVarFeatsManual,
                   'feature_keys_tsfresh':feature_keys_tsfresh,
                   'var_feat_keys':var_feat_keys,
                   'lookAheadIndex':lookAheadIndex,
+                  'lookAheadVector':lookAheadVector,
                   'build_XY_mode':build_XY_mode,
                   
                   'size_hidden_layer':size_hidden_layer,
@@ -523,7 +638,7 @@ def configuration_trader(*ins):
     """ Function to generate a trader config file """
     import datetime as dt
     
-    config_name = 'TPRODN01010SRv2'
+    config_name = 'TPRODN01010SRv3'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -636,7 +751,7 @@ def configuration_trader(*ins):
         IDresults = ['RRNN01010CMF181112T190426ALk1k2E14l-s','RRNN01010CMF181112T190426ALk1k2E14l-s']
         IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01010k1K5B','WRNN01010k2K5B']]
         list_name = ['01010k1-2K5E14ASR','01010k1-2K5E14BSR']
-        list_spread_ranges = [{'sp':[1,5],'th':[(.6,.55),(.7,.6)],'dir':'ASKS'},{'sp':[1,5],'th':[(.55,.55),(.7,.6)],'dir':'BIDS'}]
+        list_spread_ranges = [{'sp':[1,2,5],'th':[(.5,.6),(.6,.65),(.7,.6)],'dir':'ASKS'},{'sp':[1,2,5],'th':[(.5,.55),(.6,.6),(.7,.6)],'dir':'BIDS'}]
         
         mWs = [500, 500]
         nExSs = [5000, 5000]
