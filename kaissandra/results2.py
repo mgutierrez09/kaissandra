@@ -1488,7 +1488,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
                          corr_filename='', corr_dirname='', feats_from_bids=None,
                          save_positions=False, assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
-                         min_percent=50):
+                         min_percent=70):
     """
     Function that calculates real ROI, GROI, spread...
     """

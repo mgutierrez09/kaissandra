@@ -2024,17 +2024,14 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
 #            tag_stats = 'IOA'
 #    else:
 #        raise ValueError("feats_from_bids must be a bool")
-    
+    dirname_features = (hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+symbol)
     if not build_test_db:
-        filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
-                            str(nEventsPerStat)+'_nF'+str(nFeatures)+'.hdf5')
+        
         separators_directory = hdf5_directory+'separators/'
     else:
-        filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
-                            str(nEventsPerStat)+'_nF'+str(nFeatures)+'_test.hdf5')
         separators_directory = hdf5_directory+'separators_test/'
     
-    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
+    edges, edges_dt = get_edges_datasets_modular(folds, config, dataset_dirfilename=dirname_features)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
