@@ -1111,12 +1111,13 @@ def get_list_unique_days(thisAsset):
     try:
         list_dir = sorted(os.listdir(dir_ass))
         list_regs = [re.search('^'+thisAsset+'_\d+'+'.txt$',f) for f in list_dir]
-        list_unique_days = [re.search('\d+',m.group()).group()[:8] for m in list_regs]
-        pickle.dump( list_unique_days, open( local_vars.hdf5_directory+"list_unique_days.p", "wb" ))
+        list_unique_days = list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
+        
+        pickle.dump( list_unique_days, open( local_vars.hdf5_directory+"list_unique_days_"+thisAsset+".p", "wb" ))
     except FileNotFoundError:
         print("WARNING! dir_ass not found. Loading list_unique_days from pickle")
-        list_unique_days = pickle.load( open( local_vars.hdf5_directory+"list_unique_days.p", "rb" ))
-    return list(set(list_unique_days))
+        list_unique_days = pickle.load( open( local_vars.hdf5_directory+"list_unique_days_"+thisAsset+".p", "rb" ))
+    return list_unique_days
 
 def get_day_indicator(list_unique_days, first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
