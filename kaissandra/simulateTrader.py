@@ -170,7 +170,7 @@ class Strategy():
                  lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
-                 name='',t_index=3,IDr=None,IDgre=None,epoch='11',
+                 name='',t_index=3,IDr=None,IDgre=None,epoch='11',p_md_margin=0.03,
                  weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr'):
         
         self.name = name
@@ -209,6 +209,7 @@ class Strategy():
         self._load_GRE()
         # spread range strategy
         self.info_spread_ranges = info_spread_ranges
+        self.p_md_margin = p_md_margin
         
     def _load_GRE(self):
         """ Load strategy efficiency matrix GRE """
@@ -280,10 +281,8 @@ class Strategy():
             
             return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
         elif self.entry_strategy=='gre_v2':
-#            print("self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]")
-#            print(self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0])
-            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
-#            return self.gre_model.predict(np.array([[p_mc, p_md, level]]))[0]
+#            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
+            return self.gre_model.predict(np.array([[p_mc, p_md-self.p_md_margin, level]]))[0]
         else:
             return 0.0
 
@@ -514,7 +513,7 @@ class Trader:
                                              self.next_candidate.p_mc, 
                                     self.next_candidate.p_md, 
                                     int(np.abs(self.next_candidate.bet
-                                    )-1))>1.5*e_spread/self.pip)
+                                    )-1))>2*e_spread/self.pip)
         elif this_strategy.entry_strategy=='spread_ranges':
 #            print("\n\n\n")
 #            print(e_spread/self.pip)
@@ -1010,7 +1009,7 @@ def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,
 
 if __name__ == '__main__':
     
-    init_day_str = '20181112'
+    init_day_str = '20190529'#'20181112'
     end_day_str = '20190628'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
@@ -1041,19 +1040,18 @@ if __name__ == '__main__':
     
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')+'_F'+init_day_str+'T'+end_day_str
-    positions_file = start_time+'_'+'RRNN0101-40CMF190429T19628k1-2E14'+'.csv'
     numberNetwors = 2
     list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
-    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
+    list_name = ['01010k1-2E14Gv2','01010k1-2E14BSGv2']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     list_spread_ranges = [{'sp':[1,2,5],'th':[(.6,.55),(.65,.6),(.7,.6)]},{'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
-    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+    list_lb_mc_ext = [.05 for i in range(numberNetwors)]
+    list_lb_md_ext = [.5 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
+    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]

@@ -1491,7 +1491,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
                          corr_filename='', corr_dirname='', feats_from_bids=None,
                          save_positions=False, assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
-                         min_percent=70):
+                         min_percent=200):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -2099,7 +2099,7 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
 #    GREex = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
     performance_file = results_dirfilename+'/performance.csv'
     performance_df = pd.read_csv(performance_file, sep='\t')
-    resolution = 1/(2*len(thresholds_md))
+    resolution = 0.05#1/(2*len(thresholds_md))
     print(resolution)
     for t_index in t_indexes_str:
         for mc, thr_mc in enumerate(thresholds_mc):
@@ -2130,7 +2130,8 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
                                     (performance_df['t_index']==int(t_index)) & 
                                     (performance_df['epoch']==epoch)].iloc[0]
                 if md<len(thresholds_md)-1:
-                    next_thr_md = round((thr_md+resolution)*100)/100
+                    next_thr_md = round(min(thr_md+resolution,.99)*100)/100
+                    #print(next_thr_md)
                     next_md = performance_df[(performance_df['thr_mc']==thr_mc) & 
                                         (performance_df['thr_md']==next_thr_md) & 
                                         (performance_df['t_index']==int(t_index)) & 
@@ -2142,7 +2143,8 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
                     next_md_samps = [0, 0]
                     next_md_roi = [0.0, 0.0]
                 if mc<len(thresholds_mc)-1:
-                    next_thr_mc = round((thr_mc+resolution)*100)/100
+                    next_thr_mc = round(min(thr_mc+resolution,.99)*100)/100
+                    #print(next_thr_mc)
                     next_mc = performance_df[(performance_df['thr_mc']==next_thr_mc) & 
                                         (performance_df['thr_md']==thr_md) & 
                                         (performance_df['t_index']==int(t_index)) & 

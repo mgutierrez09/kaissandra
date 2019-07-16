@@ -1343,9 +1343,18 @@ class Trader:
                                 print("\r"+out)
                             self.write_log(out)
                     else: # position is opened
+                        curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                        out = new_entry[entry_time_column]+" "+thisAsset+\
+                                       " deadline in "+str(self.list_deadlines[
+                                           self.map_ass_idx2pos_idx[ass_id]])+\
+                                        " current GROI = {0:.2f}%".format(100*curr_GROI)+\
+                                        " current ROI = {0:.2f}%".format(100*curr_ROI)
+                        if verbose_trader:
+                            print("\r"+out)
+                        self.write_log(out)
                         # check for extension
                         if self.check_primary_condition_for_extention(ass_id):
-                            curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                            
                             extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
                             if extention:    
                                 # include third condition for thresholds
@@ -1367,8 +1376,7 @@ class Trader:
                                    " p_mc={0:.2f}".format(new_entry['P_mc'])+
                                    " p_md={0:.2f}".format(new_entry['P_md'])+ 
                                    " spread={0:.3f}".format(new_entry['E_spread'])+
-                                   " strategy "+strategy_name+
-                                   " current GROI = {0:.2f}%".format(100*curr_GROI))
+                                   " strategy "+strategy_name)
                                 # send position extended command to api
                                 if send_info_api:
                                     self.send_extend_pos_api(new_entry[entry_time_column], 
@@ -1656,7 +1664,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
     """
     <DocString>
     """
-    thr_mc = 0.5
+##################################################################################################################################
+########################################################## WARNING!!!!! ##########################################################
+##################################################################################################################################
+    thr_mc = 0.0
     thr_levels = 5
     lb_level = 5
     first_nonzero = 0
@@ -3360,7 +3371,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
         list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
-    print("Test "+str(test))
+    #print("Test "+str(test))
     #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
     if run_back_test:
         sessiontype = 'backtest'
@@ -3394,7 +3405,7 @@ run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = True
+send_info_api = False
 
 if __name__=='__main__':
     import sys
@@ -3408,7 +3419,7 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = False
     config_names = ['TPRODN01010SRv3']#['TTEST10']#'TPRODN01010N01011'
-    test = False
+    test = True
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False

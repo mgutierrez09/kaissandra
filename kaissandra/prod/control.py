@@ -11,6 +11,7 @@ import os
 import time
 import datetime as dt
 import sys
+import requests
 
 def control(running_assets, timeout=15):
     """ Master function to manage all controlling functions such as connection
@@ -28,6 +29,7 @@ def control(running_assets, timeout=15):
     list_last_file = [sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/"))[-1] \
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
                       else '' for ass_id in running_assets]
+    watchdog_counter = 0
     while 1:
         # control connection
         list_last_file, timeouts, reset = control_connection(AllAssets, running_assets, 
@@ -36,6 +38,15 @@ def control(running_assets, timeout=15):
                                                       list_last_file, timeouts, 
                                                       reset)
         time.sleep(5)
+        watchdog_counter += 1
+        if watchdog_counter==24:
+            # waik up server
+            watchdog_counter = 0
+            response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+            if response.status_code == 200:
+                print('\n'+response.json()['token'])
+            else:
+                print(response.text)
     
 def control_connection(AllAssets, running_assets, timeout, directory_io,
                            reset_command, directory_MT5, list_last_file, timeouts, reset):
@@ -96,6 +107,7 @@ if __name__=='__main__':
 from kaissandra.config import Config
 from kaissandra.local_config import local_vars
 from kaissandra.prod.communication import send_command
+from kaissandra.prod.config import Config as CC
 
 if __name__=='__main__':
     # launch control
