@@ -1182,7 +1182,9 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         
         if_combine = combine_ts['if_combine']
         if if_combine:
-            t_indexes.append(seq_len)
+            extended_t_index = [seq_len]
+        else:
+            extended_t_index = []
         params_combine = combine_ts['params_combine']
         columns_AD = [str(int(tmc*10))+str(int(tmd*10)) for tmc in thresholds_mc for tmd in thresholds_md]#config['combine_ts']['columns_AD']
 
@@ -1205,6 +1207,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     else:
         if_combine = False
         extra_ts = 0
+        extended_t_index = []
 #        extra_ts = 0
         ### TEMP! ####
 #        combine_ts = {'if_combine':True,
@@ -1242,7 +1245,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()
-    for t_index in t_indexes:
+    for t_index in t_indexes+extended_t_index:
         # init results dictionary
         thr_idx = 0
         if t_index>=seq_len:
@@ -2086,7 +2089,7 @@ def merge_results(IDrs, IDr_merged, from_mg=False):
     return None
 
 def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_str, 
-            size_output_layer):
+            size_output_layer, feats_from_bids=True):
     """ Function that calculates GROI efficiency matrix """
     t = 0
     eROIpp = np.zeros((len(t_indexes_str), len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
@@ -2094,50 +2097,88 @@ def get_GRE(results_dirfilename, epoch, thresholds_mc, thresholds_md, t_indexes_
     GRE = np.zeros((len(t_indexes_str), len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
 #    GREav = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
 #    GREex = np.zeros((seq_len+1, len(thresholds_mc), len(thresholds_md), int((size_output_layer-1)/2)))
-    resolution = 1/(2*len(thresholds_mc))
+    performance_file = results_dirfilename+'/performance.csv'
+    performance_df = pd.read_csv(performance_file, sep='\t')
+    resolution = 1/(2*len(thresholds_md))
+    print(resolution)
     for t_index in t_indexes_str:
         for mc, thr_mc in enumerate(thresholds_mc):
-            for md, thr_md in enumerate(thresholds_mc):
+            for md in range(len(thresholds_md)):
+                thr_md = thresholds_md[md]
                 print(t_index +" "+str(thr_mc)+" "+str(thr_md))
-                if thr_mc==.5 and thr_md==.5:
-                    print("Skipped")
-                    continue
+#                if thr_mc==.5 and thr_md==.5:
+#                    print("Skipped")
+#                    continue
                 # Get extended results
-                summary_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
-                    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'UC'+str(thr_mc+resolution)+'UD'+str(thr_md+resolution)+'.p'
-                #print(summary_filename)
-                if not os.path.exists(summary_filename):
-                    journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
-                        +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
-                    Journal = pd.read_csv(journal_filename,sep='\t')
-                    Journal = Journal[Journal['P_mc']<thr_mc+resolution]
-                    Journal = Journal[Journal['P_md']<thr_md+resolution]
-#                    print(Journal)
-#                    a=p
-                    positions_summary, log = get_extended_results(Journal, 5, 0)
+#                summary_filename = results_dirfilename+'/positions/P_E'+str(epoch)\
+#                    +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'UC'+str(thr_mc+resolution)+'UD'+str(thr_md+resolution)+'.p'
+#                if not os.path.exists(summary_filename):
+#                    journal_filename = results_dirfilename+'/journal/J_E'+str(epoch)\
+#                        +'TI'+t_index+'MC'+str(thr_mc)+'MD'+str(thr_md)+'.csv'
+#                    Journal = pd.read_csv(journal_filename,sep='\t')
+#                    Journal = Journal[Journal['P_mc']<thr_mc+resolution]
+#                    Journal = Journal[Journal['P_md']<thr_md+resolution]
+##                    print(Journal)
+##                    a=p
+#                    
+#                    positions_summary, second_arg, positions = get_extended_results(Journal, 5, 0, feats_from_bids=feats_from_bids)
+#                else:
+#                    positions_summary = pickle.load( open( summary_filename, "rb" ))
+                
+                row = performance_df[(performance_df['thr_mc']==thr_mc) & 
+                                    (performance_df['thr_md']==thr_md) & 
+                                    (performance_df['t_index']==int(t_index)) & 
+                                    (performance_df['epoch']==epoch)].iloc[0]
+                if md<len(thresholds_md)-1:
+                    next_thr_md = round((thr_md+resolution)*100)/100
+                    next_md = performance_df[(performance_df['thr_mc']==thr_mc) & 
+                                        (performance_df['thr_md']==next_thr_md) & 
+                                        (performance_df['t_index']==int(t_index)) & 
+                                        (performance_df['epoch']==epoch)].iloc[0]
+                    next_md_samps = [next_md['NOl1'],next_md['NOl2']]
+                    next_md_roi = [next_md['eGl1'],next_md['eGl2']]
                 else:
-                    positions_summary = pickle.load( open( summary_filename, "rb" ))
+                    # last entry
+                    next_md_samps = [0, 0]
+                    next_md_roi = [0.0, 0.0]
+                if mc<len(thresholds_mc)-1:
+                    next_thr_mc = round((thr_mc+resolution)*100)/100
+                    next_mc = performance_df[(performance_df['thr_mc']==next_thr_mc) & 
+                                        (performance_df['thr_md']==thr_md) & 
+                                        (performance_df['t_index']==int(t_index)) & 
+                                        (performance_df['epoch']==epoch)].iloc[0]
+                    next_mc_samps = [next_mc['NOl1'],next_mc['NOl2']]
+                    next_mc_roi = [next_mc['eGl1'],next_mc['eGl2']]
+                else:
+                    # last entry
+                    next_mc_samps = [0, 0]
+                    next_mc_roi = [0.0, 0.0]
+                if mc<len(thresholds_mc)-1 and md<len(thresholds_md)-1:
+                    next_mcmd = performance_df[(performance_df['thr_mc']==next_thr_mc) & 
+                                        (performance_df['thr_md']==next_thr_md) & 
+                                        (performance_df['t_index']==int(t_index)) & 
+                                        (performance_df['epoch']==epoch)].iloc[0]
+                    next_mcmd_samps = [next_mcmd['NOl1'],next_mcmd['NOl2']]
+                    next_mcmd_roi = [next_mcmd['eGl1'],next_mcmd['eGl2']]
+                else:
+                    # last entry
+                    next_mcmd_samps = [0, 0]
+                    next_mcmd_roi = [0.0, 0.0]
                 #print(positions_summary)
                 # load rSampsXlevel, rROIxLevel
-                rSampsXlevel = [positions_summary['NOl1'],positions_summary['NOl2']]
-                rROIxLevel = [positions_summary['eGl1'],positions_summary['eGl2']]
+                rSampsXlevel = [row['NOl1'],row['NOl2']]
+                rROIxLevel = [row['eGl1'],row['eGl2']]
+                
                 for b in range(int((size_output_layer-1)/2)):
-                    NZpp[t,mc,md, b] = int(rSampsXlevel[b])
-                    eROIpp[t,mc,md, b] = rROIxLevel[b]/100
+                    NZpp[t,mc,md, b] = max(int(rSampsXlevel[b])-int(next_md_samps[b])-int(next_mc_samps[b])+int(next_mcmd_samps[b]),0)
+                    eROIpp[t,mc,md, b] = (rROIxLevel[b]-next_md_roi[b]-next_mc_roi[b]+next_mcmd_roi[b])/100
                     if NZpp[t,mc,md, b]>0:
                         GRE[t,mc,md, b] = eROIpp[t,mc,md, b]/(NZpp[t,mc,md, b]*0.0001)
                     print("Nonzero entries = "+str(NZpp[t,mc,md, b]))
                     print("GRE level "+str(b)+": "+str(GRE[t,mc,md, b])+" pips")
                     
-                    # GRE new
-#                    if rSampsXlevel[b,1]>0:
-#                        GREav[t,mc,md, b] = rROIxLevel[b,0]/(100*rSampsXlevel[b,1])
-#                    print("GRE av level "+str(b)+": "+str(GREav[t,mc,md, b]/0.0001)+" pips")
-#                    print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
-#                    if rSampsXlevel[b,1]>0:
-#                        GREex[t,mc,md, b] = eROIpp[t,mc,md, b, 1]/rSampsXlevel[b,1]
-#                    print("GRE ex level "+str(b)+": "+str(GREex[t,mc,md, b]/0.0001)+" pips")
-#                    print("Nonzero entries = "+str(int(rSampsXlevel[b,1])))
+            # last value
+            
         t += 1
     print("eROIpp for mc between "+
           str(round(thr_mc*10)/10)+

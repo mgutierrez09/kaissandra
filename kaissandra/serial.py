@@ -1401,7 +1401,7 @@ class Trader:
                             elif this_strategy.entry_strategy=='gre_v2':
                                 if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
                                 self.check_same_strategy(ass_id) and \
-                                self.next_candidate.profitability>=self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
+                                self.next_candidate.profitability>self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
                                     print("self.next_candidate.profitability")
                                     print(self.next_candidate.profitability)
                                     print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
