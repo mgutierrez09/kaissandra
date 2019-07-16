@@ -33,7 +33,7 @@ flag_sl_name = "SL"
 columnsResultInfo = ["Asset","Entry Time","Exit Time","GROI","Spread","ROI","Bet",
                      "Outcome","Diff","Bi","Ai","Bo","Ao","P_mc","P_md",
                      "P_mg"]
-
+    
 #start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
 class Results:
@@ -1278,162 +1278,154 @@ class Trader:
                             
     
     def check_new_inputs(self, inputs, thisAsset, results, directory_MT5_ass=''):
-        '''
+        """
         <DocString>
-        '''
+        """
         #new_entry = self.select_new_entry(inputs, thisAsset)
         for new_entry in self.select_next_entry(inputs, thisAsset):
             if not type(new_entry)==list:
-                t = new_entry['t']
-                strategy_name = self.strategies[new_entry['strategy_index']].name
-                # check for opening/extension in order of expected returns
-                out = ("New entry @ "+new_entry[entry_time_column]+" "+
-                       new_entry['Asset']+
-                       " P_mc {0:.3f} ".format(new_entry['P_mc'])+
-                       "P_md {0:.3f} ".format(new_entry['P_md'])+
-                       "profitability {0:.2f} ".format(new_entry['profitability'])+
-                       "Bet {0:d} ".format(new_entry['Bet'])+
-                       "E_spread {0:.3f} ".format(new_entry['E_spread'])+
-                       "Strategy "+strategy_name)
-                if verbose_trader:
-                    print("\r"+out)
-                    self.write_log(out)
-                position = Position(new_entry, self.strategies[new_entry['strategy_index']])
-                
-                self.add_new_candidate(position)
-                ass_idx = self.ass2index_mapping[thisAsset]
-                ass_id = self.running_assets[ass_idx]
-                
-                # open market
-                if not self.is_opened(ass_id):
-                    # check if condition for opening is met
-                    condition_open, reason = self.check_contition_for_opening(t)
-                    if condition_open:
-                        # assign budget
-                        lots = self.assign_lots(new_entry[entry_time_column])
-                        # check if there is enough budget
-                        if self.available_bugdet_in_lots>=lots:
-                            if not run_back_test:
-                                self.send_open_command(directory_MT5_ass, ass_idx)
-                            self.open_position(ass_id, lots, 
-                                               new_entry[entry_time_column], 
-                                               self.next_candidate.e_spread, 
-                                               self.next_candidate.entry_bid, 
-                                               self.next_candidate.entry_ask, 
-                                               self.next_candidate.deadline)
-                        else: # no opening due to budget lack
-                            out = "Not enough budget"
-                            print("\r"+out)
-                            self.write_log(out)
-                            # check swap of resources
-                            if self.next_candidate.strategy.entry_strategy=='gre':
-    #                             and self.check_resources_swap()
-                                # TODO: Check propertly function of swapinng
-                                # lauch swap of resourves
-                                pass
-                                ### WARNING! With asynched traders no swap
-                                ### possible
-                                #self.initialize_resources_swap(directory_MT5_ass)
-                    else:
-                        out = new_entry[entry_time_column]+" not opened "+\
-                                  thisAsset+" due to "+reason
-                        if verbose_trader:
-                            print("\r"+out)
+                #t = new_entry['t']
+                # loop over tactics of one strategy
+                for tactic in range(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])):
+                    strategy_name = self.strategies[new_entry['strategy_index']].name
+                    # check for opening/extension in order of expected returns
+                    out = ("New entry @ "+new_entry[entry_time_column]+" "+
+                           new_entry['Asset']+
+                           " P_mc {0:.3f} ".format(new_entry['P_mc'])+
+                           "P_md {0:.3f} ".format(new_entry['P_md'])+
+                           "profitability {0:.2f} ".format(new_entry['profitability'])+
+                           "Bet {0:d} ".format(new_entry['Bet'])+
+                           "E_spread {0:.3f} ".format(new_entry['E_spread'])+
+                           "Strategy "+strategy_name)
+                    if verbose_trader:
+                        print("\r"+out)
                         self.write_log(out)
-                else: # position is opened
-                    # check for extension
-                    if self.check_primary_condition_for_extention(ass_id):
-                        curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
-                        extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, t)
-                        if extention:    
-                            # include third condition for thresholds
-                            # extend deadline
-                            if not run_back_test:
-                                self.send_open_command(directory_MT5_ass, ass_idx)
-                            self.update_position(ass_id)
-                            self.n_pos_extended += 1
-                            # track position
-                            self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
-                            # print out
-                            
-                            out = (new_entry[entry_time_column]+" "+
-                                   thisAsset+" Extended "+str(self.list_deadlines[
-                                       self.map_ass_idx2pos_idx[ass_id]])+" samps "+
-#                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
-#                                       self.map_ass_idx2pos_idx[ass_id]])+
-                               "bet "+str(new_entry['Bet'])+
-                               " p_mc={0:.2f}".format(new_entry['P_mc'])+
-                               " p_md={0:.2f}".format(new_entry['P_md'])+ 
-                               " spread={0:.3f}".format(new_entry['E_spread'])+
-                               " strategy "+strategy_name+
-                               " current GROI = {0:.2f}%".format(100*curr_GROI))
-                            # send position extended command to api
-                            if send_info_api:
-                                self.send_extend_pos_api(new_entry[entry_time_column], 
-                                                         thisAsset, 100*curr_GROI, 
-                                                         new_entry['P_mc'], new_entry['P_md'], 
-                                                         int(new_entry['Bet']), strategy_name, 
-                                                         100*curr_ROI, 
-                                                         self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
-                            #out = new_entry[entry_time_column]+" Extended "+thisAsset
+                    position = Position(new_entry, self.strategies[new_entry['strategy_index']])
+                    
+                    self.add_new_candidate(position)
+                    ass_idx = self.ass2index_mapping[thisAsset]
+                    ass_id = self.running_assets[ass_idx]
+                    
+                    # open market
+                    if not self.is_opened(ass_id):
+                        # check if condition for opening is met
+                        condition_open, reason = self.check_contition_for_opening(tactic)
+                        if condition_open:
+                            # assign budget
+                            lots = self.assign_lots(new_entry[entry_time_column])
+                            # check if there is enough budget
+                            if self.available_bugdet_in_lots>=lots:
+                                if not run_back_test:
+                                    self.send_open_command(directory_MT5_ass, ass_idx)
+                                self.open_position(ass_id, lots, 
+                                                   new_entry[entry_time_column], 
+                                                   self.next_candidate.e_spread, 
+                                                   self.next_candidate.entry_bid, 
+                                                   self.next_candidate.entry_ask, 
+                                                   self.next_candidate.deadline)
+                            else: # no opening due to budget lack
+                                out = "Not enough budget"
+                                print("\r"+out)
+                                self.write_log(out)
+                                # check swap of resources
+                                if self.next_candidate.strategy.entry_strategy=='gre':
+        #                             and self.check_resources_swap()
+                                    # TODO: Check propertly function of swapinng
+                                    # lauch swap of resourves
+                                    pass
+                                    ### WARNING! With asynched traders no swap
+                                    ### possible
+                                    #self.initialize_resources_swap(directory_MT5_ass)
+                        else:
+                            out = new_entry[entry_time_column]+" not opened "+\
+                                      thisAsset+" due to "+reason
                             if verbose_trader:
                                 print("\r"+out)
                             self.write_log(out)
-                        else: # if candidate for extension does not meet requirements
-                            out = new_entry[entry_time_column]+" not extended "+\
-                                  thisAsset+" due to "+reason
-                            if verbose_trader:
-                                print("\r"+out)
-                            self.write_log(out)
-                    else: # if direction is different
-                        this_strategy = self.next_candidate.strategy
-                        close_pos = False
-                        #if this_strategy.if_dir_change_close:
-                        if this_strategy.entry_strategy=='spread_ranges':
-                            if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
-                            self.check_same_strategy(ass_id) and \
-                            self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and \
-                            self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]:
-                                close_pos = True
-                        elif this_strategy.entry_strategy=='gre_v2':
-                            if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
-                            self.check_same_strategy(ass_id) and \
-                            self.next_candidate.profitability>=self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
-                                print("self.next_candidate.profitability")
-                                print(self.next_candidate.profitability)
-                                print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
-                                print(self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability)
-                                close_pos = True
-                        if close_pos:
-                            # close position due to direction change
-                            out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
-                            +" closing due to direction change!"
-                            if verbose_trader:
-                                print("\r"+out)
-                            self.write_log(out)
-                            if run_back_test:
-                                self.close_position(new_entry[entry_time_column], 
-                                                    thisAsset, ass_id, results)
-                            else:
-                                send_close_command(thisAsset)
-#                        # if new position has higher GRE, close
-#                        if self.next_candidate.profitability>=self.list_opened_positions[
-#                                self.map_ass_idx2pos_idx[ass_id]].profitability:
-#                            if not run_back_test:
-#                                pass
-#                            # TODO: check proper function of  close_command
-#                                #self.send_close_command(directory_MT5_ass)
-#                                # TODO: study the option of not only closing 
-#                                #postiion but also changing direction
-#                            else:
-#                                # TODO: implement it for back test
-#                                pass
-                    # end of extention options
-                # end of if not self.is_opened(ass_id):
-            # end of for io in indexes_ordered:    
+                    else: # position is opened
+                        # check for extension
+                        if self.check_primary_condition_for_extention(ass_id):
+                            curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                            extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
+                            if extention:    
+                                # include third condition for thresholds
+                                # extend deadline
+                                if not run_back_test:
+                                    self.send_open_command(directory_MT5_ass, ass_idx)
+                                self.update_position(ass_id)
+                                self.n_pos_extended += 1
+                                # track position
+                                self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
+                                # print out
+                                
+                                out = (new_entry[entry_time_column]+" "+
+                                       thisAsset+" Extended "+str(self.list_deadlines[
+                                           self.map_ass_idx2pos_idx[ass_id]])+" samps "+
+    #                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
+    #                                       self.map_ass_idx2pos_idx[ass_id]])+
+                                   "bet "+str(new_entry['Bet'])+
+                                   " p_mc={0:.2f}".format(new_entry['P_mc'])+
+                                   " p_md={0:.2f}".format(new_entry['P_md'])+ 
+                                   " spread={0:.3f}".format(new_entry['E_spread'])+
+                                   " strategy "+strategy_name+
+                                   " current GROI = {0:.2f}%".format(100*curr_GROI))
+                                # send position extended command to api
+                                if send_info_api:
+                                    self.send_extend_pos_api(new_entry[entry_time_column], 
+                                                             thisAsset, 100*curr_GROI, 
+                                                             new_entry['P_mc'], new_entry['P_md'], 
+                                                             int(new_entry['Bet']), strategy_name,
+                                                             100*curr_ROI, 
+                                                             self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
+                                #out = new_entry[entry_time_column]+" Extended "+thisAsset
+                                if verbose_trader:
+                                    print("\r"+out)
+                                self.write_log(out)
+                            else: # if candidate for extension does not meet requirements
+                                out = new_entry[entry_time_column]+" not extended "+\
+                                      thisAsset+" due to "+reason
+                                if verbose_trader:
+                                    print("\r"+out)
+                                self.write_log(out)
+                        else: # if direction is different
+                            this_strategy = self.next_candidate.strategy
+                            close_pos = False
+                            #if this_strategy.if_dir_change_close:
+                            # TODO: Deeper analysis on when to close due to direction change
+                            if this_strategy.entry_strategy=='spread_ranges':
+                                if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                                self.check_same_strategy(ass_id) and \
+                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and \
+                                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]:
+                                    close_pos = True
+                            elif this_strategy.entry_strategy=='gre_v2':
+                                if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                                self.check_same_strategy(ass_id) and \
+                                self.next_candidate.profitability>self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
+                                    print("self.next_candidate.profitability")
+                                    print(self.next_candidate.profitability)
+                                    print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
+                                    print(self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability)
+                                    close_pos = True
+                            if close_pos:
+                                # close position due to direction change
+                                out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
+                                +" closing due to direction change!"
+                                if verbose_trader:
+                                    print("\r"+out)
+                                self.write_log(out)
+                                if run_back_test:
+                                    self.close_position(new_entry[entry_time_column], 
+                                                        thisAsset, ass_id, results)
+                                else:
+                                    send_close_command(thisAsset)
+    #                                # TODO: study the option of not only closing 
+                        # end of extention options
+                # end of for tactics    
             else:
                 pass
                 #print("Network not in Trader. Skipped")
+        # end of for entries
         return None
     
     def write_log(self, log):
@@ -1444,6 +1436,8 @@ class Trader:
             file = open(self.log_file_trader,"a")
             file.write(log+"\n")
             file.close()
+        if send_info_api:
+            self.api.send_trader_log(log)
         return None
     
     def send_open_command(self, directory_MT5_ass, ass_idx):
@@ -1658,7 +1652,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
                   list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
-                  results_file, model, config, log_file, nonVarIdx, list_inv_out):
+                  results_file, model, config, log_file, nonVarIdx, list_inv_out, api):
     """
     <DocString>
     """
@@ -1982,6 +1976,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                                                                header=False)
                             print("\r"+out)
                             write_log(out, log_file)
+                            if send_info_api:
+                                api.send_network_log(out)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -2050,7 +2046,7 @@ def flush_asset(lists, ass_idx, bid):
     print("Flushed")
     return lists
 
-def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
+def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, api):
     #AllAssets, assets, running_assets, nCxAxN, buffSizes, simulation, delays, PA, verbose
     '''
     inputs: AllAssets
@@ -2113,7 +2109,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_unique_configs'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn])
+                                       lists['list_inv_out'][nn],
+                                       api)
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -2285,7 +2282,7 @@ def send_close_command(asset):
                 print("Error writing LC")
     
 def fetch(lists, trader, directory_MT5, AllAssets, 
-          running_assets, log_file, results):
+          running_assets, log_file, results, api):
     """ Fetch info coming from MT5 """
     print("Fetcher lauched")
     #nAssets = len(running_assets)
@@ -2365,7 +2362,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
-                                                log_file)
+                                                log_file, api)
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
@@ -2512,7 +2509,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               traders, list_results, running_assets, ass2index_mapping, lists,
-              AllAssets, log_file):
+              AllAssets, log_file, api):
     """
     <DocString>
     """
@@ -2591,7 +2588,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         if sampsBuffersCounter[ass_idx]==0:
             outputs, new_outputs = dispatch(lists, buffers[ass_idx], AllAssets, 
                                             ass_id, ass_idx, 
-                                            log_file)
+                                            log_file, api)
 
             ####### Update counters and buffers ##########
             fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
@@ -3216,7 +3213,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
                                         ass2index_mapping, lists, AllAssets, 
-                                        log_file)
+                                        log_file, api)
         else:
             
             buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
@@ -3305,7 +3302,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
 #                                start_time=start_time)
             # launch fetcher
             fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
-                  running_assets, log_file, results)
+                  running_assets, log_file, results, api)
         
         for idx, trader in enumerate(traders):
             # gather results
@@ -3357,7 +3354,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+            list_config_traders = [retrieve_config('TPRODN01010SRv2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
         list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TTEST10'#'TPRODN01010N01011'
@@ -3410,7 +3407,7 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-    config_names = ['TPRODN01010GREV2']#['TTEST10']#'TPRODN01010N01011'
+    config_names = ['TPRODN01010SRv3']#['TTEST10']#'TPRODN01010N01011'
     test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:

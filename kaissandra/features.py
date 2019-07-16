@@ -247,7 +247,7 @@ def get_features(*ins):
     
     ticTotal = time.time()
     if len(ins)>0:
-        config = ins[0]
+        config = configuration(ins[0])
     else:    
         config = retrieve_config('CTESTFEATURES')
     # create data structure

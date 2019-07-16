@@ -113,8 +113,8 @@ class Position:
         self.p_md = journal_entry['P_md']
         self.ADm = self._get_ADm(AD_resume)
         self.strategy = journal_entry.strategy
-        self.idx_mc = strategys[name2str_map[self.strategy]]._get_idx(self.p_mc)
-        self.idx_md = strategys[name2str_map[self.strategy]]._get_idx(self.p_md)
+#        self.idx_mc = strategys[name2str_map[self.strategy]]._get_idx(self.p_mc)
+#        self.idx_md = strategys[name2str_map[self.strategy]]._get_idx(self.p_md)
                 
         
     def _get_ADm(self, AD_resume):
@@ -241,30 +241,36 @@ class Strategy():
             print(self.GRE[:,:,1])
         elif self.entry_strategy=='gre_v2':
             # New GRE implementation
-            [GRE, model] = pickle.load( open( local_vars.gre_directory+self.IDgre+".p", "rb" ))
-            self.GRE = GRE
-            print(GRE)
-            self.gre_model = model
+            gre_list = pickle.load( open( local_vars.gre_directory+self.IDgre+".p", "rb" ))
+            self.GRE = gre_list[0]
+            
+            self.gre_model = gre_list[1]
+            if len(gre_list)>2:
+                # weighted LLS
+                print("weighted LLS model")
+                self.gre_model = gre_list[2]
+            #print(self.gre_model)
+            self.resolution = self.GRE.shape[0]
         else:
             self.GRE = None
     
     def _get_idx(self, p):
         """ Get probability index """
-        
-        if p>=0.5 and p<=0.6:
-            idx = 0
-        elif p>0.6 and p<=0.7:
-            idx = 1
-        elif p>0.7 and p<=0.8:
-            idx = 2
-        elif p>0.8 and p<=0.9:
-            idx = 3
-        elif p>0.9:
-            idx = 4
-        else:
-            print(p)
-            print("WARNING: p<0.5")
-            idx = 0
+        idx = max(int(np.floor(p*2*self.resolution)-self.resolution),0)
+#        if p>=0.5 and p<=0.6:
+#            idx = 0
+#        elif p>0.6 and p<=0.7:
+#            idx = 1
+#        elif p>0.7 and p<=0.8:
+#            idx = 2
+#        elif p>0.8 and p<=0.9:
+#            idx = 3
+#        elif p>0.9:
+#            idx = 4
+#        else:
+#            print(p)
+#            print("WARNING: p<0.5")
+#            idx = 0
             
         return idx
     
@@ -508,14 +514,18 @@ class Trader:
                                              self.next_candidate.p_mc, 
                                     self.next_candidate.p_md, 
                                     int(np.abs(self.next_candidate.bet
-                                    )-1))>2*e_spread/self.pip)
+                                    )-1))>1.5*e_spread/self.pip)
         elif this_strategy.entry_strategy=='spread_ranges':
 #            print("\n\n\n")
 #            print(e_spread/self.pip)
 #            print("\n\n\n")
-            second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1] and\
-                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][0]
+            for t in range(len(this_strategy.info_spread_ranges['th'])):
+                second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
+                    self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
+                    e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
+                if second_condition_open:
+                    return second_condition_open
+                    
         else:
             raise ValueError("Unknown entry strategy")
             
@@ -714,6 +724,8 @@ class Trader:
         Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
         Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
         Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
+        p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
+        p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
 #        
 #        if direction>0:
 #            GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -771,9 +783,16 @@ class Trader:
 #            partial_string = ' Partial'
 #        else:
 #            partial_string = ' Full'
+#        " Bi {0:.5f} ".format(Bi)+"Bo {0:.5f} ".format(Bo)+
+#              "Ai {0:.5f} ".format(Ai)+"Ao {0:.5f} ".format(Ao)+
+#        profitability = strategys[name2str_map[
+#                self.next_candidate.strategy]
+#            ].get_profitability(self.next_candidate.p_mc, 
+#            self.next_candidate.p_md, 
+#            int(np.abs(self.next_candidate.bet)-1))
         out =( date_time.decode("utf-8")+" "+str(direction)+" close "+ass+
-              " Bi {0:.5f} ".format(Bi)+"Bo {0:.5f} ".format(Bo)+
-              "Ai {0:.5f} ".format(Ai)+"Ao {0:.5f} ".format(Ao)+
+              " p_mc={0:.2f}".format(p_mc)+
+              " p_md={0:.2f}".format(p_md)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
                       100*ROI_live,100*spread,100*GROI_live)+
                       " TGROI {1:.3f}% TROI = {0:.3f}%".format(
@@ -991,45 +1010,10 @@ def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,
 
 if __name__ == '__main__':
     
-#    dateTest = (    [                                               '2018.03.09',
-#                '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-#                '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-#                '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-#                '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-#                '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-#                '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-#                '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-#                '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-#                '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-#                '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-#                '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-#                '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-#                '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-#                '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-#                '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-#                '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-#                '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-#                '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-#                '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-#                '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
-#               ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
-#                '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
-#                '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
-#                '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
-#                '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
-#                '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-#                '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
-#                '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-#                '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
-#                '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
-#                '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
-#                '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-#                '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
-    #edges=[dt.date(2016, 8, 2), dt.date(2017, 3, 6), dt.date(2017, 9, 27), dt.date(2018, 4, 10)]
-    init_day = dt.datetime.strptime('2017.09.27','%Y.%m.%d').date()
-    end_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()
-#    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
-#    end_day = dt.datetime.strptime('2019.03.29','%Y.%m.%d').date()
+    init_day_str = '20181112'
+    end_day_str = '20190628'
+    init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
+    end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
 #    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
 #    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
 #    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
@@ -1055,249 +1039,27 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
     
-#    190331182039_RRNN01011k1-k2K5ABR20bis
-#    numberNetwors = 4
-#    list_IDresults = ['100350S','100350L']+['100327S','100500L']
-#    list_IDgre = [None for i in range(numberNetwors)]
-#    list_name = ['100350S_13_3_.65_.6','100350S_6_1_.65_.55']+['100327S_21_0_.75_.7','100500L_29_3_.7_.6']
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_epoch_journal = [13,6]+[21,29]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]
-#    list_t_index = [3,1]+[0,2]
-#    list_spread_ranges = [{'sp':[2.5],'th':[(.55,.6)]},{'sp':[2.5],'th':[(.65,.65)]}]+[{'sp':[2.5],'th':[(.75,.7)]},{'sp':[2.5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_thr_sl = [1000 for i in range(numberNetwors)]
-#    list_thr_tp = [1000 for i in range(numberNetwors)]
     
-#    190331195900_RRNN01011k1-k2K5ABR20RRNN01010k1-k2K5ABR20
-#    numberNetwors = 4
-#    list_IDresults = ['RRNN01010k1K5ALR20','RRNN01010k2K5ALR20']+['RRNN01010k1K5BSR20','RRNN01010k2K5BSR20']
-#    list_IDgre = [None for i in range(numberNetwors)]
-#    list_name = ['01010k1K5AL_9_2_.7_.6','01010k2K5AL_9_2_.7_.6']+['01010k1K5BS_10_2_.6_.6','01010k2K5BS_10_2_.6_.6']
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_epoch_journal = [9 for _ in range(2)]+[10 for _ in range(2)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]
-#    list_t_index = [2 for _ in range(2)]+[2 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[3],'th':[(.7,.6)]},{'sp':[3],'th':[(.7,.6)]}]+\
-#        [{'sp':[3],'th':[(.6,.6)]},{'sp':[3],'th':[(.6,.6)]}]
-#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_thr_sl = [1000 for i in range(numberNetwors)]
-#    list_thr_tp = [1000 for i in range(numberNetwors)]
-    
-#    190401103304_RRNN01011k1-k2K5ABR20RRNN01010k1-k2K5ABR20
-#    numberNetwors = 4
-#    list_IDresults = ['RRNN01040k1K5ALR20','RRNN01040k2K5ALR20']+['RRNN01040k1K5BSR20','RRNN01040k2K5BSR20']
-#    list_IDgre = [None for i in range(numberNetwors)]
-#    list_name = ['01040k1K5AL_9_2_.7_.6','01040k2K5AL_9_2_.7_.6']+['01040k1K5BS_10_2_.6_.6','01040k2K5BS_10_2_.6_.6']
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_epoch_journal = [8 for _ in range(2)]+[9 for _ in range(2)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]
-#    list_t_index = [2 for _ in range(2)]+[2 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[2],'th':[(.9,.6)]},{'sp':[2],'th':[(.9,.6)]}]+\
-#        [{'sp':[2],'th':[(.9,.6)]},{'sp':[2],'th':[(.9,.6)]}]
-#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_thr_sl = [1000 for i in range(numberNetwors)]
-#    list_thr_tp = [1000 for i in range(numberNetwors)]
-    
-#    190404154828_RRNN01010-1CMF180410T181109ACk1-k2E12
-#    numberNetwors = 8
-#    list_IDresults = ['RRNN01010k1K5ALR20','RRNN01010k2K5ALR20']+['RRNN01010k1K5BSR20','RRNN01010k2K5BSR20']+['RRNN01040k1K5ALR20','RRNN01040k2K5ALR20']+['RRNN01040k1K5BSR20','RRNN01040k2K5BSR20']
-#    list_IDgre = [None for i in range(numberNetwors)]
-#    list_name = ['01040k1K5AL_9_2_.7_.6','01040k2K5AL_9_2_.7_.6']+['01040k1K5BS_10_2_.6_.6','01040k2K5BS_10_2_.6_.6']+['01010k1K5AL_9_2_.7_.6','01010k2K5AL_9_2_.7_.6']+['01040k1K5BS_10_2_.6_.6','01040k2K5BS_10_2_.6_.6']
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_epoch_journal = [9 for _ in range(2)]+[10 for _ in range(2)]+[8 for _ in range(2)]+[9 for _ in range(2)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]
-#    list_t_index = [2 for _ in range(2)]+[2 for _ in range(2)]+[2 for _ in range(2)]+[2 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[3],'th':[(.7,.6)]},{'sp':[3],'th':[(.7,.6)]}]+\
-#        [{'sp':[3],'th':[(.6,.6)]},{'sp':[3],'th':[(.6,.6)]}]+[{'sp':[4],'th':[(.9,.6)]},{'sp':[4],'th':[(.9,.6)]}]+\
-#        [{'sp':[4],'th':[(.9,.6)]},{'sp':[4],'th':[(.9,.6)]}]
-#    list_lim_groi_ext = [-100 for i in range(numberNetwors)]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_thr_sl = [1000 for i in range(numberNetwors)]
-#    list_thr_tp = [1000 for i in range(numberNetwors)]
-    
-#    190404165534_RRNN01010-1CMF180410T181109ACk1-k2E12
-#    numberNetwors = 8
-#    list_IDresults = ['RRNN01011k1K5ALR20bis','RRNN01011k2K5ALR20bis']+['RRNN01011k1K5BSR20bis','RRNN01011k2K5BSR20bis']+['RRNN01010k1K5ALR20','RRNN01010k2K5ALR20']+['RRNN01010k1K5BSR20','RRNN01010k2K5BSR20']
-#    list_name = ['01011k1K5AL_12_1_.65_.55','01011k2K5AL_12_1_.65_.55']+['01040k1K5BS_12_1_.5_.65','01011k2K5BS_12_1_.5_.65']+['01040k1K5AL_9_2_.7_.6','01040k2K5AL_9_2_.7_.6']+['01040k1K5BS_10_2_.6_.6','01040k2K5BS_10_2_.6_.6']
-#    list_epoch_journal = [12 for _ in range(2)]+[12 for _ in range(2)]+[9 for _ in range(2)]+[10 for _ in range(2)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [1 for _ in range(2)]+[1 for _ in range(2)]+[2 for _ in range(2)]+[2 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[4],'th':[(.65,.55)]},{'sp':[4],'th':[(.65,.55)]}]+\
-#        [{'sp':[4],'th':[(.5,.65)]},{'sp':[4],'th':[(.5,.65)]}]+[{'sp':[3],'th':[(.7,.6)]},{'sp':[3],'th':[(.7,.6)]}]+\
-#        [{'sp':[3],'th':[(.6,.6)]},{'sp':[3],'th':[(.6,.6)]}]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-    
-#    190405101515_RRNN01010-1CMF180410T181109ACk1-k2E12
-#    numberNetwors = 4
-#    list_IDresults = ['RRNN01010CMF180410T181109ACk1E12','RRNN01010CMF170927T180410ACk2E14']+['RRNN01011CMF180410T181109ACk1E14','RRNN01011CMF170927T180410ACk2E14']
-#    list_name = ['01010k1K5AC_12_.7_.6','01010k2K5AC_14_.7_.6']+['01011k1K5AC_14_.7_.6','01010k1K5AC_14_.7_.6']
-#    list_epoch_journal = [0,0,0,0]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(2)]+[0 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[4],'th':[(.7,.6)]},{'sp':[4],'th':[(.7,.6)]}]+\
-#        [{'sp':[4],'th':[(.7,.6)]},{'sp':[4],'th':[(.7,.6)]}]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges'
-    
-#    190405142240_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-#    numberNetwors = 2
-#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14','RRNN01011CMF170927T181109ACk1k2E14E14']
-#    list_name = ['01010k1k2K5AC_12_.7_.6','01010k1k2K5AC_14_.65_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.65,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    
-    #190405154340_RRNN01010-1CMF180410T181109ACk1-k2E12
-#    numberNetwors = 1
-#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-#    list_name = ['01010k1k2K5AC_12_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    
-#    TEST CASE: 190405174821_RRNN01010-1CMF180410T181109ACk1-k2E12
-#    numberNetwors = 2
-#    list_IDresults = ['RRNN01010CMF181112T190329ACk1k2E12E14','RRNN01011CMF181112T190329ACk1k2E14E14']
-#    list_name = ['01010k1k2K5ACE1214MC7MD.6','01010k1k2K5ACE14MC65MD6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.65,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    
-    
-#    190409154124_RRNN01010RiCMF181112T190329ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011RiCMF181112T190329ACk1k2E14E14E0TI0MC0.65MD0.6
-#    numberNetwors = 2
-#    list_IDresults = ['RRNN01010RiCMF181112T190329ACk1k2E12E14','RRNN01011RiCMF181112T190329ACk1k2E14E14']
-#    list_name = ['01010Rik1k2K5ACE1214MC7MD.6','01011Rik1k2K5ACE14MC55MD55']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(2)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.65,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %    
-#    list_lb_mc_ext = [.6 for i in range(numberNetwors)]
-#    list_lb_md_ext = [.6 for i in range(numberNetwors)]
-    
-#    190415143545_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6
-    # WARNING! Difference in ROI is due to the allowance of position close when direction changes
-#    numberNetwors = 1
-#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-#    list_name = ['01010k1k2K5AC_12_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.5 for i in range(numberNetwors)]
-    
-#    190428121505_RRNN01010CMF181112T190426ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011CMF181112T190426ACk1k2E14E14E0TI0MC0.7MD0.6.csv
-#    numberNetwors = 2
-#    list_IDresults = ['RRNN01010CMF181112T190426ACk1k2E12E14','RRNN01011CMF181112T190426ACk1k2E14E14']
-#    list_name = ['01010k1k2K5AC_12_.7_.6','01011k1k2K5AC_12_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]},{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    #list_max_lots_per_pos = [np.inf for i in range(numberNetwors)]
-    
-#    190430115541_RRNN01010CMF181112T190426ACk1-5E12E14-14E0TI0MC0.7MD0.6
-#    numberNetwors = 1
-#    list_IDresults = ['RRNN01010CMF181112T190426ACk1-5E12E14-14']
-#    list_name = ['01010k1-5K5E1214AC_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    
-    
-#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-#    positions_file = start_time+'_'+'RRNN01010CMF181112T190426ACk1-5E1214131109'+'.csv'
-#    numberNetwors = 1
-#    list_IDresults = ['RRNN01010CMF181112T190426ACk1-5E1214131109']
-#    list_name = ['01010k1-5K5E1214AC_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    # depricated/not supported
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-#    list_IDgre = [None for i in range(numberNetwors)]
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]    
-    
-    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN01010CMF170927T181109ACk1k2E12E14'+'.csv'
-    numberNetwors = 1
-    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-    list_name = ['01010k1-2E12-14GREV2']
+    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')+'_F'+init_day_str+'T'+end_day_str
+    positions_file = start_time+'_'+'RRNN0101-40CMF190429T19628k1-2E14'+'.csv'
+    numberNetwors = 2
+    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
+    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSG2']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
+    list_spread_ranges = [{'sp':[1,2,5],'th':[(.6,.55),(.65,.6),(.7,.6)]},{'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.55 for i in range(numberNetwors)]
     list_lb_md_ext = [.55 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['RRNN01010CMF170927T181109ACk1k2E12E14R20INT' for i in range(numberNetwors)]
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14l-sR20INT','RRNN01010CMF170927T181109BSk1-2E14l-sR20INT']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-    list_w_str = ["" for i in range(numberNetwors)]   
-    
-    #    numberNetwors = 1
-#    list_IDresults = ['RRNN01010CMF170927T181109ACk1k2E12E14']
-#    list_name = ['01010k1k2K5AC_12_.7_.6']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-##    list_use_GRE = [True for i in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[5],'th':[(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [list_spread_ranges[i]['th'][0][0] for i in range(numberNetwors)]
-#    list_lb_md_ext = [list_spread_ranges[i]['th'][0][1] for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    
+    list_w_str = ["" for i in range(numberNetwors)]
+    #root_dir = local_vars.data_dir
+    root_dir = local_vars.data_test_dir
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
@@ -1313,10 +1075,11 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    positions_file = start_time+'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
-                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
-                         str(list_spread_ranges[i]['th'][0][1])
-                         for i in range(numberNetwors)])+'.csv'
+    positions_file = start_time+'.csv'
+#    +'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
+#                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
+#                         str(list_spread_ranges[i]['th'][0][1])
+#                         for i in range(numberNetwors)])
     
     
     strategys = [Strategy(direct=local_vars.results_directory,thr_sl=list_thr_sl[i], 
@@ -1386,8 +1149,7 @@ if __name__ == '__main__':
             entry_ask_column = 'Ai'
             exit_ask_column = 'Ao'
             exit_bid_column = 'Bo'
-            root_dir = local_vars.data_dir
-            #root_dir = local_vars.data_test_dir
+            
             list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                                  list_journal_name[i], 
                                                  sep='\t').sort_values(
@@ -1564,7 +1326,14 @@ if __name__ == '__main__':
                               trader.check_primary_condition_for_opening() and 
                               trader.check_secondary_contition_for_opening() and 
                               ban_condition)
-    
+#            print("trader.chech_ground_condition_for_opening()")
+#            print(trader.chech_ground_condition_for_opening())
+#            print("trader.check_primary_condition_for_opening()")
+#            print(trader.check_primary_condition_for_opening())
+#            print("trader.check_secondary_contition_for_opening()")
+#            print(trader.check_secondary_contition_for_opening())
+#            print("ban_condition")
+#            print(ban_condition)
             if condition_open:
                 profitability = strategys[name2str_map[trader.next_candidate.strategy
                                                        ]].get_profitability(
@@ -1878,10 +1647,16 @@ if __name__ == '__main__':
         total_entries = int(np.sum(results.number_entries))
         total_successes = int(np.sum(results.net_successes))
         total_failures = total_entries-total_successes
-        per_gross_success = 100*np.sum(results.gross_successes)/total_entries
-        per_net_succsess = 100*np.sum(results.net_successes)/total_entries
-        av_groi = results.sum_GROI/total_entries
-        av_roi = results.sum_ROI/total_entries
+        if total_entries>0:
+            per_gross_success = 100*np.sum(results.gross_successes)/total_entries
+            per_net_succsess = 100*np.sum(results.net_successes)/total_entries
+            av_groi = results.sum_GROI/total_entries
+            av_roi = results.sum_ROI/total_entries
+        else:
+            per_gross_success = 0.0
+            per_net_succsess = 0.0
+            av_groi = 0.0
+            av_roi = 0.0
         average_loss = np.sum(results.total_losses)/((
                 total_entries-np.sum(results.net_successes))*trader.pip)
         average_win = np.sum(results.total_wins)/(np.sum(
@@ -1955,576 +1730,3 @@ if __name__ == '__main__':
     fh = open(directory+'runs_description.txt',"a")
     fh.write(run_description+'\n')
     fh.close()
-    
-
-# Combine .6/.7/.6/.6 .7/.7/.6/.6 real spread<.03 fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248/100246 not closing not extending if direction changes 
-#Total GROI = 11.064% Total ROI = 7.700% Sum GROI = 11.411% Sum ROI = 7.923% Accumulated earnings 792.35E
-#Total entries 198 percent gross success 69.70% percent nett success 59.60% average loss 7.48p average win 11.79p RR 1 to 2.32
-#DONE. Total time: 52.51 mins
-    
-# Combine .6/.7/.6/.6 .7/.7/.6/.6 .6/.6 real spread<.03x2 real spread<.01 fix invest to .1 vol epoch 11/10/15 t_index 3/1/15 till 180810 IDr 100248/100246/251 not closing not extending if direction changes 
-#Total GROI = 20.678% Total ROI = 7.213% Sum GROI = 21.567% Sum ROI = 7.378% Accumulated earnings 737.79E
-#Total entries 1083 per entries 3.08 percent gross success 59.83% percent nett success 52.35% average loss 5.91p average win 6.68p RR 1 to 1.24
-#DONE. Total time: 100.18 mins
-
-# .6/.6 fixed spread .01 fix invest to .1 vol epoch 15 t_index 3 till 180810 IDr 100251 not closing not extending if direction changes 
-#Total GROI = 51.820% Total ROI = 13.550% Sum GROI = 55.015% Sum ROI = 14.325% Accumulated earnings 1432.50E
-#Total entries 4118 per entries 14.43 percent gross success 60.17% percent nett success 54.15% average loss 5.50p average win 5.29p RR 1 to 1.14
-#DONE. Total time: 44.09 mins
-
-# .6/.6_.7 real spread<.01 fix invest to .1 vol epoch 15 t_index 3 till 180810 IDr 100251 not closing not extending if direction changes 
-#Total GROI = 11.696% Total ROI = 0.306% Sum GROI = 11.651% Sum ROI = 0.287% Accumulated earnings 28.73E
-#Total entries 951 per entries 3.33 percent gross success 57.62% percent nett success 50.89% average loss 5.59p average win 5.45p RR 1 to 1.01
-#DONE. Total time: 234.00 mins
-
-# .6/.7/.6/.6 real spread<.04 fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GRE not closing not extending if direction changes 
-#Total GROI = 10.412% Total ROI = 6.630% Sum GROI = 10.656% Sum ROI = 6.775% Accumulated earnings 677.49E
-#Total entries 184 per entries 6.46 percent gross success 69.02% percent nett success 60.87% average loss 8.19p average win 11.32p RR 1 to 2.15
-#DONE. Total time: 14.47 mins
-
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GRE not closing not extending if direction changes 
-#Total GROI = 9.656% Total ROI = 7.466% Sum GROI = 9.944% Sum ROI = 7.671% Accumulated earnings 767.05E
-#Total entries 143 per entries 5.02 percent gross success 69.23% percent nett success 63.64% average loss 6.18p average win 11.96p RR 1 to 3.39
-#DONE. Total time: 16.45 mins
-    
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GRE extension margin .5 pips not closing not extending if direction changes 
-#Total GROI = 10.008% Total ROI = 7.841% Sum GROI = 10.313% Sum ROI = 8.056% Accumulated earnings 805.58E
-#Total entries 144 per entries 5.05 percent gross success 70.14% percent nett success 63.19% average loss 6.08p average win 12.40p RR 1 to 3.50
-#DONE. Total time: 17.92 mins
-
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 extension margin .5 pips not closing not extending if direction changes 
-#Total GROI = 10.079% Total ROI = 7.925% Sum GROI = 10.391% Sum ROI = 8.146% Accumulated earnings 814.58E
-#Total entries 144 per entries 5.05 percent gross success 70.83% percent nett success 64.58% average loss 6.22p average win 12.17p RR 1 to 3.57
-#DONE. Total time: 19.92 mins
-    
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 extension margin .5 pips rewind 10 not closing not extending if direction changes 
-#Total GROI = 9.373% Total ROI = 6.960% Sum GROI = 9.627% Sum ROI = 7.131% Accumulated earnings 713.14E
-#Total entries 159 per entries 5.58 percent gross success 66.04% percent nett success 60.38% average loss 6.69p average win 11.82p RR 1 to 2.69
-#DONE. Total time: 31.92 mins
-    
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 extension margin .5 pips rewind 0 not closing not extending if direction changes 
-#Total GROI = 10.062% Total ROI = 7.650% Sum GROI = 10.363% Sum ROI = 7.865% Accumulated earnings 786.50E
-#Total entries 162 per entries 5.69 percent gross success 67.28% percent nett success 61.73% average loss 6.66p average win 12.00p RR 1 to 2.90
-#DONE. Total time: 16.11 mins
-    
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 extension margin .3 and .2 pips rewind 0 not closing not extending if direction changes 
-#Total GROI = 10.287% Total ROI = 7.960% Sum GROI = 10.600% Sum ROI = 8.196% Accumulated earnings 819.63E
-#Total entries 155 per entries 5.44 percent gross success 69.68% percent nett success 65.16% average loss 7.51p average win 12.13p RR 1 to 3.02
-#DONE. Total time: 16.44 mins
-
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN not closing not extending if direction changes 
-#Total GROI = 12.172% Total ROI = 6.432% Sum GROI = 12.482% Sum ROI = 6.554% Accumulated earnings 655.38E
-#Total entries 356 per entries 12.50 percent gross success 62.92% percent nett success 54.49% average loss 7.47p average win 9.62p RR 1 to 1.54
-#DONE. Total time: 15.48 mins
-
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 extention margin .5 pips not closing not extending if direction changes 
-#Total GROI = 10.191% Total ROI = 8.035% Sum GROI = 10.514% Sum ROI = 8.265% Accumulated earnings 826.49E
-#Total entries 144 per entries 5.12 percent gross success 71.53% percent nett success 64.58% average loss 6.12p average win 12.24p RR 1 to 3.65
-#DONE. Total time: 15.75 mins
-    
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100266 extention margin .5 pips not closing not extending if direction changes 
-#Total GROI = 6.407% Total ROI = 5.029% Sum GROI = 6.540% Sum ROI = 5.127% Accumulated earnings 512.69E +
-# Total GROI = 1.050% Total ROI = 0.156% Sum GROI = 1.049% Sum ROI = 0.153% Accumulated earnings 15.33E
-# Sum ROI = 5.278%
-
-# GRE fix invest to .1 vol epoch 11 t_index 3 till 180810 IDr 100248GREN2 100266 extention margin .5 pips only 2018
-#Total GROI = 8.132% Total ROI = 5.234% Sum GROI = 8.350% Sum ROI = 5.352% Accumulated earnings 535.19E
-#Total entries 256 per entries 0.37 percent gross success 65.23% percent nett success 57.42% average loss 7.07p average win 8.89p RR 1 to 1.69
-#DONE. Total time: 113.64 mins
-    
-# GRE fix invest to .1 vol epoch 39 t_index 3 till 180810 IDr 100269 extention margin .5 pips only 2018
-#Total GROI = 5.563% Total ROI = 3.070% Sum GROI = 5.597% Sum ROI = 3.085% Accumulated earnings 308.51E
-#Total entries 203 per entries 0.59 percent gross success 59.11% percent nett success 51.23% average loss 6.63p average win 9.28p RR 1 to 1.47
-#DONE. Total time: 96.70 mins
-    
-# GRE fix invest to .1 vol epoch 39 t_index 3 till 180810 IDr 100269 100266 extention margin .5 pips only 2018
-#Total GROI = 10.562% Total ROI = 6.488% Sum GROI = 10.882% Sum ROI = 6.642% Accumulated earnings 664.23E
-#Total entries 361 per entries 0.56 percent gross success 59.28% percent nett success 52.63% average loss 6.64p average win 9.47p RR 1 to 1.59
-#DONE. Total time: 142.83 mins
-
-# GRE fix invest to .1 vol epoch 13 t_index 3 IDr 100277 extention margin .5 pips from 2018.3.9 to .9.27
-#Total GROI = 7.101% Total ROI = 5.069% Sum GROI = 7.246% Sum ROI = 5.160% Accumulated earnings 515.96E
-#Total entries 172 per entries 10.46 percent gross success 64.53% percent nett success 61.05% average loss 7.58p average win 9.75p RR 1 to 2.02
-#DONE. Total time: 12.19 mins
-
-# .5/.8_.6 real spread<4 pips fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27
-#Total GROI = 9.121% Total ROI = 5.625% Sum GROI = 9.353% Sum ROI = 5.760% Accumulated earnings 576.00E
-#Total entries 197 per entries 1.72 percent gross success 71.07% percent nett success 62.94% average loss 7.67p average win 9.16p RR 1 to 2.03
-#DONE. Total time: 40.46 mins
-    
-# GRE fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27    
-#Total GROI = 4.786% Total ROI = 3.307% Sum GROI = 4.843% Sum ROI = 3.334% Accumulated earnings 333.39E
-#Total entries 172 per entries 1.50 percent gross success 58.72% percent nett success 56.40% average loss 6.74p average win 8.64p RR 1 to 1.66
-#DONE. Total time: 36.09 mins
-
-# GREex fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27    
-#Total GROI = 16.249% Total ROI = 6.847% Sum GROI = 16.836% Sum ROI = 7.032% Accumulated earnings 703.17E
-#Total entries 726 per entries 6.33 percent gross success 61.85% percent nett success 54.13% average loss 7.00p average win 7.72p RR 1 to 1.30
-#DONE. Total time: 37.07 mins
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 3 IDr 100286 from 2018.3.9 to .9.27
-#Total GROI = 11.014% Total ROI = 6.789% Sum GROI = 11.361% Sum ROI = 6.954% Accumulated earnings 695.43E
-#Total entries 376 per entries 3.28 percent gross success 63.03% percent nett success 59.84% average loss 8.15p average win 8.56p RR 1 to 1.56
-#DONE. Total time: 40.00 mins
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 13 t_index 3 IDr 100277 from 2018.3.9 to .9.27 new AD_resune
-#Total GROI = 12.966% Total ROI = 6.641% Sum GROI = 13.341% Sum ROI = 6.786% Accumulated earnings 678.56E
-#Total entries 465 per entries 5.01 percent gross success 61.29% percent nett success 52.90% average loss 6.25p average win 8.32p RR 1 to 1.50
-#DONE. Total time: 32.67 mins
-
-# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 13/6 t_index 3 IDr 100277 100286 from 2018.3.9 to .9.27 new AD_resune
-#Total GROI = 13.414% Total ROI = 6.131% Sum GROI = 13.782% Sum ROI = 6.233% Accumulated earnings 623.29E
-#Total entries 568 per entries 2.74 percent gross success 62.68% percent nett success 54.58% average loss 7.47p average win 8.23p RR 1 to 1.32
-#DONE. Total time: 53.02 mins
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 16 IDr 100285 from 2018.3.9 to .9.27
-#Total GROI = 13.119% Total ROI = 6.259% Sum GROI = 13.509% Sum ROI = 6.378% Accumulated earnings 637.82E
-#Total entries 577 per entries 6.30 percent gross success 59.97% percent nett success 53.38% average loss 7.31p average win 8.46p RR 1 to 1.32
-#DONE. Total time: 29.99 mins
-    
-# wGRE=[0,1] fix invest to .1 vol epoch 6 t_index 16 IDr 100285 from 2018.3.9 to .9.27
-#Total GROI = 19.277% Total ROI = 6.691% Sum GROI = 19.941% Sum ROI = 6.815% Accumulated earnings 681.53E
-#Total entries 888 per entries 9.70 percent gross success 59.80% percent nett success 52.14% average loss 7.26p average win 8.14p RR 1 to 1.22
-#DONE. Total time: 29.46 mins
-
-# wGRE=[0,1]/[0,1] fix invest to .1 vol epoch 16/6 t_index 3 IDr 100285 100286 from 2018.3.9 to .9.27 new AD_resune
-#Total GROI = 22.585% Total ROI = 6.946% Sum GROI = 23.473% Sum ROI = 7.096% Accumulated earnings 709.62E
-#Total entries 1117 per entries 5.41 percent gross success 60.34% percent nett success 52.91% average loss 7.31p average win 7.71p RR 1 to 1.18
-#DONE. Total time: 42.84 mins
-
-# wGRE=[0,1]/[0,1]/[0,1] fix invest to .1 vol epoch 16/6/13 t_index 3 IDr 100285 100286 100277 from 2018.3.9 to .9.27 new AD_resune
-#Total GROI = 25.602% Total ROI = 7.277% Sum GROI = 26.696% Sum ROI = 7.409% Accumulated earnings 740.89E
-#Total entries 1267 per entries 4.23 percent gross success 59.83% percent nett success 51.46% average loss 7.09p average win 7.82p RR 1 to 1.17
-#DONE. Total time: 41.57 mins
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 16/6/13 t_index 3 IDr 100285 100286 100277 from 2018.3.9 to .9.27 new AD_resune
-#Total GROI = 17.811% Total ROI = 8.128% Sum GROI = 18.595% Sum ROI = 8.331% Accumulated earnings 833.14E
-#Total entries 784 per entries 2.62 percent gross success 61.35% percent nett success 55.61% average loss 7.87p average win 8.19p RR 1 to 1.30
-#DONE. Total time: 46.10 mins
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287 from 2018.3.9 to .9.27
-#Total GROI = 13.371% Total ROI = 7.186% Sum GROI = 13.779% Sum ROI = 7.383% Accumulated earnings 738.32E
-#Total entries 542 per entries 5.13 percent gross success 60.89% percent nett success 55.90% average loss 7.61p average win 8.44p RR 1 to 1.41
-#DONE. Total time: 41.07 mins
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16/6/13 t_index 2/3/3/3 IDr 100287/100286/100285/100277 from 2018.3.9 to .9.27 100277 new AD_resune
-#Total GROI = 20.212% Total ROI = 9.398% Sum GROI = 21.168% Sum ROI = 9.735% Accumulated earnings 973.54E
-#Total entries 892 per entries 2.20 percent gross success 60.87% percent nett success 55.49% average loss 7.87p average win 8.28p RR 1 to 1.31
-#DONE. Total time: 73.31 mins
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5]/[.5,.5] fix invest to max vol epoch 6/16/6/13 t_index 2/3/3/3 IDr 100287/100286/100285/100277 from 2018.3.9 to .9.27 100277 new AD_resune
-#Total GROI = 255.687% Total ROI = 98.574% Sum GROI = 8.515% Sum ROI = 3.283% Accumulated earnings 10009.90E
-#Total entries 434 per entries 1.07 percent gross success 60.37% percent nett success 54.84% average loss 7.81p average win 7.81p RR 1 to 1.21
-#DONE. Total time: 108.48 mins
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 from 2018.3.9 to .11.09 margin extension .5p
-#Total GROI = 12.992% Total ROI = 7.918% Sum GROI = 13.473% Sum ROI = 8.187% Accumulated earnings 818.65E
-#Total entries 452 per entries 3.44 percent gross success 61.50% percent nett success 56.64% average loss 7.13p average win 8.65p RR 1 to 1.59
-#DONE. Total time: 39.35 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_13_08_58_10trader_v30.log
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100277Nov09 from 2018.3.9 to .11.09  
-#Total GROI = 8.365% Total ROI = 3.042% Sum GROI = 8.454% Sum ROI = 3.054% Accumulated earnings 305.35E
-#Total entries 414 per entries 4.95 percent gross success 57.25% percent nett success 51.69% average loss 6.91p average win 7.88p RR 1 to 1.22
-#DONE. Total time: 46.13 mins
-    
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100286Nov09 from 2018.3.9 to .11.09  
-#Total GROI = 13.948% Total ROI = 7.441% Sum GROI = 14.483% Sum ROI = 7.670% Accumulated earnings 766.99E
-#Total entries 505 per entries 3.40 percent gross success 65.54% percent nett success 58.61% average loss 6.72p average win 7.34p RR 1 to 1.55
-#DONE. Total time: 48.27 mins
-
-# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6 t_index 2/2 IDr 100287Nov09/100286Nov09 from 2018.3.9 to .11.09    
-#Total GROI = 15.971% Total ROI = 9.596% Sum GROI = 16.705% Sum ROI = 9.971% Accumulated earnings 997.10E
-#Total entries 562 per entries 2.01 percent gross success 64.77% percent nett success 58.01% average loss 7.15p average win 8.24p RR 1 to 1.59
-#DONE. Total time: 56.37 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_13_15_52_42trader_v30.log
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 All t_indexs IDr 100287Nov09 from 2018.3.9 to .11.09
-#Total GROI = 16.271% Total ROI = 6.777% Sum GROI = 16.831% Sum ROI = 6.900% Accumulated earnings 690.02E
-#Total entries 715 per entries 1.24 percent gross success 61.40% percent nett success 53.71% average loss 7.55p average win 8.30p RR 1 to 1.28
-#DONE. Total time: 81.04 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_13_17_31_32trader_v30.log
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/2/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09  
-#Total GROI = 20.403% Total ROI = 11.463% Sum GROI = 21.502% Sum ROI = 11.932% Accumulated earnings 1193.17E
-#Total entries 760 per entries 1.82 percent gross success 62.89% percent nett success 56.84% average loss 7.81p average win 8.69p RR 1 to 1.47
-#DONE. Total time: 135.56 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_11_36_03trader_v30.log
-    
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100286Nov09 from 2018.3.9 to .11.09  
-#Total GROI = 13.804% Total ROI = 7.036% Sum GROI = 14.254% Sum ROI = 7.171% Accumulated earnings 717.09E
-#Total entries 552 per entries 3.86 percent gross success 61.23% percent nett success 56.16% average loss 7.72p average win 8.34p RR 1 to 1.38
-#DONE. Total time: 56.82 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_14_05_53trader_v30.log
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 4 IDr 100288Nov09 from 2018.3.9 to .11.09
-#Total GROI = 9.010% Total ROI = 5.299% Sum GROI = 9.228% Sum ROI = 5.385% Accumulated earnings 538.47E
-#Total entries 318 per entries 3.37 percent gross success 57.86% percent nett success 53.14% average loss 8.44p average win 10.63p RR 1 to 1.43
-#DONE. Total time: 28.72 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_15_20_25trader_v30.log
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/3/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09
-#Total GROI = 18.969% Total ROI = 10.174% Sum GROI = 19.894% Sum ROI = 10.526% Accumulated earnings 1052.56E
-#Total entries 718 per entries 1.72 percent gross success 63.65% percent nett success 57.52% average loss 8.10p average win 8.53p RR 1 to 1.43
-#DONE. Total time: 81.57 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_14_17_25_58trader_v30.log
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 13 t_index 2 IDr 100289Nov09 from 2018.3.9 to .11.09
-#Total GROI = 11.027% Total ROI = 6.130% Sum GROI = 11.343% Sum ROI = 6.281% Accumulated earnings 628.12E
-#Total entries 414 per entries 4.14 percent gross success 63.53% percent nett success 58.21% average loss 7.14p average win 7.73p RR 1 to 1.51
-#DONE. Total time: 30.31 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_15_11_21_21trader_v30.log
-
-# wGRE=[0,1] fix invest to .1 vol epoch 13 t_index 2 IDr 100289Nov09 from 2018.3.9 to .11.09
-#Total GROI = 14.546% Total ROI = 4.787% Sum GROI = 14.914% Sum ROI = 4.841% Accumulated earnings 484.12E
-#Total entries 699 per entries 6.99 percent gross success 60.94% percent nett success 54.08% average loss 6.83p average win 7.08p RR 1 to 1.22
-#DONE. Total time: 29.13 mins
-#Log file: ../RNN/resultsLive/simulate/trader/18_11_15_12_08_04trader_v30.log
-
-# wGRE=[0,1] fix invest to .1 vol epoch 13 t_index 2 IDr 100288Nov09 from 2018.3.9 to .11.09
-#Total GROI = 15.349% Total ROI = 8.068% Sum GROI = 15.945% Sum ROI = 8.310% Accumulated earnings 830.99E
-#Total entries 556 per entries 5.90 percent gross success 60.97% percent nett success 55.94% average loss 7.85p average win 8.86p RR 1 to 1.43
-#DONE. Total time: 26.26 mins
-#Log file: ../RNN/resultsLive/simulate/trader/181115141434trader_v30.log
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 F18.3.9T.11.09 margin ext 1p
-#Total GROI = 12.768% Total ROI = 7.122% Sum GROI = 13.182% Sum ROI = 7.343% Accumulated earnings 734.28E
-#Total entries 508 per entries 3.87 percent gross success 63.78% percent nett success 57.48% average loss 6.75p average win 7.51p RR 1 to 1.50
-#DONE. Total time: 39.08 mins
-#Results file: 100287Nov09E6T2W55
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 F18.3.9T.11.09 margin sum_p_new>=sum_p_prev
-#Total GROI = 10.195% Total ROI = 3.991% Sum GROI = 10.367% Sum ROI = 4.047% Accumulated earnings 404.68E
-#Total entries 546 per entries 4.15 percent gross success 61.72% percent nett success 54.58% average loss 6.90p average win 7.10p RR 1 to 1.24
-#DONE. Total time: 59.63 mins
-#Results file: 100287Nov09E6T2W55
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 F18.3.9T.11.09 margin next_idc_mc>=preve_idc_mc or next_idx_md>=prev_idx_md
-#Total GROI = 11.224% Total ROI = 6.030% Sum GROI = 11.554% Sum ROI = 6.183% Accumulated earnings 618.33E
-#Total entries 455 per entries 3.46 percent gross success 61.54% percent nett success 56.48% average loss 7.48p average win 8.17p RR 1 to 1.42
-#DONE. Total time: 47.34 mins
-#Results file: 100287Nov09E6T2W55
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 F18.3.9T.11.09 margin next_idc_mc>=preve_idc_mc and next_idx_md>=prev_idx_md
-#Total GROI = 10.557% Total ROI = 4.593% Sum GROI = 10.776% Sum ROI = 4.674% Accumulated earnings 467.38E
-#Total entries 521 per entries 3.96 percent gross success 61.04% percent nett success 55.85% average loss 7.28p average win 7.36p RR 1 to 1.28
-#DONE. Total time: 55.87 mins
-#Results file: 100287Nov09E6T2W55
-
-# wGRE=[.5,.5] fix invest to .1 vol epoch 6 t_index 2 IDr 100287Nov09 F18.3.9T.11.09 margin next_p_mc>=prev_p_mc-.05 and next_p_md>=prev_p_md-.05
-#Total GROI = 12.901% Total ROI = 7.278% Sum GROI = 13.342% Sum ROI = 7.513% Accumulated earnings 751.31E
-#Total entries 491 per entries 3.74 percent gross success 64.97% percent nett success 58.66% average loss 7.04p average win 7.57p RR 1 to 1.53
-#DONE. Total time: 47.04 mins
-#Results file: 100287Nov09E6T2W55
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/2/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09 margin next_p_mc>=prev_p_mc-.05 and next_p_md>=prev_p_md-.05  
-#Total GROI = 19.350% Total ROI = 8.093% Sum GROI = 20.261% Sum ROI = 8.339% Accumulated earnings 833.95E
-#Total entries 882 per entries 2.09 percent gross success 63.72% percent nett success 57.37% average loss 7.67p average win 7.35p RR 1 to 1.29
-#DONE. Total time: 87.35 mins
-#Results file: ../RNN/resultsLive/simulate/trader/181120151736_100287Nov09E6T2W55_100286Nov09E6T2W55_100285Nov09E16T3W55.p
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/2/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09
-#Total GROI = 21.897% Total ROI = 12.121% Sum GROI = 23.185% Sum ROI = 12.660% Accumulated earnings 1266.04E
-#Total entries 788 per entries 1.86 percent gross success 64.97% percent nett success 57.61% average loss 7.85p average win 8.56p RR 1 to 1.48
-#DONE. Total time: 94.49 mins
-#Results file: ../RNN/resultsLive/simulate/trader/181120164702_100287Nov09E6T2W55_100286Nov09E6T2W55_100285Nov09E16T3W55.p
-    
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/2/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09 ext. GROI>=-10p
-#Total GROI = 21.170% Total ROI = 10.870% Sum GROI = 22.301% Sum ROI = 11.283% Accumulated earnings 1128.32E
-#Total entries 834 per entries 1.97 percent gross success 64.15% percent nett success 57.31% average loss 8.40p average win 8.62p RR 1 to 1.38
-#DONE. Total time: 148.41 mins
-#Results file: 181121172720_100287Nov09E6T2W55_100286Nov09E6T2W55_100285Nov09E16T3W55.p
-
-# wGRE=[.5,.5]/[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/6/16 t_index 2/3/3 IDr 100287Nov09/100286Nov09/100285Nov09 from 2018.3.9 to .11.09 NTI  
-#Total GROI = 19.054% Total ROI = 8.384% Sum GROI = 19.888% Sum ROI = 8.610% Accumulated earnings 860.97E
-#Total entries 830 per entries 1.99 percent gross success 62.41% percent nett success 56.14% average loss 8.84p average win 8.75p RR 1 to 1.27
-#DONE. Total time: 76.76 mins
-#Results file: 181204212344_100287Nov09NTIE6T2W55_100286Nov09NTIE6T3W55_100285Nov09NTIE16T3W55.p
-    
-# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16 t_index 2/3 IDr 100287Nov09/100285Nov09 from 2018.3.9 to .11.09 NTI
-#Total GROI = 17.064% Total ROI = 7.789% Sum GROI = 17.673% Sum ROI = 7.975% Accumulated earnings 797.48E
-#Total entries 713 per entries 2.60 percent gross success 60.73% percent nett success 54.70% average loss 8.80p average win 9.33p RR 1 to 1.28
-#DONE. Total time: 100.08 mins
-#Results file: 181205151537_100287Nov09NTIE6T2W55_100285Nov09NTIE16T3W55.p
-
-# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16 t_index [2,3]/3 IDr 100287Nov09/100285Nov09 from 2018.3.9 to .11.09 NTI    
-#Total GROI = 19.320% Total ROI = 8.767% Sum GROI = 20.167% Sum ROI = 8.985% Accumulated earnings 898.53E
-#Total entries 825 per entries 2.07 percent gross success 60.97% percent nett success 55.27% average loss 8.85p average win 9.14p RR 1 to 1.27
-#DONE. Total time: 96.75 mins
-#Results file: 181205203454_100287Nov09NTIE6T2W55_100287Nov09NTIE6T3W55_100285Nov09NTIE16T3W55.p
-
-# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16 t_index [2,3,1,0]/[3,2,1,0] IDr 100287Nov09/100285Nov09 from 2018.3.9 to .11.09 NTI  
-#Total GROI = 21.911% Total ROI = 9.113% Sum GROI = 23.140% Sum ROI = 9.395% Accumulated earnings 939.48E
-#Total entries 1006 per entries 1.03 percent gross success 60.93% percent nett success 53.68% average loss 8.55p average win 9.12p RR 1 to 1.24
-#DONE. Total time: 622.26 mins
-#Results file: 181205222654_100287Nov09NTIE6T2W55_100287Nov09NTIE6T3W55_100285Nov09NTIE16T3W55_100285Nov09NTIE16T2W55_100287Nov09NTIE6T1W55_100285Nov09NTIE16T1W55_100287Nov09NTIE6T0W55_100285Nov09NTIE16T0W55.p
-    
-# wGRE=[.5,.5]/[.5,.5] fix invest to .1 vol epoch 6/16 t_index [2,3,1]/[3,2,1] IDr 100287Nov09/100285Nov09 from 2018.3.9 to .11.09 NTI  
-#Total GROI = 20.578% Total ROI = 8.681% Sum GROI = 21.673% Sum ROI = 8.927% Accumulated earnings 892.71E
-#Total entries 951 per entries 1.24 percent gross success 61.09% percent nett success 54.26% average loss 8.68p average win 9.05p RR 1 to 1.24
-#DONE. Total time: 123.46 mins
-#Results file: 181207090352results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI 
-#Total GROI = 23.389% Total ROI = 10.158% Sum GROI = 24.780% Sum ROI = 10.532% Accumulated earnings 1053.22E
-#Total entries 1033 per entries 0.87 percent gross success 60.99% percent nett success 54.21% average loss 8.59p average win 9.13p RR 1 to 1.26
-#DONE. Total time: 155.07 mins
-#Results file: 181207111607results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 20 pips from 2018.3.9 to .11.09 NTI    
-#Total GROI = 20.001% Total ROI = 6.473% Sum GROI = 20.851% Sum ROI = 6.549% Accumulated earnings 654.90E
-#Total entries 1032 per entries 0.87 percent gross success 59.88% percent nett success 53.49% average loss 9.18p average win 9.17p RR 1 to 1.15
-#DONE. Total time: 180.69 mins
-#Results file: 181207212623results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  with no extension if GROI<.1%
-#Total GROI = 24.689% Total ROI = 10.780% Sum GROI = 26.272% Sum ROI = 11.186% Accumulated earnings 1118.61E
-#Total entries 1114 per entries 0.94 percent gross success 60.86% percent nett success 54.22% average loss 8.93p average win 9.39p RR 1 to 1.25
-#DONE. Total time: 128.24 mins
-#Results file: 181208090058results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  with no extension if GROI<.2%
-#Total GROI = 22.744% Total ROI = 9.149% Sum GROI = 24.011% Sum ROI = 9.433% Accumulated earnings 943.32E
-#Total entries 1066 per entries 0.90 percent gross success 60.79% percent nett success 54.22% average loss 8.88p average win 9.13p RR 1 to 1.22
-#DONE. Total time: 165.16 mins
-#Results file: 181208114219results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  margin 1p
-#Total GROI = 21.249% Total ROI = 6.143% Sum GROI = 22.036% Sum ROI = 6.206% Accumulated earnings 620.62E
-#Total entries 1210 per entries 1.02 percent gross success 60.91% percent nett success 53.97% average loss 7.91p average win 7.70p RR 1 to 1.14
-#DONE. Total time: 191.81 mins
-#Results file: 181208150003results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  margin 0
-#Total GROI = 21.916% Total ROI = 8.245% Sum GROI = 23.013% Sum ROI = 8.449% Accumulated earnings 844.90E
-#Total entries 1062 per entries 0.89 percent gross success 60.36% percent nett success 54.05% average loss 9.06p average win 9.17p RR 1 to 1.19
-#DONE. Total time: 168.23 mins
-#Results file: 181208182027results.p
-
-# wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI  margin 0.5 no spread
-#Total GROI = 52.882% Total ROI = 52.882% Sum GROI = 68.545% Sum ROI = 68.545% Accumulated earnings 6854.54E
-#Total entries 4031 per entries 3.38 percent gross success 58.57% percent nett success 58.57% average loss 8.12p average win 8.64p RR 1 to 1.51
-#DONE. Total time: 152.82 mins
-#Results file: 181210120110results.p
-
-#wGRE=[.5,.5]x8 fix invest to .1 vol epoch 6/16 t_index all/all IDr 100287Nov09/100285Nov09 SL 1000 pips from 2018.3.9 to .11.09 NTI adaptive GROI lim=-.1%
-#Total GROI = 23.152% Total ROI = 8.518% Sum GROI = 24.372% Sum ROI = 8.717% Accumulated earnings 871.67E
-#Total entries 1154 per entries 0.97 percent gross success 59.45% percent nett success 52.60% average loss 8.67p average win 9.25p RR 1 to 1.18
-#DONE. Total time: 185.07 mins
-#Results file: 181211111952results.p
-
-#wGRE=[.5,.5] fix invest to .1 vol epoch 19 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI adaptive GROI lim=-.1%
-#Total GROI = 19.877% Total ROI = 2.420% Sum GROI = 20.241% Sum ROI = 2.413% Accumulated earnings 241.30E
-#Total entries 1038 per entries 5.72 percent gross success 63.39% percent nett success 50.39% average loss 6.45p average win 6.81p RR 1 to 1.07
-#DONE. Total time: 50.79 mins
-#Results file: 190104103458results.p
-
-#wGRE=[.5,.5] fix invest to .1 vol epoch 19 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1%
-#Total GROI = 19.960% Total ROI = 2.473% Sum GROI = 20.338% Sum ROI = 2.470% Accumulated earnings 246.97E
-#Total entries 1032 per entries 5.69 percent gross success 63.95% percent nett success 50.58% average loss 6.52p average win 6.84p RR 1 to 1.07
-#DONE. Total time: 63.10 mins
-#Results file: 190104112919results.p
-    
-#wGRE=[.5,.5] fix invest to .1 vol epoch 27 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% 
-#Total GROI = 21.300% Total ROI = 2.975% Sum GROI = 21.673% Sum ROI = 2.978% Accumulated earnings 297.80E
-#Total entries 1121 per entries 7.08 percent gross success 62.18% percent nett success 51.12% average loss 7.06p average win 7.27p RR 1 to 1.08
-#DONE. Total time: 58.36 mins
-#Results file: 190104142004results.p
-
-#wGRE=[.5,.5] fix invest to .1 vol epoch 27 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% margin open .5p
-#Total GROI = 18.187% Total ROI = 7.308% Sum GROI = 18.974% Sum ROI = 7.520% Accumulated earnings 752.00E
-#Total entries 667 per entries 4.21 percent gross success 66.72% percent nett success 55.17% average loss 7.00p average win 7.73p RR 1 to 1.36
-#DONE. Total time: 51.35 mins
-#Results file: 190104154708results.p
-
-#wGRE=[.5,.5] fix invest to .1 vol epoch 19 t_index 2 IDr 100277NEWO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% margin open .5p
-#Total GROI = 13.552% Total ROI = 4.029% Sum GROI = 13.877% Sum ROI = 4.085% Accumulated earnings 408.53E
-#Total entries 514 per entries 2.83 percent gross success 66.15% percent nett success 53.50% average loss 6.79p average win 7.39p RR 1 to 1.25
-#DONE. Total time: 59.25 mins
-#Results file: 190104164854results.p
-
-#wGRE=[.5,.5] fix invest to .1 vol epoch 2/4 t_index 0/1 IDr 100287INVO SL 1000 pips from 2018.3.9 to .11.09 NTI fixed GROI lim=-.1% margin open .5p
-#Total GROI = 7.754% Total ROI = 0.156% Sum GROI = 7.769% Sum ROI = 0.137% Accumulated earnings 13.70E
-#Total entries 383 per entries 1.79 percent gross success 64.75% percent nett success 51.96% average loss 6.82p average win 6.38p RR 1 to 1.01
-#DONE. Total time: 106.16 mins
-#Results file: 190111114825results.p
-    
-#Total GROI = 15.529% Total ROI = 9.132% Sum GROI = 16.149% Sum ROI = 9.494% Accumulated earnings 949.42E
-#Total entries 460 per entries 26.32 percent gross success 60.00% percent nett success 57.17% average loss 11.89p average win 12.52p RR 1 to 1.41
-#DONE. Total time: 35.92 mins
-#Results file: 190212094819results.p
-    
-#Total GROI = 26.045% Total ROI = 15.461% Sum GROI = 28.000% Sum ROI = 16.578% Accumulated earnings 1657.77E
-#Total entries 726 per entries 18.99 percent gross success 63.50% percent nett success 57.85% average loss 9.22p average win 10.66p RR 1 to 1.59
-#DONE. Total time: 41.31 mins
-#Results file: 190212144049results.p
-# Positions file: '190212144049_100350NJLSE13TI3MC0.65MD0.6_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv'
-    
-#Total GROI = 26.778% Total ROI = 16.193% Sum GROI = 28.879% Sum ROI = 17.420% Accumulated earnings 1741.98E
-#Total entries 728 per entries 19.04 percent gross success 63.46% percent nett success 57.83% average loss 9.21p average win 10.85p RR 1 to 1.62
-#DONE. Total time: 57.89 mins
-#Results file: 190212182402results.p
-#Positions file: 190212182402_100350NJLSE13TI3MC0.65MD0.6_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv
-    
-#Total GROI = 14.697% Total ROI = 8.215% Sum GROI = 15.293% Sum ROI = 8.504% Accumulated earnings 850.44E
-#Total entries 406 per entries 19.57 percent gross success 66.01% percent nett success 58.87% average loss 7.85p average win 9.04p RR 1 to 1.65
-#DONE. Total time: 29.61 mins
-#Results file: 190213090034results.p
-#Positions file: 190213090034_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv
-    
-#Total GROI = 17.253% Total ROI = 11.423% Sum GROI = 18.159% Sum ROI = 12.020% Accumulated earnings 1201.96E
-#Total entries 428 per entries 24.49 percent gross success 61.45% percent nett success 58.18% average loss 10.55p average win 12.41p RR 1 to 1.64
-#DONE. Total time: 36.85 mins
-#Results file: 190213095021results.p
-#Positions file: 190213095021_100350NJLSE13TI3MC0.65MD0.6.csv
-    
-#Total GROI = 21.425% Total ROI = 14.427% Sum GROI = 22.968% Sum ROI = 15.408% Accumulated earnings 1540.76E
-#Total entries 523 per entries 32.18 percent gross success 59.85% percent nett success 56.98% average loss 10.09p average win 12.79p RR 1 to 1.68
-#DONE. Total time: 38.70 mins
-#Results file: 190213103037results.p
-#Positions file: 190213103037_100350SE13TI3MC0.55MD0.6_100350LE6TI1MC0.65MD0.65.csv
-    
-#Total GROI = 29.788% Total ROI = 18.179% Sum GROI = 32.568% Sum ROI = 19.772% Accumulated earnings 1977.19E
-#Total entries 827 per entries 22.35 percent gross success 61.67% percent nett success 57.19% average loss 9.01p average win 10.92p RR 1 to 1.62
-#DONE. Total time: 44.73 mins
-#Results file: 190213121736results.p
-#Positions file: 190213121736_100350SE13TI3MC0.55MD0.6_100350LE6TI1MC0.65MD0.65_100327SE21TI0MC0.75MD0.7_100500LE29TI2MC0.7MD0.6.csv
-    
-#Total GROI = 23.060% Total ROI = 12.203% Sum GROI = 24.393% Sum ROI = 12.832% Accumulated earnings 1283.18E
-#Total entries 820 per entries 13.69 percent gross success 60.49% percent nett success 55.85% average loss 11.64p average win 12.00p RR 1 to 1.30
-#DONE. Total time: 65.85 mins
-#Results file: 190330150642results.p
-#Positions file: 190330150642_RRNN01040k1-k2ABR20.csv
-    
-#Total GROI = 43.808% Total ROI = 22.576% Sum GROI = 49.063% Sum ROI = 25.028% Accumulated earnings 2502.83E
-#Total entries 1290 per entries 26.93 percent gross success 61.32% percent nett success 56.05% average loss 11.61p average win 12.57p RR 1 to 1.38
-#Positions file: 190329152612_RRNN01040k1-k2ABR2010.0pFilt.csv
-    
-#Total GROI = 35.953% Total ROI = 16.950% Sum GROI = 39.324% Sum ROI = 18.191% Accumulated earnings 1819.07E
-#Total entries 1351 per entries 12.53 percent gross success 59.07% percent nett success 53.07% average loss 10.35p average win 11.69p RR 1 to 1.28
-#DONE. Total time: 88.16 mins
-#Results file: 190330161858results.p
-#Positions file: 190330161858_RRNN01010k1-k2ABR20_RRNN01040k1-k2ABR20.csv
-#WARNING! with position closing when direction change
-    
-#Total GROI = 37.960% Total ROI = 21.373% Sum GROI = 42.350% Sum ROI = 23.538% Accumulated earnings 2353.80E
-#Total entries 1158 per entries 10.74 percent gross success 61.40% percent nett success 56.39% average loss 11.98p average win 12.87p RR 1 to 1.39
-#DONE. Total time: 86.33 mins
-#Results file: 190330174833results.p
-#Positions file: 190330174833_RRNN01010k1-k2ABR20_RRNN01040k1-k2ABR20.csv
-    
-#Total GROI = 54.010% Total ROI = 23.466% Sum GROI = 60.952% Sum ROI = 25.994% Accumulated earnings 2599.41E
-#Total entries 1716 per entries 15.92 percent gross success 62.88% percent nett success 56.12% average loss 11.95p average win 12.04p RR 1 to 1.29
-#DONE. Total time: 108.19 mins
-#Results file: 190330205559results.p
-#Positions file: 190330205559_RRNN01010k1-k2ABR20_RRNN01040k1-k2ABR20.csv
-    
-#Total GROI = 37.837% Total ROI = 21.218% Sum GROI = 42.451% Sum ROI = 23.351% Accumulated earnings 2335.07E
-#Total entries 988 per entries 31.12 percent gross success 60.22% percent nett success 55.26% average loss 12.65p average win 14.52p RR 1 to 1.42
-#DONE. Total time: 60.70 mins
-#Results file: 190331074757results.p
-#Positions file: 190331074757_RRNN01011k1-k2K5ABR20.csv
-    
-#Total GROI = 40.698% Total ROI = 22.814% Sum GROI = 46.646% Sum ROI = 25.338% Accumulated earnings 2533.77E
-#Total entries 1085 per entries 30.41 percent gross success 58.71% percent nett success 53.55% average loss 11.78p average win 14.58p RR 1 to 1.43
-#DONE. Total time: 73.07 mins
-#Results file: 190331182039results.p
-#Positions file: 190331182039_RRNN01011k1-k2K5ABR20bis.csv
-    
-#Total GROI = 56.116% Total ROI = 27.679% Sum GROI = 65.554% Sum ROI = 31.327% Accumulated earnings 3132.73E
-#Total entries 1760 per entries 21.06 percent gross success 59.60% percent nett success 54.55% average loss 11.96p average win 13.23p RR 1 to 1.33
-#DONE. Total time: 99.64 mins
-#Results file: 190331195900results.p
-#Positions file: 190331195900_RRNN01011k1-k2K5ABR20RRNN01010k1-k2K5ABR20.csv
-
-# limit extGROI -.5%
-#Total GROI = 56.145% Total ROI = 27.651% Sum GROI = 65.683% Sum ROI = 31.297% Accumulated earnings 3129.71E
-#Total entries 1770 per entries 21.18 percent gross success 59.66% percent nett success 54.63% average loss 12.08p average win 13.27p RR 1 to 1.32
-#DONE. Total time: 175.53 mins
-#Results file: 190401103304results.p
-#Positions file: 190401103304_RRNN01011k1-k2K5ABR20RRNN01010k1-k2K5ABR20.csv
-    
-#Total GROI = 38.056% Total ROI = 22.909% Sum GROI = 42.193% Sum ROI = 25.379% Accumulated earnings 2537.94E
-#Total entries 783 per entries 25.19 percent gross success 61.94% percent nett success 56.96% average loss 13.08p average win 15.58p RR 1 to 1.58
-#DONE. Total time: 57.77 mins
-#Results file: 190404154828results.p
-#Positions file: 190404154828_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-
-#Total GROI = 43.847% Total ROI = 20.230% Sum GROI = 49.175% Sum ROI = 22.053% Accumulated earnings 2205.30E
-#Total entries 1291 per entries 24.92 percent gross success 59.10% percent nett success 54.07% average loss 13.30p average win 14.46p RR 1 to 1.28
-#DONE. Total time: 75.33 mins
-#Results file: 190404165534results.p
-#Positions file: 190404165534_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-    
-#Total GROI = 44.261% Total ROI = 22.310% Sum GROI = 49.818% Sum ROI = 24.610% Accumulated earnings 2460.99E
-#Total entries 1238 per entries 23.90 percent gross success 59.53% percent nett success 54.93% average loss 13.20p average win 14.45p RR 1 to 1.33
-#DONE. Total time: 81.55 mins
-#Results file: 190405101515results.p
-#Positions file: 190405101515_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-    
-#Total GROI = 50.701% Total ROI = 28.885% Sum GROI = 58.627% Sum ROI = 32.891% Accumulated earnings 3289.06E ROI per position 0.035%
-#Total entries 1247 per entries 21.49 percent gross success 61.43% percent nett success 55.89% average loss 12.37p average win 14.48p RR 1 to 1.48
-#DONE. Total time: 77.72 mins
-#Results file: 190405142240results.p
-#Positions file: 190405142240_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-    
-#Total GROI = 46.044% Total ROI = 26.971% Sum GROI = 52.796% Sum ROI = 30.466% Accumulated earnings 3046.58E av GROI 0.0492% av ROI 0.04925
-#Total entries 1072 per entries 29.19 percent gross success 60.91% percent nett success 55.32% average loss 11.83p average win 14.69p RR 1 to 1.54
-#DONE. Total time: 67.33 mins
-#Results file: 190405154340results.p
-#Positions file: 190405154340_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-    
-#Total GROI = 28.235% Total ROI = 17.614% Sum GROI = 30.286% Sum ROI = 18.814% Accumulated earnings 1881.38E
-#Total entries 490 per entries 16.54 percent gross success 61.84% percent nett success 57.35% average loss 16.43p average win 18.91p RR 1 to 1.55
-#DONE. Total time: 22.59 mins
-#Results file: 190405174821results.p
-#Positions file: 190405174821_RRNN01010-1CMF180410T181109ACk1-k2E12.csv
-
-
-#Total GROI = 23.464% Total ROI = 11.428% Sum GROI = 24.063% Sum ROI = 11.554% Accumulated earnings 1155.40E
-#Total entries 533 per entries 17.48 percent gross success 59.66% percent nett success 54.41% average loss 15.74p average win 17.18p RR 1 to 1.30
-#DONE. Total time: 23.86 mins
-#Results file: 190409154124results.p
-#Positions file: 190409154124_RRNN01010RiCMF181112T190329ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011RiCMF181112T190329ACk1k2E14E14E0TI0MC0.65MD0.6.csv
-
-#Total GROI = 167.512% Total ROI = 103.066% Sum GROI = 56.088% Sum ROI = 32.746% Accumulated earnings 16358.74E
-#Total entries 1121 per entries 30.52 percent gross success 61.02% percent nett success 55.84% average loss 11.99p average win 14.71p RR 1 to 1.55
-#DONE. Total time: 65.78 mins
-#Results file: 190415143545results.p
-#Positions file: 190415143545_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6.csv
-    
-#Total GROI = 250.559% Total ROI = 153.193% Sum GROI = 54.257% Sum ROI = 31.292% Accumulated earnings 29835.78E
-#Total entries 1107 per entries 30.14 percent gross success 60.61% percent nett success 55.47% average loss 12.03p average win 14.76p RR 1 to 1.53
-#DONE. Total time: 65.32 mins
-#Results file: 190415154706results.p
-#Positions file: 190415154706_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6.csv
-    
-#Total GROI = 22.370% Total ROI = 11.400% Sum GROI = 23.242% Sum ROI = 11.435% Accumulated earnings 1143.51E
-#Total entries 483 per entries 27.26 percent gross success 61.70% percent nett success 55.49% average loss 16.59p average win 17.58p RR 1 to 1.32
-#DONE. Total time: 23.99 mins
-#Results file: 190427164721results.p
-#Positions file: 190427164721_RRNN01010CMF181112T190426ACk1k2E12E14E0TI0MC0.7MD0.6.csv
-    
-#Total GROI = 24.348% Total ROI = 11.993% Sum GROI = 25.602% Sum ROI = 12.195% Accumulated earnings 1219.51E
-#Total entries 540 per entries 23.27 percent gross success 61.48% percent nett success 55.37% average loss 16.14p average win 17.09p RR 1 to 1.31
-#DONE. Total time: 30.47 mins
-#Results file: 190428121505results.p
-#Positions file: 190428121505_RRNN01010CMF181112T190426ACk1k2E12E14E0TI0MC0.7MD0.6_RRNN01011CMF181112T190426ACk1k2E14E14E0TI0MC0.7MD0.6.csv
-    
-#Total GROI = 16.491% Total ROI = 7.759% Sum GROI = 16.475% Sum ROI = 7.397% Accumulated earnings 739.65E
-#Total entries 358 per entries 25.02 percent gross success 60.34% percent nett success 53.91% average loss 18.00p average win 19.22p RR 1 to 1.25
-#DONE. Total time: 23.48 mins
-#Results file: 190430115541results.p
-#Positions file: 190430115541_RRNN01010CMF181112T190426ACk1-5E12E14-14E0TI0MC0.7MD0.6.csv
-    
-#Total GROI = 16.907% Total ROI = 8.916% Sum GROI = 17.139% Sum ROI = 8.664% Accumulated earnings 866.39E
-#Total entries 327 per entries 28.17 percent gross success 62.69% percent nett success 55.66% average loss 18.26p average win 19.31p RR 1 to 1.33
-#DONE. Total time: 19.74 mins
-#Results file: 190430152449results.p
-#Positions file: 190430152449_RRNN01010CMF181112T190426ACk1-5E1214131109E0TI0MC0.7MD0.6.csv
-    
-#Total GROI = 44.643% Total ROI = 22.804% Sum GROI = 51.002% Sum ROI = 24.826% Accumulated earnings 2482.59E
-#Total entries 1883 per entries 2.16 percent gross success 57.89% percent nett success 55.23% average loss 16.07p average win 15.41p RR 1 to 1.18
-#DONE. Total time: 253.97 mins
-#Results file: 190623141541results.p
-#Positions file: 190623141541_RRNN01010CMF170927T181109ACk1k2E12E14E0TI0MC0.7MD0.6.csv

@@ -13,7 +13,9 @@ if __name__=='__main__':
     
     if 'build' in sys.argv:
         import datetime as dt
-        py_directories = ['IO/','config/','weights/','results/','resultsLive/','IOlive/','DB/','log/','Data/','Data_test/','DB/stats/','gre/']
+        py_directories = ['IO/','config/','weights/','results/','resultsLive/',
+                          'IOlive/','DB/','log/','Data/','Data_test/','DB/stats/',
+                          'gre/']
         
         if os.environ.get('MT5_ROOT_DIR')!=None:
             mt5_root_dir = os.environ.get('MT5_ROOT_DIR')
