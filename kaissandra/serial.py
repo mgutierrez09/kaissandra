@@ -620,6 +620,7 @@ class Trader:
             return False
     
     def count_events(self, idx, n_events):
+        """  """
         self.list_count_events[self.map_ass_idx2pos_idx[idx]] += n_events
         self.list_count_all_events[self.map_ass_idx2pos_idx[idx]] += n_events
     
@@ -635,9 +636,8 @@ class Trader:
             condition = False
         return condition
     
-    def check_contition_for_opening(self, t):
-        '''
-        '''
+    def check_contition_for_opening(self, tactic):
+        """  """
         reason = ''
         this_strategy = self.next_candidate.strategy
         e_spread = self.next_candidate.e_spread
@@ -664,9 +664,9 @@ class Trader:
             if not cond_bet:
                 reason += 'bet'
         elif this_strategy.entry_strategy=='spread_ranges':
-            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
-            cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][t]
+            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]
+            cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][tactic]
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    self.next_candidate.strategy.info_spread_ranges['dir'])
             condition_open= cond_pmc and\
@@ -712,9 +712,8 @@ class Trader:
         return self.check_same_direction(ass_id) and self.check_remain_samps(ass_id)
         
         
-    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI, t):
-        '''
-        '''
+    def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI, tactic):
+        """  """
         this_strategy = self.next_candidate.strategy
         margin = 0.5
         reason = ''
@@ -732,8 +731,8 @@ class Trader:
             if not cond_groi:
                 reason += 'groi'
         elif this_strategy.entry_strategy=='spread_ranges':
-            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]
+            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]
             cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    this_strategy.info_spread_ranges['dir'])
@@ -1284,9 +1283,13 @@ class Trader:
         #new_entry = self.select_new_entry(inputs, thisAsset)
         for new_entry in self.select_next_entry(inputs, thisAsset):
             if not type(new_entry)==list:
-                #t = new_entry['t']
+                # get number of tactics
+                if self.next_candidate.strategy.entry_strategy=='spread_ranges':
+                    n_tactics = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
+                else:
+                    n_tactics = 1
                 # loop over tactics of one strategy
-                for tactic in range(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])):
+                for tactic in range(n_tactics):
                     strategy_name = self.strategies[new_entry['strategy_index']].name
                     # check for opening/extension in order of expected returns
                     out = ("New entry @ "+new_entry[entry_time_column]+" "+
@@ -1336,6 +1339,8 @@ class Trader:
                                     ### WARNING! With asynched traders no swap
                                     ### possible
                                     #self.initialize_resources_swap(directory_MT5_ass)
+                            # break loop over tactics
+                            continue
                         else:
                             out = new_entry[entry_time_column]+" not opened "+\
                                       thisAsset+" due to "+reason
@@ -1369,10 +1374,10 @@ class Trader:
                                 
                                 out = (new_entry[entry_time_column]+" "+
                                        thisAsset+" Extended "+str(self.list_deadlines[
-                                           self.map_ass_idx2pos_idx[ass_id]])+" samps "+
+                                           self.map_ass_idx2pos_idx[ass_id]])+" samps"+
     #                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
     #                                       self.map_ass_idx2pos_idx[ass_id]])+
-                                   "bet "+str(new_entry['Bet'])+
+                                   " bet "+str(new_entry['Bet'])+
                                    " p_mc={0:.2f}".format(new_entry['P_mc'])+
                                    " p_md={0:.2f}".format(new_entry['P_md'])+ 
                                    " spread={0:.3f}".format(new_entry['E_spread'])+

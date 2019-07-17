@@ -170,7 +170,7 @@ class Strategy():
                  lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
-                 name='',t_index=3,IDr=None,IDgre=None,epoch='11',p_md_margin=0.03,
+                 name='',t_index=3,IDr=None,IDgre=None,epoch='11',p_md_margin=0.02,
                  weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr'):
         
         self.name = name
@@ -321,6 +321,7 @@ class Trader:
         self.budget_in_lots = self.available_bugdet_in_lots
         self.gross_earnings = 0.0
         self.flexible_lot_ratio = False
+        self.margin_open = 1.5
         
         self.tROI_live = 0.0
         self.tGROI_live = 0.0
@@ -513,7 +514,7 @@ class Trader:
                                              self.next_candidate.p_mc, 
                                     self.next_candidate.p_md, 
                                     int(np.abs(self.next_candidate.bet
-                                    )-1))>2*e_spread/self.pip)
+                                    )-1))>self.margin_open*e_spread/self.pip)
         elif this_strategy.entry_strategy=='spread_ranges':
 #            print("\n\n\n")
 #            print(e_spread/self.pip)
@@ -1009,7 +1010,7 @@ def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,
 
 if __name__ == '__main__':
     
-    init_day_str = '20190529'#'20181112'
+    init_day_str = '20190429'#'20181112'
     end_day_str = '20190628'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()

@@ -19,6 +19,16 @@ import time
 
 from kaissandra.local_config import local_vars
 
+# global structures
+pip_granularity = 0.1
+min_pip = .5
+max_pip = 5
+pip = 0.0001
+n_pip_steps = int((max_pip-min_pip)/pip_granularity+1)
+pip_extensions = [str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]
+eROIs_list = ['eROI'+str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]#['eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4','eROI5']
+NSPs_list = ['NSP'+str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]
+
 def extract_result(TR, dict_inputs, list_kpis):
     """ Extract single results """
     # init idxs to Trues
@@ -146,36 +156,34 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
           "NSP = {0:.2f}% ".format(results["NSP"])+
           "GSPl = {0:.2f}% ".format(results["GSPl"])+
           "GSPs = {0:.2f}% ".format(results["GSPs"])+
-          "NSP1 = {0:.2f}% ".format(results["NSP1"])+
+          "NSP1 = {0:.2f}% ".format(results["NSP1.0"])+
           "NSP1.5 = {0:.2f}% ".format(results["NSP1.5"])+
-          "NSP2 = {0:.2f}% ".format(results["NSP2"])+
-          "NSP3 = {0:.2f}% ".format(results["NSP3"])+
+          "NSP2 = {0:.2f}% ".format(results["NSP2.0"])+
+          "NSP3 = {0:.2f}% ".format(results["NSP3.0"])+
           "eGl1 = {0:.2f}% ".format(results["eGl1"])+
           "eGl2 = {0:.2f}% ".format(results["eGl2"]))
 
     print("eGROI = {0:.2f}% ".format(results["eGROI"])+
           "eROI = {0:.2f}% ".format(results["eROI"])+
-          "eROI.5 = {0:.2f}% ".format(results["eROI.5"])+
-          "eROI1 = {0:.2f}% ".format(results["eROI1"])+
+          "eROI.5 = {0:.2f}% ".format(results["eROI0.5"])+
+          "eROI1 = {0:.2f}% ".format(results["eROI1.0"])+
           "eROI1.5 = {0:.2f}% ".format(results["eROI1.5"])+
-          "eROI2 = {0:.2f}% ".format(results["eROI2"])+
-          "eROI3 = {0:.2f}% ".format(results["eROI3"])+
+          "eROI2 = {0:.2f}% ".format(results["eROI2.0"])+
+          "eROI3 = {0:.2f}% ".format(results["eROI3.0"])+
           "mSpread = {0:.4f}% ".format(results["mSpread"]))
     
-    print("SI = {0:.2f} ".format(results["SI"])+
-          "SI1 = {0:.2f} ".format(results["SI1"])+
-          "SI1.5 = {0:.2f} ".format(results["SI1.5"])+
-          "SI2 = {0:.2f} ".format(results["SI2"]))
+#    print("SI = {0:.2f} ".format(results["SI"])+
+#          "SI1 = {0:.2f} ".format(results["SI1"])+
+#          "SI1.5 = {0:.2f} ".format(results["SI1.5"])+
+#          "SI2 = {0:.2f} ".format(results["SI2"]))
     
     return None
 
 def get_results_entries():
     """  """
     results_entries = ['epoch','t_index','thr_mc','thr_md','AD','ADA','GSP','NSP','NO',
-                       'NZ','NZA','RD','NSP.5','NSP1','NSP1.5','NSP2','NSP3',
-                       'NSP4','NSP5','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
-                       'eGROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
-                       'eROI5','eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
+                       'NZ','NZA','RD']+NSPs_list+['SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
+                       'eGROI']+eROIs_list+['eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
                        'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
                        'NOL','NOS','GSPl','GSPs','99eGROI','99eROI','99eROI.5',
                        '99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5',
@@ -209,9 +217,8 @@ def get_performance_entries():
     entries = ['epoch','t_index','thr_mg',
                'pNZ','pNZA','AD','ADA',
                'NO','NZ','NZA','RD',
-               'GSP','NSP','NSP.5','NSP1','NSP1.5','NSP2','NSP3','NSP4','NSP5',
-               'eGROI','eROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4','eROI5',
-               'SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
+               'GSP','NSP']+NSPs_list+['eGROI','eROI']+\
+               eROIs_list+['SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
                '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5',
                'mSpread','eRl1','eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
                'NOL','NOS','GSPl','GSPs','NZl','NZs','NZAl','NZAs','RDl','RDs']
@@ -513,8 +520,7 @@ def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
 
 def get_best_results_list():
     """ get list containing the entries to get the best results from """
-    return ['eGROI','eROI','eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4',
-           'eROI5','SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5',
+    return ['eGROI','eROI']+eROIs_list+['SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5',
            '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
     
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_mg=False):
@@ -1491,7 +1497,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                          end_date='2018.11.09 23:59:59', get_corr_signal=False,
                          corr_filename='', corr_dirname='', feats_from_bids=None,
                          save_positions=False, assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32],
-                         min_percent=200):
+                         min_percent=40):
     """
     Function that calculates real ROI, GROI, spread...
     """
@@ -1549,7 +1555,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     rROIxLevel = np.zeros((int(n_classes-1),3))
     rSampsXlevel = np.zeros((int(n_classes-1),2))
         
-    fixed_spread_ratios = np.array([0.00005,0.0001,0.00015,0.0002,0.0003,0.0004,0.0005])
+    fixed_spread_ratios = np.array(np.linspace(min_pip,max_pip,n_pip_steps))*pip#np.array([0.00005,0.0001,0.00015,0.0002,0.0003,0.0004,0.0005])
     fixed_extensions = ['.5','1','1.5','2','3','4','5']
     # fixed ratio success percent
     CSPs = np.zeros((fixed_spread_ratios.shape[0]))
@@ -1848,8 +1854,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                         [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
                         [SI,'SI'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \
                         [rROIxLevel[:,1], 'eGl', ['1','2']], [rSampsXlevel[:,1], 'NOl', ['1','2']], \
-                        [eROIs, 'eROI', fixed_extensions], \
-                        [successes[3], 'NSP', fixed_extensions], \
+                        [eROIs, 'eROI', pip_extensions], \
+                        [successes[3], 'NSP', pip_extensions], \
                         [SIs, 'SI', fixed_extensions], [100*eGROIL, 'eGROIL'], \
                         [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS'], \
                         [100*GSPl,'GSPl'],[100*GSPs,'GSPs'], \
@@ -1937,7 +1943,7 @@ def get_summary_journal(mc_thr, md_thr, spread_thr, dir_file, print_table=False,
 
 def print_GRE(dir_origin, IDr, epoch):
     """ Print lower and upper bound GRE matrices """
-    pip = 0.0001
+    
     GRElb, GREub, NZs = load_GRE(dir_origin, IDr, epoch)
     seq_len = GRElb.shape[0]
     levels = GRElb.shape[3]

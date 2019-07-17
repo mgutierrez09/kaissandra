@@ -22,11 +22,11 @@ from kaissandra.inputs import (Data,
                                load_returns,
                                load_manual_features,
                                load_tsf_features)
-from kaissandra.config import retrieve_config, write_log
+from kaissandra.config import retrieve_config, write_log, Config as C
 from kaissandra.local_config import local_vars
 
-def convert_to_one_hot(Y, C):
-    Y = np.eye(C)[Y.reshape(-1)].T
+def convert_to_one_hot(Y, c):
+    Y = np.eye(c)[Y.reshape(-1)].T
     return Y
 
 def build_bin_output_mcmdmg(config, Output, batch_size):
@@ -1662,7 +1662,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         stats_manual = load_stats_manual_v2(config, 
                                             thisAsset, 
                                             ass_group,
-                                            from_stats_file=True, 
+                                            from_stats_file=from_stats_file, 
                                             hdf5_directory=hdf5_directory+'stats/', 
                                             tag=tag_stats)
         
@@ -1712,27 +1712,12 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                                 file_temp_name = IO_directory+'temp_train_build'\
                                     +str(np.random.randint(10000))+'.hdf5'
                             file_temp = h5py.File(file_temp_name,'w')
-                            
                             Vars = build_variations(config, file_temp, 
                                                     features_manual, 
                                                     stats_manual)
                             IO = build_XY(config, Vars, returns_struct, 
                                           stats_output, IO, edges_dt,
                                           folds, fold_idx, save_output=False)
-#                            IO, totalSampsPerLevel = build_IO(config,
-#                                                              file_temp, 
-#                                                              data, 
-#                                                              features_manual,
-#                                                              features_tsf,
-#                                                              returns_struct,
-#                                                              stats_manual,
-#                                                              stats_tsf,
-#                                                              stats_output,
-#                                                              IO, 
-#                                                              totalSampsPerLevel, 
-#                                                              s, nE, thisAsset, 
-#                                                              inverse_load,
-#                                                              save_output=True)
                             # close temp file
                             file_temp.close()
                             os.remove(file_temp_name)
@@ -1838,7 +1823,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         write_log(mess)
     return filename_tr, filename_cv, IO_results_name
 
-def get_edges_datasets_modular(K, config, dataset_dirfilename=''):
+def get_edges_datasets_modular(K, config, separators_directory):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -1850,11 +1835,6 @@ def get_edges_datasets_modular(K, config, dataset_dirfilename=''):
         movingWindow = config['movingWindow']
     else:
         movingWindow = 500
-    if 'feature_keys_manual' in config:
-        feature_keys_manual = config['feature_keys_manual']
-    else:
-        feature_keys_manual = [i for i in range(37)]
-    n_feats_manual = len(feature_keys_manual)
     if 'assets' in config:
         assets = config['assets']
     else:
@@ -1867,24 +1847,32 @@ def get_edges_datasets_modular(K, config, dataset_dirfilename=''):
         edge_dates = config['edge_dates']
     else:
         edge_dates = ['2018.03.09']
-    if dataset_dirfilename=='':
-        dataset_dirfilename = local_vars.hdf5_directory+'IOA_mW'+str(movingWindow)+'_nE'+\
-                            str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5'
     if build_XY_mode=='K_fold':
-        dataset_file = h5py.File(dataset_dirfilename,'r')
         weights_ass = np.zeros((len(assets),1))
         samps_ass = np.zeros((len(assets)))
         n_days_ass = np.zeros((len(assets)))
         
-        first_day=dt.date(2016, 1, 1)
-        last_day=dt.date(2018, 11, 9)
+        first_day_str = config['first_day']
+        last_day_str = config['last_day']
+        first_day = dt.date(int(first_day_str[:4]), int(first_day_str[5:7]), int(first_day_str[8:]))
+        last_day = dt.date(int(last_day_str[:4]), int(last_day_str[5:7]), int(last_day_str[8:]))
         max_days = (last_day-first_day).days+1
         A = np.zeros((len(assets), max_days))
         AllAssets = Data().AllAssets
         for a, ass in enumerate(assets):
             thisAsset = AllAssets[str(ass)]
-            #print(thisAsset)
-            samps_ass[a] = dataset_file[thisAsset].attrs.get("m_t_out")
+            
+            separators = load_separators(thisAsset, 
+                                     separators_directory, 
+                                     from_txt=1)
+            first_date = dt.datetime.strftime(dt.datetime.strptime(
+                    separators.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+            last_date = dt.datetime.strftime(dt.datetime.strptime(
+                    separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+            
+            samps_ass[a] = pickle.load(open( local_vars.hdf5_directory+'mW'+str(movingWindow)+
+                     '_nE'+str(nEventsPerStat)+'/out/'+thisAsset+'/allstats_out_'+
+                     first_date+last_date+'.p', "rb"))['m']
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
             A[a,:] = get_day_indicator(list_unique_days)
@@ -1906,61 +1894,104 @@ def get_edges_datasets_modular(K, config, dataset_dirfilename=''):
         raise ValueError("build_XY_mode not recognized")
     return edges, edges_dt
 
-def load_features_modular(config, thisAsset, separators, f_prep_IO, s):
+def load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date):
     """
     Function that extracts features from previously saved structures.
-    Args:
-        - data:
-        - thisAsset
-        - separators
-        - f_prep_IO
-        - group
-        - hdf5_directory
-        - s
-    Returns:
-        - features
     """
+    feature_keys = config['feature_keys']
+    groupdirname = assdirname+init_date+end_date+'/'
+    m_in = pickle.dump( open( groupdirname+"m_in.p", "rb" ))
+    features = np.zeros((m_in, len(feature_keys)))
+    for i,f in enumerate(feature_keys):
+        filedirname = groupdirname+C.PF[f]+'.hdf5'
+        feature_file = h5py.File(filedirname,'r')
+        features[:,i] = feature_file[C.PF[f]][C.PF[f]][:,0]
+            
+    return features
+
+def load_stats_modular(config, thisAsset, first_date, last_date, assdirname, outassdirname, symbol):
+    """  """
+    movingWindow = config['movingWindow']
+    nEventsPerStat = config['nEventsPerStat']
+    if config['feats_from_bids']:
+        symbol_type = 'bid'
+    else:
+        symbol_type = 'ask'
+    feature_keys = config['feature_keys']
+    nChannels = int(nEventsPerStat/movingWindow)
+    stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'
+    means_in = np.zeros((nChannels, len(feature_keys)))
+    stds_in = np.zeros((nChannels, len(feature_keys)))
+    for i, feat in enumerate(feature_keys):
+        key = C.PF[feat]
+        # copy in stats directory
+        filedirname = stats_dir+thisAsset+'_'+symbol_type+'_'+key+'_'+first_date+last_date+'.p'
+        stats = pickle.load(open( filedirname, "rb"))
+        means_in[:,i] = stats['mean']
+        stds_in[:,i] = stats['std']
+    stats_in = {'means_t_in':means_in,
+                'stds_t_in':stds_in}
+    filedirname = stats_dir+thisAsset+'_'+symbol_type+'_out_'+first_date+last_date+'.p'
+    out = pickle.load( open( filedirname, "rb" ))
+    stats_out = {'stds_t_out':out['std_'+symbol],
+                 'means_t_out':out['mean_'+symbol],
+                 'm_t_out':out['m']}
+    return stats_in, stats_out
+
+def load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date):
+    """
+    Function that extracts results from previously saved structures.
+    
+    """
+    
+    # init structures
+    returns = []
+    ret_idx = []
+    
+    file = h5py.File(groupoutdirname+'output.hdf5','r')
+    returns = file['returns_'+symbol]
+    ret_idx = file['ret_idx']
+    DT = file['DT']
+    B = file['B']
+    A = file['A']
+    # group name of separator s
+    group_name = thisAsset+'/'+init_date+end_date
+    # save results in a dictionary
+    returns_struct = {}
+    returns_struct['returns'] = returns
+    returns_struct['ret_idx'] = ret_idx
+    returns_struct['group_name'] = group_name
+    returns_struct['DT'] = DT
+    returns_struct['B'] = B
+    returns_struct['A'] = A
+    
+    return returns_struct
+
+def load_output_stats_modular(config, hdf5_directory, thisAsset, tag='IOB'):
+    """
+    Load output stats
+    """
+    if 'feature_keys_manual' in config:
+        feature_keys_manual = config['feature_keys_manual']
+    else:
+        feature_keys_manual = [i for i in range(37)]
+    if 'movingWindow' in config:
+        movingWindow = config['movingWindow']
+    else:
+        movingWindow = 50
     if 'nEventsPerStat' in config:
         nEventsPerStat = config['nEventsPerStat']
     else:
-        nEventsPerStat = 1000
-    # init structures
-    features = []
-    # number of events
-    nE = separators.index[s+1]-separators.index[s]+1
-    # check if number of events is not enough to build two features and one return
-    if nE>=2*nEventsPerStat:
-#        print("\tSeparator batch {0:d} out of {1:d}".format(int(s/2),int(len(separators)/2-1)))
-#        print("\t"+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
-        # get init and end dates of these separators
-        init_date = dt.datetime.strftime(dt.datetime.strptime(
-                separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        end_date = dt.datetime.strftime(dt.datetime.strptime(
-                separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        
-        # group name of separator s
-        group_name = thisAsset+'/'+init_date+end_date
-        
-        # create new gruop if not yet in file
-        if group_name not in f_prep_IO:
-            # create group, its attributes and its datasets
-            raise ValueError("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
-        else:
-            # get group from file
-            group = f_prep_IO[group_name]
-        # get features, returns and stats if don't exist
-        if group.attrs.get("means_in") is None:
-            raise ValueError("Group should already exist. Run get_features_results_stats_from_raw first to create it.")
-        else:
-            # get data sets
-            features = group['features']
-            
-    # end of if separators.index[s+1]-separators.index[s]>=2*data.nEventsPerStat:
-    # save results in a dictionary
-#    features_struct = {}
-#    features_struct['features'] = features
-    
-    return features
+        nEventsPerStat = 500
+    nF = len(feature_keys_manual)
+    # TODO: pass output stats to their own container and load them from there
+    stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
+                                      str(movingWindow)+
+                                     '_nE'+str(nEventsPerStat)+
+                                     '_nF'+str(nF)+".p", "rb" ))
+    stats_output = {'m_t_out':stats['m_t_out'],
+                    'stds_t_out':stats['stds_t_out']}
+    return stats_output
 
 def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     """  """
@@ -2013,25 +2044,20 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     # init hdf5 files
-#    if type(feats_from_bids)==bool:
-#        if feats_from_bids:
-#            # only get short bets (negative directions)
-#            tag = 'IO_mW'
-#            tag_stats = 'IOB'
-#        else:
-#            # only get long bets (positive directions)
-#            tag = 'IOA_mW'
-#            tag_stats = 'IOA'
-#    else:
-#        raise ValueError("feats_from_bids must be a bool")
-    dirname_features = (hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+symbol)
+    if feats_from_bids:
+        symbol = 'bid'
+    else:
+        symbol = 'ask'
+    featuredirname = (hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+symbol)
+    outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/out/'
+    
     if not build_test_db:
         
         separators_directory = hdf5_directory+'separators/'
     else:
         separators_directory = hdf5_directory+'separators_test/'
     
-    edges, edges_dt = get_edges_datasets_modular(folds, config, dataset_dirfilename=dirname_features)
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
@@ -2041,8 +2067,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     if len(log)>0:
         write_log(filename_cv)
     #f_prep_IO = h5py.File(filename_prep_IO,'r')
-    print("filename_prep_IO")
-    print(filename_prep_IO)
+    print("featuredirname")
+    print(featuredirname)
         
     if os.path.exists(filename_tr) and os.path.exists(filename_cv):
         if_build_IO = False
@@ -2129,29 +2155,30 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         write_log(IO_results_name)
     # index asset
     ass_idx = 0
-    AllAssets = Data().AllAssets
     # array containing bids means
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
     for ass in assets:
-        thisAsset = AllAssets[str(ass)]
+        
+        thisAsset = C.AllAssets[str(ass)]
+        assdirname = featuredirname+thisAsset+'/'
+        outassdirname = outrdirname+thisAsset+'/'
         
         tic = time.time()
         # load separators
         separators = load_separators(thisAsset, 
                                      separators_directory, 
                                      from_txt=1)
-        # retrive asset group
-        #ass_group = f_prep_IO[thisAsset]
-        stats_manual = load_stats_manual_v2(config, 
-                                            thisAsset, 
-                                            ass_group,
-                                            from_stats_file=True, 
-                                            hdf5_directory=hdf5_directory+'stats/', 
-                                            tag=tag_stats)
         
-        stats_output = load_stats_output_v2(config, hdf5_directory+'stats/', 
-                                            thisAsset, tag=tag_stats)
+        first_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        last_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        
+        stats_in, stats_out = load_stats_modular(config, thisAsset, first_date, last_date, assdirname, outassdirname, symbol)
+        
+#        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
+#                                            thisAsset, tag=tag_stats)
         
         if if_build_IO:
             mess = str(ass)+". "+thisAsset
@@ -2172,73 +2199,43 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 #day_s = separators.DateTime.iloc[s][0:10]
                 # check if number of events is not enough to build two features and one return
                 if nE>=seq_len*(nEventsPerStat+movingWindow):
-#                    print("nE")
-#                    print(nE)
-                    if 1:
-                            #if day_s not in data.dateTest and day_s<=data.dateTest[-1]:
+                    
+                    init_date = dt.datetime.strftime(dt.datetime.strptime(
+                            separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                    end_date = dt.datetime.strftime(dt.datetime.strptime(
+                            separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                    
+                    groupoutdirname = outassdirname+init_date+end_date+'/'
+                    # load features, returns and stats from HDF files
+                    features = load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date)
+                    # load returns
+                    returns_struct = load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date)
+                    try:
+                        file_temp_name = local_vars.IO_directory+\
+                            'temp_train_build'+\
+                            str(np.random.randint(10000))+'.hdf5'
+                        while os.path.exists(file_temp_name):
+                            file_temp_name = IO_directory+'temp_train_build'\
+                                +str(np.random.randint(10000))+'.hdf5'
+                        file_temp = h5py.File(file_temp_name,'w')
                         
-                        # load features, returns and stats from HDF files
-                        features_manual = load_features_modular(config, 
-                                                               thisAsset, 
-                                                               separators, 
-                                                               f_prep_IO, 
-                                                               s)
-
-                        # load returns
-                        returns_struct = load_returns_v2(config, hdf5_directory, 
-                                                         thisAsset, separators, 
-                                                         filename_prep_IO, s)
-                        try:
-                            file_temp_name = local_vars.IO_directory+\
-                                'temp_train_build'+\
-                                str(np.random.randint(10000))+'.hdf5'
-                            while os.path.exists(file_temp_name):
-                                file_temp_name = IO_directory+'temp_train_build'\
-                                    +str(np.random.randint(10000))+'.hdf5'
-                            file_temp = h5py.File(file_temp_name,'w')
-                            
-                            Vars = build_variations(config, file_temp, 
-                                                    features_manual, 
-                                                    stats_manual)
-                            IO = build_XY(config, Vars, returns_struct, 
-                                          stats_output, IO, edges_dt,
-                                          folds, fold_idx, save_output=False)
-#                            IO, totalSampsPerLevel = build_IO(config,
-#                                                              file_temp, 
-#                                                              data, 
-#                                                              features_manual,
-#                                                              features_tsf,
-#                                                              returns_struct,
-#                                                              stats_manual,
-#                                                              stats_tsf,
-#                                                              stats_output,
-#                                                              IO, 
-#                                                              totalSampsPerLevel, 
-#                                                              s, nE, thisAsset, 
-#                                                              inverse_load,
-#                                                              save_output=True)
-                            # close temp file
-                            file_temp.close()
-                            os.remove(file_temp_name)
-                        except (KeyboardInterrupt):
-                            mess = "KeyBoardInterrupt. Closing files and exiting program."
-                            print(mess)
-                            if len(log)>0:
-                                write_log(mess)
-                            f_tr.close()
-                            f_cv.close()
-                            file_temp.close()
-                            os.remove(file_temp_name)
-                            if f_prep_IO != None:
-                                f_prep_IO.close()
-                            raise KeyboardInterrupt
-                    else:
-                        mess = "\tNot in the set. Skipped."
+                        Vars = build_variations(config, file_temp, features, stats_in)
+                        IO = build_XY(config, Vars, returns_struct, 
+                                      stats_out, IO, edges_dt,
+                                      folds, fold_idx, save_output=False)
+                        # close temp file
+                        file_temp.close()
+                        os.remove(file_temp_name)
+                    except (KeyboardInterrupt):
+                        mess = "KeyBoardInterrupt. Closing files and exiting program."
                         print(mess)
                         if len(log)>0:
                             write_log(mess)
-                        # end of if (tOt=='train' and day_s not in data.dateTest) ...
-                    
+                        f_tr.close()
+                        f_cv.close()
+                        file_temp.close()
+                        os.remove(file_temp_name)
+                        raise KeyboardInterrupt
                 else:
                     print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
                             int(s/2),int(len(separators)/2-1)))
@@ -2252,27 +2249,16 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
             print(mess)
             if len(log)>0:
                 write_log(mess)
-            
         # update asset index
         ass_idx += 1
         
-        # update total number of samples
-        #m += stats_manual["m_t_out"]
-        # flush content file
-        if f_prep_IO != None:
-            f_prep_IO.flush()
-        #print("Total time:"+str(np.floor(time.time()-ticTotal))+"s")
     # end of for ass in data.assets:
-    
-    # close files
-    if f_prep_IO != None:
-        f_prep_IO.close()
     if if_build_IO:
         mess = "Building DTA..."
         print(mess)
         if len(log)>0:
             write_log(mess)
-        DTA = build_DTA_v2(config, AllAssets, IO['Dcv'], 
+        DTA = build_DTA_v2(config, C.AllAssets, IO['Dcv'], 
                            IO['Bcv'], IO['Acv'], ass_IO_ass_cv)
         pickle.dump( DTA, open( IO_results_name, "wb" ))
         f_cv.attrs.create('ass_IO_ass', ass_IO_ass_cv, dtype=int)
