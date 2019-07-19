@@ -2038,6 +2038,10 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         build_test_db = config['build_test_db']
     else:
         build_test_db = False
+    if 'asset_relation' in config:
+        asset_relation = config['asset_relation']
+    else:
+        asset_relation = 'direct'
     
     hdf5_directory = local_vars.hdf5_directory
     IO_directory = local_vars.IO_directory
@@ -2048,8 +2052,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         symbol = 'bid'
     else:
         symbol = 'ask'
-    featuredirname = (hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+symbol)
-    outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/out/'
+    featuredirname = (hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/'+symbol+'/')
+    outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
     
     if not build_test_db:
         

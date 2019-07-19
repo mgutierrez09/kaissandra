@@ -251,27 +251,40 @@ class Strategy():
                 print("weighted LLS model")
                 self.gre_model = gre_list[2]
             #print(self.gre_model)
-            self.resolution = self.GRE.shape[0]
+            self.resolution_mc = self.GRE.shape[0]
+            self.resolution_md = int(2*self.GRE.shape[1])
         else:
             self.GRE = None
     
     def _get_idx(self, p):
         """ Get probability index """
-        idx = max(int(np.floor(p*2*self.resolution)-self.resolution),0)
-#        if p>=0.5 and p<=0.6:
-#            idx = 0
-#        elif p>0.6 and p<=0.7:
-#            idx = 1
-#        elif p>0.7 and p<=0.8:
-#            idx = 2
-#        elif p>0.8 and p<=0.9:
-#            idx = 3
-#        elif p>0.9:
-#            idx = 4
-#        else:
-#            print(p)
-#            print("WARNING: p<0.5")
-#            idx = 0
+#        idx = max(int(np.floor(p*2*self.resolution)-self.resolution),0)
+        if p>=0.5 and p<=0.6:
+            idx = 0
+        elif p>0.6 and p<=0.7:
+            idx = 1
+        elif p>0.7 and p<=0.8:
+            idx = 2
+        elif p>0.8 and p<=0.9:
+            idx = 3
+        elif p>0.9:
+            idx = 4
+        else:
+            print(p)
+            print("WARNING: p<0.5")
+            idx = 0
+            
+        return idx
+    
+    def _get_idx_pc(self, p):
+        """ Get probability index """
+        idx = max(int(np.floor(p*self.resolution_mc)),0)
+        
+        return idx
+    
+    def _get_idx_pm(self, p):
+        """ Get probability index """
+        idx = max(int(np.floor(p*self.resolution_md)-self.resolution_md/2),0)
             
         return idx
     
@@ -281,8 +294,8 @@ class Strategy():
             
             return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
         elif self.entry_strategy=='gre_v2':
-#            return self.GRE[self._get_idx(p_mc), self._get_idx(p_md), level]
-            return self.gre_model.predict(np.array([[p_mc, p_md-self.p_md_margin, level]]))[0]
+            return self.GRE[self._get_idx_pc(p_mc), self._get_idx_pm(p_md), level]
+#            return self.gre_model.predict(np.array([[p_mc, p_md-self.p_md_margin, level]]))[0]
         else:
             return 0.0
 
@@ -321,7 +334,8 @@ class Trader:
         self.budget_in_lots = self.available_bugdet_in_lots
         self.gross_earnings = 0.0
         self.flexible_lot_ratio = False
-        self.margin_open = 1.5
+        self.margin_open = 2 # gre product margin
+        self.margin_p_mc = 0#.03 # spread_ranges p_mc opening margin
         
         self.tROI_live = 0.0
         self.tGROI_live = 0.0
@@ -521,15 +535,15 @@ class Trader:
 #            print("\n\n\n")
             for t in range(len(this_strategy.info_spread_ranges['th'])):
                 second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
-                    self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1] and\
+                    self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+self.margin_p_mc and\
                     e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
                 if second_condition_open:
-                    return second_condition_open
+                    return second_condition_open, t
                     
         else:
             raise ValueError("Unknown entry strategy")
             
-        return second_condition_open
+        return second_condition_open, -1
     
     def check_asset_not_banned(self):
         """  """
@@ -588,7 +602,7 @@ class Trader:
 #                              self.next_candidate.p_md>=previous_p_md-.05
         elif this_strategy.entry_strategy=='spread_ranges':
             condition = dir_condition and self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1] and \
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+self.margin_p_mc and \
                          100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
         return condition, dir_condition
 
@@ -1010,7 +1024,7 @@ def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,
 
 if __name__ == '__main__':
     
-    init_day_str = '20190429'#'20181112'
+    init_day_str = '20181112'#'2018029'#
     end_day_str = '20190628'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
@@ -1041,17 +1055,23 @@ if __name__ == '__main__':
     
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')+'_F'+init_day_str+'T'+end_day_str
+    #start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+    positions_file = start_time+'_'+'RRNN0101-40CMF190429T19628k1-2E14'+'.csv'
     numberNetwors = 2
     list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
-    list_name = ['01010k1-2E14Gv2','01010k1-2E14BSGv2']
+    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[1,2,5],'th':[(.6,.55),(.65,.6),(.7,.6)]},{'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
+    list_spread_ranges = [{'sp':[1,5],'th':[(.6,.55),(.7,.6)]},{'sp':[1,5],'th':[(.55,.55),(.7,.6)]}]
+#    list_spread_ranges = [{'sp':[.6, .8, 1.2, 2.3, 3.4, 4.5, 5.0],
+#                           'th':[(.26,.56),(.31,.56),(.3,.58),(.69,.53),(.69,.61),(.73,.61),(.77,.63)]},
+#                          {'sp':[.9, 1.0, 1.6, 1.8, 2.2, 3.5, 4.8, 5.0],
+#                           'th':[(.41,.55),(.45,.55),(.55,.55),(.58,.55),(.55,.59),(.66,.58),(.71,.6),(.73,.6)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.05 for i in range(numberNetwors)]
-    list_lb_md_ext = [.5 for i in range(numberNetwors)]
+    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+    list_lb_md_ext = [.55 for i in range(numberNetwors)]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_entry_strategy = ['gre_v2' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
@@ -1059,6 +1079,30 @@ if __name__ == '__main__':
     list_w_str = ["" for i in range(numberNetwors)]
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
+    
+    
+    
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14Gv2','01010k1-2E14BSGv2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[0.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
+#                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6)
+#                           ,(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)]},
+#                           {'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.7 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.56 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
@@ -1321,10 +1365,13 @@ if __name__ == '__main__':
                 trader.list_EM[list_idx] = em
             
             ban_condition = trader.check_asset_not_banned()
+            if not EXIT:
+                sec_cond, t = trader.check_secondary_contition_for_opening()
+            else:
+                sec_cond = False
             condition_open = (trader.chech_ground_condition_for_opening() and 
                               trader.check_primary_condition_for_opening() and 
-                              trader.check_secondary_contition_for_opening() and 
-                              ban_condition)
+                              sec_cond and ban_condition)
 #            print("trader.chech_ground_condition_for_opening()")
 #            print(trader.chech_ground_condition_for_opening())
 #            print("trader.check_primary_condition_for_opening()")
@@ -1339,6 +1386,7 @@ if __name__ == '__main__':
                                                        trader.next_candidate.p_mc, 
                                                         trader.next_candidate.p_md, 
                                                         int(np.abs(trader.next_candidate.bet)-1))
+                this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
                 out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
                        Assets[event_idx].decode("utf-8")+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
@@ -1346,7 +1394,7 @@ if __name__ == '__main__':
                       " pofitability {0:.3f}".format(profitability)+
                       " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(int(trader.next_candidate.bet))+
-                      " Open Condition met")
+                      " Open Condition met "+" SP = "+str(this_strategy.info_spread_ranges['sp'][t]))
                 print(out)
                 trader.write_log(out)
                 
@@ -1367,7 +1415,7 @@ if __name__ == '__main__':
                         no_budget = True
             elif (trader.chech_ground_condition_for_opening() and 
                   trader.check_primary_condition_for_opening() and 
-                  not trader.check_secondary_contition_for_opening()):
+                  not sec_cond):
                 #pass
                 profitability = strategys[name2str_map
                                           [trader.next_candidate.strategy]
