@@ -227,7 +227,7 @@ def get_returns_modular(config, groupoutdirname, idx_init, DateTime, SymbolBid, 
         force_calulation_output = False
     
     
-    if not os.path.exists(groupoutdirname+'output_0.hdf5') or force_calulation_output:
+    if not os.path.exists(groupoutdirname+'output_'+str(shift)+'.hdf5') or force_calulation_output:
         print("\tGetting output.")
         
         file = h5py.File(groupoutdirname+'output_'+str(shift)+'.hdf5','a')

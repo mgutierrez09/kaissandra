@@ -335,7 +335,7 @@ class Trader:
         self.gross_earnings = 0.0
         self.flexible_lot_ratio = False
         self.margin_open = 2 # gre product margin
-        self.margin_p_mc = 0#.03 # spread_ranges p_mc opening margin
+        self.margin_p_mc = .04 # spread_ranges p_mc opening margin
         
         self.tROI_live = 0.0
         self.tGROI_live = 0.0
@@ -1056,18 +1056,17 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
-    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR']
+    list_IDresults = ['RRNN01030CMF181112T19628ALk1k2E19','RRNN01030CMF181112T19628BSk1k2E19']
+    list_name = ['01030k1-2E19ALSR','01030k1-2E19BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[1,5],'th':[(.6,.55),(.7,.6)]},{'sp':[1,5],'th':[(.55,.55),(.7,.6)]}]
-#    list_spread_ranges = [{'sp':[.6, .8, 1.2, 2.3, 3.4, 4.5, 5.0],
-#                           'th':[(.26,.56),(.31,.56),(.3,.58),(.69,.53),(.69,.61),(.73,.61),(.77,.63)]},
-#                          {'sp':[.9, 1.0, 1.6, 1.8, 2.2, 3.5, 4.8, 5.0],
-#                           'th':[(.41,.55),(.45,.55),(.55,.55),(.58,.55),(.55,.59),(.66,.58),(.71,.6),(.73,.6)]}]
+    list_spread_ranges = [{'sp':[.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
+                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6),(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)]},
+                        {'sp':[1, 1.3, 1.6, 2.4, 2.5, 3.2, 3.8, 4.3, 4.8, 5.0],
+                         'th':[(.5,.58),(.5,.6),(.5,.63),(.65,.6),(.66,.62),(.65,.65),(.68,.66),(.71,.66),(.77,.66),(.77,.68)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
-    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+    list_lb_mc_ext = [.62, .5]
+    list_lb_md_ext = [.57, .58]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
@@ -1077,6 +1076,30 @@ if __name__ == '__main__':
     list_w_str = ["" for i in range(numberNetwors)]
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
+    
+    positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
+    
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
+#    list_name = ['01010k1-2E14Gv2','01010k1-2E14BSGv2']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[0.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
+#                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6)
+#                           ,(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)]},
+#                           {'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
+#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.7 for i in range(numberNetwors)]
+#    list_lb_md_ext = [.56 for i in range(numberNetwors)]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
@@ -1092,7 +1115,6 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
 #    +'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
 #                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
 #                         str(list_spread_ranges[i]['th'][0][1])
@@ -1222,11 +1244,6 @@ if __name__ == '__main__':
     init_budget = 10000
     results = Results()
     
-    run_description = start_time+','+','.join([list_IDresults[i]+'E'+str(list_epoch_gre[i])+'T'+
-                         str(list_t_index[i])+'W'+list_w_str[i]+
-                         'LOT'+str(list_max_lots_per_pos[i])+'SL'+str(list_thr_sl[i])
-                         for i in range(numberNetwors)])+',F'+dateTest[0]+'T'+\
-                         dateTest[-1]
     directory = local_vars.live_results_dict+"simulate/trader/"
     log_file = directory+start_time+"trader_v30.log"
     summary_file = directory+start_time+"summary.log"
@@ -1746,8 +1763,3 @@ if __name__ == '__main__':
                           "AVL{0:.2f}".format(average_loss)+\
                           "AVW{0:.2f}".format(average_win)+\
                           "RR{0:.2f}".format(RR)
-    
-    run_description += results_description
-    fh = open(directory+'runs_description.txt',"a")
-    fh.write(run_description+'\n')
-    fh.close()
