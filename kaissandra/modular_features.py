@@ -653,7 +653,7 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
     
     return all_stats
 
-def wrapper_wrapper_get_features_modular(config_entry, assets, seps):
+def wrapper_wrapper_get_features_modular(config_entry, assets, seps_input=[]):
     """  """
     import time
     from kaissandra.inputs import load_separators
@@ -731,8 +731,12 @@ def wrapper_wrapper_get_features_modular(config_entry, assets, seps):
         separators = load_separators(thisAsset, separators_directory, from_txt=1)
         all_stats = {}
         last_iteration = False
+        if len(seps_input)==0:
+            seps = range(0,len(separators)-1,2)
+        else:
+            seps = seps_input
         # loop over separators
-        for s in seps:#range(0,len(separators)-1,2):
+        for s in seps:
             # number of events within this separator chunk
             nE = separators.index[s+1]-separators.index[s]+1
             if len(seps) == 0:
