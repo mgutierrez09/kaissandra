@@ -1054,9 +1054,7 @@ if __name__ == '__main__':
         ass_index += 1
     
     
-    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')+'_F'+init_day_str+'T'+end_day_str
-    #start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    positions_file = start_time+'_'+'RRNN0101-40CMF190429T19628k1-2E14'+'.csv'
+    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
     list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
     list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR']
@@ -1079,30 +1077,6 @@ if __name__ == '__main__':
     list_w_str = ["" for i in range(numberNetwors)]
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
-    
-    
-    
-#    numberNetwors = 2
-#    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
-#    list_name = ['01010k1-2E14Gv2','01010k1-2E14BSGv2']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[0.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
-#                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6)
-#                           ,(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)]},
-#                           {'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [.7 for i in range(numberNetwors)]
-#    list_lb_md_ext = [.56 for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
-#    # depricated/not supported
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]
-#    #root_dir = local_vars.data_dir
-#    root_dir = local_vars.data_test_dir
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
@@ -1118,7 +1092,7 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
-    positions_file = start_time+'.csv'
+    positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
 #    +'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
 #                         str(list_t_index[i])+'MC'+str(list_spread_ranges[i]['th'][0][0])+'MD'+
 #                         str(list_spread_ranges[i]['th'][0][1])
