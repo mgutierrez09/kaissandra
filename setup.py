@@ -61,7 +61,7 @@ if __name__=='__main__':
             "\tdirectory_MT5_account = directory_MT5+'Account/'\n"+
             "\thdf5_directory = '"+root_path+py_directories[6]+"'\n"+
             "\troot_dir = '"+'/'.join(path.split('\\')[:-3])+'/'+"'\n"+
-            "\tsats_directory = '"+root_path+py_directories[10]+"'\n"+
+            "\tstats_directory = '"+root_path+py_directories[10]+"'\n"+
             "\tIO_directory = '"+root_path+py_directories[0]+"'\n"+
             "\tweights_directory = '"+root_path+py_directories[2]+"'\n"+
             "\tresults_directory = '"+root_path+py_directories[3]+"'\n"+
