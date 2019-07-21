@@ -208,6 +208,9 @@ class Strategy():
         self.weights = weights
         self._load_GRE()
         # spread range strategy
+        
+        if 'mar' not in info_spread_ranges:
+            info_spread_ranges['mar'] = [(0.0,0.0) for _ in range(len(info_spread_ranges['th']))]
         self.info_spread_ranges = info_spread_ranges
         self.p_md_margin = p_md_margin
         
@@ -335,7 +338,8 @@ class Trader:
         self.gross_earnings = 0.0
         self.flexible_lot_ratio = False
         self.margin_open = 2 # gre product margin
-        self.margin_p_mc = .04 # spread_ranges p_mc opening margin
+#        self.margin_p_mc = .05 # spread_ranges p_mc opening margin
+#        self.margin_p_md = .05 # spread_ranges p_mc opening margin
         
         self.tROI_live = 0.0
         self.tGROI_live = 0.0
@@ -534,9 +538,12 @@ class Trader:
 #            print(e_spread/self.pip)
 #            print("\n\n\n")
             for t in range(len(this_strategy.info_spread_ranges['th'])):
-                second_condition_open = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][t][0] and\
-                    self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+self.margin_p_mc and\
-                    e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
+                second_condition_open = self.next_candidate.p_mc>=\
+                this_strategy.info_spread_ranges['th'][t][0]+\
+                this_strategy.info_spread_ranges['mar'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
+                this_strategy.info_spread_ranges['mar'][t][1] and\
+                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
                 if second_condition_open:
                     return second_condition_open, t
                     
@@ -601,9 +608,12 @@ class Trader:
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
         elif this_strategy.entry_strategy=='spread_ranges':
-            condition = dir_condition and self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+self.margin_p_mc and \
-                         100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
+            condition = dir_condition and self.next_candidate.p_mc>=\
+                this_strategy.info_spread_ranges['th'][0][0]+\
+                this_strategy.info_spread_ranges['mar'][0][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+\
+                this_strategy.info_spread_ranges['mar'][0][1] and \
+                100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
         return condition, dir_condition
 
     def update_stoploss(self, idx):
@@ -1024,10 +1034,57 @@ def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,
 
 if __name__ == '__main__':
     
+#    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+#    numberNetwors = 2
+#    list_IDresults = ['RRNN01030CMF181112T19628ALk1k2E19','RRNN01030CMF181112T19628BSk1k2E19']
+#    list_name = ['01030k1-2E19ALSR','01030k1-2E19BSSR']
+#    list_epoch_journal = [0 for _ in range(numberNetwors)]
+#    list_t_index = [0 for _ in range(numberNetwors)]
+#    list_spread_ranges = [{'sp':[.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
+#                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6),(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)],
+#                           'mar':[(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08)]},
+#                        {'sp':[1, 1.3, 1.6, 2.4, 2.5, 3.2, 3.8, 4.3, 4.8, 5.0],
+#                         'th':[(.5,.58),(.5,.6),(.5,.63),(.65,.6),(.66,.62),(.65,.65),(.68,.66),(.71,.66),(.77,.66),(.77,.68)],
+#                         'mar':[(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08),(.08,.08)]}]
+#    list_lim_groi_ext = [-.01 for i in range(numberNetwors)] # in %
+#    list_lb_mc_ext = [.62, .5]
+#    list_lb_md_ext = [.57, .58]
+#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
+#    # depricated/not supported
+#    list_epoch_gre = [None for i in range(numberNetwors)]
+#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+#    list_w_str = ["" for i in range(numberNetwors)]
+#    #root_dir = local_vars.data_dir
+#    root_dir = local_vars.data_test_dir
+    
+    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
+    numberNetwors = 2
+    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
+    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR']
+    list_epoch_journal = [0 for _ in range(numberNetwors)]
+    list_t_index = [0 for _ in range(numberNetwors)]
+    list_spread_ranges = [{'sp':[1,2,5],'th':[(.6,.55),(.65,.6),(.7,.6)]},{'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
+    list_lim_groi_ext = [-0.1 for i in range(numberNetwors)] # in %
+    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
+    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
+    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
+    # depricated/not supported
+    list_epoch_gre = [None for i in range(numberNetwors)]
+    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
+    list_w_str = ["" for i in range(numberNetwors)]
+    #root_dir = local_vars.data_dir
+    root_dir = local_vars.data_test_dir
+    
     init_day_str = '20181112'#'2018029'#
     end_day_str = '20190628'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
+    
+    positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
 #    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
 #    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
 #    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
@@ -1052,54 +1109,6 @@ if __name__ == '__main__':
     for ass in data.assets:
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
-    
-    
-    start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    numberNetwors = 2
-    list_IDresults = ['RRNN01030CMF181112T19628ALk1k2E19','RRNN01030CMF181112T19628BSk1k2E19']
-    list_name = ['01030k1-2E19ALSR','01030k1-2E19BSSR']
-    list_epoch_journal = [0 for _ in range(numberNetwors)]
-    list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
-                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6),(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)]},
-                        {'sp':[1, 1.3, 1.6, 2.4, 2.5, 3.2, 3.8, 4.3, 4.8, 5.0],
-                         'th':[(.5,.58),(.5,.6),(.5,.63),(.65,.6),(.66,.62),(.65,.65),(.68,.66),(.71,.66),(.77,.66),(.77,.68)]}]
-    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.62, .5]
-    list_lb_md_ext = [.57, .58]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
-    # depricated/not supported
-    list_epoch_gre = [None for i in range(numberNetwors)]
-    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-    list_w_str = ["" for i in range(numberNetwors)]
-    #root_dir = local_vars.data_dir
-    root_dir = local_vars.data_test_dir
-    
-    positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
-    
-#    numberNetwors = 2
-#    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
-#    list_name = ['01010k1-2E14Gv2','01010k1-2E14BSGv2']
-#    list_epoch_journal = [0 for _ in range(numberNetwors)]
-#    list_t_index = [0 for _ in range(numberNetwors)]
-#    list_spread_ranges = [{'sp':[0.7, .9, 1.1, 1.2, 1.3, 1.4, 1.6, 1.9, 2.3, 2.8, 3.1, 3.5, 3.8, 4.0, 5.0],
-#                           'th':[(.71,.57),(.62,.59),(.71,.59),(.71,.6),(.81,.59),(.72,.62),(.81,.62),(.87,.6)
-#                           ,(.88,.6),(.88,.62),(.89,.62),(.9,.63),(.9,.64),(.9,.66),(.92,.65)]},
-#                           {'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
-#    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-#    list_lb_mc_ext = [.7 for i in range(numberNetwors)]
-#    list_lb_md_ext = [.56 for i in range(numberNetwors)]
-#    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
-#    list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-#    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
-#    # depricated/not supported
-#    list_epoch_gre = [None for i in range(numberNetwors)]
-#    list_weights = [np.array([0,1]) for i in range(numberNetwors)]
-#    list_w_str = ["" for i in range(numberNetwors)]
-#    #root_dir = local_vars.data_dir
-#    root_dir = local_vars.data_test_dir
 
     list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]

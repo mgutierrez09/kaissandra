@@ -23,7 +23,7 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 # TODO: add it in parameters
-n_samps_buffer = 250
+n_samps_buffer = 100
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -191,8 +191,8 @@ class Position:
         self.strategy = strategy
         self.strategy_index = int(journal_entry['strategy_index'])
         self.profitability = journal_entry['profitability']
-        self.idx_mc = strategy._get_idx(self.p_mc)
-        self.idx_md = strategy._get_idx(self.p_md)
+#        self.idx_mc = strategy._get_idx(self.p_mc)
+#        self.idx_md = strategy._get_idx(self.p_md)
 
 class Strategy():
     
@@ -240,6 +240,9 @@ class Strategy():
         self.t_indexs = t_indexs
         self.weights = weights
         self.priorities = priorities
+        # retrocompatinility in info_spread_ranges
+        if 'mar' not in info_spread_ranges:
+            info_spread_ranges['mar'] = [(0.0,0.0) for _ in range(len(info_spread_ranges['th']))]
         self.info_spread_ranges = info_spread_ranges
         self.lim_groi_ext = lim_groi_ext
         
@@ -1257,9 +1260,11 @@ class Trader:
                     if network_name in self.net2strategy:
                         strategy_index = self.net2strategy.index(network_name)
                         #print("str_index in trader")
-                        #print(strategy_index)
-                        profitability = self.strategies[strategy_index].get_profitability(
-                                t, p_mc, p_md, int(np.abs(Y_tilde)-1))
+                        if self.strategies[strategy_index].entry_strategy!='spread_ranges':
+                            profitability = self.strategies[strategy_index].get_profitability(
+                                    t, p_mc, p_md, int(np.abs(Y_tilde)-1))
+                        else:
+                            profitability = 0.0
                         yield {entry_time_column:DateTime,
                                'Asset':thisAsset,
                                'Bet':Y_tilde,
@@ -1284,19 +1289,25 @@ class Trader:
         for new_entry in self.select_next_entry(inputs, thisAsset):
             if not type(new_entry)==list:
                 # get number of tactics
-                if self.next_candidate.strategy.entry_strategy=='spread_ranges':
-                    n_tactics = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
-                else:
-                    n_tactics = 1
+                tactics = []
+                if self.strategies[new_entry['strategy_index']].entry_strategy=='spread_ranges':
+                    #n_tactics = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
+                    #print(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
+                    for t, tupl in enumerate(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'][::-1]):
+                        if new_entry['P_mc']>=tupl[0] and new_entry['P_md']>=tupl[1]:
+                            tactics.append(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1)
+                            break
+                if len(tactics)==0:
+                    tactics = [0]
                 # loop over tactics of one strategy
-                for tactic in range(n_tactics):
+                for tactic in tactics:
                     strategy_name = self.strategies[new_entry['strategy_index']].name
                     # check for opening/extension in order of expected returns
                     out = ("New entry @ "+new_entry[entry_time_column]+" "+
                            new_entry['Asset']+
                            " P_mc {0:.3f} ".format(new_entry['P_mc'])+
                            "P_md {0:.3f} ".format(new_entry['P_md'])+
-                           "profitability {0:.2f} ".format(new_entry['profitability'])+
+                           "prof. {0:.2f} ".format(new_entry['profitability'])+
                            "Bet {0:d} ".format(new_entry['Bet'])+
                            "E_spread {0:.3f} ".format(new_entry['E_spread'])+
                            "Strategy "+strategy_name)
@@ -2898,7 +2909,6 @@ def run(config_traders_list, running_assets, start_time, test, api):
         #lBs = config_trader['lBs']#[1300,1300,1300]#[1300]
         list_lim_groi_ext = config_trader['list_lim_groi_ext']#[-.02 for i in range(numberNetworks)]
         list_w_str = config_trader['list_w_str']#['55','55','55']
-        #model_dict = config_trader['model_dict']
         list_weights = config_trader['list_weights']#[np.array([.5,.5]) for i in range(numberNetworks)]
         list_lb_mc_op = config_trader['list_lb_mc_op']#[.5 for i in range(numberNetworks)]
         list_lb_md_op = config_trader['list_lb_md_op']#[.8 for i in range(numberNetworks)]
@@ -2912,7 +2922,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
         list_fixed_spread_pips = config_trader['list_fixed_spread_pips']#[4 for i in range(numberNetworks)]
         list_max_lots_per_pos = config_trader['list_max_lots_per_pos']#[.1 for i in range(numberNetworks)]
         list_flexible_lot_ratio = config_trader['list_flexible_lot_ratio']#[False for i in range(numberNetworks)]
-        list_if_dir_change_close = [True, True]#config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
+        list_if_dir_change_close = config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
         list_if_dir_change_extend = config_trader['list_if_dir_change_extend']#[False for i in range(numberNetworks)]
 #        list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
 #                          dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]        
@@ -2962,23 +2972,41 @@ def run(config_traders_list, running_assets, start_time, test, api):
             list_net2strategy[idx_tr].append(netNames[nn])
         ################# Strategies #############################
 #        print(list_thr_sl)
+#        print("len(list_thr_tp)")
 #        print(len(list_thr_tp))
+#        print("len(list_fix_spread)")
 #        print(len(list_fix_spread))
+#        print("len(list_fixed_spread_pips)")
 #        print(len(list_fixed_spread_pips))
+#        print("len(list_max_lots_per_pos)")
 #        print(len(list_max_lots_per_pos))
+#        print("len(list_flexible_lot_ratio)")
 #        print(len(list_flexible_lot_ratio))
+#        print("len(list_lb_mc_op)")
 #        print(len(list_lb_mc_op))
+#        print("len(list_lb_mc_ext)")
 #        print(len(list_lb_mc_ext))
+#        print("len(list_lb_md_ext)")
 #        print(len(list_lb_md_ext))
+#        print("len(list_ub_mc_op)")
 #        print(len(list_ub_mc_op))
+#        print("len(list_ub_md_op)")
 #        print(len(list_ub_md_op))
+#        print("len(list_ub_mc_ext)")
 #        print(len(list_ub_mc_ext))
+#        print("len(list_ub_md_ext)")
 #        print(len(list_ub_md_ext))
+#        print("len(list_if_dir_change_close)")
 #        print(len(list_if_dir_change_close))
+#        print("len(list_if_dir_change_extend)")
 #        print(len(list_if_dir_change_extend))
+#        print("len(list_name)")
 #        print(len(list_name))
+#        print("len(list_t_indexs)")
 #        print(len(list_t_indexs))
+#        print("len(list_entry_strategy)")
 #        print(len(list_entry_strategy))
+#        print("len(IDresults)")
 #        print(len(IDresults))
 #        print(len(IDepoch))
 #        print(len(list_weights))
@@ -3356,7 +3384,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[1], 
            synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3370,10 +3398,10 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TPRODN01010SRv2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+            list_config_traders = [retrieve_config('TPRODN01010SRv4')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TPRODN01010GREV2')]#'TTEST10'#'TPRODN01010N01011'
+        list_config_traders = [retrieve_config('TPRODN01010SRv4')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     #print("Test "+str(test))
@@ -3423,8 +3451,8 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-    config_names = ['TPRODN01010SRv3']#['TTEST10']#'TPRODN01010N01011'
-    test = True
+    config_names = ['TPRODN01010SRv4']#['TTEST10']#'TPRODN01010N01011'
+    test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False
@@ -3447,7 +3475,8 @@ from kaissandra.preprocessing import (load_stats_manual_v2,
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
-from kaissandra.prod.api import API
+if send_info_api:
+    from kaissandra.prod.api import API
 
 
 #directory_MT5_IO = local_vars.directory_MT5_IO
