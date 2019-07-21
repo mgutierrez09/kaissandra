@@ -166,7 +166,7 @@ class Data:
     average_over = np.array([0.1, 0.5, 1, 5, 10, 50, 100])
     std_var = 0.1
     std_time = 0.1
-    lookAheadVector=[.1,.2,.5,1]
+    lookAheadVector = [.1,.2,.5,1]
     parsars = [20,2]
     
     def __init__(self, movingWindow=100,nEventsPerStat=1000,lB=1200,

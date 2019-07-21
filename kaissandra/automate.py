@@ -145,6 +145,9 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         print(config['loss_funcs'])
         if build_IDrs:
             IDrs.append(IDresults)
+            
+        print("config['from_stats_file']")
+        print(config['from_stats_file'])
         dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
                                                                  fold_idx=fold_idx, \
                                                                  config=config, 
