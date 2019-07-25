@@ -77,6 +77,8 @@ def get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc):
 
 def get_md_vectors(t_soft_tilde, t_y, ys_mc, n_classes, thr_md, ub_md):
     """  """
+    print("t_soft_tilde.shape")
+    print(t_soft_tilde.shape)
     y_dec_md_tilde = np.argmax(t_soft_tilde[:,1:3], 1)-1# predicted dec out
     y_md_down_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,1]>thr_md) & (t_soft_tilde[:,1]<=ub_md)
     y_md_up_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,2]>=thr_md) & (t_soft_tilde[:,2]<=ub_md)

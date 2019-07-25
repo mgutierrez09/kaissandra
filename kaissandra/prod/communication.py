@@ -119,7 +119,7 @@ if __name__=='__main__':
     
     from kaissandra.config import Config
     from kaissandra.local_config import local_vars
-    from kaissandra.prod.config import Config as CC
+    #from kaissandra.prod.config import Config as CC
     
     for arg in sys.argv:
         print(arg)

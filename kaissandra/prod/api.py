@@ -140,7 +140,7 @@ class API():
     def post_token(self):
         """ POST request to create new token if expired or retrieve current one """
         print(CC.URL+'tokens')
-        response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=False)
+        response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
         if response.status_code == 200:
             self.token = response.json()['token']
             return True
@@ -155,10 +155,10 @@ class API():
             return False
         if req_type == "POST":
             response = requests.post(CC.URL+'traders', json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         elif req_type == "PUT":
             response = requests.put(CC.URL+'traders', json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         else:
             return False
         print("Status code: "+str(response.status_code))
@@ -178,10 +178,10 @@ class API():
         url_ext = 'traders/'+str(self.trader_json['id'])+'/strategies'
         if req_type == "POST":
             response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         elif req_type == "PUT":
             response = requests.put(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         else:
             return False
         print("Status code: "+str(response.status_code))
@@ -201,10 +201,10 @@ class API():
         url_ext = 'traders/networks'
         if req_type == "POST":
             response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         elif req_type == "PUT":
             response = requests.put(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         else:
             return False
         print("Status code: "+str(response.status_code))
@@ -222,7 +222,7 @@ class API():
             return False
         url_ext = 'traders/'+str(self.trader_json['id'])+'/assets'
         response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
@@ -238,7 +238,7 @@ class API():
             return False
         url_ext = 'traders/'+str(self.trader_json['id'])+'/sessions'
         response = requests.post(CC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
@@ -256,7 +256,7 @@ class API():
             id = self.session_json['id']
         url_ext = 'traders/sessions/'+str(id)+'/close'
         response = requests.put(CC.URL+url_ext, headers=
-                                     self.build_token_header(), verify=False)
+                                     self.build_token_header(), verify=True)
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
@@ -278,7 +278,7 @@ class API():
             url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/positions/open'
             if not asynch:
                 response = requests.post(CC.URL+url_ext, json=params, headers=
-                                             self.build_token_header(), verify=False)
+                                             self.build_token_header(), verify=True)
                 print("Status code: "+str(response.status_code))
                 if response.status_code == 200:
                     print(response.json())
@@ -289,7 +289,7 @@ class API():
                 return False
             # asynch
             self.list_futures.append(self.futureSession.post(CC.URL+url_ext, 
-                                    json=params, headers=self.build_token_header(), verify=False, timeout=10))
+                                    json=params, headers=self.build_token_header(), verify=True, timeout=10))
             # add position asset as identifier
             self.list_asset_positions.append(params['asset'])
             self.list_lastevent_positions.append('open')
@@ -336,7 +336,7 @@ class API():
             url_ext = 'traders/positions/'+str(id)+'/extend'
             if not asynch:
                 response = requests.post(CC.URL+url_ext, json=params, headers=
-                                             self.build_token_header(), verify=False)
+                                             self.build_token_header(), verify=True)
                 print("Status code: "+str(response.status_code))
                 if response.status_code == 200:
                     print(response.json())
@@ -350,7 +350,7 @@ class API():
                 return False
             # asynch
             self.list_futures.append(self.futureSession.post(CC.URL+url_ext, json=params,#{'groi':params['groi']} 
-                                    headers=self.build_token_header(), verify=False, timeout=10))
+                                    headers=self.build_token_header(), verify=True, timeout=10))
             #print(self.list_futures)
             # add position asset as identifier
             self.list_asset_positions.append(assetname)
@@ -405,9 +405,9 @@ class API():
             url_file = 'traders/positions/'+str(id)+'/upload'
             if not asynch:
                 response = requests.put(CC.URL+url_ext, json=params, 
-                                        headers=self.build_token_header(), verify=False)
+                                        headers=self.build_token_header(), verify=True)
                 response_file = requests.post(CC.URL+url_file, files=files, 
-                                        headers=self.build_token_header(), verify=False)
+                                        headers=self.build_token_header(), verify=True)
                 print("Status code: "+str(response.status_code))
                 if response.status_code == 200:
                     print(response.json())
@@ -424,10 +424,10 @@ class API():
             # asynch
             self.list_futures.append(self.futureSession.put(CC.URL+url_ext, 
                                         json=params, 
-                                        headers=self.build_token_header(), verify=False, timeout=10))
+                                        headers=self.build_token_header(), verify=True, timeout=10))
             self.futureSession.post(CC.URL+url_file, 
                                         files=files, 
-                                        headers=self.build_token_header(), verify=False, timeout=10)
+                                        headers=self.build_token_header(), verify=True, timeout=10)
     
             # add position asset as identifier
             self.list_asset_positions.append(assetname)
@@ -469,7 +469,7 @@ class API():
         url_ext = 'logs/traders'
         try:
             response = requests.post(CC.URL+url_ext, json={'Message':message,'Name':self.trader_json['tradername']},
-                                    headers=self.build_token_header(), verify=False, timeout=10)
+                                    headers=self.build_token_header(), verify=True, timeout=10)
             print(response.json())
         except:
             print("WARNING! Error in send_network_log die to timeout.")
@@ -481,7 +481,7 @@ class API():
 #                                headers=self.build_token_header(), verify=False, timeout=10)
         try:
             response = requests.post(CC.URL+url_ext, json={'Message':message},
-                                    headers=self.build_token_header(), verify=False, timeout=10)
+                                    headers=self.build_token_header(), verify=True, timeout=10)
             print(response.json())
         except:
             print("WARNING! Error in send_network_log die to timeout.")

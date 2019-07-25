@@ -23,7 +23,7 @@ exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
 # TODO: add it in parameters
-n_samps_buffer = 100
+n_samps_buffer = 250
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -667,8 +667,8 @@ class Trader:
             if not cond_bet:
                 reason += 'bet'
         elif this_strategy.entry_strategy=='spread_ranges':
-            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]
+            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]+this_strategy.info_spread_ranges['mar'][tactic][0]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1]
             cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][tactic]
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    self.next_candidate.strategy.info_spread_ranges['dir'])
@@ -734,8 +734,8 @@ class Trader:
             if not cond_groi:
                 reason += 'groi'
         elif this_strategy.entry_strategy=='spread_ranges':
-            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]
+            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]
             cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    this_strategy.info_spread_ranges['dir'])
@@ -1419,8 +1419,8 @@ class Trader:
                             if this_strategy.entry_strategy=='spread_ranges':
                                 if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
                                 self.check_same_strategy(ass_id) and \
-                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0] and \
-                                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]:
+                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0] and \
+                                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]:
                                     close_pos = True
                             elif this_strategy.entry_strategy=='gre_v2':
                                 if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
@@ -1683,7 +1683,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
 ##################################################################################################################################
 ########################################################## WARNING!!!!! ##########################################################
 ##################################################################################################################################
-    thr_mc = 0.0
+    thr_mc = 0.5
     thr_levels = 5
     lb_level = 5
     first_nonzero = 0
@@ -1826,7 +1826,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     soft_tilde_t = np.ones(soft_tilde_t.shape)
     ################################# Send prediciton to trader ###############
                 # get condition to 
-                condition = soft_tilde_t[0,0]>thr_mc
+                condition = soft_tilde_t[0,0]>=thr_mc
           
                 # set countdown to enter market
                 if condition:
@@ -1890,7 +1890,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 
                 prob_mc = np.array([soft_tilde_t[0,0]])
                             
-                if prob_mc>thr_mc:
+                if prob_mc>=thr_mc:
                     #Y_tilde_idx = np.argmax(soft_tilde_t[0,3:])#
                     Y_tilde_check = np.array([(-1)**(1-np.argmax(soft_tilde_t[0,1:3]))]).astype(int)
                 else:
@@ -1951,7 +1951,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     countOuts[t_index][c]+=1
                     
                     # if prediction is different than 0, evaluate
-                    if p_mc>.5:#pred!=0:
+                    if p_mc>thr_mc:#pred!=0:
                         
                         # entry ask and bid
                         Ai = int(np.round(EOF.SymbolAsk.iloc[c]*100000))/100000
@@ -2883,7 +2883,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
         config_name = config_trader['config_name']
 #        print("config_name")
 #        print(config_name)
-        dateTest = config_trader['dateTest']
+        #dateTest = config_trader['dateTest']
         #dateTest = ['2018.12.31','2019.01.01','2019.01.02','2019.01.03','2019.01.04']
         numberNetworks = config_trader['numberNetworks']
         IDweights = config_trader['IDweights']#['000318INVO','000318INVO','000318INVO']#['000289STRO']
@@ -3048,14 +3048,16 @@ def run(config_traders_list, running_assets, start_time, test, api):
     nChans = (np.array(list_nExS)/np.array(list_mW)).astype(int).tolist()
     #print(unique_IDresults)
     #print(unique_IDepoch)
-    resultsDir = [[dir_results_netorks+unique_IDresults[nn]+"T"+
-                   str(t)+"E"+''.join(str(e) for e in unique_IDepoch[nn])+"/" 
+    resultsDir = [[dir_results_netorks+start_time+'/'
                    for t in unique_t_indexs[nn]] for nn in range(nUniqueNetworks)]
-    #print(resultsDir)
-    results_files = [[start_time+'_'+unique_IDresults[nn]+"T"+str(t)+"E"+
-                      ''.join(str(e) for e in unique_IDepoch[nn])+".txt" 
+#    dir_results_netorks+unique_IDresults[nn]+"T"+
+#                   str(t)+"E"+''.join(str(e) for e in unique_IDepoch[nn])+"/" 
+    print(resultsDir)
+    results_files = [[unique_IDresults[nn]+"T"+str(t)+"E"+
+                      ''.join(str(e) for e in unique_IDepoch[nn])+".txt"
                       for t in unique_t_indexs[nn]] for nn in range(nUniqueNetworks)]
-    #print(results_files)
+     
+    print(results_files)
     nCxAxN = np.zeros((len(running_assets),nUniqueNetworks))
 #    columnsResultInfo = ["Asset","Entry Time","Exit Time","Bet","Outcome","Diff",
 #                         "Bi","Ai","Bo","Ao","GROI","Spread","ROI","P_mc","P_md",
@@ -3146,6 +3148,18 @@ def run(config_traders_list, running_assets, start_time, test, api):
     if 1:
         shutdown = False
         if run_back_test:
+            first_day = '2018.12.31'
+            last_day = '2019.01.04'
+            init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
+            end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
+            delta_dates = end_day-init_day
+            dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+            dateTest = []
+            for d in dateTestDt:
+                if d.weekday()<5:
+                    dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+            ##### TEMP! #####
+            dateTest = dateTest+['2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15']
             day_index = 0
             #t_journal_entries = 0
             week_counter = 0
@@ -3394,6 +3408,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     if not test:
         if len(config_names)>0:
             list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+            print(config_names)
     #        for config_name in ins:
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
@@ -3401,7 +3416,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
             list_config_traders = [retrieve_config('TPRODN01010SRv4')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TPRODN01010SRv4')]#'TTEST10'#'TPRODN01010N01011'
+        list_config_traders = [retrieve_config('TN01010SRv3')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     #print("Test "+str(test))
@@ -3434,11 +3449,11 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = True
+send_info_api = False
 
 if __name__=='__main__':
     import sys
@@ -3452,7 +3467,7 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = False
 
-    config_names = ['TPRODN01010SRv4']#['TTEST10']#'TPRODN01010N01011'
+    config_names = ['TN01010SRv4']#['TTEST10']#'TPRODN01010N01011'
     test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:

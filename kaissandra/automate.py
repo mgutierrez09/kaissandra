@@ -15,7 +15,7 @@ from kaissandra.trainRNN import train_RNN
 from kaissandra.testRNN import test_RNN
 from kaissandra.config import retrieve_config, configuration, write_log
 from kaissandra.features import get_features
-from kaissandra.preprocessing import build_datasets
+from kaissandra.preprocessing import build_datasets, build_datasets_modular
 from kaissandra.local_config import local_vars
 from kaissandra.models import RNN
 from kaissandra.results2 import merge_results
@@ -82,7 +82,7 @@ def automate(*ins):
 
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
-                 if_merge_results=True):
+                 if_merge_results=True, modular=False):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -100,6 +100,16 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         endAt = entries['endAt']
     else:
         endAt = -1
+    if 'build_asset_relations' in entries:
+        build_asset_relations = entries['build_asset_relations']
+    else:
+        build_asset_relations = ['direct']
+    ext_rel = ''
+    if 'direct' in build_asset_relations:
+        ext_rel = ext_rel+'D'
+    if 'inverse' in build_asset_relations:
+        ext_rel = ext_rel+'I'
+        
 #        size_hidden_layer = 3
     if feats_from_bids==False:
         extW = 'A'
@@ -128,10 +138,10 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         basename = rootname_config+'k'+str(fold_idx+1)+'K'+str(K)
         entries['config_name'] = 'C'+basename
         entries['IDweights'] = 'W'+basename+extW
-        entries['IDresults'] = 'R'+basename+extR+sufix
+        entries['IDresults'] = 'R'+basename+extR+ext_rel+sufix
         print('IDresults:')
         print(entries['IDresults'])
-        entries['IO_results_name'] = 'R'+basename+extR
+        entries['IO_results_name'] = 'R'+basename+extR+ext_rel
         config = configuration(entries)
         if 'build_XY_mode' in entries:
             build_XY_mode = entries['build_XY_mode']
@@ -148,10 +158,18 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
             
         print("config['from_stats_file']")
         print(config['from_stats_file'])
-        dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
-                                                                 fold_idx=fold_idx, \
-                                                                 config=config, 
-                                                                 log=log)
+        if not modular:
+            dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
+                                                                     fold_idx=fold_idx, \
+                                                                     config=config, 
+                                                                     log=log)
+        else:
+            print("fold_idx")
+            print(fold_idx)
+            dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
+                                                                     fold_idx=fold_idx, \
+                                                                     config=config, 
+                                                                     log=log)
         if not just_build:
             f_IOtr = h5py.File(dirfilename_tr,'r')
             if 'Tr' in tAt:

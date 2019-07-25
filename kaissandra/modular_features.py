@@ -41,7 +41,7 @@ def save_stats_func(config, all_stats, thisAsset, first_date, last_date, assdirn
     pickle.dump( all_stats['out'], 
                     open( filedirname, "wb" ))
     filedirname = stats_dir+thisAsset+'_'+symbol_type+'_out_'+first_date+last_date+'.p'
-    pickle.dump( all_stats[key], 
+    pickle.dump( all_stats['out'], 
                     open( filedirname, "wb" ))
     
 def track_stats(stats_in, stats_out, all_stats, m_in, m_out, last_iteration):
@@ -58,6 +58,7 @@ def track_stats(stats_in, stats_out, all_stats, m_in, m_out, last_iteration):
             all_stats[key]['std'] = all_stats[key]['std']/all_stats[key]['m']
             
     if 'out' not in all_stats:
+        print("First iteration form inside")
         all_stats['out'] = {'mean_bid':0.0, 'std_bid':0.0, 
                             'mean_ask':0.0, 'std_ask':0.0,
                             'm':0}
@@ -67,6 +68,7 @@ def track_stats(stats_in, stats_out, all_stats, m_in, m_out, last_iteration):
     all_stats['out']['std_ask'] += m_out*stats_out['std_ask']
     all_stats['out']['m'] += m_out
     if last_iteration:
+        print("Last iteration from inside")
         all_stats['out']['mean_bid'] = all_stats['out']['mean_bid']/all_stats['out']['m']
         all_stats['out']['std_bid'] = all_stats['out']['std_bid']/all_stats['out']['m']
         all_stats['out']['mean_ask'] = all_stats['out']['mean_ask']/all_stats['out']['m']
@@ -74,7 +76,7 @@ def track_stats(stats_in, stats_out, all_stats, m_in, m_out, last_iteration):
     
     return all_stats
 
-def get_stats_modular(config, groupdirname, groupoutdirname, feature_keys):
+def get_stats_modular(config, groupdirname, groupoutdirname):
     """
     Function that calcultes mean and var of a group.
     Args:
@@ -97,6 +99,10 @@ def get_stats_modular(config, groupdirname, groupoutdirname, feature_keys):
         movingWindow = config['movingWindow']
     else:
         movingWindow = 500
+    if 'feature_keys' in config:
+        feature_keys = config['feature_keys']
+    else:
+        feature_keys = [i for i in range(37)]
     
     nChannels = int(nEventsPerStat/movingWindow)
     stats_in = {}
@@ -105,99 +111,66 @@ def get_stats_modular(config, groupdirname, groupoutdirname, feature_keys):
         print("\t getting variations")
         
         for i, f in enumerate(feature_keys):
-            # create temp file for variations
-            filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(1000))+'.hdf5'
-            ft = h5py.File(filename,'w')
-            group_temp = ft.create_group('temp')
-            # load features
-            filedirname = groupdirname+C.PF[f]+'_0.hdf5'
-            feature_file = h5py.File(filedirname,'r')
-    #        groupname = '_'.join(groupdirname.split('/'))
-            features = feature_file[C.PF[f]][C.PF[f]]
-            # create variations vector
-            variations = group_temp.create_dataset("variations", (features.shape[0],nChannels), dtype=float)
-            for r in range(nChannels):
-                if f not in C.non_var_features:
-                    variations[r+1:,r] = features[r+1:,0]-features[:-(r+1),0]
-                else:
-                    variations[r+1:,r] = features[:-(r+1),0]
-            
-            
-            means_in = np.zeros((nChannels,1))
-            stds_in = np.zeros((nChannels,1))
-            # loop over channels
-            for r in range(nChannels):
-                #nonZeros = variations[:,0,r]!=999
-                #print(np.sum(nonZeros))
-                means_in[r,0] = np.mean(variations[nChannels:,r],axis=0,keepdims=1)
-                stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
-            # save input stats
-            stats_in[C.PF[f]] = {'mean':means_in, 'std':stds_in}
-            pickle.dump( stats_in[C.PF[f]], 
-                        open( groupdirname+C.PF[f]+"_stats.p", "wb" ))
-            
-            ft.close()
-            feature_file.close()
-            os.remove(filename)
+            if not os.path.exists(groupdirname+C.PF[f]+"_stats.p"):
+                # create temp file for variations
+                filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(1000))+'.hdf5'
+                ft = h5py.File(filename,'w')
+                group_temp = ft.create_group('temp')
+                # load features
+                filedirname = groupdirname+C.PF[f]+'_0.hdf5'
+                feature_file = h5py.File(filedirname,'r')
+        #        groupname = '_'.join(groupdirname.split('/'))
+                features = feature_file[C.PF[f]][C.PF[f]]
+                # create variations vector
+                variations = group_temp.create_dataset("variations", (features.shape[0],nChannels), dtype=float)
+                for r in range(nChannels):
+                    if f not in C.non_var_features:
+                        variations[r+1:,r] = features[r+1:,0]-features[:-(r+1),0]
+                    else:
+                        variations[r+1:,r] = features[:-(r+1),0]
+                
+                
+                means_in = np.zeros((nChannels,1))
+                stds_in = np.zeros((nChannels,1))
+                # loop over channels
+                for r in range(nChannels):
+                    #nonZeros = variations[:,0,r]!=999
+                    #print(np.sum(nonZeros))
+                    means_in[r,0] = np.mean(variations[nChannels:,r],axis=0,keepdims=1)
+                    stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
+                # save input stats
+                stats_in[C.PF[f]] = {'mean':means_in, 'std':stds_in}
+                pickle.dump( stats_in[C.PF[f]], 
+                            open( groupdirname+C.PF[f]+"_stats.p", "wb" ))
+                
+                ft.close()
+                feature_file.close()
+                os.remove(filename)
+            else:
+                stats_in[C.PF[f]] = pickle.load(open( groupdirname+C.PF[f]+"_stats.p", "rb"))
     # load returns
-    filediroutname = groupoutdirname+'output_0.hdf5'
-    file_out = h5py.File(filediroutname,'r')
-    returns_bid = file_out['returns_bid']
-    returns_ask = file_out['returns_ask']
-    # get output stats
-    stds_out_bid = np.std(returns_bid,axis=0)
-    means_out_bid = np.mean(returns_bid,axis=0)
-    stds_out_ask = np.std(returns_ask,axis=0)
-    means_out_ask = np.mean(returns_ask,axis=0)
-    stats_out = {'mean_bid':means_out_bid, 'std_bid':stds_out_bid,
-                  'mean_ask':means_out_ask, 'std_ask':stds_out_ask}
-    pickle.dump( stats_out, 
-                open( groupoutdirname+"output_stats.p", "wb" ))
-    file_out.close()
+    if not os.path.exists(groupoutdirname+"output_stats.p"):
+        filediroutname = groupoutdirname+'output_0.hdf5'
+        file_out = h5py.File(filediroutname,'r')
+        returns_bid = file_out['returns_bid']
+        returns_ask = file_out['returns_ask']
+        # get output stats
+        stds_out_bid = np.std(returns_bid,axis=0)
+        means_out_bid = np.mean(returns_bid,axis=0)
+        stds_out_ask = np.std(returns_ask,axis=0)
+        means_out_ask = np.mean(returns_ask,axis=0)
+        stats_out = {'mean_bid':means_out_bid, 'std_bid':stds_out_bid,
+                      'mean_ask':means_out_ask, 'std_ask':stds_out_ask}
+        pickle.dump( stats_out, 
+                    open( groupoutdirname+"output_stats.p", "wb" ))
+        file_out.close()
+    else:
+        stats_out = pickle.load(open( groupoutdirname+"output_stats.p", "rb"))
     
-    print("\t Total time for stats: "+str(time.time()-tic))    
-    # open temporal file for variations
-#    try:
-#        # create file
-#        filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(1000))+'.hdf5'
-#        ft = h5py.File(filename,'w')
-#        # create group
-#        group_temp = ft.create_group('temp')
-#        # reserve memory space for variations and normalized variations
-#        variations = group_temp.create_dataset("variations", (features.shape[0],nF,nChannels), dtype=float)
-#        # init variations and normalized variations to 999 (impossible value)
-#        
-#        #variations[:] = variations[:]+999
-#        
-#        # loop over channels
-#        for r in range(nChannels):
-#            variations[r+1:,:,r] = features[r+1:,:]-features[:-(r+1),:]
-#            variations[r+1:,C.non_var_features,r] = features[:-(r+1),C.non_var_features]
-#        print("\t time for variations: "+str(time.time()-tic))
-#        # init stats    
-#        means_in = np.zeros((nChannels,nF))
-#        stds_in = np.zeros((nChannels,nF))
-#        print("\t getting means and stds")
-#        # loop over channels
-#        for r in range(nChannels):
-#            #nonZeros = variations[:,0,r]!=999
-#            #print(np.sum(nonZeros))
-#            means_in[r,:] = np.mean(variations[nChannels:,:,r],axis=0,keepdims=1)
-#            stds_in[r,:] = np.std(variations[nChannels:,:,r],axis=0,keepdims=1)  
-#    #       
-#            # get output stats
-#            stds_out = np.std(returns,axis=0)
-#            means_out = np.mean(returns,axis=0)
-#        print("\t Total time for stats: "+str(time.time()-tic))
-#    except KeyboardInterrupt:
-#        ft.close()
-#        print("ERROR! Closing file and exiting.")
-#        raise KeyboardInterrupt
-#    ft.close()
-    
+    print("\t Total time for stats: "+str(time.time()-tic))
     return stats_in, stats_out
 
-def get_returns_modular(config, groupoutdirname, idx_init, DateTime, SymbolBid, SymbolAsk, m_out, shift):
+def get_returns_modular(config, groupoutdirname, idx_init, DateTime, SymbolBid, SymbolAsk, Symbol, m_out, shift):
     """
     Function that obtains the outputs from raw data.
     Args:
@@ -225,11 +198,17 @@ def get_returns_modular(config, groupoutdirname, idx_init, DateTime, SymbolBid, 
         force_calulation_output = config['force_calulation_output']
     else:
         force_calulation_output = False
-    
+    asset_relation = config['asset_relation']
+    feats_from_bids = config['feats_from_bids']
     
     if not os.path.exists(groupoutdirname+'output_'+str(shift)+'.hdf5') or force_calulation_output:
         print("\tGetting output.")
-        
+        if asset_relation=='inverse' and feats_from_bids:
+            SymbolBid = Symbol
+            SymbolAsk = 1/SymbolAsk[:]
+        elif asset_relation=='inverse' and not feats_from_bids:
+            SymbolAsk = Symbol
+            SymbolBid = 1/SymbolBid[:]
         file = h5py.File(groupoutdirname+'output_'+str(shift)+'.hdf5','a')
         returns_bid = file.create_dataset("returns_bid", (m_out,len(lookAheadVector)),dtype=float)
         returns_ask = file.create_dataset("returns_ask", (m_out,len(lookAheadVector)),dtype=float)
@@ -375,6 +354,7 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
         force_calculation_features = config['force_calculation_features']
     else:
         force_calculation_features = [False for i in range(len(feature_keys))]
+    asset_relation = config['asset_relation']
     # init scalars
     nExS = nEventsPerStat
     mW = movingWindow
@@ -384,16 +364,7 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
     boolSars = [C.FI['parSARhigh'+i] in feature_keys for i in C.sar_ext]
     idxSars = [i for i in range(len(boolSars)) if boolSars[i]]
     n_parsars = sum(boolSars)#int(C.FI['parSARhigh20'] in feature_keys) + int(C.FI['parSARhigh2'] in feature_keys)
-    # init exponetial means
-    if nEMAs>0:
-        em = intit_em(lbd, nExS, mW, Symbol)
-            
-    if n_parsars>0:
-        sar = init_sar(Symbol[0])
     
-    batch_size = 10000000
-    par_batches = int(np.ceil(m/batch_size))
-    l_index = 0
     features_files = []
     features = []
     feature_keys_to_calc = []
@@ -407,13 +378,22 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
                         create_dataset(C.PF[f], (m,1),dtype=float))
             feature_keys_to_calc.append(f)
     feature_keys = feature_keys_to_calc
-#    features_files = [h5py.File(groupdirname+C.PF[i]+'.hdf5','a') for i in feature_keys]
-#    features = [features_files[i].create_group('_'.join(groupdirname.split('/'))).\
-#                          create_dataset(C.PF[i], (m,1),dtype=float) for i in feature_keys]
-#    f_prep_IO.create_group(group_name)
-#    group.create_dataset("returns", (m_out,len(lookAheadVector)),dtype=float)
+        
     # loop over batched
     if len(features_files) > 0:
+        if asset_relation=='inverse':
+            Symbol = 1/Symbol[:]
+        # init exponetial means
+        if nEMAs>0:
+            em = intit_em(lbd, nExS, mW, Symbol)
+                
+        if n_parsars>0:
+            sar = init_sar(Symbol[0])
+        
+        batch_size = 10000000
+        par_batches = int(np.ceil(m/batch_size))
+        l_index = 0
+        
         for b in range(par_batches):
             # get m
             m_i = np.min([batch_size, m-b*batch_size])
@@ -567,7 +547,7 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
             (file.close() for file in features_files)
     else:
         print("\tAll features already calculated. Skipped.")
-    return feature_keys
+    return feature_keys, Symbol
 
 def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outassdirname, 
                                  group_raw, s, all_stats, last_iteration, 
@@ -591,24 +571,24 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
     save_stats = config['save_stats']
-    asset_relation = config['asset_relation']
+    #asset_relation = config['asset_relation']
     phase_shift = config['phase_shift']
     
     # get trade info datasets
     DateTime = group_raw["DateTime"]
     SymbolBid = group_raw["SymbolBid"]
     SymbolAsk = group_raw["SymbolAsk"]
-    if asset_relation == 'direct':
-        Bids = SymbolBid
-        Asks = SymbolAsk
-    elif asset_relation == 'inverse':
-        print("\tGetting inverse")
-        Bids = 1/SymbolBid[:]
-        Asks = 1/SymbolAsk[:]
+#    if asset_relation == 'direct':
+#        Bids = SymbolBid
+#        Asks = SymbolAsk
+#    elif asset_relation == 'inverse':
+#        print("\tGetting inverse")
+#        Bids = 1/SymbolBid[:]
+#        Asks = 1/SymbolAsk[:]
     if feats_from_bids:
-        Symbols = Bids
+        Symbols = SymbolBid
     else:
-        Symbols = Asks
+        Symbols = SymbolAsk
     # number of events
     nExS = nEventsPerStat
     mW = movingWindow
@@ -629,31 +609,31 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
             groupoutdirname = outassdirname+init_date+end_date+'/'
             if not os.path.exists(groupdirname):
                 os.makedirs(groupdirname)
-                # save m
-                pickle.dump( m_in, open( groupdirname+"m_in.p", "wb" ))
+            # save m
+            pickle.dump( m_in, open( groupdirname+"m_in_"+str(shift)+".p", "wb" ))
             if not os.path.exists(groupoutdirname):
                 os.makedirs(groupoutdirname)
-                pickle.dump( m_out, open( groupoutdirname+"m_out.p", "wb" ))
+            pickle.dump( m_out, open( groupoutdirname+"m_out_"+str(shift)+".p", "wb" ))
                     
             print("\tShift "+str(shift)+": getting features from raw data...")
             # get structures and save them in a hdf5 file
-            feature_keys_to_calc = get_features_modular(config, groupdirname,
+            feature_keys_to_calc, Symbol = get_features_modular(config, groupdirname,
                                      DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
                                      Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)
             get_returns_modular(config, groupoutdirname, separators.index[s],
                                     DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
-                                    Bids[separators.index[s]+shift:separators.index[s+1]+1],
-                                    Asks[separators.index[s]+shift:separators.index[s+1]+1], m_out, shift)
+                                    SymbolBid[separators.index[s]+shift:separators.index[s+1]+1],
+                                    SymbolAsk[separators.index[s]+shift:separators.index[s+1]+1], Symbol, m_out, shift)
             # only get stats for shift zero
             if shift==0:
                 # get stats
-                stats_in, stats_out = get_stats_modular(config, groupdirname, groupoutdirname, feature_keys_to_calc)
+                stats_in, stats_out = get_stats_modular(config, groupdirname, groupoutdirname)
                 if save_stats:
                     all_stats = track_stats(stats_in, stats_out, all_stats, m_in, m_out, last_iteration)
     
     return all_stats
 
-def wrapper_wrapper_get_features_modular(config_entry, assets, seps_input=[]):
+def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[]):
     """  """
     import time
     from kaissandra.inputs import load_separators
@@ -663,7 +643,7 @@ def wrapper_wrapper_get_features_modular(config_entry, assets, seps_input=[]):
     # init file directories
     hdf5_directory = local_vars.hdf5_directory
     if type(config_entry)==dict:
-        config = configuration(config_entry)
+        config = config_entry
         config_name = config['config_name']
     elif config_entry!='':
         config_name = config_entry
@@ -715,6 +695,9 @@ def wrapper_wrapper_get_features_modular(config_entry, assets, seps_input=[]):
     #f_prep_IO = h5py.File(filename_prep_IO,'a')
     f_raw = h5py.File(filename_raw,'r')
     
+    if len(assets)==0:
+        assets = config['assets']
+    
     # loop over all assets
     for ass in assets:
         
@@ -739,12 +722,12 @@ def wrapper_wrapper_get_features_modular(config_entry, assets, seps_input=[]):
         for s in seps:
             # number of events within this separator chunk
             nE = separators.index[s+1]-separators.index[s]+1
-            if len(seps) == 0:
-                if s+1 == separators.shape[0]-1:
-                    last_iteration = True
-            else:
-                if s+1 >= len(seps)-1:
-                    last_iteration = True
+#            if len(seps) == 0:
+#                if s+1 == separators.shape[0]-1:
+#                    last_iteration = True
+#            else:
+            if s == seps[-1]:
+                last_iteration = True
             #print(nE)
             # check if number of events is not enough to build two features and one return
             if nE>=2*nEventsPerStat:
@@ -775,9 +758,9 @@ def wrapper_wrapper_get_features_modular(config_entry, assets, seps_input=[]):
         print("\t"+"Config "+config['config_name']+
               " Time for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+
               ". Total time:"+str(np.floor(time.time()-ticTotal))+"s")
-    if save_stats:
-        print("\tSaving stats")
-        save_stats_func(config, all_stats, thisAsset, first_date, last_date, assdirname, outassdirname)
+        if save_stats:
+            print("\tSaving stats")
+            save_stats_func(config, all_stats, thisAsset, first_date, last_date, assdirname, outassdirname)
     f_raw.close()
     # release lock
     print("DONE")

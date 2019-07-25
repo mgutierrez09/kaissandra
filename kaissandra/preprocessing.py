@@ -336,7 +336,7 @@ def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list,
     return edges_idx_tr, edges_idx_cv#np.array([[0,dts.shape[0]]]), np.array([[0,0]])
     
 def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt, 
-             K, fold_idx, alloc=2**30, save_output=False):
+             K, fold_idx, alloc=2**30, save_output=False, skip_cv=False):
     """  """
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
@@ -471,7 +471,10 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         
         
         # normalize output
-        R_i = R_i/stds_out[0, lookAheadIndex]#stdO#
+        if len(stds_out.shape)==2:
+            R_i = R_i/stds_out[0, lookAheadIndex]#stdO#
+        elif len(stds_out.shape)==1:
+            R_i = R_i/stds_out[lookAheadIndex]#stdO#
         #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # get decimal and binary outputs
         # TODO: generalize for the number of outputs
@@ -528,33 +531,34 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
             pointerTr += samps_tr
 #        print("pointerTr")
 #        print(pointerTr)
-        for e in range(edges_cv_idx.shape[0]):
-            # resize IO structures
-            i_cv = edges_cv_idx[e, 0]
-            e_cv = edges_cv_idx[e, 1]
-            samps_cv = e_cv-i_cv
-#            print("samps_cv")
-#            print(samps_cv)
-            Xcv.resize((pointerCv+samps_cv, seq_len, nFeatures))
-            Ycv.resize((pointerCv+samps_cv, seq_len, size_output_layer))
-            
-            Icv.resize((pointerCv+samps_cv, seq_len, 2))
-            # update IO structures
-            Xcv[pointerCv:pointerCv+samps_cv,:,:] = X_i[i_cv:e_cv,:,:]
-            Ycv[pointerCv:pointerCv+samps_cv,:,:] = Y_i[i_cv:e_cv,:,:]
-            Icv[pointerCv:pointerCv+samps_cv,:,:] = I_i[i_cv:e_cv,:,:]
-            if save_output:
-                Rcv.resize((pointerCv+samps_cv, 1))
-                Rcv[pointerTr:pointerCv+samps_cv,0] = R_i[i_cv:e_cv,0,0]
-            # resize
-            D.resize((pointerCv+samps_cv, seq_len, 2))
-            B.resize((pointerCv+samps_cv, seq_len, 2))
-            A.resize((pointerCv+samps_cv, seq_len, 2))
-            # update
-            D[pointerCv:pointerCv+samps_cv,:,:] = D_i[i_cv:e_cv,:,:]
-            B[pointerCv:pointerCv+samps_cv,:,:] = B_i[i_cv:e_cv,:,:]
-            A[pointerCv:pointerCv+samps_cv,:,:] = A_i[i_cv:e_cv,:,:]
-            pointerCv += samps_cv
+        if not skip_cv:
+            for e in range(edges_cv_idx.shape[0]):
+                # resize IO structures
+                i_cv = edges_cv_idx[e, 0]
+                e_cv = edges_cv_idx[e, 1]
+                samps_cv = e_cv-i_cv
+    #            print("samps_cv")
+    #            print(samps_cv)
+                Xcv.resize((pointerCv+samps_cv, seq_len, nFeatures))
+                Ycv.resize((pointerCv+samps_cv, seq_len, size_output_layer))
+                
+                Icv.resize((pointerCv+samps_cv, seq_len, 2))
+                # update IO structures
+                Xcv[pointerCv:pointerCv+samps_cv,:,:] = X_i[i_cv:e_cv,:,:]
+                Ycv[pointerCv:pointerCv+samps_cv,:,:] = Y_i[i_cv:e_cv,:,:]
+                Icv[pointerCv:pointerCv+samps_cv,:,:] = I_i[i_cv:e_cv,:,:]
+                if save_output:
+                    Rcv.resize((pointerCv+samps_cv, 1))
+                    Rcv[pointerTr:pointerCv+samps_cv,0] = R_i[i_cv:e_cv,0,0]
+                # resize
+                D.resize((pointerCv+samps_cv, seq_len, 2))
+                B.resize((pointerCv+samps_cv, seq_len, 2))
+                A.resize((pointerCv+samps_cv, seq_len, 2))
+                # update
+                D[pointerCv:pointerCv+samps_cv,:,:] = D_i[i_cv:e_cv,:,:]
+                B[pointerCv:pointerCv+samps_cv,:,:] = B_i[i_cv:e_cv,:,:]
+                A[pointerCv:pointerCv+samps_cv,:,:] = A_i[i_cv:e_cv,:,:]
+                pointerCv += samps_cv
 #        print("pointerCv")
 #        print(pointerCv)
         #print(pointer)
@@ -1823,7 +1827,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         write_log(mess)
     return filename_tr, filename_cv, IO_results_name
 
-def get_edges_datasets_modular(K, config, separators_directory):
+def get_edges_datasets_modular(K, config, separators_directory, symbol):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -1847,6 +1851,11 @@ def get_edges_datasets_modular(K, config, separators_directory):
         edge_dates = config['edge_dates']
     else:
         edge_dates = ['2018.03.09']
+    if 'asset_relation' in config:
+        asset_relation = config['asset_relation']
+    else:
+        asset_relation = 'direct'
+    
     if build_XY_mode=='K_fold':
         weights_ass = np.zeros((len(assets),1))
         samps_ass = np.zeros((len(assets)))
@@ -1870,9 +1879,9 @@ def get_edges_datasets_modular(K, config, separators_directory):
             last_date = dt.datetime.strftime(dt.datetime.strptime(
                     separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
             
-            samps_ass[a] = pickle.load(open( local_vars.hdf5_directory+'mW'+str(movingWindow)+
-                     '_nE'+str(nEventsPerStat)+'/out/'+thisAsset+'/allstats_out_'+
-                     first_date+last_date+'.p', "rb"))['m']
+            samps_ass[a] = pickle.load(open( local_vars.hdf5_directory+'stats_modular/mW'+str(movingWindow)+
+                                     'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'+thisAsset+'_'+symbol+'_out_'+
+                                     first_date+last_date+'.p', "rb"))['m']
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
             A[a,:] = get_day_indicator(list_unique_days)
@@ -1894,22 +1903,22 @@ def get_edges_datasets_modular(K, config, separators_directory):
         raise ValueError("build_XY_mode not recognized")
     return edges, edges_dt
 
-def load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date):
+def load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift):
     """
     Function that extracts features from previously saved structures.
     """
     feature_keys = config['feature_keys']
     groupdirname = assdirname+init_date+end_date+'/'
-    m_in = pickle.dump( open( groupdirname+"m_in.p", "rb" ))
+    m_in = pickle.load( open( groupdirname+"m_in_"+str(shift)+".p", "rb" ))
     features = np.zeros((m_in, len(feature_keys)))
     for i,f in enumerate(feature_keys):
-        filedirname = groupdirname+C.PF[f]+'.hdf5'
+        filedirname = groupdirname+C.PF[f]+'_'+str(shift)+'.hdf5'
         feature_file = h5py.File(filedirname,'r')
         features[:,i] = feature_file[C.PF[f]][C.PF[f]][:,0]
             
     return features
 
-def load_stats_modular(config, thisAsset, first_date, last_date, assdirname, outassdirname, symbol):
+def load_stats_modular(config, thisAsset, first_date, last_date, symbol):
     """  """
     movingWindow = config['movingWindow']
     nEventsPerStat = config['nEventsPerStat']
@@ -1918,8 +1927,9 @@ def load_stats_modular(config, thisAsset, first_date, last_date, assdirname, out
     else:
         symbol_type = 'ask'
     feature_keys = config['feature_keys']
+    asset_relation = config['asset_relation']
     nChannels = int(nEventsPerStat/movingWindow)
-    stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'
+    stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
     means_in = np.zeros((nChannels, len(feature_keys)))
     stds_in = np.zeros((nChannels, len(feature_keys)))
     for i, feat in enumerate(feature_keys):
@@ -1927,8 +1937,8 @@ def load_stats_modular(config, thisAsset, first_date, last_date, assdirname, out
         # copy in stats directory
         filedirname = stats_dir+thisAsset+'_'+symbol_type+'_'+key+'_'+first_date+last_date+'.p'
         stats = pickle.load(open( filedirname, "rb"))
-        means_in[:,i] = stats['mean']
-        stds_in[:,i] = stats['std']
+        means_in[:,i] = stats['mean'][:,0]
+        stds_in[:,i] = stats['std'][:,0]
     stats_in = {'means_t_in':means_in,
                 'stds_t_in':stds_in}
     filedirname = stats_dir+thisAsset+'_'+symbol_type+'_out_'+first_date+last_date+'.p'
@@ -1938,7 +1948,7 @@ def load_stats_modular(config, thisAsset, first_date, last_date, assdirname, out
                  'm_t_out':out['m']}
     return stats_in, stats_out
 
-def load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date):
+def load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift):
     """
     Function that extracts results from previously saved structures.
     
@@ -1948,7 +1958,7 @@ def load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol,
     returns = []
     ret_idx = []
     
-    file = h5py.File(groupoutdirname+'output.hdf5','r')
+    file = h5py.File(groupoutdirname+'output_'+str(shift)+'.hdf5','r')
     returns = file['returns_'+symbol]
     ret_idx = file['ret_idx']
     DT = file['DT']
@@ -1992,6 +2002,69 @@ def load_output_stats_modular(config, hdf5_directory, thisAsset, tag='IOB'):
     stats_output = {'m_t_out':stats['m_t_out'],
                     'stds_t_out':stats['stds_t_out']}
     return stats_output
+
+def build_DTA_shift(config, AllAssets, D, B, A, ass_IO_ass):
+    """
+    Function that builds structure based on IO to later get Journal and ROIs.
+    Args:
+        - data
+        - I: structure containing indexes
+        - ass_IO_ass: asset to IO assignment
+    """
+    if 'movingWindow' in config:
+        movingWindow = config['movingWindow']
+    else:
+        movingWindow = 500
+    if 'assets' in config:
+        assets = config['assets']
+    else:
+        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+    if 'phase_shift' in config:
+        phase_shift = config['phase_shift']
+    else:
+        phase_shift = 1
+    phase_size = movingWindow/phase_shift
+    shifts = [int(phase_size*phase) for phase in range(phase_shift)]
+    # init columns
+    columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
+    # init DTA
+    DTA = pd.DataFrame()
+    # init hdf5 file with raw data
+    ass_index = 0
+    last_ass_IO_ass = 0
+    # loop over assets
+    for ass in assets:
+        # get this asset's name
+        thisAsset = AllAssets[str(ass)]
+        print(thisAsset)
+        for shift in shifts:
+            # init DTA for this asset
+            DTA_i = pd.DataFrame(columns = columns)
+    #        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+    #        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+            # fill DTA_i up
+            DTA_i['DT1'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+            if DTA_i.shape[0]>0:
+                DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+                print(DTA_i['DT1'].iloc[0])
+                print(DTA_i['DT1'].iloc[-1])
+                
+                DTA_i['B1'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+                DTA_i['A1'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+                
+                DTA_i['DT2'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+                DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
+                DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+                DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+                DTA_i['Asset'] = thisAsset
+        #        print(DTA_i['DT1'].iloc[0])
+        #        print(DTA_i['DT1'].iloc[-1])
+                # append DTA this asset to all DTAs
+                DTA = DTA.append(DTA_i,ignore_index=True)
+        last_ass_IO_ass = ass_IO_ass[ass_index]
+        ass_index += 1
+    # end of for ass in data.assets:
+    return DTA
 
 def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     """  """
@@ -2038,10 +2111,22 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         build_test_db = config['build_test_db']
     else:
         build_test_db = False
+    if 'build_asset_relations' in config:
+        build_asset_relations = config['build_asset_relations']
+    else:
+        build_asset_relations = ['direct']
+    print("build_asset_relations")
+    print(config['build_asset_relations'])
     if 'asset_relation' in config:
         asset_relation = config['asset_relation']
     else:
         asset_relation = 'direct'
+    if 'phase_shift' in config:
+        phase_shift = config['phase_shift']
+    else:
+        phase_shift = 1
+    phase_size = movingWindow/phase_shift
+    shifts = [int(phase_size*phase) for phase in range(phase_shift)]
     
     hdf5_directory = local_vars.hdf5_directory
     IO_directory = local_vars.IO_directory
@@ -2052,16 +2137,14 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         symbol = 'bid'
     else:
         symbol = 'ask'
-    featuredirname = (hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/'+symbol+'/')
-    outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
-    
+    featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
+    outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
         
         separators_directory = hdf5_directory+'separators/'
     else:
         separators_directory = hdf5_directory+'separators_test/'
-    
-    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory)
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
@@ -2070,9 +2153,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         write_log(filename_tr)
     if len(log)>0:
         write_log(filename_cv)
-    #f_prep_IO = h5py.File(filename_prep_IO,'r')
-    print("featuredirname")
-    print(featuredirname)
         
     if os.path.exists(filename_tr) and os.path.exists(filename_cv):
         if_build_IO = False
@@ -2165,8 +2245,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     for ass in assets:
         
         thisAsset = C.AllAssets[str(ass)]
-        assdirname = featuredirname+thisAsset+'/'
-        outassdirname = outrdirname+thisAsset+'/'
+        assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
+        outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
         
         tic = time.time()
         # load separators
@@ -2179,8 +2259,11 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         last_date = dt.datetime.strftime(dt.datetime.strptime(
                 separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
         
-        stats_in, stats_out = load_stats_modular(config, thisAsset, first_date, last_date, assdirname, outassdirname, symbol)
-        
+        list_stats_in = [None for _ in range(len(outassdirnames))]
+        list_stats_out = [None for _ in range(len(outassdirnames))]
+        for ind, assdirname in enumerate(assdirnames):
+            outassdirname = outassdirnames[ind]
+            list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol)
 #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
 #                                            thisAsset, tag=tag_stats)
         
@@ -2209,27 +2292,48 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                     end_date = dt.datetime.strftime(dt.datetime.strptime(
                             separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
                     
-                    groupoutdirname = outassdirname+init_date+end_date+'/'
+                    groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
                     # load features, returns and stats from HDF files
-                    features = load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date)
+                    list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
+                                     for shift in shifts for assdirname in assdirnames]
                     # load returns
-                    returns_struct = load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date)
+                    list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
+                                           for shift in shifts for groupoutdirname in groupoutdirnames]
                     try:
-                        file_temp_name = local_vars.IO_directory+\
-                            'temp_train_build'+\
-                            str(np.random.randint(10000))+'.hdf5'
-                        while os.path.exists(file_temp_name):
-                            file_temp_name = IO_directory+'temp_train_build'\
-                                +str(np.random.randint(10000))+'.hdf5'
-                        file_temp = h5py.File(file_temp_name,'w')
+                        features_counter = 0
                         
-                        Vars = build_variations(config, file_temp, features, stats_in)
-                        IO = build_XY(config, Vars, returns_struct, 
-                                      stats_out, IO, edges_dt,
-                                      folds, fold_idx, save_output=False)
-                        # close temp file
-                        file_temp.close()
-                        os.remove(file_temp_name)
+                        for ind in range(len(assdirnames)):
+                            prevPointerCv = IO['pointerCv']
+                            for shift in shifts:
+                                file_temp_name = local_vars.IO_directory+\
+                                    'temp_train_build'+\
+                                    str(np.random.randint(10000))+'.hdf5'
+                                while os.path.exists(file_temp_name):
+                                    file_temp_name = IO_directory+'temp_train_build'\
+                                        +str(np.random.randint(10000))+'.hdf5'
+                                file_temp = h5py.File(file_temp_name,'w')
+                                Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind])
+                                if build_asset_relations[ind]==asset_relation:
+                                    skip_cv = False
+                                else:
+                                    skip_cv = True
+                                IO = build_XY(config, Vars, list_returns_struct[features_counter], 
+                                              list_stats_out[ind], IO, edges_dt,
+                                              folds, fold_idx, save_output=False, skip_cv=skip_cv)
+                                # close temp file
+                                file_temp.close()
+                                os.remove(file_temp_name)
+                                features_counter += 1
+                            
+                            if build_asset_relations[ind]==asset_relation and phase_shift>1:
+                                # rearrange IO in chronological order for Cv
+                                sorted_idx = np.argsort(IO['Dcv'][prevPointerCv:],kind='mergesort')
+                                IO['Dcv'][prevPointerCv:] = IO['Dcv'][prevPointerCv+sorted_idx]
+                                IO['Bcv'][prevPointerCv:] = IO['Bcv'][prevPointerCv+sorted_idx]
+                                IO['Acv'][prevPointerCv:] = IO['Acv'][prevPointerCv+sorted_idx]
+                                IO['Xcv'][prevPointerCv:] = IO['Xcv'][prevPointerCv+sorted_idx]
+                                IO['Ycv'][prevPointerCv:] = IO['Ycv'][prevPointerCv+sorted_idx]
+                            
                     except (KeyboardInterrupt):
                         mess = "KeyBoardInterrupt. Closing files and exiting program."
                         print(mess)

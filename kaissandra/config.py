@@ -264,10 +264,10 @@ def configuration(entries, save=True):
             build_XY_mode = entries['build_XY_mode']
         else:
             build_XY_mode = 'K_fold'#'manual'
-        if 'asset_relation' in entries:
-            asset_relation = entries['asset_relation']
+        if 'build_asset_relations' in entries:
+            build_asset_relations = entries['build_asset_relations']
         else:
-            asset_relation = 'direct' # {'direct','inverse'}
+            build_asset_relations = ['direct', 'inverse']
         if 'phase_shift' in entries:
             phase_shift = entries['phase_shift']
         else:
@@ -424,6 +424,10 @@ def configuration(entries, save=True):
         else:
             build_test_db = True
         assert(not (build_test_db and save_stats))
+        if 'asset_relation' in entries:
+            asset_relation = entries['asset_relation']
+        else:
+            asset_relation = 'direct' # {'direct','inverse'}
         
         # add parameters to config dictionary
         config = {'config_name':config_name,
@@ -451,7 +455,7 @@ def configuration(entries, save=True):
                   'lookAheadIndex':lookAheadIndex,
                   'lookAheadVector':lookAheadVector,
                   'build_XY_mode':build_XY_mode,
-                  'asset_relation':asset_relation,
+                  'build_asset_relations':build_asset_relations,                  
                   'phase_shift':phase_shift,
                   
                   'size_hidden_layer':size_hidden_layer,
@@ -489,7 +493,8 @@ def configuration(entries, save=True):
                   'load_features_from':load_features_from,
                   'build_partial_raw':build_partial_raw,
                   'feats_from_bids':feats_from_bids,
-                  'build_test_db':build_test_db}
+                  'build_test_db':build_test_db,
+                  'asset_relation':asset_relation}
     
         # save config file for later use
     
@@ -602,27 +607,23 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TPRODN01010SRv4'
+    config_name = 'TN01010SRv4'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
-        first_day = '2018.11.12'
-        last_day = '2019.03.29'
-        init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
-        end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
-        delta_dates = end_day-init_day
-        dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
-        dateTest = []
-        for d in dateTestDt:
-            if d.weekday()<5:
-                dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
-        
         
         numberNetworks = 2
-        IDresults = ['RRNN01010CMF181112T190426ALk1k2E14l-s','RRNN01010CMF181112T190426ALk1k2E14l-s']
+        IDresults = ['RRNN01010CMF181112T190426ALk1k2E14l-s','RRNN01010CMF181112T190426BSk1k2E14l-s']
         IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01010k1K5B','WRNN01010k2K5B']]
         list_name = ['01010k1-2K5E14ASR','01010k1-2K5E14BSR']
-        list_spread_ranges = [{'sp':[1,2,5],'th':[(.5,.6),(.6,.65),(.7,.6)],'dir':'ASKS'},{'sp':[1,2,5],'th':[(.5,.55),(.6,.6),(.7,.6)],'dir':'BIDS'}]
+        list_spread_ranges = [{'sp':[.6, .8, 1.2, 2.3, 3.4, 4.5, 5.0],
+                           'th':[(.55,.56),(.55,.56),(.55,.58),(.69,.53),(.69,.61),(.73,.61),(.77,.63)],
+                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)],
+                           'dir':'ASKS'},
+                          {'sp':[.9, 1.0, 1.6, 1.8, 2.2, 3.5, 4.8, 5.0],
+                           'th':[(.55,.55),(.55,.55),(.55,.55),(.58,.55),(.55,.59),(.66,.58),(.71,.6),(.73,.6)],
+                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)],
+                           'dir':'BIDS'}]
         
         mWs = [500, 500]
         nExSs = [5000, 5000]
@@ -639,7 +640,7 @@ def configuration_trader(*ins):
                          'feats_from_bids':list_feats_from_bids[i],
                        'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
                        'outputGain':outputGains[i],'movingWindow':mWs[i],
-                       'nEventsPerStat':nExSs[i],'first_day':first_day,'last_day':last_day,
+                       'nEventsPerStat':nExSs[i],
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
         IDepoch = [[14,14], [14,14]]
@@ -651,11 +652,11 @@ def configuration_trader(*ins):
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
         list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
-        phase_shifts = [2 for i in range(numberNetworks)]
+        phase_shifts = [1 for i in range(numberNetworks)]
         
         
         list_lim_groi_ext = [-0.1 for i in range(numberNetworks)]
-        list_thr_sl = [50 for i in range(numberNetworks)]
+        list_thr_sl = [1000 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
@@ -683,7 +684,6 @@ def configuration_trader(*ins):
         
         config = {'config_name':config_name,
                   'config_list':config_list,
-                  'dateTest':dateTest,
                   'numberNetworks':numberNetworks,
                   'IDweights':IDweights,
                   'IDresults':IDresults,
