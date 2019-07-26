@@ -668,6 +668,8 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
     else:
         save_stats = False
     # define files and directories names
+    print("build_test_db")
+    print(build_test_db)
     if 'build_test_db' in config:
         build_test_db = config['build_test_db']
     else:

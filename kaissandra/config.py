@@ -422,7 +422,7 @@ def configuration(entries, save=True):
         if 'build_test_db' in entries:
             build_test_db = entries['build_test_db']
         else:
-            build_test_db = True
+            build_test_db = False
         assert(not (build_test_db and save_stats))
         if 'asset_relation' in entries:
             asset_relation = entries['asset_relation']
