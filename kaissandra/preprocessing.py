@@ -2098,10 +2098,10 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         seq_len = config['seq_len']
     else:
         seq_len = int((config['lB']-config['nEventsPerStat'])/config['movingWindow']+1)
-    if 'filetag' in config:
-        filetag = config['filetag']
-    else:
-        filetag = config['IO_results_name']
+#    if 'filetag' in config:
+#        filetag = config['filetag']
+#    else:
+#        filetag = config['IO_results_name']
     size_output_layer = config['size_output_layer']
     if 'n_bits_outputs' in config:
         n_bits_outputs = config['n_bits_outputs']
@@ -2146,8 +2146,10 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         separators_directory = hdf5_directory+'separators_test/'
     edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol)
     
-    filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
-    filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
+    IO_tr_name = config['IO_tr_name']
+    IO_cv_name = config['IO_cv_name']
+    filename_tr = IO_directory+'KFTr'+IO_tr_name+'.hdf5'
+    filename_cv = IO_directory+'KFCv'+IO_cv_name+'.hdf5'
     
     if len(log)>0:
         write_log(filename_tr)
@@ -2233,7 +2235,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         IO['Acv'] = Acv
         IO['pointerCv'] = 0
         
-    IO_results_name = IO_directory+'DTA_'+filetag+'.p'
+    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
     print(IO_results_name)
     if len(log)>0:
         write_log(IO_results_name)
@@ -2243,7 +2245,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
     for ass in assets:
-        
+        first = True
         thisAsset = C.AllAssets[str(ass)]
         assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
         outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
@@ -2277,7 +2279,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
                     ". From "+separators.DateTime.iloc[s]+" to "+\
                     separators.DateTime.iloc[s+1]
-                print(mess)
+                #print(mess)
                 if len(log)>0:
                     write_log(mess)
                 # number of events within this separator chunk
@@ -2313,6 +2315,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                         +str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
                                 Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind])
+                                
                                 if build_asset_relations[ind]==asset_relation:
                                     skip_cv = False
                                 else:
@@ -2320,6 +2323,24 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                 IO = build_XY(config, Vars, list_returns_struct[features_counter], 
                                               list_stats_out[ind], IO, edges_dt,
                                               folds, fold_idx, save_output=False, skip_cv=skip_cv)
+#                                if not skip_cv and prevPointerCv<IO['pointerCv'] and first==True:
+#                                    import matplotlib.pyplot as plt
+#                                    first = False
+#                                    print("IO['pointerCv']")
+#                                    print(IO['pointerCv'])
+#                                    plt.figure()
+#                                    plt.plot(Vars[:,:,0])
+#                                    plt.figure()
+#                                    #print(list_returns_struct[features_counter])
+#                                    #print(list_stats_out[ind]['stds_t_out'].shape)
+#                                    plt.plot(list_returns_struct[features_counter]['returns'][:,3]/list_stats_out[ind]['stds_t_out'][3])
+##                                    file_temp.close()
+##                                    os.remove(file_temp_name)
+##                                    f_tr.close()
+##                                    f_cv.close()
+##                                    os.remove(filename_cv)
+##                                    os.remove(filename_tr)
+##                                    a=p
                                 # close temp file
                                 file_temp.close()
                                 os.remove(file_temp_name)
@@ -2343,6 +2364,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                         f_cv.close()
                         file_temp.close()
                         os.remove(file_temp_name)
+                        os.remove(filename_tr)
+                        os.remove(filename_cv)
                         raise KeyboardInterrupt
                 else:
                     print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
