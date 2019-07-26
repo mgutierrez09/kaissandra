@@ -149,9 +149,10 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         print('IDresults:')
         print(entries['IDresults'])
         entries['IO_results_name'] = 'R'+basename+extR+ext_rel_cv
-        entries['IO_tr_name'] = basename+extR+ext_rel_tr
-        entries['IO_cv_name'] = basename+extR+ext_rel_cv
+        
         config = configuration(entries)
+        config['IO_tr_name'] = basename+extR+ext_rel_tr
+        config['IO_cv_name'] = basename+extR+ext_rel_cv
         if 'build_XY_mode' in entries:
             build_XY_mode = entries['build_XY_mode']
         else:

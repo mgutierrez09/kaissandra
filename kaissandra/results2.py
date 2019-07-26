@@ -77,8 +77,6 @@ def get_mc_vectors(t_y, t_soft_tilde, thr_mc, ub_mc):
 
 def get_md_vectors(t_soft_tilde, t_y, ys_mc, n_classes, thr_md, ub_md):
     """  """
-    print("t_soft_tilde.shape")
-    print(t_soft_tilde.shape)
     y_dec_md_tilde = np.argmax(t_soft_tilde[:,1:3], 1)-1# predicted dec out
     y_md_down_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,1]>thr_md) & (t_soft_tilde[:,1]<=ub_md)
     y_md_up_tilde = ys_mc['y_mc_tilde'] & (t_soft_tilde[:,2]>=thr_md) & (t_soft_tilde[:,2]<=ub_md)
@@ -1634,7 +1632,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                     idx = int([k for k, v in C.AllAssets.items() if v == asset][0])
                     ass_idx = assets.index(idx)
                     corr_signal[secInit:secEnd, ass_idx] = corr_signal[secInit:secEnd, ass_idx]-1
-            thisSpread = GROI-ROI
+            thisSpread = np.abs(GROI-ROI)
+            ROI = GROI-thisSpread
             e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
             if not feats_from_bids and direction<0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
@@ -1749,7 +1748,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             count_dif_dir += 1
         elif feats_from_bids and direction>0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
             count_dif_dir += 1
-        thisSpread = GROI-ROI
+        thisSpread = np.abs(GROI-ROI)
+        ROI = GROI-thisSpread
         e_spread = (Journal[A1].iloc[eInit]-Journal[B1].iloc[eInit])/Journal[A1].iloc[eInit]
         #thisSpread = (Journal[A2].iloc[-1]-Journal[B2].iloc[-1])/Journal[B1].iloc[-1]
         mSpread += thisSpread
@@ -1758,7 +1758,6 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         eGROI += GROI
         avGROI += Journal['GROI'].iloc[-1]
         
-        ROI = GROI-thisSpread
         ROI_vector = np.append(ROI_vector,ROI)
         GROI_vector = np.append(GROI_vector,GROI)
         spreads = np.append(spreads,thisSpread)

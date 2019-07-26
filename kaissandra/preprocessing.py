@@ -2150,6 +2150,13 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     IO_cv_name = config['IO_cv_name']
     filename_tr = IO_directory+'KFTr'+IO_tr_name+'.hdf5'
     filename_cv = IO_directory+'KFCv'+IO_cv_name+'.hdf5'
+    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
+    
+    print("Edges:")
+    print(edges)
+    print(filename_tr)
+    print(filename_cv)
+    print(IO_results_name)
     
     if len(log)>0:
         write_log(filename_tr)
@@ -2234,9 +2241,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         IO['Bcv'] = Bcv
         IO['Acv'] = Acv
         IO['pointerCv'] = 0
-        
-    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
-    print(IO_results_name)
+    
+    
     if len(log)>0:
         write_log(IO_results_name)
     # index asset
