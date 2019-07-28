@@ -656,7 +656,7 @@ def configuration_trader(*ins):
         
         
         list_lim_groi_ext = [-0.1 for i in range(numberNetworks)]
-        list_thr_sl = [1000 for i in range(numberNetworks)]#50
+        list_thr_sl = [50 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]

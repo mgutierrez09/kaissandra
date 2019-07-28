@@ -3449,11 +3449,11 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = False
+send_info_api = True
 
 if __name__=='__main__':
     import sys

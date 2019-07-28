@@ -850,6 +850,28 @@ def filter_journal(config, Journal):
         raise ValueError("Entry results_from not known. Options are SHORT/LONG/COMB")
     return Journal
 
+def flip_journal(Journal):
+    """ Flip journal to map assets to original space """
+    Journal['Bet'] = 1/Journal['Bet']
+    Journal['Ai'] = 1/Journal['Ai']
+    Journal['Ao'] = 1/Journal['Ao']
+    Journal['Bi'] = 1/Journal['Bi']
+    Journal['Bo'] = 1/Journal['Bo']
+    return Journal
+
+def flip_output(DTAt, ys_md):
+    """ Flip output to map assets to original space """
+    # DTA
+    DTAt['A1'] = 1/DTAt['A1']
+    DTAt['A2'] = 1/DTAt['A2']
+    DTAt['B1'] = 1/DTAt['B1']
+    DTAt['B2'] = 1/DTAt['B2']
+    # y
+    ys_md['y_dec_mg_tilde'] = (-1)*ys_md['y_dec_mg_tilde']
+    ys_md['y_dec_mg'] = (-1)*ys_md['y_dec_mg']
+    
+    return DTAt, ys_md
+    
 def get_performance_meta(config, y, soft_tilde, DTA, epoch, 
                          performance_filename):
     """ Get ROI-based performance metrics """
@@ -1175,9 +1197,14 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         thresholds_md = [.5+i/resolution for i in range(int(resolution/2))]
     else:
         thresholds_md = config['thresholds_md']
+    if 'asset_relation' in config:
+        asset_relation = config['asset_relation']
+    else:
+        asset_relation = 'direrct'
     if 'combine_ts' in config:
         combine_ts = config['combine_ts']
-        
+    
+    
 #        if_combine = config['combine_ts']['if_combine']
 #        params_combine = config['combine_ts']['params_combine']
 #        columns_AD = [str(tmc)+str(tmd) for tmc in thresholds_md for tmd in thresholds_md]#config['combine_ts']['columns_AD']
@@ -1288,6 +1315,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                     DTAt = DTA.iloc[:,:]
                 else:
                     DTAt = DTA.iloc[::seq_len,:]
+                if asset_relation=='inverse':
+                    DTAt, ys_md = flip_output(DTAt, ys_md)
                 # get journal
 #                print("Number of entries with gain > 1:")
 #                print(sum(np.abs(ys_md['y_dec_mg_tilde'])>1))
@@ -1297,8 +1326,12 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                                       ys_md['diff_y_y_tilde'], 
                                       ys_mc['probs_mc'][ys_md['y_md_tilde']], 
                                       ys_md['probs_md'])
+                
                 # Filter out positions with non-tackled direction
                 Journal = filter_journal(config, Journal)
+                # flip journal if the assets are inverted
+#                if asset_relation=='inverse':
+#                    Journal = flip_journal(Journal)
                 ## calculate KPIs
                 results = get_basic_results_struct(ys_mc, ys_md, results, m)
                 results['tGROI'] = Journal['GROI'].sum()
