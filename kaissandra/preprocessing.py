@@ -166,7 +166,7 @@ def build_DTA(data, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def build_variations(config, file_temp, features, stats):
+def build_variations(config, file_temp, features, stats, modular=False):
     """
     Function that builds X and Y from data contained in a HDF5 file.
     """
@@ -174,7 +174,10 @@ def build_variations(config, file_temp, features, stats):
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
     channels = config['channels']
-    feature_keys_manual = config['feature_keys_manual']
+    if not modular:
+        feature_keys_manual = config['feature_keys_manual']
+    else:
+        feature_keys_manual = config['feature_keys']
     max_var = config['max_var']
     if 'noVarFeatsManual' in config:
         noVarFeatsManual = config['noVarFeatsManual']
@@ -2320,7 +2323,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                     file_temp_name = IO_directory+'temp_train_build'\
                                         +str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
-                                Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind])
+                                Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
                                 
                                 if build_asset_relations[ind]==asset_relation:
                                     skip_cv = False

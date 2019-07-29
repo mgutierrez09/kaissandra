@@ -652,7 +652,7 @@ def configuration_trader(*ins):
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
         list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
-        phase_shifts = [1 for i in range(numberNetworks)]
+        phase_shifts = [2 for i in range(numberNetworks)]
         
         
         list_lim_groi_ext = [-0.1 for i in range(numberNetworks)]
