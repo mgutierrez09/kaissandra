@@ -172,14 +172,14 @@ class RNN(Model):
         else:
             self.L = 3
         if 'feature_keys_manual' in params: # number of layers in RNN
-            feature_keys_manual = params['feature_keys_manual']
+            feature_keys = params['feature_keys']
         else:
-            feature_keys_manual = [i for i in range(37)]
+            feature_keys = [i for i in range(37)]
         if 'channels' in params:
             channels = params['channels']
         else:
             channels = [0]
-        self.nFeatures = len(feature_keys_manual)*len(channels)
+        self.nFeatures = len(feature_keys)*len(channels)
         #{"RNNv" for vanilla RNN,"LSTM" for long-short time memory}
         if 'RRN_type' in params:
             self.RRN_type = params['RRN_type']

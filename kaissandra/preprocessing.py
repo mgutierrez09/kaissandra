@@ -2425,7 +2425,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                         +str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
                                 Vars = build_variations_modular(config, file_temp, list_features[features_counter], list_stats_in[ind])
-                                #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
                                 
                                 if build_asset_relations[ind]==asset_relation:
                                     skip_cv = False
