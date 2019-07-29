@@ -89,6 +89,7 @@ class Config():
           "difSymbolOema10":34,
           "difSymbolOema50":35,
           "difSymbolOema100":36}
+    
     # Primary features
     PF = {FI["symbol"]:"symbol",
           FI["EMA01"]:"EMA01",
@@ -162,7 +163,7 @@ def configuration(entries, save=True):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'CFEATURESMODULAR'
+        config_name = 'CFEATSMOD500'
     
     config_filename = local_vars.config_directory+config_name+config_extension
     

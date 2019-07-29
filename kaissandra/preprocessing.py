@@ -13,7 +13,6 @@ import datetime as dt
 import pickle
 import scipy.io as sio
 import os
-import tensorflow as tf
 from kaissandra.inputs import (Data, 
                                load_separators,
                                load_stats_manual,
@@ -236,6 +235,82 @@ def build_variations(config, file_temp, features, stats, modular=False):
     del group_temp['variations']
     return variations_normed_new
 
+def build_variations_modular(config, file_temp, features, stats):
+    """
+    Function that builds X and Y from data contained in a HDF5 file.
+    """
+    
+    nEventsPerStat = config['nEventsPerStat']
+    movingWindow = config['movingWindow']
+    channels = config['channels']
+    feature_keys = config['feature_keys']
+    max_var = config['max_var']
+    if 'noVarFeatsManual' in config:
+        noVarFeatsManual = config['noVarFeatsManual']
+    else:
+        noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+    # total number of possible channels
+    nChannels = int(nEventsPerStat/movingWindow)
+    # extract means and stats
+    stds_in = stats['stds_t_in']
+    means_in = stats['means_t_in']
+    
+    
+    # number of channels
+    nC = len(channels)
+    # samples allocation per batch
+    
+    # number of features
+    nF = len(feature_keys)
+    # create group
+    group_temp = file_temp.create_group('temp')
+    # reserve memory space for variations and normalized variations
+    variations = group_temp.create_dataset('variations', (features.shape[0],nF,nC), dtype=float)
+    variations_normed = group_temp.create_dataset('variations_normed', (features.shape[0],nF,nC), dtype=float)
+    # init variations and normalized variations to 999 (impossible value)
+    variations[:] = variations[:]+999
+    variations_normed[:] = variations[:]
+    nonVarFeats = np.intersect1d(noVarFeatsManual, feature_keys)
+    #non-variation idx for variations normed
+    nonVarIdx = np.zeros((len(nonVarFeats))).astype(int)
+    VarIdx = np.zeros((nF-len(nonVarFeats))).astype(int)
+    nv = 0
+    v = 0
+    for allnv in range(nF):
+        if feature_keys[allnv] in nonVarFeats:
+            nonVarIdx[nv] = int(allnv)
+            nv += 1
+        else:
+            VarIdx[v] = int(allnv)
+            v += 1
+#    print(features.shape)
+#    print(nonVarIdx)
+#    print(VarIdx)
+#    print(variations.shape)
+    # loop over channels
+    for r in range(nC):
+        variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
+                                               VarIdx]-features[
+                                                :-(channels[r]+1),
+                                                VarIdx])
+        if nonVarFeats.shape[0]>0:
+            variations[channels[r]+1:,nonVarIdx,r] = features[:-(channels[r]+1), nonVarIdx]
+            
+        variations_normed[channels[r]+1:,:,r] = np.minimum(np.maximum((\
+                         variations[channels[r]+1:,
+                         :,r]-means_in[r,:])/\
+                         stds_in[r,:],-max_var),max_var)
+    # remove the unaltered entries
+    nonremoveEntries = range(nChannels,variations_normed.shape[0])#variations_normed[:,0,-1]!=999
+    # create new variations 
+    variations_normed_new = group_temp.create_dataset('variations_normed_new', 
+                                                      variations_normed[nChannels:,:,:].shape, 
+                                                      dtype=float)
+    variations_normed_new[:] = variations_normed[nonremoveEntries,:,:]
+    del group_temp['variations_normed']
+    del group_temp['variations']
+    return variations_normed_new
+
 def map_index2sets(K, fold_idx):
     """  """
     assert(fold_idx<K)
@@ -339,7 +414,7 @@ def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list,
     return edges_idx_tr, edges_idx_cv#np.array([[0,dts.shape[0]]]), np.array([[0,0]])
     
 def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt, 
-             K, fold_idx, alloc=2**30, save_output=False, skip_cv=False):
+             K, fold_idx, alloc=2**30, save_output=False, modular=False, skip_cv=False):
     """  """
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
@@ -360,7 +435,10 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     else:
         last_day = dt.datetime.strptime('2018.11.09','%Y.%m.%d')
     seq_len = config['seq_len']
-    feature_keys_manual = config['feature_keys_manual']
+    if not modular:
+        feature_keys_manual = config['feature_keys_manual']
+    else: 
+        feature_keys_manual = config['feature_keys']
     nFeatures = len(feature_keys_manual)
     size_output_layer = config['size_output_layer']
     nChannels = int(nEventsPerStat/movingWindow)
@@ -2069,6 +2147,17 @@ def build_DTA_shift(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
+def sort_input(array, sorted_idx, prevPointerCv, char=False):
+    """  """
+    if char:
+        temp = np.chararray(array[prevPointerCv:,:,:].shape, itemsize=19)
+    else:
+        temp = np.zeros(array[prevPointerCv:,:,:].shape)
+    temp[:,:,:] = array[prevPointerCv:,:,:]
+    temp[:,:,:] = temp[sorted_idx,:,:] 
+#    IO['Bcv'][prevPointerCv:,:,:] = temp
+    return temp
+
 def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     """  """
     ticTotal = time.time()
@@ -2306,10 +2395,22 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                     groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
                     # load features, returns and stats from HDF files
                     list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
-                                     for shift in shifts for assdirname in assdirnames]
+                                     for groupoutdirname in groupoutdirnames for shift in shifts]
+                    
+#                    non_var_feats = 
                     # load returns
                     list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
-                                           for shift in shifts for groupoutdirname in groupoutdirnames]
+                                           for groupoutdirname in groupoutdirnames for shift in shifts]
+#                    print(len(list_returns_struct))
+#                    print("list_returns_struct[0]['DT'][:]")
+#                    print(list_returns_struct[0]['DT'][:])
+#                    print("list_returns_struct[1]['DT'][:]")
+#                    print(list_returns_struct[1]['DT'][:])
+#                    print("list_returns_struct[2]['DT'][:]")
+#                    print(list_returns_struct[2]['DT'][:])
+#                    print("list_returns_struct[3]['DT'][:]")
+#                    print(list_returns_struct[3]['DT'][:])
+                    #print(list_returns_struct[0]['B'][:]-list_returns_struct[1]['B'][:])
                     try:
                         features_counter = 0
                         
@@ -2323,7 +2424,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                     file_temp_name = IO_directory+'temp_train_build'\
                                         +str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
-                                Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
+                                Vars = build_variations_modular(config, file_temp, list_features[features_counter], list_stats_in[ind])
+                                #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
                                 
                                 if build_asset_relations[ind]==asset_relation:
                                     skip_cv = False
@@ -2331,7 +2433,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                     skip_cv = True
                                 IO = build_XY(config, Vars, list_returns_struct[features_counter], 
                                               list_stats_out[ind], IO, edges_dt,
-                                              folds, fold_idx, save_output=False, skip_cv=skip_cv)
+                                              folds, fold_idx, save_output=False, 
+                                              modular=True, skip_cv=skip_cv)
 #                                if not skip_cv and prevPointerCv<IO['pointerCv'] and first==True:
 #                                    import matplotlib.pyplot as plt
 #                                    first = False
@@ -2355,14 +2458,34 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                 os.remove(file_temp_name)
                                 features_counter += 1
                             
-                            if build_asset_relations[ind]==asset_relation and phase_shift>1:
+                            if build_asset_relations[ind]==asset_relation and phase_shift>0 and prevPointerCv<IO['pointerCv']:
                                 # rearrange IO in chronological order for Cv
-                                sorted_idx = np.argsort(IO['Dcv'][prevPointerCv:],kind='mergesort')
-                                IO['Dcv'][prevPointerCv:] = IO['Dcv'][prevPointerCv+sorted_idx]
-                                IO['Bcv'][prevPointerCv:] = IO['Bcv'][prevPointerCv+sorted_idx]
-                                IO['Acv'][prevPointerCv:] = IO['Acv'][prevPointerCv+sorted_idx]
-                                IO['Xcv'][prevPointerCv:] = IO['Xcv'][prevPointerCv+sorted_idx]
-                                IO['Ycv'][prevPointerCv:] = IO['Ycv'][prevPointerCv+sorted_idx]
+#                                print("IOcv Unsorted")
+#                                print(IO['Dcv'][prevPointerCv:,:,:])
+                                sorted_idx = np.argsort(IO['Dcv'][prevPointerCv:,0,0],kind='mergesort')
+                                IO['Dcv'][prevPointerCv:,:,:] = sort_input(IO['Dcv'], sorted_idx, prevPointerCv, char=True)
+                                IO['Bcv'][prevPointerCv:,:,:] = sort_input(IO['Bcv'], sorted_idx, prevPointerCv, char=False)
+                                IO['Acv'][prevPointerCv:,:,:] = sort_input(IO['Acv'], sorted_idx, prevPointerCv, char=False)
+                                IO['Xcv'][prevPointerCv:,:,:] = sort_input(IO['Xcv'], sorted_idx, prevPointerCv, char=False)
+                                IO['Ycv'][prevPointerCv:,:,:] = sort_input(IO['Ycv'], sorted_idx, prevPointerCv, char=False)
+#                                print(sorted_idx)
+#                                temp = np.chararray(IO['Dcv'][prevPointerCv:,:,:].shape,itemsize=19)
+#                                temp[:,:,:] = IO['Dcv'][prevPointerCv:,:,:]
+#                                temp[:,:,:] = temp[sorted_idx,:,:] 
+#                                IO['Dcv'][prevPointerCv:,:,:] = temp
+#                                
+#                                temp = np.array(IO['Bcv'][prevPointerCv:,:,:].shape)
+#                                temp[:,:,:] = IO['Bcv'][prevPointerCv:,:,:]
+#                                temp[:,:,:] = temp[sorted_idx,:,:] 
+#                                IO['Bcv'][prevPointerCv:,:,:] = temp
+#                                
+#                                #IO['Dcv'][prevPointerCv:,:,:] = IO['Dcv'][prevPointerCv+sorted_idx,0,0]
+#                                IO['Bcv'][prevPointerCv:,:,:] = IO['Bcv'][prevPointerCv+sorted_idx,:,:]
+#                                IO['Acv'][prevPointerCv:,:,:] = IO['Acv'][prevPointerCv+sorted_idx,:,:]
+#                                IO['Xcv'][prevPointerCv:,:,:] = IO['Xcv'][prevPointerCv+sorted_idx,:,:]
+#                                IO['Ycv'][prevPointerCv:,:,:] = IO['Ycv'][prevPointerCv+sorted_idx,:,:]
+#                                print("IOcv Sorted")
+#                                print(IO['Dcv'][prevPointerCv:,:,:])
                             
                     except (KeyboardInterrupt):
                         mess = "KeyBoardInterrupt. Closing files and exiting program."
@@ -2377,8 +2500,9 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                         os.remove(filename_cv)
                         raise KeyboardInterrupt
                 else:
-                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
-                            int(s/2),int(len(separators)/2-1)))
+                    pass
+#                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
+#                            int(s/2),int(len(separators)/2-1)))
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
         if if_build_IO:
