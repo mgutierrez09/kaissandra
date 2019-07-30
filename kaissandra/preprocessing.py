@@ -2395,13 +2395,19 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                     
                     groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
                     # load features, returns and stats from HDF files
-                    list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
-                                     for groupoutdirname in groupoutdirnames for shift in shifts]
+#                    list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
+#                                     for groupoutdirname in groupoutdirnames for shift in shifts]
+#                    
+##                    non_var_feats = 
+#                    # load returns
+#                    list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
+#                                           for groupoutdirname in groupoutdirnames for shift in shifts]
                     
-#                    non_var_feats = 
+                    list_features = [[load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
+                                     for shift in shifts] for assdirname in assdirnames]
                     # load returns
-                    list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
-                                           for groupoutdirname in groupoutdirnames for shift in shifts]
+                    list_returns_struct = [[load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
+                                           for shift in shifts] for groupoutdirname in groupoutdirnames]
 #                    print(len(list_returns_struct))
 #                    print("list_returns_struct[0]['DT'][:]")
 #                    print(list_returns_struct[0]['DT'][:])
@@ -2417,7 +2423,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                         
                         for ind in range(len(assdirnames)):
                             prevPointerCv = IO['pointerCv']
-                            for shift in shifts:
+                            for s, shift in enumerate(shifts):
                                 file_temp_name = local_vars.IO_directory+\
                                     'temp_train_build'+\
                                     str(np.random.randint(10000))+'.hdf5'
@@ -2426,13 +2432,13 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                         +str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
                                 #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
-                                Vars = build_variations_modular(config, file_temp, list_features[features_counter], list_stats_in[ind])
+                                Vars = build_variations_modular(config, file_temp, list_features[ind][s], list_stats_in[ind])
                                 
                                 if build_asset_relations[ind]==asset_relation:
                                     skip_cv = False
                                 else:
                                     skip_cv = True
-                                IO = build_XY(config, Vars, list_returns_struct[features_counter], 
+                                IO = build_XY(config, Vars, list_returns_struct[ind][s], 
                                               list_stats_out[ind], IO, edges_dt,
                                               folds, fold_idx, save_output=False, 
                                               modular=True, skip_cv=skip_cv)
