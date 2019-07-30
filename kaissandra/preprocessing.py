@@ -2342,6 +2342,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     # array containing bids means
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
+    print("vars mod")
     for ass in assets:
         first = True
         thisAsset = C.AllAssets[str(ass)]
@@ -2424,6 +2425,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                     file_temp_name = IO_directory+'temp_train_build'\
                                         +str(np.random.randint(10000))+'.hdf5'
                                 file_temp = h5py.File(file_temp_name,'w')
+                                #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
                                 Vars = build_variations_modular(config, file_temp, list_features[features_counter], list_stats_in[ind])
                                 
                                 if build_asset_relations[ind]==asset_relation:
@@ -2457,7 +2459,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                 os.remove(file_temp_name)
                                 features_counter += 1
                             
-                            if build_asset_relations[ind]==asset_relation and phase_shift>0 and prevPointerCv<IO['pointerCv']:
+                            if build_asset_relations[ind]==asset_relation and phase_shift>1 and prevPointerCv<IO['pointerCv']:
                                 # rearrange IO in chronological order for Cv
 #                                print("IOcv Unsorted")
 #                                print(IO['Dcv'][prevPointerCv:,:,:])
