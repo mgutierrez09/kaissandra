@@ -2342,7 +2342,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     # array containing bids means
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
-    print("vars mod")
     for ass in assets:
         first = True
         thisAsset = C.AllAssets[str(ass)]

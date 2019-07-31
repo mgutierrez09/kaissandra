@@ -767,128 +767,176 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
     print("DONE")
     return None
 
-#def feature_analysis(folds=3, fold_idx=0, config={}, log=''):
-#    """  """
-#    ticTotal = time.time()
-#    # create data structure
-#    if config=={}:    
-#        config = retrieve_config('CRNN00000')
-#    # Feed retrocompatibility
-#    if 'nEventsPerStat' in config:
-#        nEventsPerStat = config['nEventsPerStat']
+def chi_square(X, y, num_feats):
+    """  """
+    from sklearn.feature_selection import SelectKBest
+    from sklearn.feature_selection import chi2
+    #from sklearn.preprocessing import MinMaxScaler
+    
+#    num_feats = X.shape[1]
+    #X_norm = MinMaxScaler().fit_transform(X)
+    chi_selector = SelectKBest(chi2, k=num_feats)
+    chi_selector.fit(X, y)
+    chi_support = chi_selector.get_support()
+    return chi_support
+#    chi_feature = X.loc[:,chi_support].columns.tolist()
+#    print(str(len(chi_feature)), 'selected features')
+    
+def random_forest(X, y, num_feats=30, n_estimators=100):
+    """  """
+    from sklearn.feature_selection import SelectFromModel
+    from sklearn.ensemble import RandomForestClassifier
+    
+    embeded_rf_selector = SelectFromModel(RandomForestClassifier(n_estimators=n_estimators))#, max_features=num_feats
+    embeded_rf_selector.fit(X, y)
+    
+    return embeded_rf_selector
+#    embeded_rf_feature = X.loc[:,embeded_rf_support].columns.tolist()
+#    print(str(len(embeded_rf_feature)), 'selected features')
+    
+def light_gmb(X, y):
+    from sklearn.feature_selection import SelectFromModel
+    from lightgbm import LGBMClassifier
+    
+    lgbc=LGBMClassifier(n_estimators=500, learning_rate=0.05, num_leaves=32, colsample_bytree=0.2,
+                reg_alpha=3, reg_lambda=1, min_split_gain=0.01, min_child_weight=40)
+    
+    embeded_lgb_selector = SelectFromModel(lgbc)
+    embeded_lgb_selector.fit(X, y)
+    
+    return embeded_lgb_selector
+    
+    
+#    embeded_lgb_feature = X.loc[:,embeded_lgb_support].columns.tolist()
+#    print(str(len(embeded_lgb_feature)), 'selected features')
+
+def feature_analysis(config={}):
+    """  """
+    from kaissandra.preprocessing import (load_stats_modular, load_features_modular, 
+                                          load_returns_modular, build_variations_modular, 
+                                          load_separators, build_bin_output_mcmdmg)
+    ticTotal = time.time()
+    # create data structure
+    if config=={}:    
+        config = retrieve_config('CRNN00000')
+    # Feed retrocompatibility
+    if 'nEventsPerStat' in config:
+        nEventsPerStat = config['nEventsPerStat']
+    else:
+        nEventsPerStat = 5000
+    if 'movingWindow' in config:
+        movingWindow = config['movingWindow']
+    else:
+        movingWindow = 5000
+    if 'assets' in config:
+        assets = config['assets']
+    else:
+        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+    if 'feature_keys_manual' not in config:
+        feature_keys_manual = [i for i in range(37)]
+    else:
+        feature_keys_manual = config['feature_keys_manual']
+    nFeatures = len(feature_keys_manual)
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
+    if 'seq_len' in config:
+        seq_len = config['seq_len']
+    else:
+        seq_len = int((config['lB']-config['nEventsPerStat'])/config['movingWindow']+1)
+#    if 'filetag' in config:
+#        filetag = config['filetag']
 #    else:
-#        nEventsPerStat = 10000
-#    if 'movingWindow' in config:
-#        movingWindow = config['movingWindow']
-#    else:
-#        movingWindow = 1000
-#    if 'assets' in config:
-#        assets = config['assets']
-#    else:
-#        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
-#    if 'feature_keys_manual' not in config:
-#        feature_keys_manual = [i for i in range(37)]
-#    else:
-#        feature_keys_manual = config['feature_keys_manual']
-#    nFeatures = len(feature_keys_manual)
-#    if 'feats_from_bids' in config:
-#        feats_from_bids = config['feats_from_bids']
-#    else:
-#        feats_from_bids = True
-#    if 'seq_len' in config:
-#        seq_len = config['seq_len']
-#    else:
-#        seq_len = int((config['lB']-config['nEventsPerStat'])/config['movingWindow']+1)
-##    if 'filetag' in config:
-##        filetag = config['filetag']
-##    else:
-##        filetag = config['IO_results_name']
-#    size_output_layer = config['size_output_layer']
-#    if 'n_bits_outputs' in config:
-#        n_bits_outputs = config['n_bits_outputs']
-#    else:
-#        n_bits_outputs = [size_output_layer]
-#    if 'build_test_db' in config:
-#        build_test_db = config['build_test_db']
-#    else:
-#        build_test_db = False
-#    if 'build_asset_relations' in config:
-#        build_asset_relations = config['build_asset_relations']
-#    else:
-#        build_asset_relations = ['direct']
-#    print("build_asset_relations")
-#    print(config['build_asset_relations'])
-#    if 'asset_relation' in config:
-#        asset_relation = config['asset_relation']
-#    else:
-#        asset_relation = 'direct'
-#    if 'phase_shift' in config:
-#        phase_shift = config['phase_shift']
-#    else:
-#        phase_shift = 1
-#    phase_size = movingWindow/phase_shift
-#    shifts = [int(phase_size*phase) for phase in range(phase_shift)]
-#    
-#    hdf5_directory = local_vars.hdf5_directory
-#    IO_directory = local_vars.IO_directory
-#    if not os.path.exists(IO_directory):
-#        os.mkdir(IO_directory)
-#    # init hdf5 files
-#    if feats_from_bids:
-#        symbol = 'bid'
-#    else:
-#        symbol = 'ask'
-#    featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
-#    outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
-#    if not build_test_db:
-#        
-#        separators_directory = hdf5_directory+'separators/'
-#    else:
-#        separators_directory = hdf5_directory+'separators_test/'
+#        filetag = config['IO_results_name']
+    size_output_layer = config['size_output_layer']
+    if 'n_bits_outputs' in config:
+        n_bits_outputs = config['n_bits_outputs']
+    else:
+        n_bits_outputs = [size_output_layer]
+    outputGain = config['outputGain']
+    if 'build_test_db' in config:
+        build_test_db = config['build_test_db']
+    else:
+        build_test_db = False
+    if 'build_asset_relations' in config:
+        build_asset_relations = config['build_asset_relations']
+    else:
+        build_asset_relations = ['direct']
+    if 'asset_relation' in config:
+        asset_relation = config['asset_relation']
+    else:
+        asset_relation = 'direct'
+    if 'phase_shift' in config:
+        phase_shift = config['phase_shift']
+    else:
+        phase_shift = 1
+    phase_size = movingWindow/phase_shift
+    shifts = [int(phase_size*phase) for phase in range(phase_shift)]
+    
+    hdf5_directory = local_vars.hdf5_directory
+    IO_directory = local_vars.IO_directory
+    if not os.path.exists(IO_directory):
+        os.mkdir(IO_directory)
+    # init hdf5 files
+    if feats_from_bids:
+        symbol = 'bid'
+    else:
+        symbol = 'ask'
+    featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
+    outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
+    if not build_test_db:
+        
+        separators_directory = hdf5_directory+'separators/'
+    else:
+        separators_directory = hdf5_directory+'separators_test/'
 #    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol)
-#    
-#    IO_tr_name = config['IO_tr_name']
+    
+    IO_tr_name = config['IO_results_name']
 #    IO_cv_name = config['IO_cv_name']
-#    filename_tr = IO_directory+'KFTr'+IO_tr_name+'.hdf5'
+    filename = IO_directory+'VAR'+IO_tr_name+'.hdf5'
 #    filename_cv = IO_directory+'KFCv'+IO_cv_name+'.hdf5'
 #    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
-#    
+    
 #    print("Edges:")
 #    print(edges)
 #    print(filename_tr)
 #    print(filename_cv)
 #    print(IO_results_name)
-#    
+    
 #    if len(log)>0:
 #        write_log(filename_tr)
 #    if len(log)>0:
 #        write_log(filename_cv)
-#        
-#    if os.path.exists(filename_tr) and os.path.exists(filename_cv):
-#        if_build_IO = False
-#    else:
-#        if_build_IO = config['if_build_IO']
-#    #if_build_IO=True
-#    # create model
-#    # if IO structures have to be built 
-#    if if_build_IO:
-#        #print("Tag = "+str(tag))
-#        IO = {}
-#        #attributes to track asset-IO belonging
-#        ass_IO_ass_tr = np.zeros((len(assets))).astype(int)
-#        # structure that tracks the number of samples per level
+    if os.path.exists(filename):
+        if_build_IO = False
+    else:
+        if_build_IO = config['if_build_IO']
+    #if_build_IO=True
+    # create model
+    # if IO structures have to be built 
+    if if_build_IO:
+        #print("Tag = "+str(tag))
+        IO = {}
+        #attributes to track asset-IO belonging
+        #ass_IO_ass_tr = np.zeros((len(assets))).astype(int)
+        # structure that tracks the number of samples per level
 #        IO['totalSampsPerLevel'] = np.zeros((n_bits_outputs[-1]))
-#        # open IO file for writting
-#        f_tr = h5py.File(filename_tr,'w')
-#        # init IO data sets
-#        Xtr = f_tr.create_dataset('X', 
-#                                (0, seq_len, nFeatures), 
-#                                maxshape=(None,seq_len, nFeatures), 
-#                                dtype=float)
-#        Ytr = f_tr.create_dataset('Y', 
-#                                (0, seq_len, size_output_layer),
-#                                maxshape=(None, seq_len, size_output_layer),
-#                                dtype=float)
+        # open IO file for writting
+        f_tr = h5py.File(filename,'w')
+        # init IO data sets
+        X = f_tr.create_dataset('X', 
+                                (0, nFeatures), 
+                                maxshape=(None, nFeatures), 
+                                dtype=float)
+        y = f_tr.create_dataset('y', 
+                                (0, 1),
+                                maxshape=(None, 1),
+                                dtype=float)
+        r = f_tr.create_dataset('r', 
+                                (0, 1),
+                                maxshape=(None, 1),
+                                dtype=float)
 #        
 #            
 #        Itr = f_tr.create_dataset('I', 
@@ -942,103 +990,149 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
 #        IO['Bcv'] = Bcv
 #        IO['Acv'] = Acv
 #        IO['pointerCv'] = 0
-#    
-#    
+    
+    
 #    if len(log)>0:
 #        write_log(IO_results_name)
-#    # index asset
+    # index asset
 #    ass_idx = 0
-#    # array containing bids means
-#    #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
-#    # loop over all assets
-#    print("vars mod")
-#    for ass in assets:
-#        first = True
-#        thisAsset = C.AllAssets[str(ass)]
-#        assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
-#        outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
-#        
-#        tic = time.time()
-#        # load separators
-#        separators = load_separators(thisAsset, 
-#                                     separators_directory, 
-#                                     from_txt=1)
-#        
-#        first_date = dt.datetime.strftime(dt.datetime.strptime(
-#                separators.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-#        last_date = dt.datetime.strftime(dt.datetime.strptime(
-#                separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-#        
-#        list_stats_in = [None for _ in range(len(outassdirnames))]
-#        list_stats_out = [None for _ in range(len(outassdirnames))]
-#        for ind, assdirname in enumerate(assdirnames):
-#            outassdirname = outassdirnames[ind]
-#            list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol)
-##        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
-##                                            thisAsset, tag=tag_stats)
-#        
-#        if if_build_IO:
-#            mess = str(ass)+". "+thisAsset
-#            print(mess)
+    # array containing bids means
+    #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
+    # loop over all assets
+    pointer = 0
+    nChannels = int(nEventsPerStat/movingWindow)
+    init_idx_rets = nChannels+seq_len-1
+    for ass in assets:# 
+        thisAsset = C.AllAssets[str(ass)]
+        assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
+        outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
+        
+        tic = time.time()
+        # load separators
+        separators = load_separators(thisAsset, 
+                                     separators_directory, 
+                                     from_txt=1)
+        
+        first_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        last_date = dt.datetime.strftime(dt.datetime.strptime(
+                separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        
+        list_stats_in = [None for _ in range(len(outassdirnames))]
+        list_stats_out = [None for _ in range(len(outassdirnames))]
+        for ind, assdirname in enumerate(assdirnames):
+            list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol)
+#        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
+#                                            thisAsset, tag=tag_stats)
+        
+        if if_build_IO:
+            mess = str(ass)+". "+thisAsset
+            print(mess)
 #            if len(log)>0:
 #                write_log(mess)
 #            # loop over separators
-#            for s in range(0,len(separators)-1,2):
-#                mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
-#                    ". From "+separators.DateTime.iloc[s]+" to "+\
-#                    separators.DateTime.iloc[s+1]
-#                #print(mess)
+            for s in range(0,len(separators)-1,2):#
+                mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
+                    ". From "+separators.DateTime.iloc[s]+" to "+\
+                    separators.DateTime.iloc[s+1]
+                #print(mess)
 #                if len(log)>0:
 #                    write_log(mess)
-#                # number of events within this separator chunk
-#                nE = separators.index[s+1]-separators.index[s]+1
-#                # get first day after separator
-#                #day_s = separators.DateTime.iloc[s][0:10]
-#                # check if number of events is not enough to build two features and one return
-#                if nE>=seq_len*(nEventsPerStat+movingWindow):
-#                    
-#                    init_date = dt.datetime.strftime(dt.datetime.strptime(
-#                            separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-#                    end_date = dt.datetime.strftime(dt.datetime.strptime(
-#                            separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-#                    
-#                    groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
-#                    # load features, returns and stats from HDF files
-##                    list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
-##                                     for groupoutdirname in groupoutdirnames for shift in shifts]
-##                    
-###                    non_var_feats = 
-##                    # load returns
-##                    list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
-##                                           for groupoutdirname in groupoutdirnames for shift in shifts]
-#                    
-#                    list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
-#                                     for shift in shifts for assdirname in assdirnames]
-#                    # load returns
-#                    list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
-#                                           for shift in shifts for groupoutdirname in groupoutdirnames]
-##                    print(len(list_returns_struct))
-##                    print("list_returns_struct[0]['DT'][:]")
-##                    print(list_returns_struct[0]['DT'][:])
-##                    print("list_returns_struct[1]['DT'][:]")
-##                    print(list_returns_struct[1]['DT'][:])
-##                    print("list_returns_struct[2]['DT'][:]")
-##                    print(list_returns_struct[2]['DT'][:])
-##                    print("list_returns_struct[3]['DT'][:]")
-##                    print(list_returns_struct[3]['DT'][:])
-#                    #print(list_returns_struct[0]['B'][:]-list_returns_struct[1]['B'][:])
-#                    try:
-#                        features_counter = 0
-#                        
-#                        for ind in range(len(assdirnames)):
+                # number of events within this separator chunk
+                nE = separators.index[s+1]-separators.index[s]+1
+                # get first day after separator
+                #day_s = separators.DateTime.iloc[s][0:10]
+                # check if number of events is not enough to build two features and one return
+                if nE>=seq_len*(nEventsPerStat+movingWindow):
+                    
+                    init_date = dt.datetime.strftime(dt.datetime.strptime(
+                            separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                    end_date = dt.datetime.strftime(dt.datetime.strptime(
+                            separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                    
+                    groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
+                    
+                    list_features = [[load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
+                                     for shift in shifts] for assdirname in assdirnames]
+                    # load returns
+                    list_returns_struct = [[load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
+                                           for shift in shifts] for groupoutdirname in groupoutdirnames]
+
+                    try:
+                        
+                        for ind in range(len(assdirnames)):
 #                            prevPointerCv = IO['pointerCv']
-#                            for shift in shifts:
-#                                file_temp_name = local_vars.IO_directory+\
-#                                    'temp_train_build'+\
-#                                    str(np.random.randint(10000))+'.hdf5'
-#                                while os.path.exists(file_temp_name):
-#                                    file_temp_name = IO_directory+'temp_train_build'\
-#                                        +str(np.random.randint(10000))+'.hdf5'
-#                                file_temp = h5py.File(file_temp_name,'w')
-#                                #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
-#                                Vars = build_variations_modular(config, file_temp, list_features[features_counter], list_stats_in[ind])
+                            for s, shift in enumerate(shifts):
+                                file_temp_name = local_vars.IO_directory+\
+                                    'temp_train_build'+\
+                                    str(np.random.randint(10000))+'.hdf5'
+                                while os.path.exists(file_temp_name):
+                                    file_temp_name = IO_directory+'temp_train_build'\
+                                        +str(np.random.randint(10000))+'.hdf5'
+                                file_temp = h5py.File(file_temp_name,'w')
+                                #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
+                                X_i = build_variations_modular(config, file_temp, list_features[ind][s], list_stats_in[ind])
+                                
+#                                print(list_returns_struct[ind][s]['returns'].shape)
+#                                print(list_stats_out[ind]['stds_t_out'].shape)
+                                r_i = list_returns_struct[ind][s]['returns'][:,-1]/list_stats_out[ind]['stds_t_out'][-1]
+                                size_output_mg = n_bits_outputs[-1]
+                                y_i = np.minimum(np.maximum(np.sign(r_i)*np.round(abs(r_i)*outputGain),-
+                                                                                (size_output_mg-1)/2),(size_output_mg-1)/2).astype(int)
+                                
+#                                print("X_i")
+#                                print(X_i)
+#                                print("r_i")
+#                                print(r_i)
+#                                print("y_i")
+#                                print(y_i)
+                                
+                                # resize structure
+                                samps = r_i.shape[0]-init_idx_rets
+                                X.resize((pointer+samps, nFeatures))
+                                y.resize((pointer+samps, 1))
+                                r.resize((pointer+samps, 1))
+                                
+                                # update structures
+                                X[pointer:pointer+samps,:] = X_i[:samps,:,0]
+                                y[pointer:pointer+samps,0] = y_i[init_idx_rets:]
+                                r[pointer:pointer+samps,0] = r_i[init_idx_rets:]
+                                
+                                pointer = pointer + samps
+                                
+                                file_temp.close()
+                                os.remove(file_temp_name)
+                            
+                    except (KeyboardInterrupt):
+                        mess = "KeyBoardInterrupt. Closing files and exiting program."
+                        print(mess)
+#                        if len(log)>0:
+#                            write_log(mess)
+#                        f_tr.close()
+#                        f_cv.close()
+                        file_temp.close()
+                        os.remove(file_temp_name)
+#                        os.remove(filename_tr)
+#                        os.remove(filename_cv)
+                        raise KeyboardInterrupt
+    else:
+        f_tr = h5py.File(filename,'r')
+        X = f_tr['X']
+        y = f_tr['y']
+        r = f_tr['r']
+    # analyse feats
+    print(X)
+    print(r)
+    print("Random Forest")
+    embeded_rf_selector = random_forest(X[:], y[:,0], num_feats=30, n_estimators=100)
+    embeded_rf_support = embeded_rf_selector.get_support()
+    print(embeded_rf_support)
+    
+    print("light GMB")
+    embeded_lgb_selector = light_gmb(X[:], y[:,0])
+    embeded_lgb_support = embeded_lgb_selector.get_support()
+    print(embeded_lgb_support)
+#    chi_support = chi_square(X, r, 10)
+#    print(chi_support)
+    f_tr.close()
+    return embeded_rf_selector, embeded_lgb_selector
