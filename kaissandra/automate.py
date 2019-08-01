@@ -82,7 +82,7 @@ def automate(*ins):
 
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
-                 if_merge_results=False, modular=False, sufix_io=''):
+                 if_merge_results=False, modular=False, sufix_io='', basename_IO=''):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -148,11 +148,18 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         entries['IDresults'] = 'R'+basename+extR+ext_rel_cv+sufix
         print('IDresults:')
         print(entries['IDresults'])
-        entries['IO_results_name'] = 'R'+basename+extR+ext_rel_cv+sufix_io
+        if basename_IO!='':
+            entries['IO_results_name'] = 'R'+basename+extR+ext_rel_cv+sufix_io
+        else:
+            entries['IO_results_name'] = 'R'+basename_IO+extR+ext_rel_cv+sufix_io
         
         config = configuration(entries)
-        config['IO_tr_name'] = basename+extR+ext_rel_tr+sufix_io
-        config['IO_cv_name'] = basename+extR+ext_rel_cv+sufix_io
+        if basename_IO!='':
+            config['IO_tr_name'] = basename+extR+ext_rel_tr+sufix_io
+            config['IO_cv_name'] = basename+extR+ext_rel_cv+sufix_io
+        else:
+            config['IO_tr_name'] = basename_IO+extR+ext_rel_tr+sufix_io
+            config['IO_cv_name'] = basename_IO+extR+ext_rel_cv+sufix_io
         if 'build_XY_mode' in entries:
             build_XY_mode = entries['build_XY_mode']
         else:

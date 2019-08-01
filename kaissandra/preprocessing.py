@@ -1993,9 +1993,9 @@ def load_features_modular(config, thisAsset, separators, assdirname, init_date, 
     m_in = pickle.load( open( groupdirname+"m_in_"+str(shift)+".p", "rb" ))
     features = np.zeros((m_in, len(feature_keys)))
     for i,f in enumerate(feature_keys):
-        filedirname = groupdirname+C.PF[f]+'_'+str(shift)+'.hdf5'
+        filedirname = groupdirname+C.PF[f][0]+'_'+str(shift)+'.hdf5'
         feature_file = h5py.File(filedirname,'r')
-        features[:,i] = feature_file[C.PF[f]][C.PF[f]][:,0]
+        features[:,i] = feature_file[C.PF[f][0]][C.PF[f][0]][:,0]
             
     return features
 
@@ -2014,7 +2014,7 @@ def load_stats_modular(config, thisAsset, first_date, last_date, symbol):
     means_in = np.zeros((nChannels, len(feature_keys)))
     stds_in = np.zeros((nChannels, len(feature_keys)))
     for i, feat in enumerate(feature_keys):
-        key = C.PF[feat]
+        key = C.PF[feat][0]
         # copy in stats directory
         filedirname = stats_dir+thisAsset+'_'+symbol_type+'_'+key+'_'+first_date+last_date+'.p'
         stats = pickle.load(open( filedirname, "rb"))

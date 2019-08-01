@@ -14,7 +14,7 @@ from scipy.stats import linregress
 from scipy.signal import cwt, find_peaks_cwt, ricker
 import pandas as pd
 
-from kaissandra.config import configuration, retrieve_config, Config as C
+from kaissandra.config import retrieve_config, Config as C
 from kaissandra.local_config import local_vars
 
 
@@ -114,16 +114,16 @@ def get_stats_modular(config, groupdirname, groupoutdirname):
         print("\t getting variations")
         
         for i, f in enumerate(feature_keys):
-            if not os.path.exists(groupdirname+C.PF[f]+"_stats.p"):
+            if not os.path.exists(groupdirname+C.PF[f][0]+"_stats.p"):
                 # create temp file for variations
                 filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(1000))+'.hdf5'
                 ft = h5py.File(filename,'w')
                 group_temp = ft.create_group('temp')
                 # load features
-                filedirname = groupdirname+C.PF[f]+'_0.hdf5'
+                filedirname = groupdirname+C.PF[f][0]+'_0.hdf5'
                 feature_file = h5py.File(filedirname,'r')
         #        groupname = '_'.join(groupdirname.split('/'))
-                features = feature_file[C.PF[f]][C.PF[f]]
+                features = feature_file[C.PF[f][0]][C.PF[f][0]]
                 # create variations vector
                 variations = group_temp.create_dataset("variations", (features.shape[0],nChannels), dtype=float)
                 for r in range(nChannels):
@@ -142,15 +142,15 @@ def get_stats_modular(config, groupdirname, groupoutdirname):
                     means_in[r,0] = np.mean(variations[nChannels:,r],axis=0,keepdims=1)
                     stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
                 # save input stats
-                stats_in[C.PF[f]] = {'mean':means_in, 'std':stds_in}
-                pickle.dump( stats_in[C.PF[f]], 
-                            open( groupdirname+C.PF[f]+"_stats.p", "wb" ))
+                stats_in[C.PF[f][0]] = {'mean':means_in, 'std':stds_in}
+                pickle.dump( stats_in[C.PF[f][0]], 
+                            open( groupdirname+C.PF[f][0]+"_stats.p", "wb" ))
                 
                 ft.close()
                 feature_file.close()
                 os.remove(filename)
             else:
-                stats_in[C.PF[f]] = pickle.load(open( groupdirname+C.PF[f]+"_stats.p", "rb"))
+                stats_in[C.PF[f][0]] = pickle.load(open( groupdirname+C.PF[f][0]+"_stats.p", "rb"))
     # load returns
     if not os.path.exists(groupoutdirname+"output_stats.p"):
         filediroutname = groupoutdirname+'output_0.hdf5'
@@ -298,31 +298,6 @@ def get_sar(sar, maxValue, minValue, n_parsars):
         sar.oldSARhs[i] = parSARhigh[i]
         sar.oldSARls[i] = parSARlow[i]
         
-#    HP20 = np.max([maxValue[mm],HP20])
-#    LP20 = np.min([minValue[mm],LP20])
-#    parSARhigh20[mm] = oldSARh20+AFH20*(HP20-oldSARh20)
-#    parSARlow20[mm] = oldSARl20-AFL20*(oldSARl20-LP20)
-#    if parSARhigh20[mm]<HP20:
-#        AFH20 = np.min([AFH20+stepAF,maxAF20])
-#        LP20 = np.min(thisPeriodBids)
-#    if parSARlow20[mm]>LP20:
-#        AFL20 = np.min([AFH20+stepAF,maxAF20])
-#        HP20 = np.max(thisPeriodBids)
-#    oldSARh20 = parSARhigh20[mm]
-#    oldSARl20 = parSARlow20[mm]
-#    
-#    HP2 = np.max([maxValue[mm],HP2])
-#    LP2 = np.min([minValue[mm],LP2])
-#    parSARhigh2[mm] = oldSARh2+AFH2*(HP2-oldSARh2)
-#    parSARlow2[mm] = oldSARl2-AFL2*(oldSARl2-LP2)
-#    if parSARhigh2[mm]<HP2:
-#        AFH2 = np.min([AFH2+stepAF,maxAF2])
-#        LP2 = np.min(thisPeriodBids)
-#    if parSARlow2[mm]>LP2:
-#        AFL2 = np.min([AFH2+stepAF,maxAF2])
-#        HP2 = np.max(thisPeriodBids)
-#    oldSARh2 = parSARhigh2[mm]
-#    oldSARl2 = parSARlow2[mm]
     return [parSARhigh, parSARlow, sar]
 
 def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
@@ -361,26 +336,30 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
     # init scalars
     nExS = nEventsPerStat
     mW = movingWindow
+    
+    features_files = []
+    features = []
+    feature_keys_to_calc = []
+    
+    # init features
+    for i,f in enumerate(feature_keys):
+        featname = C.PF[f][0]+'_'+str(shift)
+        filedirname = groupdirname+featname+'.hdf5'
+        if not os.path.exists(filedirname) or force_calculation_features[i]:
+            features_files.append(h5py.File(filedirname,'a') )
+            features.append(features_files[-1].create_group(C.PF[f][0]).\
+                        create_dataset(C.PF[f][0], (m,1),dtype=float))
+            feature_keys_to_calc.append(f)
+    feature_keys = feature_keys_to_calc
+    feature_key_tsfresh = [f for f in feature_keys if f>=37]
+    n_feat_tf = len(feature_key_tsfresh)
+    
     boolEmas = [C.FI['EMA'+i] in feature_keys for i in C.emas_ext]
     idxEmas = [i for i in range(len(boolEmas)) if boolEmas[i]]
     nEMAs = sum(boolEmas)
     boolSars = [C.FI['parSARhigh'+i] in feature_keys for i in C.sar_ext]
     idxSars = [i for i in range(len(boolSars)) if boolSars[i]]
     n_parsars = sum(boolSars)#int(C.FI['parSARhigh20'] in feature_keys) + int(C.FI['parSARhigh2'] in feature_keys)
-    
-    features_files = []
-    features = []
-    feature_keys_to_calc = []
-    # init features
-    for i,f in enumerate(feature_keys):
-        featname = C.PF[f]+'_'+str(shift)
-        filedirname = groupdirname+featname+'.hdf5'
-        if not os.path.exists(filedirname) or force_calculation_features[i]:
-            features_files.append(h5py.File(filedirname,'a') )
-            features.append(features_files[-1].create_group(C.PF[f]).\
-                        create_dataset(C.PF[f], (m,1),dtype=float))
-            feature_keys_to_calc.append(f)
-    feature_keys = feature_keys_to_calc
         
     # loop over batched
     if len(features_files) > 0:
@@ -425,10 +404,14 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
             if n_parsars>0:
                 parSARhigh = np.zeros((m_i, n_parsars))
                 parSARlow = np.zeros((m_i, n_parsars))
-            
+            if n_feat_tf>0:
+                features_tsfresh = np.zeros((m_i,n_feat_tf))
             
             for mm in range(m_i):
                 
+                if mm%1000==0:
+                    toc = time.time()
+                    print("\t\tmm="+str(b*batch_size+mm)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
                 startIndex = l_index+mm*mW
                 endIndex = startIndex+nExS
                 thisPeriod = range(startIndex,endIndex)
@@ -464,6 +447,20 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
                     parSARhigh[mm,:] = outsar[0]
                     parSARlow[mm,:] = outsar[1]
                     sar = outsar[2]
+                
+                if n_feat_tf>0:
+                    for idx, feat in enumerate(feature_key_tsfresh):
+                        func_name = C.PF[feat][1]
+                        params = C.PF[feat][2:]
+                        features_tsfresh[mm, idx] = feval(func_name,thisPeriodBids,params)
+                        
+#                        group_name_feat = group_name_chunck+'/'+str(f)
+#                        if group_name_feat not in file_features_tsf:
+#                            
+#                            new_feats = feval(params[0],x,params[1:])
+#                            n_new_feats = params[-1]
+#                            features[m_counter,c:c+n_new_feats] = new_feats                                
+#                            c += n_new_feats
                     
             # end of for mm in range(m_i):
             l_index = startIndex+mW
@@ -545,9 +542,274 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
                 if C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
                     nF = feature_keys.index(C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]])
                     features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
+#            print("features_tsfresh")
+#            print(features_tsfresh.shape)
+#            print(features_tsfresh)   
+            for idx, feat in enumerate(feature_key_tsfresh):
+                feat_name = C.PF[feat][0]
+                if C.FI[feat_name] in feature_keys:
+                    nF = feature_keys.index(C.FI[feat_name])
+                    features[nF][init_idx:end_idx, 0] = features_tsfresh[:,idx]
             
-            # close file
-            (file.close() for file in features_files)
+        # close file
+        (file.close() for file in features_files)
+    else:
+        print("\tAll features already calculated. Skipped.")
+    return feature_keys, Symbol
+
+def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shift):
+    """
+    Function that calculates features from raw data in per batches
+    Args:
+        - data
+        - features
+        - DateTime
+        - SymbolBid
+    Returns:
+        - features
+    """
+    tic = time.time()
+    if 'feature_keys' in config:
+        feature_keys = config['feature_keys']
+    else:
+        feature_keys = [i for i in range(len(C.FI))]#[i for i in range(8,10)]+[12,15,16]#[i for i in range(8)]+[10,11,13,14]+[i for i in range(17,37)]#
+    if 'movingWindow' in config:
+        movingWindow = config['movingWindow']
+    else:
+        movingWindow = 500
+    if 'nEventsPerStat' in config:
+        nEventsPerStat = config['nEventsPerStat']
+    else:
+        nEventsPerStat = 5000
+    if 'lbd' in config:
+        lbd = config['lbd']
+    else:
+        lbd = 1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))
+    if 'force_calculation_features' in config:
+        force_calculation_features = config['force_calculation_features']
+    else:
+        force_calculation_features = [False for i in range(len(feature_keys))]
+    asset_relation = config['asset_relation']
+    # init scalars
+    nExS = nEventsPerStat
+    mW = movingWindow
+    
+    features_files = []
+    features = []
+    feature_keys_to_calc = []
+    
+    # init features
+    for i,f in enumerate(feature_keys):
+        featname = C.PF[f][0]+'_'+str(shift)
+        filedirname = groupdirname+featname+'.hdf5'
+        if not os.path.exists(filedirname) or force_calculation_features[i]:
+            features_files.append(h5py.File(filedirname,'a') )
+            features.append(features_files[-1].create_group(C.PF[f][0]).\
+                        create_dataset(C.PF[f][0], (m,1),dtype=float))
+            feature_keys_to_calc.append(f)
+    feature_keys = feature_keys_to_calc
+    feature_key_tsfresh = [f for f in feature_keys if f>=37]
+    n_feat_tf = len(feature_key_tsfresh)
+    
+    boolEmas = [C.FI['EMA'+i] in feature_keys for i in C.emas_ext]
+    idxEmas = [i for i in range(len(boolEmas)) if boolEmas[i]]
+    nEMAs = sum(boolEmas)
+    boolSars = [C.FI['parSARhigh'+i] in feature_keys for i in C.sar_ext]
+    idxSars = [i for i in range(len(boolSars)) if boolSars[i]]
+    n_parsars = sum(boolSars)#int(C.FI['parSARhigh20'] in feature_keys) + int(C.FI['parSARhigh2'] in feature_keys)
+    
+        
+    # loop over batched
+    if len(features_files) > 0:
+        if asset_relation=='inverse':
+            Symbol = 1/Symbol[:]
+        # init exponetial means
+        if nEMAs>0:
+            em = intit_em(lbd, nExS, mW, Symbol)
+                
+        if n_parsars>0:
+            sar = init_sar(Symbol[0])
+        
+        batch_size = 10000000
+        par_batches = int(np.ceil(m/batch_size))
+        
+        l_index = 0
+        
+        for b in range(par_batches):
+            # get m
+            m_i = np.min([batch_size, m-b*batch_size])
+            parallel_symbs = np.zeros((nExS, m_i))
+            # init structures
+            if nEMAs>0:
+                EMA = np.zeros((m_i,nEMAs))
+            boolSymbol = C.FI['symbol'] in feature_keys
+            if boolSymbol:
+                symbol = np.zeros((m_i))
+            boolVariance = C.FI['variance'] in feature_keys
+            if boolVariance:
+                variance = np.zeros((m_i))
+            boolMaxValue = C.FI['maxValue'] in feature_keys
+            if boolMaxValue:
+                maxValue = np.zeros((m_i))
+            boolMinValue = C.FI['minValue'] in feature_keys
+            if boolMinValue:
+                minValue = np.zeros((m_i))
+            boolTimeInterval = C.FI['timeInterval'] in feature_keys
+            if boolTimeInterval:
+                timeInterval = np.zeros((m_i))
+            boolTime = C.FI['time'] in feature_keys
+            if boolTime:
+                timeSecs = np.zeros((m_i))
+            if n_parsars>0:
+                parSARhigh = np.zeros((m_i, n_parsars))
+                parSARlow = np.zeros((m_i, n_parsars))
+            if n_feat_tf>0:
+                features_tsfresh = np.zeros((m_i,n_feat_tf))
+            
+            for mm in range(m_i):
+                
+                if mm%1000==0:
+                    toc = time.time()
+                    print("\t\tmm="+str(b*batch_size+mm)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                startIndex = l_index+mm*mW
+                endIndex = startIndex+nExS
+                thisPeriod = range(startIndex,endIndex)
+                thisPeriodBids = Symbol[thisPeriod]
+                parallel_symbs[:,mm] = thisPeriodBids
+                if boolSymbol:
+                    symbol[mm] = Symbol[thisPeriod[-1]]
+                
+                if nEMAs>0:
+                    newBidsIndex = range(endIndex-mW,endIndex)
+                    for i in newBidsIndex:
+                        #a=data.lbd*em/(1-data.lbd**i)+(1-data.lbd)*tradeInfo.SymbolBid.loc[i]
+                        em = lbd*em+(1-lbd)*Symbol[i]
+                    EMA[mm,:] = em
+                    
+                if boolTimeInterval:
+                    t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                    te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                    timeInterval[mm] = (te-t0).seconds/nExS
+    
+                
+                if boolMaxValue:
+                    maxValue[mm] = np.max(thisPeriodBids)
+                if boolMinValue:
+                    minValue[mm] = np.min(thisPeriodBids)
+                
+                if boolTime:
+                    timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/C.secsInDay
+                
+                if n_parsars>0:
+                    outsar = get_sar(sar, maxValue[mm], minValue[mm], n_parsars)
+                    parSARhigh[mm,:] = outsar[0]
+                    parSARlow[mm,:] = outsar[1]
+                    sar = outsar[2]
+                    
+            if boolVariance:
+                variance = np.var(parallel_symbs, axis=1)
+                print("variance")
+                print(variance)
+            if n_feat_tf>0:
+                for idx, feat in enumerate(feature_key_tsfresh):
+                    print(C.PF[feat][0])
+                    func_name = C.PF[feat][1]
+                    params = C.PF[feat][2:]
+                    ret = feval(func_name, parallel_symbs, params)                    
+                    print(ret.shape)
+                    features_tsfresh[:, idx] = ret
+                    print(features_tsfresh[:, idx])
+            # end of for mm in range(m_i):
+            l_index = startIndex+mW
+            #print(l_index)
+            toc = time.time()
+            print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+            # update features vector
+            init_idx = b*batch_size
+            end_idx = b*batch_size+m_i
+    
+            if boolSymbol:
+                nF = feature_keys.index(C.FI['symbol'])
+                features[nF][init_idx:end_idx,0] = symbol
+    
+            for e in range(nEMAs):
+                if C.FI['EMA'+C.emas_ext[idxEmas[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['EMA'+C.emas_ext[idxEmas[e]]])
+                    features[nF][init_idx:end_idx, 0] = EMA[:,e]
+    
+            if boolVariance:
+                nF = feature_keys.index(C.FI['variance'])
+                logVar = 10*np.log10(variance/C.std_var+1e-10)
+                features[nF][init_idx:end_idx, 0] = logVar
+    
+            if boolTimeInterval:
+                nF = feature_keys.index(C.FI['timeInterval'])
+                logInt = 10*np.log10(timeInterval/C.std_time+0.01)
+                features[nF][init_idx:end_idx, 0] = logInt
+            
+            for e in range(n_parsars):
+                if C.FI['parSARhigh'+C.sar_ext[idxSars[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['parSARhigh'+C.sar_ext[idxSars[e]]])
+                    features[nF][init_idx:end_idx, 0] = parSARhigh[:,e]
+                #if C.FI['parSARlow'+C.sar_ext[idxSars[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['parSARlow'+C.sar_ext[idxSars[e]]])
+                    features[nF][init_idx:end_idx, 0] = parSARlow[:,e]
+            
+            if boolTime:
+                nF = feature_keys.index(C.FI['time'])
+                features[nF][init_idx:end_idx, 0] = timeSecs
+                
+            if C.FI['difVariance'] in feature_keys:
+                nF = feature_keys.index(C.FI['difVariance'])
+                features[nF][init_idx:end_idx, 0] = logVar
+                
+            if C.FI['difTimeInterval'] in feature_keys:
+                nF = feature_keys.index(C.FI['difTimeInterval'])
+                features[nF][init_idx:end_idx, 0] = logInt
+            
+            if C.FI['maxValue'] in feature_keys:
+                nF = feature_keys.index(C.FI['maxValue'])
+                features[nF][init_idx:end_idx, 0] = maxValue-symbol
+            
+            if C.FI['minValue'] in feature_keys:
+                nF = feature_keys.index(C.FI['minValue'])
+                features[nF][init_idx:end_idx, 0] = symbol-minValue
+            
+            if C.FI['difMaxValue'] in feature_keys:
+                nF = feature_keys.index(C.FI['difMaxValue'])
+                features[nF][init_idx:end_idx, 0] = maxValue-symbol
+                
+            if C.FI['difMinValue'] in feature_keys:
+                nF = feature_keys.index(C.FI['difMinValue'])
+                features[nF][init_idx:end_idx, 0] = symbol-minValue
+            
+            if C.FI['minOmax'] in feature_keys:
+                nF = feature_keys.index(C.FI['minOmax'])
+                features[nF][init_idx:end_idx, 0] = minValue/maxValue
+            
+            if C.FI['difMinOmax'] in feature_keys:
+                nF = feature_keys.index(C.FI['difMinOmax'])
+                features[nF][init_idx:end_idx, 0] = minValue/maxValue
+            
+            for e in range(nEMAs):
+                if C.FI['symbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['symbolOema'+C.emas_ext[idxEmas[e]]])
+                    features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
+            for e in range(nEMAs):
+                if C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]])
+                    features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
+#            print("features_tsfresh")
+#            print(features_tsfresh.shape)
+#            print(features_tsfresh)   
+            for idx, feat in enumerate(feature_key_tsfresh):
+                feat_name = C.PF[feat][0]
+                if C.FI[feat_name] in feature_keys:
+                    nF = feature_keys.index(C.FI[feat_name])
+                    features[nF][init_idx:end_idx, 0] = features_tsfresh[:,idx]
+            
+        # close file
+        (file.close() for file in features_files)
     else:
         print("\tAll features already calculated. Skipped.")
     return feature_keys, Symbol
@@ -620,7 +882,7 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
                     
             print("\tShift "+str(shift)+": getting features from raw data...")
             # get structures and save them in a hdf5 file
-            feature_keys_to_calc, Symbol = get_features_modular(config, groupdirname,
+            feature_keys_to_calc, Symbol = get_features_modular_parallel(config, groupdirname,
                                      DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
                                      Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)
             get_returns_modular(config, groupoutdirname, separators.index[s],
@@ -687,9 +949,9 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
 #        config['asset_relation'] = asset_relation
     
     if feats_from_bids:
-        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/bid/'#test_flag+'_legacy_test.hdf5'
+        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'testPAR/'+asset_relation+'/bid/'#test_flag+'_legacy_test.hdf5'
     else:
-        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/ask/'
+        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'testPAR/'+asset_relation+'/ask/'
     outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
     
     filename_raw = hdf5_directory+'tradeinfo'+test_flag+'.hdf5'
@@ -1254,6 +1516,7 @@ def chi_square(X, y, num_feats):
     
 def random_forest(X, y, num_feats=30, n_estimators=100):
     """  """
+    print("Random Forest")
     from sklearn.feature_selection import SelectFromModel
     from sklearn.ensemble import RandomForestClassifier
     
@@ -1265,6 +1528,7 @@ def random_forest(X, y, num_feats=30, n_estimators=100):
 #    print(str(len(embeded_rf_feature)), 'selected features')
     
 def light_gmb(X, y):
+    print("light GMB")
     from sklearn.feature_selection import SelectFromModel
     from lightgbm import LGBMClassifier
     
@@ -1275,7 +1539,20 @@ def light_gmb(X, y):
     embeded_lgb_selector.fit(X, y)
     
     return embeded_lgb_selector
+
+def xgboost(X, y):
+    """  """
+    print("XGBoost")
+    from xgboost import XGBClassifier
+    from sklearn.feature_selection import SelectFromModel
     
+    lgbc = XGBClassifier(n_estimators=500, learning_rate=0.05, num_leaves=32, colsample_bytree=0.2,
+                reg_alpha=3, reg_lambda=1, min_split_gain=0.01, min_child_weight=40)
+    
+    embeded_lgb_selector = SelectFromModel(lgbc)
+    embeded_lgb_selector.fit(X, y)
+    
+    return embeded_lgb_selector
     
 #    embeded_lgb_feature = X.loc[:,embeded_lgb_support].columns.tolist()
 #    print(str(len(embeded_lgb_feature)), 'selected features')
@@ -1472,7 +1749,7 @@ def feature_analysis(config={}):
     pointer = 0
     nChannels = int(nEventsPerStat/movingWindow)
     init_idx_rets = nChannels+seq_len-1
-    for ass in assets:# 
+    for ass in [1]:# 
         thisAsset = C.AllAssets[str(ass)]
         assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
         outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
@@ -1501,7 +1778,7 @@ def feature_analysis(config={}):
 #            if len(log)>0:
 #                write_log(mess)
 #            # loop over separators
-            for s in range(0,len(separators)-1,2):#
+            for s in [0]:#range(0,len(separators)-1,2):#
                 mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
                     ". From "+separators.DateTime.iloc[s]+" to "+\
                     separators.DateTime.iloc[s+1]
@@ -1593,16 +1870,25 @@ def feature_analysis(config={}):
     # analyse feats
     print(X)
     print(r)
-    print("Random Forest")
-    embeded_rf_selector = random_forest(X[:], y[:,0], num_feats=30, n_estimators=100)
-    embeded_rf_support = embeded_rf_selector.get_support()
-    print(embeded_rf_support)
     
-    print("light GMB")
-    embeded_lgb_selector = light_gmb(X[:], y[:,0])
-    embeded_lgb_support = embeded_lgb_selector.get_support()
-    print(embeded_lgb_support)
-#    chi_support = chi_square(X, r, 10)
-#    print(chi_support)
+#    embeded_rf_selector = random_forest(X[:], y[:,0], num_feats=30, n_estimators=100)
+#    embeded_rf_support = embeded_rf_selector.get_support()
+#    print(embeded_rf_support)
+#    
+#    embeded_lgb_selector = light_gmb(X[:], y[:,0])
+#    embeded_lgb_support = embeded_lgb_selector.get_support()
+#    print(embeded_lgb_support)
+    
+    embeded_xgb_selector = xgboost(X[:], y[:,0])
+    embeded_xgb_support = embeded_xgb_selector.get_support()
+    print(embeded_xgb_support)
+    
     f_tr.close()
-    return embeded_rf_selector, embeded_lgb_selector
+    
+    features = []
+    for i,a in enumerate(embeded_xgb_support):
+        if a or embeded_xgb_support[i]:
+            features.append(i)
+    print(features)
+    
+    return embeded_xgb_selector#embeded_rf_selector, embeded_lgb_selector
