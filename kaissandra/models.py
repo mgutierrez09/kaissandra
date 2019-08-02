@@ -343,7 +343,7 @@ class RNN(Model):
                                  (self.target[:,:,3:] * 
                                   tf.log(self.output[:,:,3:])), [1, 2])/self.seq_len
             loss = tf.reduce_mean(
-                loss_mc+loss_md+loss_mg,
+                loss_mc+2*loss_md+1/self.n_bits_outputs[-1]*loss_mg,
                 name="loss_nll")
         else:
             loss_mg = -tf.reduce_sum(self.target *tf.log(self.output), [1, 2])/self.seq_len

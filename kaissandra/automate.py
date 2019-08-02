@@ -313,11 +313,10 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
         merge_results(IDrs, IDr_merged)
         
 def combine_models(entries, model_names, epochs, rootname_config, sufix='', 
-                   melting_func='mean', tag_from_till='',log=''):
+                   melting_func='mean', tag_from_till='',log='', modular=False, sufix_io=''):
     """  """
     import numpy as np
     from kaissandra.results2 import init_results_dir, get_results
-    
     results_directory = local_vars.results_directory
     if 'build_XY_mode' in entries:
         build_XY_mode = entries['build_XY_mode']
@@ -351,6 +350,23 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
         extR = extR+'S'
     else:
         raise ValueError('results_from not recognized')
+    if 'build_asset_relations' in entries:
+        build_asset_relations = entries['build_asset_relations']
+    else:
+        build_asset_relations = ['direct']
+    ext_rel_tr = ''
+    if 'direct' in build_asset_relations:
+        ext_rel_tr = ext_rel_tr+'D'
+    if 'inverse' in build_asset_relations:
+        ext_rel_tr = ext_rel_tr+'I'
+    if 'asset_relation' in entries:
+        asset_relation = entries['asset_relation']
+    else:
+        asset_relation = 'direct'
+    if asset_relation=='direct':
+        ext_rel_cv = 'D'
+    elif asset_relation=='inverse':
+        ext_rel_cv = 'I'
     tag = 'CM'+tag_from_till# combine models+from day till day
     
     entries['config_name'] = 'C'+rootname_config+tag
@@ -359,15 +375,25 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
 #    else:
     IDresults = 'R'+rootname_config+tag+extR+sufix
     entries['IDresults'] = IDresults
-    entries['IO_results_name'] = 'R'+rootname_config+tag+extW
+    entries['IO_results_name'] = 'R'+rootname_config+tag+extW+ext_rel_cv+sufix_io
     entries['edge_dates'] = edge_dates
     assert(build_XY_mode=='manual')
     entries['build_XY_mode'] = build_XY_mode
     
     config = configuration(entries)
+    
+    config['IO_tr_name'] = rootname_config+extR+ext_rel_tr+sufix_io
+    config['IO_cv_name'] = rootname_config+extR+ext_rel_cv+sufix_io
+        
     seq_len = config['seq_len']
     size_output_layer = config['size_output_layer']
-    dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
+#    dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
+#                                                                     log=log)
+    if not modular:
+        dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
+                                                                     log=log)
+    else:
+        dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(config=config, 
                                                                      log=log)
     f_IOte = h5py.File(dirfilename_te,'r')
     Yte = f_IOte['Y']

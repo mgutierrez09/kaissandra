@@ -340,12 +340,15 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
     features_files = []
     features = []
     feature_keys_to_calc = []
+    filedirnames = []
     
     # init features
     for i,f in enumerate(feature_keys):
         featname = C.PF[f][0]+'_'+str(shift)
         filedirname = groupdirname+featname+'.hdf5'
+        
         if not os.path.exists(filedirname) or force_calculation_features[i]:
+            filedirnames.append(filedirname)
             features_files.append(h5py.File(filedirname,'a') )
             features.append(features_files[-1].create_group(C.PF[f][0]).\
                         create_dataset(C.PF[f][0], (m,1),dtype=float))
@@ -463,6 +466,13 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
 #                            c += n_new_feats
                     
             # end of for mm in range(m_i):
+#            print("variance")
+#            print(variance)
+#            if n_feat_tf>0:
+#                for idx, feat in enumerate(feature_key_tsfresh):
+#                    func_name = C.PF[feat][1]
+#                    print(C.PF[feat][1])
+#                    print(features_tsfresh[:,idx])
             l_index = startIndex+mW
             #print(l_index)
             toc = time.time()
@@ -597,12 +607,14 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
     features_files = []
     features = []
     feature_keys_to_calc = []
+    filedirnames = []
     
     # init features
     for i,f in enumerate(feature_keys):
         featname = C.PF[f][0]+'_'+str(shift)
         filedirname = groupdirname+featname+'.hdf5'
         if not os.path.exists(filedirname) or force_calculation_features[i]:
+            filedirnames.append(filedirname)
             features_files.append(h5py.File(filedirname,'a') )
             features.append(features_files[-1].create_group(C.PF[f][0]).\
                         create_dataset(C.PF[f][0], (m,1),dtype=float))
@@ -621,195 +633,200 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
         
     # loop over batched
     if len(features_files) > 0:
-        if asset_relation=='inverse':
-            Symbol = 1/Symbol[:]
-        # init exponetial means
-        if nEMAs>0:
-            em = intit_em(lbd, nExS, mW, Symbol)
-                
-        if n_parsars>0:
-            sar = init_sar(Symbol[0])
-        
-        batch_size = 10000000
-        par_batches = int(np.ceil(m/batch_size))
-        
-        l_index = 0
-        
-        for b in range(par_batches):
-            # get m
-            m_i = np.min([batch_size, m-b*batch_size])
-            parallel_symbs = np.zeros((nExS, m_i))
-            # init structures
+        try:
+            if asset_relation=='inverse':
+                Symbol = 1/Symbol[:]
+            # init exponetial means
             if nEMAs>0:
-                EMA = np.zeros((m_i,nEMAs))
-            boolSymbol = C.FI['symbol'] in feature_keys
-            if boolSymbol:
-                symbol = np.zeros((m_i))
-            boolVariance = C.FI['variance'] in feature_keys
-            if boolVariance:
-                variance = np.zeros((m_i))
-            boolMaxValue = C.FI['maxValue'] in feature_keys
-            if boolMaxValue:
-                maxValue = np.zeros((m_i))
-            boolMinValue = C.FI['minValue'] in feature_keys
-            if boolMinValue:
-                minValue = np.zeros((m_i))
-            boolTimeInterval = C.FI['timeInterval'] in feature_keys
-            if boolTimeInterval:
-                timeInterval = np.zeros((m_i))
-            boolTime = C.FI['time'] in feature_keys
-            if boolTime:
-                timeSecs = np.zeros((m_i))
-            if n_parsars>0:
-                parSARhigh = np.zeros((m_i, n_parsars))
-                parSARlow = np.zeros((m_i, n_parsars))
-            if n_feat_tf>0:
-                features_tsfresh = np.zeros((m_i,n_feat_tf))
-            
-            for mm in range(m_i):
-                
-                if mm%1000==0:
-                    toc = time.time()
-                    print("\t\tmm="+str(b*batch_size+mm)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
-                startIndex = l_index+mm*mW
-                endIndex = startIndex+nExS
-                thisPeriod = range(startIndex,endIndex)
-                thisPeriodBids = Symbol[thisPeriod]
-                parallel_symbs[:,mm] = thisPeriodBids
-                if boolSymbol:
-                    symbol[mm] = Symbol[thisPeriod[-1]]
-                
-                if nEMAs>0:
-                    newBidsIndex = range(endIndex-mW,endIndex)
-                    for i in newBidsIndex:
-                        #a=data.lbd*em/(1-data.lbd**i)+(1-data.lbd)*tradeInfo.SymbolBid.loc[i]
-                        em = lbd*em+(1-lbd)*Symbol[i]
-                    EMA[mm,:] = em
+                em = intit_em(lbd, nExS, mW, Symbol)
                     
-                if boolTimeInterval:
-                    t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
-                    te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
-                    timeInterval[mm] = (te-t0).seconds/nExS
-    
-                
+            if n_parsars>0:
+                sar = init_sar(Symbol[0])
+            
+            batch_size = 10000000
+            par_batches = int(np.ceil(m/batch_size))
+            
+            l_index = 0
+            
+            for b in range(par_batches):
+                # get m
+                m_i = np.min([batch_size, m-b*batch_size])
+                parallel_symbs = np.zeros((nExS, m_i))
+                # init structures
+                if nEMAs>0:
+                    EMA = np.zeros((m_i,nEMAs))
+                boolSymbol = C.FI['symbol'] in feature_keys
+                if boolSymbol:
+                    symbol = np.zeros((m_i))
+                boolVariance = C.FI['variance'] in feature_keys
+                if boolVariance:
+                    variance = np.zeros((m_i))
+                boolMaxValue = C.FI['maxValue'] in feature_keys
                 if boolMaxValue:
-                    maxValue[mm] = np.max(thisPeriodBids)
+                    maxValue = np.zeros((m_i))
+                boolMinValue = C.FI['minValue'] in feature_keys
                 if boolMinValue:
-                    minValue[mm] = np.min(thisPeriodBids)
+                    minValue = np.zeros((m_i))
+                boolTimeInterval = C.FI['timeInterval'] in feature_keys
+                if boolTimeInterval:
+                    timeInterval = np.zeros((m_i))
+                boolTime = C.FI['time'] in feature_keys
+                if boolTime:
+                    timeSecs = np.zeros((m_i))
+                if n_parsars>0:
+                    parSARhigh = np.zeros((m_i, n_parsars))
+                    parSARlow = np.zeros((m_i, n_parsars))
+                if n_feat_tf>0:
+                    features_tsfresh = np.zeros((m_i,n_feat_tf))
+                
+                for mm in range(m_i):
+                    
+                    if mm%1000==0:
+                        toc = time.time()
+                        print("\t\tmm="+str(b*batch_size+mm)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                    startIndex = l_index+mm*mW
+                    endIndex = startIndex+nExS
+                    thisPeriod = range(startIndex,endIndex)
+                    thisPeriodBids = Symbol[thisPeriod]
+                    parallel_symbs[:,mm] = thisPeriodBids
+                    if boolSymbol:
+                        symbol[mm] = Symbol[thisPeriod[-1]]
+                    
+                    if nEMAs>0:
+                        newBidsIndex = range(endIndex-mW,endIndex)
+                        for i in newBidsIndex:
+                            #a=data.lbd*em/(1-data.lbd**i)+(1-data.lbd)*tradeInfo.SymbolBid.loc[i]
+                            em = lbd*em+(1-lbd)*Symbol[i]
+                        EMA[mm,:] = em
+                        
+                    if boolTimeInterval:
+                        t0 = dt.datetime.strptime(DateTime[thisPeriod[0]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                        te = dt.datetime.strptime(DateTime[thisPeriod[-1]].decode("utf-8"),'%Y.%m.%d %H:%M:%S')
+                        timeInterval[mm] = (te-t0).seconds/nExS
+        
+                    
+                    if boolMaxValue:
+                        maxValue[mm] = np.max(thisPeriodBids)
+                    if boolMinValue:
+                        minValue[mm] = np.min(thisPeriodBids)
+                    
+                    if boolTime:
+                        timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/C.secsInDay
+                    
+                    if n_parsars>0:
+                        outsar = get_sar(sar, maxValue[mm], minValue[mm], n_parsars)
+                        parSARhigh[mm,:] = outsar[0]
+                        parSARlow[mm,:] = outsar[1]
+                        sar = outsar[2]
+                        
+                if boolVariance:
+                    variance = np.var(parallel_symbs, axis=0)
+    #                print("variance")
+    #                print(variance)
+                if n_feat_tf>0:
+                    for idx, feat in enumerate(feature_key_tsfresh):
+    #                    print(C.PF[feat][1])
+                        func_name = C.PF[feat][1]
+                        params = C.PF[feat][2:]
+                        ret = feval(func_name, parallel_symbs, params)                    
+    #                    print(ret)
+                        features_tsfresh[:, idx] = ret
+    #                    print(features_tsfresh[:, idx])
+                # end of for mm in range(m_i):
+                l_index = startIndex+mW
+                #print(l_index)
+                toc = time.time()
+                print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                # update features vector
+                init_idx = b*batch_size
+                end_idx = b*batch_size+m_i
+        
+                if boolSymbol:
+                    nF = feature_keys.index(C.FI['symbol'])
+                    features[nF][init_idx:end_idx,0] = symbol
+        
+                for e in range(nEMAs):
+                    if C.FI['EMA'+C.emas_ext[idxEmas[e]]] in feature_keys:
+                        nF = feature_keys.index(C.FI['EMA'+C.emas_ext[idxEmas[e]]])
+                        features[nF][init_idx:end_idx, 0] = EMA[:,e]
+        
+                if boolVariance:
+                    nF = feature_keys.index(C.FI['variance'])
+                    logVar = 10*np.log10(variance/C.std_var+1e-10)
+                    features[nF][init_idx:end_idx, 0] = logVar
+        
+                if boolTimeInterval:
+                    nF = feature_keys.index(C.FI['timeInterval'])
+                    logInt = 10*np.log10(timeInterval/C.std_time+0.01)
+                    features[nF][init_idx:end_idx, 0] = logInt
+                
+                for e in range(n_parsars):
+                    if C.FI['parSARhigh'+C.sar_ext[idxSars[e]]] in feature_keys:
+                        nF = feature_keys.index(C.FI['parSARhigh'+C.sar_ext[idxSars[e]]])
+                        features[nF][init_idx:end_idx, 0] = parSARhigh[:,e]
+                    #if C.FI['parSARlow'+C.sar_ext[idxSars[e]]] in feature_keys:
+                        nF = feature_keys.index(C.FI['parSARlow'+C.sar_ext[idxSars[e]]])
+                        features[nF][init_idx:end_idx, 0] = parSARlow[:,e]
                 
                 if boolTime:
-                    timeSecs[mm] = (te.hour*60*60+te.minute*60+te.second)/C.secsInDay
-                
-                if n_parsars>0:
-                    outsar = get_sar(sar, maxValue[mm], minValue[mm], n_parsars)
-                    parSARhigh[mm,:] = outsar[0]
-                    parSARlow[mm,:] = outsar[1]
-                    sar = outsar[2]
+                    nF = feature_keys.index(C.FI['time'])
+                    features[nF][init_idx:end_idx, 0] = timeSecs
                     
-            if boolVariance:
-                variance = np.var(parallel_symbs, axis=1)
-                print("variance")
-                print(variance)
-            if n_feat_tf>0:
+                if C.FI['difVariance'] in feature_keys:
+                    nF = feature_keys.index(C.FI['difVariance'])
+                    features[nF][init_idx:end_idx, 0] = logVar
+                    
+                if C.FI['difTimeInterval'] in feature_keys:
+                    nF = feature_keys.index(C.FI['difTimeInterval'])
+                    features[nF][init_idx:end_idx, 0] = logInt
+                
+                if C.FI['maxValue'] in feature_keys:
+                    nF = feature_keys.index(C.FI['maxValue'])
+                    features[nF][init_idx:end_idx, 0] = maxValue-symbol
+                
+                if C.FI['minValue'] in feature_keys:
+                    nF = feature_keys.index(C.FI['minValue'])
+                    features[nF][init_idx:end_idx, 0] = symbol-minValue
+                
+                if C.FI['difMaxValue'] in feature_keys:
+                    nF = feature_keys.index(C.FI['difMaxValue'])
+                    features[nF][init_idx:end_idx, 0] = maxValue-symbol
+                    
+                if C.FI['difMinValue'] in feature_keys:
+                    nF = feature_keys.index(C.FI['difMinValue'])
+                    features[nF][init_idx:end_idx, 0] = symbol-minValue
+                
+                if C.FI['minOmax'] in feature_keys:
+                    nF = feature_keys.index(C.FI['minOmax'])
+                    features[nF][init_idx:end_idx, 0] = minValue/maxValue
+                
+                if C.FI['difMinOmax'] in feature_keys:
+                    nF = feature_keys.index(C.FI['difMinOmax'])
+                    features[nF][init_idx:end_idx, 0] = minValue/maxValue
+                
+                for e in range(nEMAs):
+                    if C.FI['symbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
+                        nF = feature_keys.index(C.FI['symbolOema'+C.emas_ext[idxEmas[e]]])
+                        features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
+                for e in range(nEMAs):
+                    if C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
+                        nF = feature_keys.index(C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]])
+                        features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
+    #            print("features_tsfresh")
+    #            print(features_tsfresh.shape)
+    #            print(features_tsfresh)   
                 for idx, feat in enumerate(feature_key_tsfresh):
-                    print(C.PF[feat][0])
-                    func_name = C.PF[feat][1]
-                    params = C.PF[feat][2:]
-                    ret = feval(func_name, parallel_symbs, params)                    
-                    print(ret.shape)
-                    features_tsfresh[:, idx] = ret
-                    print(features_tsfresh[:, idx])
-            # end of for mm in range(m_i):
-            l_index = startIndex+mW
-            #print(l_index)
-            toc = time.time()
-            print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
-            # update features vector
-            init_idx = b*batch_size
-            end_idx = b*batch_size+m_i
-    
-            if boolSymbol:
-                nF = feature_keys.index(C.FI['symbol'])
-                features[nF][init_idx:end_idx,0] = symbol
-    
-            for e in range(nEMAs):
-                if C.FI['EMA'+C.emas_ext[idxEmas[e]]] in feature_keys:
-                    nF = feature_keys.index(C.FI['EMA'+C.emas_ext[idxEmas[e]]])
-                    features[nF][init_idx:end_idx, 0] = EMA[:,e]
-    
-            if boolVariance:
-                nF = feature_keys.index(C.FI['variance'])
-                logVar = 10*np.log10(variance/C.std_var+1e-10)
-                features[nF][init_idx:end_idx, 0] = logVar
-    
-            if boolTimeInterval:
-                nF = feature_keys.index(C.FI['timeInterval'])
-                logInt = 10*np.log10(timeInterval/C.std_time+0.01)
-                features[nF][init_idx:end_idx, 0] = logInt
-            
-            for e in range(n_parsars):
-                if C.FI['parSARhigh'+C.sar_ext[idxSars[e]]] in feature_keys:
-                    nF = feature_keys.index(C.FI['parSARhigh'+C.sar_ext[idxSars[e]]])
-                    features[nF][init_idx:end_idx, 0] = parSARhigh[:,e]
-                #if C.FI['parSARlow'+C.sar_ext[idxSars[e]]] in feature_keys:
-                    nF = feature_keys.index(C.FI['parSARlow'+C.sar_ext[idxSars[e]]])
-                    features[nF][init_idx:end_idx, 0] = parSARlow[:,e]
-            
-            if boolTime:
-                nF = feature_keys.index(C.FI['time'])
-                features[nF][init_idx:end_idx, 0] = timeSecs
+                    feat_name = C.PF[feat][0]
+                    if C.FI[feat_name] in feature_keys:
+                        nF = feature_keys.index(C.FI[feat_name])
+                        features[nF][init_idx:end_idx, 0] = features_tsfresh[:,idx]
                 
-            if C.FI['difVariance'] in feature_keys:
-                nF = feature_keys.index(C.FI['difVariance'])
-                features[nF][init_idx:end_idx, 0] = logVar
-                
-            if C.FI['difTimeInterval'] in feature_keys:
-                nF = feature_keys.index(C.FI['difTimeInterval'])
-                features[nF][init_idx:end_idx, 0] = logInt
-            
-            if C.FI['maxValue'] in feature_keys:
-                nF = feature_keys.index(C.FI['maxValue'])
-                features[nF][init_idx:end_idx, 0] = maxValue-symbol
-            
-            if C.FI['minValue'] in feature_keys:
-                nF = feature_keys.index(C.FI['minValue'])
-                features[nF][init_idx:end_idx, 0] = symbol-minValue
-            
-            if C.FI['difMaxValue'] in feature_keys:
-                nF = feature_keys.index(C.FI['difMaxValue'])
-                features[nF][init_idx:end_idx, 0] = maxValue-symbol
-                
-            if C.FI['difMinValue'] in feature_keys:
-                nF = feature_keys.index(C.FI['difMinValue'])
-                features[nF][init_idx:end_idx, 0] = symbol-minValue
-            
-            if C.FI['minOmax'] in feature_keys:
-                nF = feature_keys.index(C.FI['minOmax'])
-                features[nF][init_idx:end_idx, 0] = minValue/maxValue
-            
-            if C.FI['difMinOmax'] in feature_keys:
-                nF = feature_keys.index(C.FI['difMinOmax'])
-                features[nF][init_idx:end_idx, 0] = minValue/maxValue
-            
-            for e in range(nEMAs):
-                if C.FI['symbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
-                    nF = feature_keys.index(C.FI['symbolOema'+C.emas_ext[idxEmas[e]]])
-                    features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
-            for e in range(nEMAs):
-                if C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
-                    nF = feature_keys.index(C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]])
-                    features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
-#            print("features_tsfresh")
-#            print(features_tsfresh.shape)
-#            print(features_tsfresh)   
-            for idx, feat in enumerate(feature_key_tsfresh):
-                feat_name = C.PF[feat][0]
-                if C.FI[feat_name] in feature_keys:
-                    nF = feature_keys.index(C.FI[feat_name])
-                    features[nF][init_idx:end_idx, 0] = features_tsfresh[:,idx]
-            
-        # close file
-        (file.close() for file in features_files)
+            # close file
+            (file.close() for file in features_files)
+        except KeyboardInterrupt:
+            (file.close() for file in features_files)
+            (os.remove(filedirname) for filediername in filedirnames)
+            print("KeyboardInterrupt. Files closed and deleted")
     else:
         print("\tAll features already calculated. Skipped.")
     return feature_keys, Symbol
@@ -884,7 +901,7 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
             # get structures and save them in a hdf5 file
             feature_keys_to_calc, Symbol = get_features_modular_parallel(config, groupdirname,
                                      DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
-                                     Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)
+                                     Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)#
             get_returns_modular(config, groupoutdirname, separators.index[s],
                                     DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
                                     SymbolBid[separators.index[s]+shift:separators.index[s+1]+1],
@@ -1073,7 +1090,7 @@ def quantile(x, param):
     :return type: float
     """
     #x = pd.Series(x)
-    return np.percentile(x, 100*param[0])
+    return np.percentile(x, 100*param[0], axis=0)
 
 def fft_coefficient(x, param):
     """
@@ -1096,7 +1113,7 @@ def fft_coefficient(x, param):
     :return type: pandas.Series
     """
 
-    fft = np.fft.rfft(x)
+    fft = np.fft.rfft(x, axis=0)
     res = complex_agg(fft[param[0]], param[1])
     return res
 
@@ -1119,9 +1136,12 @@ def linear_trend(x, param):
     """
     # todo: we could use the index of the DataFrame here
     attr = param[0]
-    linReg = linregress(range(len(x)), x)
+    if len(x.shape)>1:
+        linReg = np.array([getattr(linregress(range(x.shape[0]), x[:, i]), attr) for i in range(x.shape[1])])
+    else:
+        linReg = getattr(linregress(range(x.shape[0]), x), attr)
 
-    return getattr(linReg, attr)
+    return linReg#getattr(linReg, attr)
 
 def agg_linear_trend(x, param):
     """
@@ -1150,18 +1170,28 @@ def agg_linear_trend(x, param):
     chunk_len = param[1]
     attr = param[2]
     
-    aggregate_result = _aggregate_on_chunks(x, f_agg, chunk_len)
+    if len(x.shape)>1:
+        aggregate_results = [_aggregate_on_chunks(x[:,i], f_agg, chunk_len) for i in range(x.shape[1])]
+    else:
+        aggregate_results = _aggregate_on_chunks(x, f_agg, chunk_len)
     if f_agg not in calculated_agg or chunk_len not in calculated_agg[f_agg]:
         if chunk_len >= len(x):
             calculated_agg[f_agg] = {chunk_len: np.NaN}
         else:
-            lin_reg_result = linregress(range(len(aggregate_result)), aggregate_result)
-            calculated_agg[f_agg] = {chunk_len: lin_reg_result}
+            if len(x.shape)>1:
+                lin_reg_results = [linregress(range(len(aggregate_result)), aggregate_result) for aggregate_result in aggregate_results]
+                calculated_agg[f_agg] = [{chunk_len: lin_reg_result} for lin_reg_result in lin_reg_results]
+            else:
+                lin_reg_results = linregress(range(len(aggregate_results)), aggregate_results)
+                calculated_agg[f_agg] = {chunk_len: lin_reg_results}
 
     if chunk_len >= len(x):
         res_data = np.NaN
     else:
-        res_data = getattr(calculated_agg[f_agg][chunk_len], attr)
+        if len(x.shape)>1:
+            res_data = np.array([getattr(calculated_agg[f_agg][i][chunk_len], attr) for i in range(x.shape[1])])
+        else:
+            res_data = getattr(calculated_agg[f_agg][chunk_len], attr)
         
     return res_data
 
@@ -1361,9 +1391,9 @@ def abs_energy(x, param):
     :return: the value of this feature
     :return type: float
     """
-    if not isinstance(x, (np.ndarray, pd.Series)):
-        x = np.asarray(x)
-    return np.dot(x, x)
+#    if not isinstance(x, (np.ndarray, pd.Series)):
+#        x = np.asarray(x)
+    return np.sum(x*x, axis=0)#np.dot(x, x)
 
 def sum_values(x, param):
     """
@@ -1374,10 +1404,10 @@ def sum_values(x, param):
     :return: the value of this feature
     :return type: bool
     """
-    if len(x) == 0:
+    if x.shape[0] == 0:
         return 0
 
-    return np.sum(x)
+    return np.sum(x, axis=0)
 
 def mean(x, param):
     """
@@ -1388,7 +1418,7 @@ def mean(x, param):
     :return: the value of this feature
     :return type: float
     """
-    return np.mean(x)
+    return np.mean(x, axis=0)
 
 def minimum(x, param):
     """
@@ -1399,7 +1429,7 @@ def minimum(x, param):
     :return: the value of this feature
     :return type: float
     """
-    return np.min(x)
+    return np.min(x, axis=0)
 
 def median(x, param):
     """
@@ -1410,7 +1440,7 @@ def median(x, param):
     :return: the value of this feature
     :return type: float
     """
-    return np.median(x)
+    return np.median(x, axis=0)
 
 def c3(x, param):
     """
@@ -1444,11 +1474,14 @@ def c3(x, param):
     """
     if not isinstance(x, (np.ndarray, pd.Series)):
         x = np.asarray(x)
-    n = x.size
+    n = x.shape[0]
     if 2 * param[0] >= n:
         return 0
     else:
-        return np.mean((np.roll(x, 2 * -param[0]) * np.roll(x, -param[0]) * x)[0:(n - 2 * param[0])])
+        if len(x.shape)==1:
+            return np.mean((np.roll(x, 2 * -param[0], axis=0) * np.roll(x, -param[0], axis=0) * x)[0:(n - 2 * param[0])], axis=0)
+        else:
+            return np.mean((np.roll(x, 2 * -param[0], axis=0) * np.roll(x, -param[0], axis=0) * x)[0:(n - 2 * param[0]),:], axis=0)
     
 def cwt_coefficients(x, param):
     """
@@ -1497,7 +1530,7 @@ def maximum(x,param):
     :return: the value of this feature
     :return type: float
     """
-    return np.max(x)
+    return np.max(x, axis=0)
 
 def chi_square(X, y, num_feats):
     """  """
