@@ -117,38 +117,48 @@ def get_stats_modular(config, groupdirname, groupoutdirname):
             if not os.path.exists(groupdirname+C.PF[f][0]+"_stats.p"):
                 # create temp file for variations
                 filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(1000))+'.hdf5'
-                ft = h5py.File(filename,'w')
-                group_temp = ft.create_group('temp')
-                # load features
-                filedirname = groupdirname+C.PF[f][0]+'_0.hdf5'
-                feature_file = h5py.File(filedirname,'r')
-        #        groupname = '_'.join(groupdirname.split('/'))
-                features = feature_file[C.PF[f][0]][C.PF[f][0]]
-                # create variations vector
-                variations = group_temp.create_dataset("variations", (features.shape[0],nChannels), dtype=float)
-                for r in range(nChannels):
-                    if f not in C.non_var_features:
-                        variations[r+1:,r] = features[r+1:,0]-features[:-(r+1),0]
-                    else:
-                        variations[r+1:,r] = features[:-(r+1),0]
-                
-                
-                means_in = np.zeros((nChannels,1))
-                stds_in = np.zeros((nChannels,1))
-                # loop over channels
-                for r in range(nChannels):
-                    #nonZeros = variations[:,0,r]!=999
-                    #print(np.sum(nonZeros))
-                    means_in[r,0] = np.mean(variations[nChannels:,r],axis=0,keepdims=1)
-                    stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
-                # save input stats
-                stats_in[C.PF[f][0]] = {'mean':means_in, 'std':stds_in}
-                pickle.dump( stats_in[C.PF[f][0]], 
-                            open( groupdirname+C.PF[f][0]+"_stats.p", "wb" ))
-                
-                ft.close()
-                feature_file.close()
-                os.remove(filename)
+                try:
+                    ft = h5py.File(filename,'w')
+                    group_temp = ft.create_group('temp')
+                    # load features
+                    filedirname = groupdirname+C.PF[f][0]+'_0.hdf5'
+                    feature_file = h5py.File(filedirname,'r')
+            #        groupname = '_'.join(groupdirname.split('/'))
+                    features = feature_file[C.PF[f][0]][C.PF[f][0]]
+                    # create variations vector
+                    variations = group_temp.create_dataset("variations", (features.shape[0],nChannels), dtype=float)
+                    for r in range(nChannels):
+                        if f not in C.non_var_features:
+                            variations[r+1:,r] = features[r+1:,0]-features[:-(r+1),0]
+                        else:
+                            variations[r+1:,r] = features[:-(r+1),0]
+                    
+                    
+                    means_in = np.zeros((nChannels,1))
+                    stds_in = np.zeros((nChannels,1))
+                    # loop over channels
+                    for r in range(nChannels):
+                        #nonZeros = variations[:,0,r]!=999
+                        #print(np.sum(nonZeros))
+                        means_in[r,0] = np.mean(variations[nChannels:,r],axis=0,keepdims=1)
+                        stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
+                    # save input stats
+                    stats_in[C.PF[f][0]] = {'mean':means_in, 'std':stds_in}
+                    pickle.dump( stats_in[C.PF[f][0]], 
+                                open( groupdirname+C.PF[f][0]+"_stats.p", "wb" ))
+                    
+                    ft.close()
+                    feature_file.close()
+                    try:
+                        os.remove(filename)
+                    except :
+                        print("WARNING! file "+filename+" unable to be deleted. Skipped")
+                except KeyboardInterrupt:
+                    print("KeyboardInterrupt. Deleting files.")
+                    ft.close()
+                    feature_file.close()
+                    os.remove(filename)
+                    raise KeyboardInterrupt
             else:
                 stats_in[C.PF[f][0]] = pickle.load(open( groupdirname+C.PF[f][0]+"_stats.p", "rb"))
     # load returns
@@ -827,6 +837,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
             (file.close() for file in features_files)
             (os.remove(filedirname) for filediername in filedirnames)
             print("KeyboardInterrupt. Files closed and deleted")
+            raise KeyboardInterrupt
     else:
         print("\tAll features already calculated. Skipped.")
     return feature_keys, Symbol
@@ -966,13 +977,14 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
 #        config['asset_relation'] = asset_relation
     
     if feats_from_bids:
-        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'testPAR/'+asset_relation+'/bid/'#test_flag+'_legacy_test.hdf5'
+        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/bid/'#test_flag+'_legacy_test.hdf5'
     else:
-        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'testPAR/'+asset_relation+'/ask/'
+        rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/ask/'
     outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
     
     filename_raw = hdf5_directory+'tradeinfo'+test_flag+'.hdf5'
     separators_directory = hdf5_directory+'separators'+test_flag+'/'
+    
     #assert(not (build_test_db and save_stats))
     # init hdf5 files
     #f_prep_IO = h5py.File(filename_prep_IO,'a')

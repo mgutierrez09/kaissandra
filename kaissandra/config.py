@@ -666,21 +666,21 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN01010SRv4'
+    config_name = 'TN01010PS2SRv1'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
         
         numberNetworks = 2
-        IDresults = ['RRNN01010CMF181112T190426ALk1k2E14l-s','RRNN01010CMF181112T190426BSk1k2E14l-s']
-        IDweights = [['WRNN01010k1K5A','WRNN01010k2K5A'],['WRNN01010k1K5B','WRNN01010k2K5B']]
+        IDresults = ['R01010PS2ALk1k2E4-5','R01010PS2BSk1k2E4']
+        IDweights = [['W1010PS2k1K5A','W1010PS2k2K5A'],['W1010PS2k1K5B','W1010PS2k2K5B']]
         list_name = ['01010k1-2K5E14ASR','01010k1-2K5E14BSR']
-        list_spread_ranges = [{'sp':[.6, .8, 1.2, 2.3, 3.4, 4.5, 5.0],
-                           'th':[(.55,.56),(.55,.56),(.55,.58),(.69,.53),(.69,.61),(.73,.61),(.77,.63)],
+        list_spread_ranges = [{'sp':[1, 2, 2.1, 2.3, 2.9, 3.2, 3.9, 5],
+                           'th':[(.52,.57),(.64,.56),(.64,.61),(.65,.61),(.68,.62),(.74,.59),(.72,.62),(.74,.62)],
                            'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)],
                            'dir':'ASKS'},
-                          {'sp':[.9, 1.0, 1.6, 1.8, 2.2, 3.5, 4.8, 5.0],
-                           'th':[(.55,.55),(.55,.55),(.55,.55),(.58,.55),(.55,.59),(.66,.58),(.71,.6),(.73,.6)],
+                          {'sp':[.7, 1, 1.6, 2, 2.5, 3.5, 4.8, 5],
+                           'th':[(.58,.53),(.6,.56),(.6,.6),(.65,.6),(.72,.58),(.77,.56),(.77,.61),(.79,.62)],
                            'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)],
                            'dir':'BIDS'}]
         
@@ -702,8 +702,8 @@ def configuration_trader(*ins):
                        'nEventsPerStat':nExSs[i],
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[14,14], [14,14]]
-        netNames = ['RRNN01010Ak1k2', 'RRNN01010Bk1k2']
+        IDepoch = [[4,5], [4,4]]
+        netNames = ['RRNN01010PS2Ak1k2', 'RRNN01010PS2Bk1k2']
         list_t_indexs = [[0], [0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
@@ -714,7 +714,7 @@ def configuration_trader(*ins):
         phase_shifts = [2 for i in range(numberNetworks)]
         
         
-        list_lim_groi_ext = [-0.1 for i in range(numberNetworks)]
+        list_lim_groi_ext = [-0.15 for i in range(numberNetworks)]
         list_thr_sl = [50 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.02 for i in range(numberNetworks)]

@@ -3413,7 +3413,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TPRODN01010SRv4')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+            list_config_traders = [retrieve_config('TN01010PS2SRv1')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
         list_config_traders = [retrieve_config('TN01010SRv3')]#'TTEST10'#'TPRODN01010N01011'
@@ -3467,7 +3467,7 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = False
 
-    config_names = ['TN01010SRv4']#['TTEST10']#'TPRODN01010N01011'
+    config_names = ['TN01010PS2SRv1']#['TTEST10']#'TPRODN01010N01011'
     test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:

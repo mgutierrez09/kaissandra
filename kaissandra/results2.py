@@ -1505,13 +1505,16 @@ def build_extended_res_struct(list_results):
 def remove_outliers(grois, spreads, thr=.99):
     """ Remove outliers from GROIs """
     n_positions = len(grois)
-    high_thr_pos = int(np.ceil(n_positions*thr))
-    low_thr_pos = int(np.ceil(n_positions*(1-thr)))
+    high_thr_pos = int(np.floor(n_positions*thr))
+    low_thr_pos = int(np.floor(n_positions*(1-thr)))
     if high_thr_pos-low_thr_pos>1:
         grois_no_outliers = np.sort(grois)[low_thr_pos:high_thr_pos+1]
         low_arg_goi = grois_no_outliers[0]
         high_arg_goi = grois_no_outliers[-1]
         idx_sorted = np.argsort(grois)
+#        print(idx_sorted)
+#        print(spreads)
+#        print(spreads[idx_sorted])
         spreads_sorted = spreads[idx_sorted]
         rois_no_outliers = grois_no_outliers-spreads_sorted[low_thr_pos:high_thr_pos+1]
     else:

@@ -382,8 +382,8 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
     
     config = configuration(entries)
     
-    config['IO_tr_name'] = rootname_config+extR+ext_rel_tr+sufix_io
-    config['IO_cv_name'] = rootname_config+extR+ext_rel_cv+sufix_io
+    config['IO_tr_name'] = rootname_config+tag+extR+ext_rel_tr+sufix_io
+    config['IO_cv_name'] = rootname_config+tag+extR+ext_rel_cv+sufix_io
         
     seq_len = config['seq_len']
     size_output_layer = config['size_output_layer']

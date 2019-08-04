@@ -2232,7 +2232,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
     outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
-        
         separators_directory = hdf5_directory+'separators/'
     else:
         separators_directory = hdf5_directory+'separators_test/'
@@ -2353,11 +2352,17 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         separators = load_separators(thisAsset, 
                                      separators_directory, 
                                      from_txt=1)
+        if not build_test_db:
+            sep_for_stats = separators
+        else:
+            sep_for_stats = load_separators(thisAsset, 
+                                     hdf5_directory+'separators/', 
+                                     from_txt=1)
         
         first_date = dt.datetime.strftime(dt.datetime.strptime(
-                separators.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
         last_date = dt.datetime.strftime(dt.datetime.strptime(
-                separators.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                sep_for_stats.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
         
         list_stats_in = [None for _ in range(len(outassdirnames))]
         list_stats_out = [None for _ in range(len(outassdirnames))]

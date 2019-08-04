@@ -343,7 +343,7 @@ class RNN(Model):
                                  (self.target[:,:,3:] * 
                                   tf.log(self.output[:,:,3:])), [1, 2])/self.seq_len
             loss = tf.reduce_mean(
-                loss_mc+2*loss_md+1/self.n_bits_outputs[-1]*loss_mg,
+                loss_mc+loss_md+loss_mg,
                 name="loss_nll")
         else:
             loss_mg = -tf.reduce_sum(self.target *tf.log(self.output), [1, 2])/self.seq_len
@@ -626,7 +626,12 @@ class StackedModel(Model):
         """ Initialize the interactive sessions for live predictions """
         self.models = [model.init_interactive_session(epoch=epochs[e]) for e,model in enumerate(self.models)]
         return self
-    
+
+class XGB():
+    """ XGB model """
+    def __init__(self, params={}):
+        pass
+
 class DNN(Model):
     """ Deep neural network model """
     def __init__(self, params={}):
