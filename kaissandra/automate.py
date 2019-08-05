@@ -148,13 +148,13 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         entries['IDresults'] = 'R'+basename+extR+ext_rel_cv+sufix
         print('IDresults:')
         print(entries['IDresults'])
-        if basename_IO!='':
+        if len(basename_IO)==0:
             entries['IO_results_name'] = 'R'+basename+extR+ext_rel_cv+sufix_io
         else:
             entries['IO_results_name'] = 'R'+basename_IO+extR+ext_rel_cv+sufix_io
         
         config = configuration(entries)
-        if basename_IO!='':
+        if len(basename_IO)==0:
             config['IO_tr_name'] = basename+extR+ext_rel_tr+sufix_io
             config['IO_cv_name'] = basename+extR+ext_rel_cv+sufix_io
         else:
