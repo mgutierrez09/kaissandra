@@ -82,6 +82,7 @@ class Model:
     def _load_graph(self, sess, ID, epoch=-1, live='n'):
         """ <DocString> """
         # Create placeholders
+        print(local_vars.weights_directory+ID+"/")
         if os.path.exists(local_vars.weights_directory+ID+"/"):
             # load last if epoch = -1
             if epoch == -1:

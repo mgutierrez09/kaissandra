@@ -673,7 +673,7 @@ def configuration_trader(*ins):
         
         numberNetworks = 2
         IDresults = ['R01010PS2ALk1k2E4-5','R01010PS2BSk1k2E4']
-        IDweights = [['W1010PS2k1K5A','W1010PS2k2K5A'],['W1010PS2k1K5B','W1010PS2k2K5B']]
+        IDweights = [['W01010PS2k1K5A','W01010PS2k2K5A'],['W01010PS2k1K5B','W01010PS2k2K5B']]
         list_name = ['01010k1-2K5E14ASR','01010k1-2K5E14BSR']
         list_spread_ranges = [{'sp':[1, 2, 2.1, 2.3, 2.9, 3.2, 3.9, 5],
                            'th':[(.52,.57),(.64,.56),(.64,.61),(.65,.61),(.68,.62),(.74,.59),(.72,.62),(.74,.62)],
