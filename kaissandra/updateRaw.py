@@ -247,7 +247,7 @@ elif build_test_db and not build_partial_raw:
     hdf5_file_name = 'tradeinfo_test.hdf5'
     directory_root = local_vars.data_test_dir
     separators_directory_name = 'separators_test/'
-    dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.07.19')
+    dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.08.02')
 elif not build_test_db and not build_partial_raw:
     hdf5_file_name = 'tradeinfo.hdf5'
     separators_directory_name = 'separators/'

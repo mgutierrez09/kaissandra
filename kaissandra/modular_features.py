@@ -381,7 +381,7 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
         # init exponetial means
         if nEMAs>0:
             em = intit_em(lbd, nExS, mW, Symbol)
-                
+        
         if n_parsars>0:
             sar = init_sar(Symbol[0])
         
@@ -844,7 +844,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
 
 def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outassdirname, 
                                  group_raw, s, all_stats, last_iteration, 
-                                 init_date, end_date, feats_from_bids=True):
+                                 init_date, end_date, get_feats=True):
     """
     Function that extracts features, results and normalization stats from raw data.
     Args:
@@ -861,16 +861,17 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
         - ret_idx
         - stats
     """
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
     save_stats = config['save_stats']
     #asset_relation = config['asset_relation']
     phase_shift = config['phase_shift']
     
-    # get trade info datasets
-    DateTime = group_raw["DateTime"]
-    SymbolBid = group_raw["SymbolBid"]
-    SymbolAsk = group_raw["SymbolAsk"]
+    
 #    if asset_relation == 'direct':
 #        Bids = SymbolBid
 #        Asks = SymbolAsk
@@ -878,10 +879,15 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
 #        print("\tGetting inverse")
 #        Bids = 1/SymbolBid[:]
 #        Asks = 1/SymbolAsk[:]
-    if feats_from_bids:
-        Symbols = SymbolBid
-    else:
-        Symbols = SymbolAsk
+    if get_feats:
+        # get trade info datasets
+        DateTime = group_raw["DateTime"]
+        SymbolBid = group_raw["SymbolBid"]
+        SymbolAsk = group_raw["SymbolAsk"]
+        if feats_from_bids:
+            Symbols = SymbolBid
+        else:
+            Symbols = SymbolAsk
     # number of events
     nExS = nEventsPerStat
     mW = movingWindow
@@ -907,15 +913,16 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
             if not os.path.exists(groupoutdirname):
                 os.makedirs(groupoutdirname)
             pickle.dump( m_out, open( groupoutdirname+"m_out_"+str(shift)+".p", "wb" ))
-                    
-            print("\tShift "+str(shift)+": getting features from raw data...")
-            # get structures and save them in a hdf5 file
-            feature_keys_to_calc, Symbol = get_features_modular_parallel(config, groupdirname,
-                                     DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
-                                     Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)#
-            get_returns_modular(config, groupoutdirname, separators.index[s],
-                                    DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
-                                    SymbolBid[separators.index[s]+shift:separators.index[s+1]+1],
+            
+            if get_feats:
+                print("\tShift "+str(shift)+": getting features from raw data...")
+                # get structures and save them in a hdf5 file
+                feature_keys_to_calc, Symbol = get_features_modular_parallel(config, groupdirname,
+                                         DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
+                                         Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)#
+                get_returns_modular(config, groupoutdirname, separators.index[s],
+                                        DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
+                                        SymbolBid[separators.index[s]+shift:separators.index[s+1]+1],
                                     SymbolAsk[separators.index[s]+shift:separators.index[s+1]+1], Symbol, m_out, shift)
             # only get stats for shift zero
             if shift==0:
@@ -926,7 +933,7 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
     
     return all_stats
 
-def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[]):
+def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[], get_feats=True):
     """  """
     import time
     from kaissandra.inputs import load_separators
@@ -975,7 +982,8 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
     else:
         asset_relation = 'direct' # direct, inverse
 #        config['asset_relation'] = asset_relation
-    
+    if not save_stats and not get_feats:
+        raise ValueError("get_feats and get_feats cannot both be false. Nothing is gonna be done.")
     if feats_from_bids:
         rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/bid/'#test_flag+'_legacy_test.hdf5'
     else:
@@ -1042,7 +1050,7 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[])
                 all_stats = wrapper_get_features_modular(
                         config, thisAsset, separators, assdirname, outassdirname, 
                         group_raw, s, all_stats, last_iteration, init_date, end_date, 
-                        feats_from_bids=feats_from_bids)
+                        get_feats=get_feats)
                     
             else:
                 print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(int(s/2),int(len(separators)/2-1)))

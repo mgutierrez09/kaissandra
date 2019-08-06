@@ -2177,11 +2177,11 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         assets = config['assets']
     else:
         assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
-    if 'feature_keys_manual' not in config:
-        feature_keys_manual = [i for i in range(37)]
+    if 'feature_keys' not in config:
+        feature_keys = [i for i in range(37)]
     else:
-        feature_keys_manual = config['feature_keys_manual']
-    nFeatures = len(feature_keys_manual)
+        feature_keys = config['feature_keys']
+    nFeatures = len(feature_keys)
     if 'feats_from_bids' in config:
         feats_from_bids = config['feats_from_bids']
     else:
@@ -2342,37 +2342,37 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
     for ass in assets:
-        first = True
-        thisAsset = C.AllAssets[str(ass)]
-        assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
-        outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
-        
-        tic = time.time()
-        # load separators
-        separators = load_separators(thisAsset, 
-                                     separators_directory, 
-                                     from_txt=1)
-        if not build_test_db:
-            sep_for_stats = separators
-        else:
-            sep_for_stats = load_separators(thisAsset, 
-                                     hdf5_directory+'separators/', 
-                                     from_txt=1)
-        
-        first_date = dt.datetime.strftime(dt.datetime.strptime(
-                sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        last_date = dt.datetime.strftime(dt.datetime.strptime(
-                sep_for_stats.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-        
-        list_stats_in = [None for _ in range(len(outassdirnames))]
-        list_stats_out = [None for _ in range(len(outassdirnames))]
-        for ind, assdirname in enumerate(assdirnames):
-            outassdirname = outassdirnames[ind]
-            list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol)
-#        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
-#                                            thisAsset, tag=tag_stats)
-        
         if if_build_IO:
+            thisAsset = C.AllAssets[str(ass)]
+            assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
+            outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
+            
+            tic = time.time()
+            # load separators
+            separators = load_separators(thisAsset, 
+                                         separators_directory, 
+                                         from_txt=1)
+            if not build_test_db:
+                sep_for_stats = separators
+            else:
+                sep_for_stats = load_separators(thisAsset, 
+                                         hdf5_directory+'separators/', 
+                                         from_txt=1)
+
+            first_date = dt.datetime.strftime(dt.datetime.strptime(
+                    sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+            last_date = dt.datetime.strftime(dt.datetime.strptime(
+                    sep_for_stats.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+            
+            list_stats_in = [None for _ in range(len(outassdirnames))]
+            list_stats_out = [None for _ in range(len(outassdirnames))]
+            for ind, assdirname in enumerate(assdirnames):
+                #outassdirname = outassdirnames[ind]
+                list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol)
+    #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
+    #                                            thisAsset, tag=tag_stats)
+        
+        
             mess = str(ass)+". "+thisAsset
             print(mess)
             if len(log)>0:

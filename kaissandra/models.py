@@ -13,6 +13,9 @@ import h5py
 import datetime as dt
 import os
 from tqdm import tqdm
+import lightgbm as lgb 
+from sklearn.metrics import mean_squared_error
+
 from kaissandra.local_config import local_vars
 from kaissandra.config import write_log
 from kaissandra.results2 import (get_last_saved_epoch2,
@@ -631,7 +634,103 @@ class StackedModel(Model):
 class XGB():
     """ XGB model """
     def __init__(self, params={}):
+        self.params = params
+        self.model = xgb.LGBMRegressor(verbosity=1)
+#        self.model = lgb.LGBMRegressor(objective = "regression", 
+#        boosting = "gbdt",
+#        metric="auc",
+#        boost_from_average=False,
+#        num_threads=8,
+#        learning_rate =0.0081,
+#        num_leaves =13,
+#        max_depth=-1,
+#        feature_fraction =0.041,
+#        bagging_freq =5,
+#        bagging_fraction =0.331,
+#        min_data_in_leaf =80,
+#        min_sum_hessian_in_leaf =10.0,
+#        verbosity =1,
+#        num_iterations =99999999,
+#        seed=44000)
+    
+    def fit(self, X, Y):
+        """  """
+        # Create LGB dataset
+        #d_train = lgb.Dataset(X, label= Y)
+        # fit
+#        self.model = lgb.train(self.params, d_train)
+        self.model.fit(X, Y)
+        print("Model fitted. Score: ")
+        print(self.model.score(X, Y))
+        
+        return self
+    
+    def cv(self, X, Y):
+        """  """
+        Y_tilde = self.model.predict(X)
+        print("Prediction score: ")
+        print(self.model.score(X, Y))
+        print("rmsle: ")
+        print(self._rmsle(Y, Y_tilde))
+        return Y_tilde
+    
+    def predict(self, X, Y):
+        """  """
         pass
+    
+    def _rmsle(self, Y, Y_tilde):
+        return np.sqrt(mean_squared_error(Y, Y_tilde))
+    
+class LGBM():
+    """ XGB model """
+    def __init__(self, params={}):
+        self.params = params
+        self.model = lgb.LGBMRegressor(verbosity=1)
+#        self.model = lgb.LGBMRegressor(objective = "regression", 
+#        boosting = "gbdt",
+#        metric="auc",
+#        boost_from_average=False,
+#        num_threads=8,
+#        learning_rate =0.0081,
+#        num_leaves =13,
+#        max_depth=-1,
+#        feature_fraction =0.041,
+#        bagging_freq =5,
+#        bagging_fraction =0.331,
+#        min_data_in_leaf =80,
+#        min_sum_hessian_in_leaf =10.0,
+#        verbosity =1,
+#        num_iterations =99999999,
+#        seed=44000)
+    
+    def fit(self, X, Y):
+        """  """
+        # Create LGB dataset
+        #d_train = lgb.Dataset(X, label= Y)
+        # fit
+#        self.model = lgb.train(self.params, d_train)
+        Y_pred = self.model.fit(X, Y)
+        print("Model fitted. Score: ")
+        print(self.model.score(X, Y))
+        print("rmsle: ")
+        print(self._rmsle(Y, Y_pred))
+        return self
+    
+    def cv(self, X, Y):
+        """  """
+        Y_tilde = self.model.predict(X)
+        print("Prediction score: ")
+        print(self.model.score(X, Y))
+        print("rmsle: ")
+        print(self._rmsle(Y, Y_tilde))
+        return Y_tilde
+    
+    def predict(self, X, Y):
+        """  """
+        pass
+    
+    def _rmsle(self, Y, Y_tilde):
+        return np.sqrt(mean_squared_error(Y, Y_tilde))
 
 class DNN(Model):
     """ Deep neural network model """

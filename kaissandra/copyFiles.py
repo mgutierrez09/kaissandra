@@ -13,14 +13,14 @@ from inputs import Data
 
 #
 destiny = 'D:/SDC/py/Data_test/'
-origin = 'D:/SDC/py/Data_aws_14/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
+origin = 'D:/SDC/py/Data_aws_15/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
 data = Data()
 
 if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
 
-copyFrom = '2019.06.29 00:00:00'
+copyFrom = '2019.07.20 00:00:00'
 copyUntil = '2019.08.15 23:59:59'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
 copyUntilDT = dt.datetime.strptime(copyUntil,'%Y.%m.%d %H:%M:%S')
