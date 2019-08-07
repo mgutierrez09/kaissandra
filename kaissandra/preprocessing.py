@@ -69,8 +69,8 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
     y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
     # find negative (positive) returns
-    negativeYs = out_quantized<0
-    positiveYs = out_quantized>0
+    negativeYs = Output<0
+    positiveYs = Output>0
     # set to 1 the corresponding entries
     y_c1[np.squeeze(negativeYs,axis=2),0] = 1
     y_c2[np.squeeze(positiveYs,axis=2),0] = 1
@@ -78,6 +78,7 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y_c = np.append(y_c,y_c2,axis=2)
     
     y_bin = np.append(y_c,y_one_hot,axis=2)
+    print(y_bin)
     # build output vector
     return y_bin, y_dec
 
@@ -2382,7 +2383,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
                     ". From "+separators.DateTime.iloc[s]+" to "+\
                     separators.DateTime.iloc[s+1]
-                #print(mess)
+                print(mess)
                 if len(log)>0:
                     write_log(mess)
                 # number of events within this separator chunk

@@ -10,6 +10,7 @@ import pandas as pd
 import h5py
 from multiprocessing import Process
 import pickle
+import numpy as np
 
 from kaissandra.trainRNN import train_RNN
 from kaissandra.testRNN import test_RNN
@@ -17,7 +18,7 @@ from kaissandra.config import retrieve_config, configuration, write_log
 from kaissandra.features import get_features
 from kaissandra.preprocessing import build_datasets, build_datasets_modular
 from kaissandra.local_config import local_vars
-from kaissandra.models import RNN
+from kaissandra.models import RNN, LGBM
 from kaissandra.results2 import merge_results
 
 def run_train_test(config, its, if_train, if_test, if_get_features, run_in_paralell):
@@ -334,17 +335,31 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
     if not just_build and if_merge_results:
         merge_results(IDrs, IDr_merged)
         
-def boosting(rootname_config, entries={}, K=5, 
+def cross_entropy_loss(Y, Y_tilde):
+    """  """
+    return np.sum(Y*-np.log(Y_tilde)+(1-Y)*-np.log(1-Y_tilde))/Y.shape[0]
+    
+def boosting(rootname_config, epoch, entries={}, K=5, 
                  sufix='' ,k_init=0, k_end=-1, log='', 
                  modular=False, sufix_io='', basename_IO=''):
     """  """
+    from kaissandra.results2 import init_results_dir, get_results
+    from kaissandra.models import retrieve_costs
+    
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
          modular=modular, sufix_io=sufix_io, basename_IO=basename_IO)
+        
+    
     # loop over k-foldings
     count = 0
     for fold_idx in range(k_init,k_end):
+        
         config = configs[count]
+        t_indexes = config['t_indexes']
+        IDresults = config['IDresults']
+        IDweights = config['IDweights']
+        
         dirfilename_tr = dirfilename_trs[count]
         dirfilename_te = dirfilename_tes[count]
         IO_results_name = IO_results_names[count]
@@ -356,11 +371,81 @@ def boosting(rootname_config, entries={}, K=5,
         Yte = f_IOte['Y']
         Xte = f_IOte['X']
         DTA = pickle.load( open( IO_results_name, "rb" ))
-        # Get error set
-        err_tr = Ytr[:]-Y_tilde
+        # get predictions from base model
+#        print("Xtr.shape")
+#        print(Xtr.shape)
+#        print("Ytr.shape")
+#        print(Ytr.shape)
+        print("Getting Ytr_tilde")
+        Ytr_tilde = RNN(config).predict_batch(Xtr, epoch)
+        print("Getting Yte_tilde")
+        Yte_tilde = RNN(config).predict_batch(Xte, epoch)
+#        print("Ytr[:10,:,:]")
+#        print(Ytr[:10,:,:])
+#        print("Y_tilde")
+#        print(Ytr_tilde[:,0,1])
+#        print(Ytr_tilde[:,0,2])
+#        print(max(Ytr_tilde[:,0,2]-Ytr_tilde[:,0,1]))
+        Ytr_tilde = Ytr_tilde[:,0,1]
+#        Yte_tilde = Yte_tilde[:,0,1]
+#        print("Y_tilde new")
+#        print(Ytr_tilde.shape)
+        
+        costs_dict, costs = retrieve_costs(tOt='tr', IDweights=IDweights)
+        Yte_tilde_2 = np.zeros(Yte_tilde.shape)
+        Yte_tilde_2[:,:,:] = Yte_tilde[:,:,:]
         # LGB
-        LGBM(config).fit(Y_tilde, err_tr).cv()
+        for t_index in t_indexes:
+            # Get error set
+            print("t_index = ",t_index)
+#            print("Ytr[:,t_index,1]")
+#            print(Ytr[:,t_index,1])
+            err_tr = Ytr[:,t_index,1]-Ytr_tilde
+#            print("err_tr")
+#            print(err_tr)
+            print("Fitting model")
+            lgmb = LGBM(config).fit(Xtr[:,t_index,:], err_tr)
+#            err_tr_tilde = lgmb.model.predict(Xtr[:,t_index,:])
+#            print("rmsle: ")
+#            print(lgmb.rmsle(err_tr, err_tr_tilde))
+#            Ytr_tilde_2 = Ytr_tilde+err_tr_tilde
+#            
+            loss_tr = cross_entropy_loss(Ytr[:,t_index,1], Ytr_tilde)
+#            loss_tr_2 = cross_entropy_loss(Ytr[:,t_index,1], Ytr_tilde_2)
+            
+            err_te = Yte[:,t_index,1]-Yte_tilde[:,t_index,1]
+            print("Cross-validating model")
+            err_te_tilde = lgmb.cv(Xte[:,t_index,:], err_te)
+#            print("err_te_tilde")
+#            print(err_te_tilde)
+#            print(max(err_te_tilde))
+#            print(min(err_te_tilde))
+            Yte_tilde_2[:,t_index,1] = Yte_tilde[:,t_index,1]+err_te_tilde
+#            print(Yte_tilde_2[:,t_index,1])
+#            print(Yte_tilde[:,t_index,1])
+            assert(max(Yte_tilde_2[:,t_index,1])<=1 and min(Yte_tilde_2[:,t_index,1])>=0)
+            Yte_tilde_2[:,t_index,2] = 1-Yte_tilde_2[:,t_index,1]
+            
+            loss_te = cross_entropy_loss(Yte[:,t_index,1], Yte_tilde[:,t_index,1])
+            loss_te_2 = cross_entropy_loss(Yte[:,t_index,1], Yte_tilde_2[:,t_index,1])
+            
+            print("loss_tr")
+            print(loss_tr)
+#            print("loss_tr_2")
+#            print(loss_tr_2)
+            print("loss_te")
+            print(loss_te)
+            print("loss_te_2")
+            print(loss_te_2)
+        
+        results_filename, costs_filename = init_results_dir(local_vars.results_directory, 
+                                                            IDresults)
+        get_results(config, Yte[:], DTA, 
+                    loss_te_2, Yte_tilde_2, costs_dict, epoch, -1, results_filename,
+                    costs_filename, from_var=False)
+        
         count += 1
+    #return Ytr[:,t_index,1], Y_tilde, err_tr, err_tr_tilde
 
 def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[], 
                         build_IDrs=False, its=15, sufix='', IDr_merged='', log='', 

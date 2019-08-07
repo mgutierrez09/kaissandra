@@ -221,7 +221,7 @@ def configuration(entries, save=True):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'CFEATSMOD500'
+        config_name = 'CFEATSMOD300'
     
     config_filename = local_vars.config_directory+config_name+config_extension
     
@@ -257,11 +257,11 @@ def configuration(entries, save=True):
         if 'movingWindow' in entries:
             movingWindow = entries['movingWindow']
         else:
-            movingWindow = 500
+            movingWindow = 300
         if 'nEventsPerStat' in entries:
             nEventsPerStat = entries['nEventsPerStat']
         else:
-            nEventsPerStat = 5000
+            nEventsPerStat = 3000
         if 'lB' in entries:
             lB = entries['lB']
         else:

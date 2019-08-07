@@ -593,6 +593,46 @@ class RNN(Model):
         output = self._live_session.run([self.output], test_data_feed)
         return output
     
+    def predict_batch(self, X, epoch, alloc=2**10):
+        """ Predict output for features input X. If an interactive session
+        has not yet been initialzed, this function does it. """
+        # init graph
+        tf.reset_default_graph()
+        # build model
+        self._build_model()
+        IDweights = self.IDweights
+        m = X.shape[0]
+        output = np.zeros((X.shape[0], X.shape[1], self.size_output_layer))
+        
+        with tf.Session() as sess:
+            # define save object
+            self._saver = tf.train.Saver(max_to_keep = None)
+            # load graph
+            self._load_graph(sess, IDweights, epoch=epoch)
+            n_chunks = int(np.ceil(m/alloc))
+            
+            for chunck in tqdm(range(n_chunks),mininterval=1):
+                #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
+                # build input/output data
+                test_data_feed = {
+                        self.input: X[chunck*alloc:(chunck+1)*alloc,:,:],
+                        self.dropout: 1.0
+                }
+#                       print("self.output.shape")
+#                       print(self.output.shape)
+                output_chunck = sess.run([self.output], test_data_feed)[0]
+                #J_test += J_test_chuck
+#                print(output_chunck.shape)
+#                print(output[chunck*alloc:(chunck+1)*alloc,:,:].shape)
+                output[chunck*alloc:(chunck+1)*alloc,:,:] = output_chunck
+                        
+#            test_data_feed = {
+#                self.input: X,
+#                self.dropout: 1.0
+#            }
+#            output = sess.run([self.output], test_data_feed)[0]
+        return output
+    
     def init_interactive_session(self, epoch=0):
         """ Initialize an interactive session for live predictions """
         print("Initing interactive session of "+self.IDweights+" E "+str(epoch))
@@ -709,27 +749,27 @@ class LGBM():
         #d_train = lgb.Dataset(X, label= Y)
         # fit
 #        self.model = lgb.train(self.params, d_train)
-        Y_pred = self.model.fit(X, Y)
+        
+        self.model.fit(X, Y)
         print("Model fitted. Score: ")
         print(self.model.score(X, Y))
-        print("rmsle: ")
-        print(self._rmsle(Y, Y_pred))
+        
         return self
     
     def cv(self, X, Y):
         """  """
         Y_tilde = self.model.predict(X)
-        print("Prediction score: ")
+        print("CV prediction score: ")
         print(self.model.score(X, Y))
         print("rmsle: ")
-        print(self._rmsle(Y, Y_tilde))
+        print(self.rmsle(Y, Y_tilde))
         return Y_tilde
     
-    def predict(self, X, Y):
+    def predict(self, X):
         """  """
-        pass
+        return self.model.predict(X)
     
-    def _rmsle(self, Y, Y_tilde):
+    def rmsle(self, Y, Y_tilde):
         return np.sqrt(mean_squared_error(Y, Y_tilde))
 
 class DNN(Model):
