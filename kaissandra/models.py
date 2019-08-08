@@ -13,7 +13,6 @@ import h5py
 import datetime as dt
 import os
 from tqdm import tqdm
-import lightgbm as lgb 
 from sklearn.metrics import mean_squared_error
 
 from kaissandra.local_config import local_vars
@@ -724,6 +723,7 @@ class XGB():
 class LGBM():
     """ XGB model """
     def __init__(self, params={}):
+        import lightgbm as lgb
         self.params = params
         self.model = lgb.LGBMRegressor(verbosity=1)
 #        self.model = lgb.LGBMRegressor(objective = "regression", 

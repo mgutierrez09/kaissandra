@@ -18,7 +18,7 @@ from kaissandra.config import retrieve_config, configuration, write_log
 from kaissandra.features import get_features
 from kaissandra.preprocessing import build_datasets, build_datasets_modular
 from kaissandra.local_config import local_vars
-from kaissandra.models import RNN, LGBM
+from kaissandra.models import RNN#, LGBM
 from kaissandra.results2 import merge_results
 
 def run_train_test(config, its, if_train, if_test, if_get_features, run_in_paralell):

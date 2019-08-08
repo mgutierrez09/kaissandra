@@ -78,7 +78,7 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y_c = np.append(y_c,y_c2,axis=2)
     
     y_bin = np.append(y_c,y_one_hot,axis=2)
-    print(y_bin)
+#    print(y_bin)
     # build output vector
     return y_bin, y_dec
 
