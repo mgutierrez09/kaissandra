@@ -196,7 +196,7 @@ def get_results_entries():
 
 def get_costs_entries():
     """  """
-    return ['epoch','J_train','J_test']
+    return ['epoch','J_train','J_test','J_test_mc','J_test_md','J_test_mg']
 
 def get_kpi_names():
     """  """
@@ -824,7 +824,7 @@ def get_results_mg(config, y, soft_tilde, costs, epoch, J_test, costs_filename,
                'RC':RC,
                'FS':FS}
     
-    save_costs(costs_filename, [epoch, J_train, J_test])
+    save_costs(costs_filename, [epoch, J_train]+J_test)
     
     if get_performance:
         print("Getting performance")
@@ -1274,7 +1274,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     #SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # to acces CR: CR[t][mc][md]
     # save fuction cost
-    save_costs(costs_filename, [epoch, J_train, J_test])
+    save_costs(costs_filename, [epoch, J_train]+J_test)
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     # loop over t_indexes
     tic = time.time()

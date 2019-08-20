@@ -1036,17 +1036,23 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['RRNN01010CMF181112T190719ALk1k2E14','RRNN01010CMF181112T190719BSk1k2E14']
-    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR']
+    list_IDresults = ['R01010PS2CMF181112T190802ALk1k2E4','R01010PS2CMF181112T190802BSk1k2E4']
+    list_name = ['01010PS2NYk1-2E4-5ALSR','01010PS2NYk1-2E4BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[1,2,5],'th':[(.6,.55),(.65,.6),(.7,.6)]},{'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
+#    list_spread_ranges = [{'sp':[1,2,5],'th':[(.6,.55),(.65,.6),(.7,.6)]},{'sp':[1,2,5],'th':[(.55,.55),(.6,.6),(.7,.6)]}]
+    list_spread_ranges = [{'sp':[1, 2, 2.1, 2.3, 2.9, 3.2, 3.9, 5],
+                           'th':[(.52,.57),(.64,.56),(.64,.61),(.65,.61),(.68,.62),(.74,.59),(.72,.62),(.74,.62)],
+                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)]},
+                          {'sp':[.7, 1, 1.6, 2, 2.5, 3.5, 4.8, 5],
+                           'th':[(.58,.53),(.6,.56),(.6,.6),(.65,.6),(.72,.58),(.77,.56),(.77,.61),(.79,.62)],
+                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)]}]
     list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
-    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+    list_lb_mc_ext = [.52, .58]
+    list_lb_md_ext = [.56, .53]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['RRNN01010CMF170927T181109ALk1-2E14R100R100INT','RRNN01010CMF170927T181109BSk1-2E14R100R100INT']
+    list_IDgre = ['','']
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
@@ -1054,8 +1060,8 @@ if __name__ == '__main__':
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
     
-    init_day_str = '20190701'#'20181112'
-    end_day_str = '20190719'
+    init_day_str = '20181112'#'20190701'#
+    end_day_str = '20190802'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     

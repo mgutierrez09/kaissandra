@@ -348,10 +348,11 @@ class RNN(Model):
             loss = tf.reduce_mean(
                 loss_mc+loss_md+loss_mg,
                 name="loss_nll")
+            return loss, loss_mc, loss_md, loss_mg
         else:
             loss_mg = -tf.reduce_sum(self.target *tf.log(self.output), [1, 2])/self.seq_len
             loss = tf.reduce_mean(loss_mg, name="loss_nll")
-        return loss
+            return loss
     
     def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log='',aloc=3000000):
         """ Fit model to trainning data """
@@ -368,7 +369,7 @@ class RNN(Model):
         # init session
         with tf.Session() as sess:
             # get loss function
-            loss = self.compute_loss(self.loss_funcs)
+            loss, _, _, _ = self.compute_loss(self.loss_funcs)
             # define optimizer
             optimizer = get_optimazer(loss, params=self.params_optimizer)
             # define save object
@@ -470,7 +471,7 @@ class RNN(Model):
         with tf.Session() as sess:
             try:
                 # get loss function
-                loss = self.compute_loss(loss_funcs)
+                loss, loss_mc, loss_md, loss_mg = self.compute_loss(loss_funcs)
                 # load models and test them
                 for it, epoch in enumerate(epochs):
                     # make sure cost in not a NaN
@@ -491,7 +492,10 @@ class RNN(Model):
                         write_log(mess)
         #            J_train = self._loss.eval()
                     output = np.zeros(Y.shape)
-                    J_test = 0
+                    J = 0
+                    J_mc = 0
+                    J_md = 0
+                    J_mg = 0
                     for chunck in tqdm(range(n_chunks),mininterval=1):
                         #tqdm.write("Chunck "+str(chunck+1)+" of "+str(n_chunks))
                         # build input/output data
@@ -502,21 +506,30 @@ class RNN(Model):
                         }
 #                        print("self.output.shape")
 #                        print(self.output.shape)
-                        J_test_chuck, output_chunck = sess.run([loss, self.output], \
+                        cost, cost_mc, cost_md, cost_mg, output_chunck = sess.run([loss, loss_mc, 
+                                                                loss_md, loss_mg, 
+                                                                self.output], \
                                                                test_data_feed)
-                        J_test += J_test_chuck
+                        J += cost
+                        J_mc += cost_mc
+                        J_md += cost_md
+                        J_mg += cost_mg
                         output[chunck*alloc:(chunck+1)*alloc] = output_chunck
                         #print(softMaxOut.shape)
-                    J_test = J_test/n_chunks
-                    mess = "J_test = {0:.6f}".format(J_test)
+                    J = J/n_chunks
+                    J_mc = J_mc/n_chunks
+                    J_md = J_md/n_chunks
+                    J_mg = J_mg/n_chunks
+                    Js = [J, J_mc, J_md, J_mg]
+                    mess = "J = {0:.6f}".format(J)+" J_mc = {0:.6f}".format(J_mc)+" J_md = {0:.6f}".format(J_md)+" J_mg = {0:.6f}".format(J_mg)
                     print(mess)
                     if len(log)>0:
                         write_log(mess)
                     if save_cost:
-                        self._save_cost(epoch, J_test, From='results', 
+                        self._save_cost(epoch, Js, From='results', 
                                         params={'IDresults':IDresults})
                     if save_output:
-                        self.save_output_fn(output, J_test, 
+                        self.save_output_fn(output, Js, 
                                             method='hdf5', tag=tag)
                     if if_get_results:
                         ## TEMPORARY: use legacy results functions
@@ -532,7 +545,7 @@ class RNN(Model):
                                                         get_performance=True)
                             Thread(target=get_results_mg,
                                    args=(config, Y, output, costs_dict, epoch, 
-                                           J_test, costs_filename, results_filename,
+                                           Js, costs_filename, results_filename,
                                            performance_filename),
                                    kwargs={'get_performance':True,'DTA':DTA}).start()
 #                            get_results_mg(config, Y, output, costs_dict, epoch, 
@@ -543,7 +556,7 @@ class RNN(Model):
                             if it==0:
                                 results_filename, costs_filename = init_results_dir(results_directory, IDresults)
                             get_results(config, Y, DTA, 
-                                J_test, output, costs_dict, epoch, -1, results_filename,
+                                Js, output, costs_dict, epoch, -1, results_filename,
                                 costs_filename, from_var=False)
             except KeyboardInterrupt:
                 mess = "CV stopped due to KeyboardInterrupt exception"
@@ -554,7 +567,7 @@ class RNN(Model):
         print(mess)
         if len(log)>0:
             write_log(mess)
-        return output, J_test
+        return output, J
         
     def test(self):
         """  """
