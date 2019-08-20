@@ -1274,8 +1274,9 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     #SR = [[[None for md in thresholds_md] for mc in thresholds_mc] for t in range(model.seq_len+1)]
     # to acces CR: CR[t][mc][md]
     # save fuction cost
-    save_costs(costs_filename, [epoch, J_train]+J_test)
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
+    save_costs(costs_filename, [epoch, J_train]+J_test)
+    
     # loop over t_indexes
     tic = time.time()
     for t_index in t_indexes+extended_t_index:

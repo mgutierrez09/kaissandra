@@ -345,10 +345,19 @@ class RNN(Model):
             loss_mg = -tf.reduce_sum(self._tf_repeat(self.n_bits_outputs[-1])*
                                  (self.target[:,:,3:] * 
                                   tf.log(self.output[:,:,3:])), [1, 2])/self.seq_len
-            loss = tf.reduce_mean(
+            j = tf.reduce_mean(
                 loss_mc+loss_md+loss_mg,
                 name="loss_nll")
-            return loss, loss_mc, loss_md, loss_mg
+            j_mc = tf.reduce_mean(
+                loss_mc,
+                name="loss_mc")
+            j_md = tf.reduce_mean(
+                loss_md,
+                name="loss_md")
+            j_mg = tf.reduce_mean(
+                loss_mg,
+                name="loss_mg")
+            return j, j_mc, j_md, j_mg
         else:
             loss_mg = -tf.reduce_sum(self.target *tf.log(self.output), [1, 2])/self.seq_len
             loss = tf.reduce_mean(loss_mg, name="loss_nll")
@@ -567,7 +576,7 @@ class RNN(Model):
         print(mess)
         if len(log)>0:
             write_log(mess)
-        return output, J
+        return output, Js
         
     def test(self):
         """  """

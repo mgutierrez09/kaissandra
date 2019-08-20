@@ -632,17 +632,17 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
     DTA = pickle.load( open( IO_results_name, "rb" ))
     n_models = len(model_names)
     outputs_stacked = np.zeros((Yte.shape[0], n_models*seq_len, size_output_layer))
-    J_tests = 0
+    #J_tests = 0
     for i, name in enumerate(model_names):
         config['IDweights'] = name
         startFrom = epochs[i]
         endAt = epochs[i]
-        output, J_test = RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
+        output, Js = RNN(config).cv(Xte, Yte, DTA, IDresults=IDresults, \
                        startFrom=startFrom, endAt=endAt, config=config, 
                        if_get_results=False, log=log, save_cost=False)
-        J_tests += J_test
+        #J_tests += Js
         outputs_stacked[:,i*seq_len:(i+1)*seq_len,:] = output
-    J_tests = J_tests/n_models
+    #J_tests = J_tests/n_models
     # apply melting function
     if melting_func=='mean':
         outputs_melted = np.zeros((Yte.shape[0], 1, size_output_layer))
@@ -654,7 +654,7 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
         results_filename, costs_filename = init_results_dir(results_directory, IDresults)
         epoch = 0
         costs_dict = {str(epoch):0.0}
-        get_results(config, Yte, DTA, J_test, outputs_melted, costs_dict, epoch, -1, 
+        get_results(config, Yte, DTA, Js, outputs_melted, costs_dict, epoch, -1, 
                     results_filename, costs_filename, from_var=False)
         return None
     else:
