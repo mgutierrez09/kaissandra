@@ -96,7 +96,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
     if 'build_asset_relations' in entries:
         build_asset_relations = entries['build_asset_relations']
     else:
-        build_asset_relations = ['direct']
+        build_asset_relations = ['direct','inverse']
     ext_rel_tr = ''
     if 'direct' in build_asset_relations:
         ext_rel_tr = ext_rel_tr+'D'

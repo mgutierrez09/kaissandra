@@ -833,11 +833,11 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                 
             # close file
             (file.close() for file in features_files)
-        except KeyboardInterrupt:
+        except :
             (file.close() for file in features_files)
             (os.remove(filedirname) for filediername in filedirnames)
-            print("KeyboardInterrupt. Files closed and deleted")
-            raise KeyboardInterrupt
+            print("Interrupt in get_features_modular_parallel. Files closed and deleted")
+            raise ValueError
     else:
         print("\tAll features already calculated. Skipped.")
     return feature_keys, Symbol

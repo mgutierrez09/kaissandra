@@ -2236,19 +2236,21 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         separators_directory = hdf5_directory+'separators/'
     else:
         separators_directory = hdf5_directory+'separators_test/'
-    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol)
+    
     
     IO_tr_name = config['IO_tr_name']
     IO_cv_name = config['IO_cv_name']
     filename_tr = IO_directory+'KFTr'+IO_tr_name+'.hdf5'
     filename_cv = IO_directory+'KFCv'+IO_cv_name+'.hdf5'
     IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
-    
-    print("Edges:")
-    print(edges)
     print(filename_tr)
     print(filename_cv)
     print(IO_results_name)
+    
+    
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol)
+    print("Edges:")
+    print(edges)
     
     if len(log)>0:
         write_log(filename_tr)

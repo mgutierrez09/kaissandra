@@ -55,7 +55,8 @@ class API():
         if not self.set_trader(params_trader):
             print("WARNING! Request set trader failed")
             
-        sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')
+        sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')+\
+                      '_'+config_trader['config_name']
         params_session = {'sessionname':sessionname,
                           'sessiontype':sessiontype}
         if not self.open_session(params_session):
