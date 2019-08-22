@@ -221,7 +221,7 @@ def configuration(entries, save=True):
     if 'config_name' in entries:
         config_name = entries['config_name']
     else:
-        config_name = 'CFEATSMOD300'
+        config_name = 'CFEATSMOD400'
     
     config_filename = local_vars.config_directory+config_name+config_extension
     
@@ -235,17 +235,17 @@ def configuration(entries, save=True):
             last_day = entries['last_day']
         else:
             last_day = '2018.11.09'
-        if 'dateTest' in entries:
-            dateTest = entries['dateTest']
-        else:
-            init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
-            end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
-            delta_dates = end_day-init_day
-            dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
-            dateTest = []
-            for d in dateTestDt:
-                if d.weekday()<5:
-                    dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+#        if 'dateTest' in entries:
+#            dateTest = entries['dateTest']
+#        else:
+#            init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
+#            end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
+#            delta_dates = end_day-init_day
+#            dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+#            dateTest = []
+#            for d in dateTestDt:
+#                if d.weekday()<5:
+#                    dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
         if 'edge_dates' in entries:
             edge_dates = entries['edge_dates']
         else:
@@ -257,11 +257,11 @@ def configuration(entries, save=True):
         if 'movingWindow' in entries:
             movingWindow = entries['movingWindow']
         else:
-            movingWindow = 300
+            movingWindow = 400
         if 'nEventsPerStat' in entries:
             nEventsPerStat = entries['nEventsPerStat']
         else:
-            nEventsPerStat = 3000
+            nEventsPerStat = 4000
         if 'lB' in entries:
             lB = entries['lB']
         else:
@@ -330,7 +330,7 @@ def configuration(entries, save=True):
         if 'phase_shift' in entries:
             phase_shift = entries['phase_shift']
         else:
-            phase_shift = 1
+            phase_shift = 2
         assert((movingWindow/phase_shift).is_integer())
         
         # general parameters
@@ -491,7 +491,7 @@ def configuration(entries, save=True):
         # add parameters to config dictionary
         config = {'config_name':config_name,
                   
-                  'dateTest':dateTest,
+                  #'dateTest':dateTest,
                   'first_day':first_day,
                   'last_day':last_day,
                   'edge_dates':edge_dates,

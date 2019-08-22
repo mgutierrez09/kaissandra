@@ -69,8 +69,10 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
     y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
     # find negative (positive) returns
-    negativeYs = Output<0
-    positiveYs = Output>0
+    negativeYs = out_quantized<0
+    positiveYs = out_quantized>0
+#    negativeYs = Output<0
+#    positiveYs = Output>0
     # set to 1 the corresponding entries
     y_c1[np.squeeze(negativeYs,axis=2),0] = 1
     y_c2[np.squeeze(positiveYs,axis=2),0] = 1
