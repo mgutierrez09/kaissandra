@@ -140,7 +140,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             write_log(mess)
         basename = rootname_config+'k'+str(fold_idx+1)+'K'+str(K)
         entries['config_name'] = 'C'+basename
-        entries['IDweights'] = 'W'+basename+extW
+        entries['IDweights'] = 'W'+basename+extW+sufix
         entries['IDresults'] = 'R'+basename+extR+ext_rel_cv+sufix
         print('IDresults:')
         print(entries['IDresults'])

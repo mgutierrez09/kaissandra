@@ -17,6 +17,54 @@ import pandas as pd
 from kaissandra.config import retrieve_config, Config as C
 from kaissandra.local_config import local_vars
 
+import zipfile
+
+def compress_zip(config, sources, features=[], assets=[], relations=[]):
+    """  """
+    from tqdm import tqdm
+    
+    movingWindow = config['movingWindow']
+    nEventsPerStat = config['nEventsPerStat']
+    phase_shift = config['phase_shift']
+    if len(features)==0:
+        features = config['feature_keys']
+    if len(assets)==0:
+        assets = config['assets']
+    if len(relations)==0:
+        relations = config['build_asset_relations']
+        
+    rootdir = local_vars.hdf5_directory
+    assetsdirs = ['mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+rel+'/'+s+'/'+C.AllAssets[str(ass)]+'/' for rel in relations for s in sources for ass in assets]
+    phase_size = movingWindow/phase_shift
+    shifts = [str(int(phase_size*phase)) for phase in range(phase_shift)]+['stats']
+    ziph = zipfile.ZipFile(local_vars.hdf5_directory+'compressed.zip', 'w', zipfile.ZIP_DEFLATED)
+    #zipdir(path, zipf)#'tmp/'
+    # ziph is zipfile handle
+    stats_files = ['m_in','m_out','output']
+    for assetsdir in tqdm(assetsdirs, mininterval=1):#os.walk(path)
+        list_all_dirs = sorted(os.listdir(rootdir+assetsdir))
+        for file in list_all_dirs:
+            if os.path.isdir(rootdir+assetsdir+file):
+                #print(rootdir+assetsdir+file)
+                list_feats = sorted(os.listdir(rootdir+assetsdir+file+'/'))
+                for featfile in list_feats:
+                    featname = '_'.join('.'.join(featfile.split('.')[:-1]).split('_')[:-1])
+                    try:
+                        if C.FI[featname] in features:
+                            if '.'.join(featfile.split('.')[:-1]).split('_')[-1] in shifts:
+                                ziph.write(rootdir+assetsdir+file+'/'+featfile, assetsdir+file+'/'+featfile)
+                    except KeyError:
+                        if featname in stats_files:
+                            ziph.write(rootdir+assetsdir+file+'/'+featfile, assetsdir+file+'/'+featfile)
+                        #print(featfile+" not found in C.FI. Skipped")
+    ziph.close()
+    
+def decompress_zip(filepath):
+    """  """
+    zfile = zipfile.ZipFile(filepath)
+    for finfo in zfile.infolist():
+        print(finfo.filename)
+        zfile.extract(finfo.filename, 'extracted/')
 
 def save_stats_func(config, all_stats, thisAsset, first_date, last_date, assdirname, outassdirname):
     """  """
