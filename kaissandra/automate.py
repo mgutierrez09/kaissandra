@@ -83,7 +83,7 @@ def automate(*ins):
 
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
                  sufix='',k_init=0, k_end=-1, log='', 
-                 modular=False, sufix_io='', basename_IO=''):
+                 modular=False, sufix_io='', basename_IO='',sufix_re=''):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -141,7 +141,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
         basename = rootname_config+'k'+str(fold_idx+1)+'K'+str(K)
         entries['config_name'] = 'C'+basename
         entries['IDweights'] = 'W'+basename+extW+sufix
-        entries['IDresults'] = 'R'+basename+extR+ext_rel_cv+sufix
+        entries['IDresults'] = 'R'+basename+extR+ext_rel_cv+sufix+sufix_re
         print('IDresults:')
         print(entries['IDresults'])
         if len(basename_IO)==0:
@@ -185,7 +185,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
-                 if_merge_results=False, modular=False, sufix_io='', basename_IO=''):
+                 if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re=''):
     """  """
 #    if 'feats_from_bids' in entries:
 #        feats_from_bids = entries['feats_from_bids']
@@ -197,7 +197,7 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
 #        results_from = 'COMB'
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
-         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO)
+         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']
     else:

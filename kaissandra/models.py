@@ -338,20 +338,20 @@ class RNN(Model):
                                     tf.log(1 - self.output[:,:,:1]), [1, 2])/self.seq_len
             # second and third bits for md (market direction). Add loss only when
             # mc is nonzero
-            loss_md = -tf.reduce_sum(self.target[:,:,1:3] * 
-                                     tf.log(self.output[:,:,1:3]), [1, 2])/self.seq_len
-            # last 5 bits for market gain output. Add loss only when
-            # mc is nonzero
-            loss_mg = -tf.reduce_sum(self.target[:,:,3:] * 
-                                  tf.log(self.output[:,:,3:]), [1, 2])/self.seq_len
-
-#            loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self.target[:,:,1:3] * 
-#                                     tf.log(self.output[:,:,1:3])), [1, 2])/self.seq_len
+#            loss_md = -tf.reduce_sum(self.target[:,:,1:3] * 
+#                                     tf.log(self.output[:,:,1:3]), [1, 2])/self.seq_len
 #            # last 5 bits for market gain output. Add loss only when
 #            # mc is nonzero
-#            loss_mg = -tf.reduce_sum(self._tf_repeat(self.n_bits_outputs[-1])*
-#                                 (self.target[:,:,3:] * 
-#                                  tf.log(self.output[:,:,3:])), [1, 2])/self.seq_len
+#            loss_mg = -tf.reduce_sum(self.target[:,:,3:] * 
+#                                  tf.log(self.output[:,:,3:]), [1, 2])/self.seq_len
+
+            loss_md = -tf.reduce_sum(self._tf_repeat(2)*(self.target[:,:,1:3] * 
+                                     tf.log(self.output[:,:,1:3])), [1, 2])/self.seq_len
+            # last 5 bits for market gain output. Add loss only when
+            # mc is nonzero
+            loss_mg = -tf.reduce_sum(self._tf_repeat(self.n_bits_outputs[-1])*
+                                 (self.target[:,:,3:] * 
+                                  tf.log(self.output[:,:,3:])), [1, 2])/self.seq_len
             j = tf.reduce_mean(
                 loss_mc+loss_md+loss_mg,
                 name="loss_nll")
