@@ -1177,7 +1177,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
 #    print(soft_tilde[mc5,-1,:])
 #    print(soft_tilde[mc5,-1,0])
 #    a=p
-    dateTest = config['dateTest']
+    #dateTest = config['dateTest']
     IDresults = config['IDresults']
     IDweights = config['IDweights']
     save_journal = config['save_journal']
@@ -1258,7 +1258,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         #print("weights_list")
         #print(weights_list)
     m = y.shape[0]
-    n_days = len(dateTest)
+    n_days = 0#len(dateTest)
 #    granularity = 1/resolution
     if 'cost_name' in config:
         cost_name = config['cost_name']

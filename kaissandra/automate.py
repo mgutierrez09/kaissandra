@@ -111,12 +111,13 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
     elif asset_relation=='inverse':
         ext_rel_cv = 'I'
 #        size_hidden_layer = 3
-    if feats_from_bids==False:
+    if feats_from_bids==False:    
         extW = 'A'
         extR = 'A'
     else:
         extW = 'B'
         extR = 'B'
+        #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
     if results_from=='COMB':
         extR = extR+'C'
     elif results_from=='ASKS':
@@ -187,14 +188,7 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re=''):
     """  """
-#    if 'feats_from_bids' in entries:
-#        feats_from_bids = entries['feats_from_bids']
-#    else:
-#        feats_from_bids = False
-#    if 'results_from' in entries:
-#        results_from = entries['results_from']
-#    else:
-#        results_from = 'COMB'
+
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
          modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re)
@@ -207,89 +201,6 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
     else:
         endAt = -1
     
-#    if 'build_asset_relations' in entries:
-#        build_asset_relations = entries['build_asset_relations']
-#    else:
-#        build_asset_relations = ['direct']
-#    ext_rel_tr = ''
-#    if 'direct' in build_asset_relations:
-#        ext_rel_tr = ext_rel_tr+'D'
-#    if 'inverse' in build_asset_relations:
-#        ext_rel_tr = ext_rel_tr+'I'
-#    if 'asset_relation' in entries:
-#        asset_relation = entries['asset_relation']
-#    else:
-#        asset_relation = 'direct'
-#    if asset_relation=='direct':
-#        ext_rel_cv = 'D'
-#    elif asset_relation=='inverse':
-#        ext_rel_cv = 'I'
-##        size_hidden_layer = 3
-#    if feats_from_bids==False:
-#        extW = 'A'
-#        extR = 'A'
-#    else:
-#        extW = 'B'
-#        extR = 'B'
-#    if results_from=='COMB':
-#        extR = extR+'C'
-#    elif results_from=='ASKS':
-#        extR = extR+'L'
-#    elif results_from=='BIDS':
-#        extR = extR+'S'
-#    else:
-#        raise ValueError('results_from not recognized')
-#            
-#    if IDr_merged=='':
-#        IDr_merged = rootname_config+'K'+str(K)+extR
-#    if k_end==-1:
-#        k_end=K
-#    for fold_idx in range(k_init,k_end):
-#        mess = "k "+str(fold_idx+1)+" of "+str(K)
-#        print(mess)
-#        if len(log)>0:
-#            write_log(mess)
-#        basename = rootname_config+'k'+str(fold_idx+1)+'K'+str(K)
-#        entries['config_name'] = 'C'+basename
-#        entries['IDweights'] = 'W'+basename+extW
-#        entries['IDresults'] = 'R'+basename+extR+ext_rel_cv+sufix
-#        print('IDresults:')
-#        print(entries['IDresults'])
-#        if len(basename_IO)==0:
-#            entries['IO_results_name'] = 'R'+basename+extR+ext_rel_cv+sufix_io
-#        else:
-#            entries['IO_results_name'] = 'R'+basename_IO+extR+ext_rel_cv+sufix_io
-#        
-#        config = configuration(entries)
-#        if len(basename_IO)==0:
-#            config['IO_tr_name'] = basename+extR+ext_rel_tr+sufix_io
-#            config['IO_cv_name'] = basename+extR+ext_rel_cv+sufix_io
-#        else:
-#            config['IO_tr_name'] = basename_IO+extR+ext_rel_tr+sufix_io
-#            config['IO_cv_name'] = basename_IO+extR+ext_rel_cv+sufix_io
-#        if 'build_XY_mode' in entries:
-#            build_XY_mode = entries['build_XY_mode']
-#        else:
-#            build_XY_mode = 'K_fold'#'datebased'
-#        if build_XY_mode == 'datebased':
-#            assert(K==2 and k_init==0 and k_end==1)
-#        IDresults = config['IDresults']
-#        print(IDresults)
-#        if build_IDrs:
-#            IDrs.append(IDresults)
-#            
-#        print("config['from_stats_file']")
-#        print(config['from_stats_file'])
-#        if not modular:
-#            dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
-#                                                                     fold_idx=fold_idx, \
-#                                                                     config=config, 
-#                                                                     log=log)
-#        else:
-#            dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
-#                                                                     fold_idx=fold_idx, \
-#                                                                     config=config, 
-#                                                                     log=log)
     count = 0
     for fold_idx in range(k_init,k_end):
         config = configs[count]

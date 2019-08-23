@@ -354,6 +354,10 @@ def configuration(entries, save=True):
             feats_from_bids = entries['feats_from_bids']
         else:
             feats_from_bids = False
+        if 'feats_from_all' in entries:
+            feats_from_all = entries['feats_from_all']
+        else:
+            feats_from_all = False
         
         # model parameters
         if 'size_hidden_layer' in entries:
@@ -552,6 +556,7 @@ def configuration(entries, save=True):
                   'load_features_from':load_features_from,
                   'build_partial_raw':build_partial_raw,
                   'feats_from_bids':feats_from_bids,
+                  'feats_from_all':feats_from_all,
                   'build_test_db':build_test_db,
                   'asset_relation':asset_relation}
     
@@ -666,7 +671,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN01010PS2SRv1'
+    config_name = 'TN01010PS2SRv2'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -733,7 +738,7 @@ def configuration_trader(*ins):
         list_fixed_spread_pips = [4 for i in range(numberNetworks)]
         
         list_flexible_lot_ratio = [False for i in range(numberNetworks)]
-        list_if_dir_change_close = [False for i in range(numberNetworks)]
+        list_if_dir_change_close = [True for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
         
         model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],

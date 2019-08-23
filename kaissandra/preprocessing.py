@@ -417,7 +417,7 @@ def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list,
     return edges_idx_tr, edges_idx_cv#np.array([[0,dts.shape[0]]]), np.array([[0,0]])
     
 def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt, 
-             K, fold_idx, alloc=2**30, save_output=False, modular=False, skip_cv=False):
+             K, fold_idx, alloc=2**30, save_output=False, modular=False, skip_cv=False, skip_tr=False):
     """  """
     nEventsPerStat = config['nEventsPerStat']
     movingWindow = config['movingWindow']
@@ -483,7 +483,7 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     #assert(chunks==1)
     # init counter of samps processed
     # loop over chunks
-    if 1:#for i in range(chunks):
+    if not skip_tr or not skip_cv:#for i in range(chunks):
         # this batch length
         #batch = samp_remaining#np.min([samp_remaining,alloc])
         init_idx_rets = nChannels+seq_len-1
@@ -591,28 +591,29 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
                                                        last_day=last_day)
         
         #samps_tr = 0
-        for e in range(edges_tr_idx.shape[0]):
-            # resize IO structures
-            i_tr = edges_tr_idx[e, 0]
-            e_tr = edges_tr_idx[e, 1]
-            samps_tr = e_tr-i_tr
-#            print("samps_tr")
-#            print(samps_tr)
-#            print("X_i.shape")
-#            print(X_i.shape)
-            Xtr.resize((pointerTr+samps_tr, seq_len, nFeatures))
-            Ytr.resize((pointerTr+samps_tr, seq_len, size_output_layer))
-            
-            Itr.resize((pointerTr+samps_tr, seq_len, 2))
-            # update IO structures
-            Xtr[pointerTr:pointerTr+samps_tr,:,:] = X_i[i_tr:e_tr,:,:]
-            Ytr[pointerTr:pointerTr+samps_tr,:,:] = Y_i[i_tr:e_tr,:,:]
-            Itr[pointerTr:pointerTr+samps_tr,:,:] = I_i[i_tr:e_tr,:,:]
-            if save_output:
-                Rtr.resize((pointerTr+batch, 1))
-                Rtr[pointerTr:pointerTr+batch,0] = R_i[i_tr:e_tr,0,0]
-            # uodate pointer
-            pointerTr += samps_tr
+        if not skip_tr:
+            for e in range(edges_tr_idx.shape[0]):
+                # resize IO structures
+                i_tr = edges_tr_idx[e, 0]
+                e_tr = edges_tr_idx[e, 1]
+                samps_tr = e_tr-i_tr
+    #            print("samps_tr")
+    #            print(samps_tr)
+    #            print("X_i.shape")
+    #            print(X_i.shape)
+                Xtr.resize((pointerTr+samps_tr, seq_len, nFeatures))
+                Ytr.resize((pointerTr+samps_tr, seq_len, size_output_layer))
+                
+                Itr.resize((pointerTr+samps_tr, seq_len, 2))
+                # update IO structures
+                Xtr[pointerTr:pointerTr+samps_tr,:,:] = X_i[i_tr:e_tr,:,:]
+                Ytr[pointerTr:pointerTr+samps_tr,:,:] = Y_i[i_tr:e_tr,:,:]
+                Itr[pointerTr:pointerTr+samps_tr,:,:] = I_i[i_tr:e_tr,:,:]
+                if save_output:
+                    Rtr.resize((pointerTr+batch, 1))
+                    Rtr[pointerTr:pointerTr+batch,0] = R_i[i_tr:e_tr,0,0]
+                # uodate pointer
+                pointerTr += samps_tr
 #        print("pointerTr")
 #        print(pointerTr)
         if not skip_cv:
@@ -1507,6 +1508,31 @@ def load_stats_modular(config, thisAsset, first_date, last_date, symbol):
                  'm_t_out':out['m']}
     return stats_in, stats_out
 
+def load_stats_modular_oneNet(config, thisAsset, first_date, last_date, symbol, asset_relation):
+    """  """
+    movingWindow = config['movingWindow']
+    nEventsPerStat = config['nEventsPerStat']
+    feature_keys = config['feature_keys']
+    nChannels = int(nEventsPerStat/movingWindow)
+    stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+    means_in = np.zeros((nChannels, len(feature_keys)))
+    stds_in = np.zeros((nChannels, len(feature_keys)))
+    for i, feat in enumerate(feature_keys):
+        key = C.PF[feat][0]
+        # copy in stats directory
+        filedirname = stats_dir+thisAsset+'_'+symbol+'_'+key+'_'+first_date+last_date+'.p'
+        stats = pickle.load(open( filedirname, "rb"))
+        means_in[:,i] = stats['mean'][:,0]
+        stds_in[:,i] = stats['std'][:,0]
+    stats_in = {'means_t_in':means_in,
+                'stds_t_in':stds_in}
+    filedirname = stats_dir+thisAsset+'_'+symbol+'_out_'+first_date+last_date+'.p'
+    out = pickle.load( open( filedirname, "rb" ))
+    stats_out = {'stds_t_out':out['std_'+symbol],
+                 'means_t_out':out['mean_'+symbol],
+                 'm_t_out':out['m']}
+    return stats_in, stats_out
+
 def load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift):
     """
     Function that extracts results from previously saved structures.
@@ -1668,10 +1694,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         seq_len = config['seq_len']
     else:
         seq_len = int((config['lB']-config['nEventsPerStat'])/config['movingWindow']+1)
-#    if 'filetag' in config:
-#        filetag = config['filetag']
-#    else:
-#        filetag = config['IO_results_name']
     size_output_layer = config['size_output_layer']
     if 'n_bits_outputs' in config:
         n_bits_outputs = config['n_bits_outputs']
@@ -1738,7 +1760,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         if_build_IO = False
     else:
         if_build_IO = config['if_build_IO']
-    #if_build_IO=True
     # create model
     # if IO structures have to be built 
     if if_build_IO:
@@ -1868,7 +1889,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 # number of events within this separator chunk
                 nE = separators.index[s+1]-separators.index[s]+1
                 # get first day after separator
-                #day_s = separators.DateTime.iloc[s][0:10]
                 # check if number of events is not enough to build two features and one return
                 if nE>=seq_len*(nEventsPerStat+movingWindow):
                     
@@ -1878,30 +1898,12 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                             separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
                     
                     groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
-                    # load features, returns and stats from HDF files
-#                    list_features = [load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
-#                                     for groupoutdirname in groupoutdirnames for shift in shifts]
-#                    
-##                    non_var_feats = 
-#                    # load returns
-#                    list_returns_struct = [load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
-#                                           for groupoutdirname in groupoutdirnames for shift in shifts]
                     
                     list_features = [[load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
                                      for shift in shifts] for assdirname in assdirnames]
                     # load returns
                     list_returns_struct = [[load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
                                            for shift in shifts] for groupoutdirname in groupoutdirnames]
-#                    print(len(list_returns_struct))
-#                    print("list_returns_struct[0]['DT'][:]")
-#                    print(list_returns_struct[0]['DT'][:])
-#                    print("list_returns_struct[1]['DT'][:]")
-#                    print(list_returns_struct[1]['DT'][:])
-#                    print("list_returns_struct[2]['DT'][:]")
-#                    print(list_returns_struct[2]['DT'][:])
-#                    print("list_returns_struct[3]['DT'][:]")
-#                    print(list_returns_struct[3]['DT'][:])
-                    #print(list_returns_struct[0]['B'][:]-list_returns_struct[1]['B'][:])
                     try:
                         features_counter = 0
                         
@@ -1926,24 +1928,6 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                               list_stats_out[ind], IO, edges_dt,
                                               folds, fold_idx, save_output=False, 
                                               modular=True, skip_cv=skip_cv)
-#                                if not skip_cv and prevPointerCv<IO['pointerCv'] and first==True:
-#                                    import matplotlib.pyplot as plt
-#                                    first = False
-#                                    print("IO['pointerCv']")
-#                                    print(IO['pointerCv'])
-#                                    plt.figure()
-#                                    plt.plot(Vars[:,:,0])
-#                                    plt.figure()
-#                                    #print(list_returns_struct[features_counter])
-#                                    #print(list_stats_out[ind]['stds_t_out'].shape)
-#                                    plt.plot(list_returns_struct[features_counter]['returns'][:,3]/list_stats_out[ind]['stds_t_out'][3])
-##                                    file_temp.close()
-##                                    os.remove(file_temp_name)
-##                                    f_tr.close()
-##                                    f_cv.close()
-##                                    os.remove(filename_cv)
-##                                    os.remove(filename_tr)
-##                                    a=p
                                 # close temp file
                                 file_temp.close()
                                 os.remove(file_temp_name)
@@ -1951,32 +1935,12 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                             
                             if build_asset_relations[ind]==asset_relation and phase_shift>1 and prevPointerCv<IO['pointerCv']:
                                 # rearrange IO in chronological order for Cv
-#                                print("IOcv Unsorted")
-#                                print(IO['Dcv'][prevPointerCv:,:,:])
                                 sorted_idx = np.argsort(IO['Dcv'][prevPointerCv:,0,0],kind='mergesort')
                                 IO['Dcv'][prevPointerCv:,:,:] = sort_input(IO['Dcv'], sorted_idx, prevPointerCv, char=True)
                                 IO['Bcv'][prevPointerCv:,:,:] = sort_input(IO['Bcv'], sorted_idx, prevPointerCv, char=False)
                                 IO['Acv'][prevPointerCv:,:,:] = sort_input(IO['Acv'], sorted_idx, prevPointerCv, char=False)
                                 IO['Xcv'][prevPointerCv:,:,:] = sort_input(IO['Xcv'], sorted_idx, prevPointerCv, char=False)
                                 IO['Ycv'][prevPointerCv:,:,:] = sort_input(IO['Ycv'], sorted_idx, prevPointerCv, char=False)
-#                                print(sorted_idx)
-#                                temp = np.chararray(IO['Dcv'][prevPointerCv:,:,:].shape,itemsize=19)
-#                                temp[:,:,:] = IO['Dcv'][prevPointerCv:,:,:]
-#                                temp[:,:,:] = temp[sorted_idx,:,:] 
-#                                IO['Dcv'][prevPointerCv:,:,:] = temp
-#                                
-#                                temp = np.array(IO['Bcv'][prevPointerCv:,:,:].shape)
-#                                temp[:,:,:] = IO['Bcv'][prevPointerCv:,:,:]
-#                                temp[:,:,:] = temp[sorted_idx,:,:] 
-#                                IO['Bcv'][prevPointerCv:,:,:] = temp
-#                                
-#                                #IO['Dcv'][prevPointerCv:,:,:] = IO['Dcv'][prevPointerCv+sorted_idx,0,0]
-#                                IO['Bcv'][prevPointerCv:,:,:] = IO['Bcv'][prevPointerCv+sorted_idx,:,:]
-#                                IO['Acv'][prevPointerCv:,:,:] = IO['Acv'][prevPointerCv+sorted_idx,:,:]
-#                                IO['Xcv'][prevPointerCv:,:,:] = IO['Xcv'][prevPointerCv+sorted_idx,:,:]
-#                                IO['Ycv'][prevPointerCv:,:,:] = IO['Ycv'][prevPointerCv+sorted_idx,:,:]
-#                                print("IOcv Sorted")
-#                                print(IO['Dcv'][prevPointerCv:,:,:])
                             
                     except (KeyboardInterrupt):
                         mess = "KeyBoardInterrupt. Closing files and exiting program."
@@ -2032,6 +1996,424 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
             totalSampsPerLevel = f_tr.attrs.get("totalSampsPerLevel")
         elif 'totalSampsPerLevel' in f_cv:
             totalSampsPerLevel = f_cv.attrs.get("totalSampsPerLevel")
+        else: 
+            totalSampsPerLevel = [-1]
+    # get total number of samps
+    m_tr = ass_IO_ass_tr[-1]
+    m_cv = ass_IO_ass_cv[-1]
+    m_t = m_tr+m_cv
+    print("Edges:")
+    print(edges)
+    print(filename_tr)
+    print(filename_cv)
+    print(IO_results_name)
+    mess = "Samples for fitting: "+str(m_tr)+"\n"+"Samples for cross-validation: "+\
+        str(m_cv)+"\n"+"Total samples: "+str(m_t)
+    print(mess)
+    if len(log)>0:
+        write_log(mess)
+    if sum(totalSampsPerLevel)>0:
+        mess = "Percent per level:"+str(IO['totalSampsPerLevel']/m_t)
+        print(mess)
+        if len(log)>0:
+            write_log(mess)
+    else:
+        print("totalSampsPerLevel not in IO :(")
+    f_tr.close()
+    f_cv.close()
+    mess = "DONE building IO"
+    print(mess)
+    if len(log)>0:
+        write_log(mess)
+    return filename_tr, filename_cv, IO_results_name
+
+def build_datasets_modular_oneNet(folds=3, fold_idx=0, config={}, log=''):
+    """  """
+    ticTotal = time.time()
+    # create data structure
+    if config=={}:    
+        config = retrieve_config('CRNN00000')
+    # Feed retrocompatibility
+    if 'nEventsPerStat' in config:
+        nEventsPerStat = config['nEventsPerStat']
+    else:
+        nEventsPerStat = 10000
+    if 'movingWindow' in config:
+        movingWindow = config['movingWindow']
+    else:
+        movingWindow = 1000
+    if 'assets' in config:
+        assets = config['assets']
+    else:
+        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+    if 'feature_keys' not in config:
+        feature_keys = [i for i in range(37)]
+    else:
+        feature_keys = config['feature_keys']
+    nFeatures = len(feature_keys)
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
+    else:
+        feats_from_bids = True
+    if 'feats_from_all' in config:
+        feats_from_all = config['feats_from_all']
+    else:
+        feats_from_all = False
+    if 'seq_len' in config:
+        seq_len = config['seq_len']
+    else:
+        seq_len = int((config['lB']-config['nEventsPerStat'])/config['movingWindow']+1)
+    size_output_layer = config['size_output_layer']
+    if 'n_bits_outputs' in config:
+        n_bits_outputs = config['n_bits_outputs']
+    else:
+        n_bits_outputs = [size_output_layer]
+    if 'build_test_db' in config:
+        build_test_db = config['build_test_db']
+    else:
+        build_test_db = False
+    if 'build_asset_relations' in config:
+        build_asset_relations = config['build_asset_relations']
+    else:
+        build_asset_relations = ['direct']
+    print("build_asset_relations")
+    print(config['build_asset_relations'])
+    if 'asset_relation' in config:
+        asset_relation = config['asset_relation']
+    else:
+        asset_relation = 'direct'
+    if 'phase_shift' in config:
+        phase_shift = config['phase_shift']
+    else:
+        phase_shift = 1
+    phase_size = movingWindow/phase_shift
+    shifts = [int(phase_size*phase) for phase in range(phase_shift)]
+    
+    hdf5_directory = local_vars.hdf5_directory
+    IO_directory = local_vars.IO_directory
+    if not os.path.exists(IO_directory):
+        os.mkdir(IO_directory)
+    # init hdf5 files
+    if feats_from_all:
+        symbols = ['bid', 'ask']
+    else:
+        if feats_from_bids:
+            symbols = ['bid']
+        else:
+            symbols = ['ask']
+#    if feats_from_bids:
+#        symbol = 'bid'
+#    else:
+#        symbol = 'ask'
+    featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' 
+                       for bar in build_asset_relations for symbol in symbols]
+    outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' 
+                    for bar in build_asset_relations]
+    if not build_test_db:
+        separators_directory = hdf5_directory+'separators/'
+    else:
+        separators_directory = hdf5_directory+'separators_test/'
+    
+    
+    IO_tr_name = config['IO_tr_name']
+    IO_cv_name = config['IO_cv_name']
+    filename_tr = IO_directory+'KFTr'+IO_tr_name+'.hdf5'
+    filename_cv = IO_directory+'KFCv'+IO_cv_name+'.hdf5'
+    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
+    print(filename_tr)
+    print(filename_cv)
+    print(IO_results_name)
+    
+    
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory)
+    print("Edges:")
+    print(edges)
+    
+    if len(log)>0:
+        write_log(filename_tr)
+    if len(log)>0:
+        write_log(filename_cv)
+        
+    if os.path.exists(filename_tr):
+        if_build_IOtr = False
+    else:
+        if_build_IOtr = True
+    if os.path.exists(filename_cv):
+        if_build_IOcv = False
+    else:
+        if_build_IOcv = True
+    
+    # create model
+    # if IO structures have to be built 
+    if if_build_IOtr:
+        #print("Tag = "+str(tag))
+        IO = {}
+        #attributes to track asset-IO belonging
+        ass_IO_ass_tr = np.zeros((len(assets))).astype(int)
+        # structure that tracks the number of samples per level
+        IO['totalSampsPerLevel'] = np.zeros((n_bits_outputs[-1]))
+        # open IO file for writting
+        f_tr = h5py.File(filename_tr,'w')
+        # init IO data sets
+        Xtr = f_tr.create_dataset('X', 
+                                (0, seq_len, nFeatures), 
+                                maxshape=(None,seq_len, nFeatures), 
+                                dtype=float)
+        Ytr = f_tr.create_dataset('Y', 
+                                (0, seq_len, size_output_layer),
+                                maxshape=(None, seq_len, size_output_layer),
+                                dtype=float)
+        
+            
+        Itr = f_tr.create_dataset('I', 
+                                (0, seq_len,2),maxshape=(None, seq_len, 2),
+                                dtype=int)
+        Rtr = f_tr.create_dataset('R', 
+                                (0,1),
+                                maxshape=(None,1),
+                                dtype=float)
+        
+        IO['Xtr'] = Xtr
+        IO['Ytr'] = Ytr
+        IO['Itr'] = Itr
+        IO['Rtr'] = Rtr # return
+        IO['pointerTr'] = 0
+    else:
+        IO['Xtr'] = []
+        IO['Ytr'] = []
+        IO['Itr'] = []
+        IO['Rtr'] = [] # return
+        IO['pointerTr'] = 0
+        
+    if if_build_IOcv:
+        ass_IO_ass_cv = np.zeros((len(assets))).astype(int)
+        f_cv = h5py.File(filename_cv,'w')
+        # init IO data sets
+        Xcv = f_cv.create_dataset('X', 
+                                (0, seq_len, nFeatures), 
+                                maxshape=(None,seq_len, nFeatures), 
+                                dtype=float)
+        Ycv = f_cv.create_dataset('Y', 
+                                (0, seq_len, size_output_layer),
+                                maxshape=(None, seq_len, size_output_layer),
+                                dtype=float)
+            
+        Icv = f_cv.create_dataset('I', 
+                                (0, seq_len,2),maxshape=(None, seq_len, 2),
+                                dtype=int)
+        Rcv = f_cv.create_dataset('R', 
+                                (0,1),
+                                maxshape=(None,1),
+                                dtype=float)
+        
+        
+        # save IO structures in dictionary
+        
+        Dcv = f_cv.create_dataset('D', (0,seq_len,2),
+                                maxshape=(None,seq_len,2),dtype='S19')
+        Bcv = f_cv.create_dataset('B', (0,seq_len,2),
+                                maxshape=(None,seq_len,2),dtype=float)
+        Acv = f_cv.create_dataset('A', (0,seq_len,2),
+                                maxshape=(None,seq_len,2),dtype=float)
+        IO['Xcv'] = Xcv
+        IO['Ycv'] = Ycv
+        IO['Icv'] = Icv
+        IO['Rcv'] = Rcv # return
+        IO['Dcv'] = Dcv
+        IO['Bcv'] = Bcv
+        IO['Acv'] = Acv
+        IO['pointerCv'] = 0
+    else:
+        IO['Xcv'] = []
+        IO['Ycv'] = []
+        IO['Icv'] = []
+        IO['Rcv'] = [] # return
+        IO['Dcv'] = []
+        IO['Bcv'] = []
+        IO['Acv'] = []
+        IO['pointerCv'] = 0
+    
+    if len(log)>0:
+        write_log(IO_results_name)
+    # index asset
+    ass_idx = 0
+    # array containing bids means
+    #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
+    # loop over all assets
+    for ass in assets:
+        
+        if if_build_IOtr or if_build_IOcv:
+            thisAsset = C.AllAssets[str(ass)]
+            assdirnames = [featuredirname+thisAsset+'/' for featuredirname in featuredirnames]
+            outassdirnames = [outrdirname+thisAsset+'/' for outrdirname in outrdirnames]
+            
+            tic = time.time()
+            # load separators
+            separators = load_separators(thisAsset, 
+                                         separators_directory, 
+                                         from_txt=1)
+            if not build_test_db:
+                sep_for_stats = separators
+            else:
+                sep_for_stats = load_separators(thisAsset, 
+                                         hdf5_directory+'separators/', 
+                                         from_txt=1)
+
+            first_date = dt.datetime.strftime(dt.datetime.strptime(
+                    sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+            last_date = dt.datetime.strftime(dt.datetime.strptime(
+                    sep_for_stats.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+            
+            list_stats_in = [None for _ in range(len(assdirnames))]
+            list_stats_out = [None for _ in range(len(assdirnames))]
+            for ind, assdirname in enumerate(assdirnames):
+                if 'bid' in assdirname:
+                    sym = 'bid'
+                elif 'ask' in assdirname:
+                    sym = 'ask'
+                else:
+                    raise ValueError
+                if 'direct' in assdirname:
+                    ass_rel = 'direct'
+                elif 'inverse' in assdirname:
+                    ass_rel = 'inverse'
+                else:
+                    raise ValueError
+                list_stats_in[ind], list_stats_out[ind] = load_stats_modular_oneNet(config, thisAsset, first_date, last_date, sym, ass_rel)
+                
+            mess = str(ass)+". "+thisAsset
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
+            # loop over separators
+            for s in range(0,len(separators)-1,2):
+                mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
+                    ". From "+separators.DateTime.iloc[s]+" to "+\
+                    separators.DateTime.iloc[s+1]
+                print(mess)
+                if len(log)>0:
+                    write_log(mess)
+                # number of events within this separator chunk
+                nE = separators.index[s+1]-separators.index[s]+1
+                # get first day after separator
+                # check if number of events is not enough to build two features and one return
+                if nE>=seq_len*(nEventsPerStat+movingWindow):
+                    
+                    init_date = dt.datetime.strftime(dt.datetime.strptime(
+                            separators.DateTime.iloc[s],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                    end_date = dt.datetime.strftime(dt.datetime.strptime(
+                            separators.DateTime.iloc[s+1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+                    
+                    groupoutdirnames = [outassdirname+init_date+end_date+'/' for outassdirname in outassdirnames]
+                    
+                    list_features = [[load_features_modular(config, thisAsset, separators, assdirname, init_date, end_date, shift) \
+                                     for shift in shifts] for assdirname in assdirnames]
+                    # load returns
+                    list_returns_struct = [[load_returns_modular(config, groupoutdirname, thisAsset, separators, symbol, init_date, end_date, shift) \
+                                           for shift in shifts] for groupoutdirname in groupoutdirnames for symbol in symbols]
+                    try:
+                        features_counter = 0
+                        
+                        for ind, assdirname in enumerate(assdirnames):
+                            prevPointerCv = IO['pointerCv']
+                            if ('bid' in assdirname and feats_from_bids) or ('ask' in assdirname and not feats_from_bids):
+                                cv_dir =True
+                            else:
+                                cv_dir = False
+                                
+                            for s, shift in enumerate(shifts):
+                                file_temp_name = local_vars.IO_directory+\
+                                    'temp_train_build'+\
+                                    str(np.random.randint(10000))+'.hdf5'
+                                while os.path.exists(file_temp_name):
+                                    file_temp_name = IO_directory+'temp_train_build'\
+                                        +str(np.random.randint(10000))+'.hdf5'
+                                file_temp = h5py.File(file_temp_name,'w')
+                                #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
+                                Vars = build_variations_modular(config, file_temp, list_features[ind][s], list_stats_in[ind])
+                                
+                                if build_asset_relations[ind]!=asset_relation and not cv_dir:
+                                    skip_cv = True
+                                else:
+                                    skip_cv = False
+                                IO = build_XY(config, Vars, list_returns_struct[ind][s], 
+                                              list_stats_out[ind], IO, edges_dt,
+                                              folds, fold_idx, save_output=False, 
+                                              modular=True, skip_cv=skip_cv, skip_tr=if_build_IOtr)
+                                # close temp file
+                                file_temp.close()
+                                os.remove(file_temp_name)
+                                features_counter += 1
+                            
+                            if build_asset_relations[ind]==asset_relation and phase_shift>1 and prevPointerCv<IO['pointerCv']:
+                                # rearrange IO in chronological order for Cv
+                                sorted_idx = np.argsort(IO['Dcv'][prevPointerCv:,0,0],kind='mergesort')
+                                IO['Dcv'][prevPointerCv:,:,:] = sort_input(IO['Dcv'], sorted_idx, prevPointerCv, char=True)
+                                IO['Bcv'][prevPointerCv:,:,:] = sort_input(IO['Bcv'], sorted_idx, prevPointerCv, char=False)
+                                IO['Acv'][prevPointerCv:,:,:] = sort_input(IO['Acv'], sorted_idx, prevPointerCv, char=False)
+                                IO['Xcv'][prevPointerCv:,:,:] = sort_input(IO['Xcv'], sorted_idx, prevPointerCv, char=False)
+                                IO['Ycv'][prevPointerCv:,:,:] = sort_input(IO['Ycv'], sorted_idx, prevPointerCv, char=False)
+                            
+                    except (KeyboardInterrupt):
+                        mess = "KeyBoardInterrupt. Closing files and exiting program."
+                        print(mess)
+                        if len(log)>0:
+                            write_log(mess)
+                        f_tr.close()
+                        f_cv.close()
+                        file_temp.close()
+                        os.remove(file_temp_name)
+                        os.remove(filename_tr)
+                        os.remove(filename_cv)
+                        raise KeyboardInterrupt
+                else:
+                    pass
+#                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
+#                            int(s/2),int(len(separators)/2-1)))
+        # end of for s in range(0,len(separators)-1,2):
+        # add pointer index for later separating assets
+        if if_build_IOtr:
+            ass_IO_ass_tr[ass_idx] = IO['pointerTr']
+        if if_build_IOcv:
+            ass_IO_ass_cv[ass_idx] = IO['pointerCv']
+        if if_build_IOtr or if_build_IOcv:
+            mess = "\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+\
+              ". Total time:"+str(np.floor(time.time()-ticTotal))+"s"
+            print(mess)
+            if len(log)>0:
+                write_log(mess)
+        # update asset index
+        ass_idx += 1
+        
+    # end of for ass in data.assets:
+    if if_build_IOcv:
+        mess = "Building DTA..."
+        print(mess)
+        if len(log)>0:
+            write_log(mess)
+        DTA = build_DTA_v2(config, C.AllAssets, IO['Dcv'], 
+                           IO['Bcv'], IO['Acv'], ass_IO_ass_cv)
+        pickle.dump( DTA, open( IO_results_name, "wb" ))
+        f_cv.attrs.create('ass_IO_ass', ass_IO_ass_cv, dtype=int)
+        f_cv.attrs.create('totalSampsPerLevel', IO['totalSampsPerLevel'], dtype=int)
+        
+    # print percent of samps per level
+    else:
+        # get ass_IO_ass from disk
+        f_cv = h5py.File(filename_cv,'r')
+        ass_IO_ass_cv = f_cv.attrs.get("ass_IO_ass")
+        
+        
+    if if_build_IOtr:
+        f_tr.attrs.create('ass_IO_ass', ass_IO_ass_tr, dtype=int)
+        
+        f_tr.attrs.create('totalSampsPerLevel', IO['totalSampsPerLevel'], dtype=int)
+        totalSampsPerLevel = IO['totalSampsPerLevel']
+    else:
+        f_tr = h5py.File(filename_tr,'r')
+        ass_IO_ass_tr = f_tr.attrs.get("ass_IO_ass")
+        if 'totalSampsPerLevel' in f_tr:
+            totalSampsPerLevel = f_tr.attrs.get("totalSampsPerLevel")
         else: 
             totalSampsPerLevel = [-1]
     # get total number of samps
