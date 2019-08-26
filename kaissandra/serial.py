@@ -3465,7 +3465,7 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
-    synchroned_run = True
+    synchroned_run = False
 
     config_names = ['TN01010PS2SRv2']#['TTEST10']#'TPRODN01010N01011'
     test = False
