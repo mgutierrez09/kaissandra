@@ -135,6 +135,8 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             if feats_from_all:
                 extW+='A'
         #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
+    else:
+        print("\n\nWARNING! extW fixed manuely to "+str(extW))
     if results_from=='COMB':
         extR = extR+'C'
     elif results_from=='ASKS':
