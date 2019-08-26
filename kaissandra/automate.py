@@ -123,20 +123,23 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
         ext_rel_cv = 'I'
     
 #        size_hidden_layer = 3
-    if extW=='':
-        if feats_from_bids==False:
-            extW = 'A'
-            extR = 'A'
-            if feats_from_all:
-                extW+='B'
-        else:
-            extW = 'B'
-            extR = 'B'
-            if feats_from_all:
-                extW+='A'
-        #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
+    
+    if feats_from_bids==False:
+        extWtemp = 'A'
+        extR = 'A'
+        if feats_from_all:
+            extWtemp+='B'
     else:
+        extWtemp = 'B'
+        extR = 'B'
+        if feats_from_all:
+            extWtemp+='A'
+        #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
+    
+    if len(extW)>0:
         print("\n\nWARNING! extW fixed manuely to "+str(extW))
+    else:
+        extW = extWtemp
     if results_from=='COMB':
         extR = extR+'C'
     elif results_from=='ASKS':
