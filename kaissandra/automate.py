@@ -16,7 +16,7 @@ from kaissandra.trainRNN import train_RNN
 from kaissandra.testRNN import test_RNN
 from kaissandra.config import retrieve_config, configuration, write_log
 from kaissandra.features import get_features
-from kaissandra.preprocessing import build_datasets, build_datasets_modular
+from kaissandra.preprocessing import build_datasets, build_datasets_modular, build_datasets_modular_oneNet
 from kaissandra.local_config import local_vars
 from kaissandra.models import RNN#, LGBM
 from kaissandra.results2 import merge_results
@@ -83,7 +83,7 @@ def automate(*ins):
 
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
                  sufix='',k_init=0, k_end=-1, log='', 
-                 modular=False, sufix_io='', basename_IO='',sufix_re=''):
+                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -97,7 +97,18 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
         build_asset_relations = entries['build_asset_relations']
     else:
         build_asset_relations = ['direct','inverse']
+    
+    if 'feats_from_all' in entries:
+        feats_from_all = entries['feats_from_all']
+    else:
+        feats_from_all = False
+    
     ext_rel_tr = ''
+    if feats_from_all:
+        if feats_from_bids==False:
+            ext_rel_tr = ext_rel_tr+'B'
+        else:
+            ext_rel_tr = ext_rel_tr+'A'
     if 'direct' in build_asset_relations:
         ext_rel_tr = ext_rel_tr+'D'
     if 'inverse' in build_asset_relations:
@@ -110,13 +121,18 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
         ext_rel_cv = 'D'
     elif asset_relation=='inverse':
         ext_rel_cv = 'I'
+    
 #        size_hidden_layer = 3
-    if feats_from_bids==False:    
+    if feats_from_bids==False:
         extW = 'A'
         extR = 'A'
+        if feats_from_all:
+            extW+='B'
     else:
         extW = 'B'
         extR = 'B'
+        if feats_from_all:
+            extW+='A'
         #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
     if results_from=='COMB':
         extR = extR+'C'
@@ -172,8 +188,13 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
                                                                      log=log)
-        else:
+        elif not oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
+                                                                     fold_idx=fold_idx, \
+                                                                     config=config, 
+                                                                     log=log)
+        elif oneNet:
+            dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular_oneNet(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
                                                                      log=log)
@@ -186,12 +207,13 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
-                 if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re=''):
+                 if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
+                 oneNet=False):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
-         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re)
+         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']
     else:

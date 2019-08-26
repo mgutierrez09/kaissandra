@@ -1387,7 +1387,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         write_log(mess)
     return filename_tr, filename_cv, IO_results_name
 
-def get_edges_datasets_modular(K, config, separators_directory, symbol):
+def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -1747,7 +1747,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     print(IO_results_name)
     
     
-    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol)
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol=symbol)
     print("Edges:")
     print(edges)
     
@@ -2142,7 +2142,6 @@ def build_datasets_modular_oneNet(folds=3, fold_idx=0, config={}, log=''):
         if_build_IOcv = False
     else:
         if_build_IOcv = True
-    
     # create model
     # if IO structures have to be built 
     if if_build_IOtr:
@@ -2179,6 +2178,7 @@ def build_datasets_modular_oneNet(folds=3, fold_idx=0, config={}, log=''):
         IO['Rtr'] = Rtr # return
         IO['pointerTr'] = 0
     else:
+        IO = {}
         IO['Xtr'] = []
         IO['Ytr'] = []
         IO['Itr'] = []
@@ -2332,7 +2332,7 @@ def build_datasets_modular_oneNet(folds=3, fold_idx=0, config={}, log=''):
                                 #Vars = build_variations(config, file_temp, list_features[features_counter], list_stats_in[ind], modular=True)
                                 Vars = build_variations_modular(config, file_temp, list_features[ind][s], list_stats_in[ind])
                                 
-                                if build_asset_relations[ind]!=asset_relation and not cv_dir:
+                                if build_asset_relations[ind%len(build_asset_relations)]!=asset_relation and not cv_dir and not if_build_IOcv:
                                     skip_cv = True
                                 else:
                                     skip_cv = False
@@ -2345,7 +2345,7 @@ def build_datasets_modular_oneNet(folds=3, fold_idx=0, config={}, log=''):
                                 os.remove(file_temp_name)
                                 features_counter += 1
                             
-                            if build_asset_relations[ind]==asset_relation and phase_shift>1 and prevPointerCv<IO['pointerCv']:
+                            if build_asset_relations[ind%len(build_asset_relations)]==asset_relation and phase_shift>1 and prevPointerCv<IO['pointerCv'] and if_build_IOcv:
                                 # rearrange IO in chronological order for Cv
                                 sorted_idx = np.argsort(IO['Dcv'][prevPointerCv:,0,0],kind='mergesort')
                                 IO['Dcv'][prevPointerCv:,:,:] = sort_input(IO['Dcv'], sorted_idx, prevPointerCv, char=True)
