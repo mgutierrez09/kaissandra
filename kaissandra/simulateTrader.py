@@ -1036,17 +1036,19 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['RRNN01010CMF181112T19628ALk1k2E14l-s','RRNN01010CMF181112T19628BSk1k2E14l-s']
-    list_name = ['01010k1-2E14ALSR','01010k1-2E14BSSR']
+    list_IDresults = ['R01010PS2NYCMF181112T190822ALk1-2E5-2','R01010PS2NYCMF181112T190822BSk1-2E5-3']
+    list_name = ['01010PS2NYk1-2K2E5-2ALSR','01010PS2NYk1-2K2E5-3BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.6, .8, 1.2, 2.3, 3.4, 4.5, 5.0],
-                           'th':[(.26,.56),(.31,.56),(.3,.58),(.69,.53),(.69,.61),(.73,.61),(.77,.63)]},
-                          {'sp':[.9, 1.0, 1.6, 1.8, 2.2, 3.5, 4.8, 5.0],
-                           'th':[(.41,.55),(.45,.55),(.55,.55),(.58,.55),(.55,.59),(.66,.58),(.71,.6),(.73,.6)]}]
-    list_lim_groi_ext = [-10.0 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.55 for i in range(numberNetwors)]
-    list_lb_md_ext = [.55 for i in range(numberNetwors)]
+    list_spread_ranges = [{'sp':[.9, 1.1, 1.3, 1.5, 1.7, 2.3, 2.7, 3.0, 3.2, 4.4, 5],
+                           'th':[(.5,.56),(.53,.57),(.51,.59),(.52,.59),(.54,.59),(.54,.61),(.59,.61),(.64,.61),(.65,.61),(.67,.61),(.67,.63)],
+                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)]},
+                          {'sp':[.8, .9, 1.3, 1.6, 1.8, 2.4, 2.5, 2.9, 3.9, 4, 5],
+                           'th':[(.5,.54),(.51,.54),(.55,.54),(.51,.58),(.5,.59),(.61,.57),(.64,.59),(.66,.59),(.67,.59),(.7,.59),(.73,.59)],
+                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)]}]
+    list_lim_groi_ext = [-.1 for i in range(numberNetwors)] # in %
+    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
+    list_lb_md_ext = [.56,.54]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['','']
@@ -1058,7 +1060,7 @@ if __name__ == '__main__':
     root_dir = local_vars.data_test_dir
     
     init_day_str = '20181112'#'20190701'#
-    end_day_str = '20190802'
+    end_day_str = '20190822'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     

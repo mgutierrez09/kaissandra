@@ -137,7 +137,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
         #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
     
     if len(extW)>0:
-        print("\n\nWARNING! extW fixed manuely to "+str(extW))
+        print("\n\nWARNING! extW fixed manuely to "+str(extW)+"\n\n")
     else:
         extW = extWtemp
     if results_from=='COMB':
