@@ -83,7 +83,7 @@ def automate(*ins):
 
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
                  sufix='',k_init=0, k_end=-1, log='', 
-                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False):
+                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW=''):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -123,16 +123,17 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
         ext_rel_cv = 'I'
     
 #        size_hidden_layer = 3
-    if feats_from_bids==False:
-        extW = 'A'
-        extR = 'A'
-        if feats_from_all:
-            extW+='B'
-    else:
-        extW = 'B'
-        extR = 'B'
-        if feats_from_all:
-            extW+='A'
+    if extW=='':
+        if feats_from_bids==False:
+            extW = 'A'
+            extR = 'A'
+            if feats_from_all:
+                extW+='B'
+        else:
+            extW = 'B'
+            extR = 'B'
+            if feats_from_all:
+                extW+='A'
         #print("\n\n\n\nWARNING! extW = A not B\n\n\n\n")
     if results_from=='COMB':
         extR = extR+'C'
@@ -208,12 +209,12 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False):
+                 oneNet=False, extW=''):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
-         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet)
+         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']
     else:

@@ -69,10 +69,10 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y_c1 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
     y_c2 = np.zeros((y_one_hot.shape[0],y_one_hot.shape[1],1))
     # find negative (positive) returns
-    negativeYs = out_quantized<0
-    positiveYs = out_quantized>0
-#    negativeYs = Output<0
-#    positiveYs = Output>0
+#    negativeYs = out_quantized<0
+#    positiveYs = out_quantized>0
+    negativeYs = Output<0
+    positiveYs = Output>0
     # set to 1 the corresponding entries
     y_c1[np.squeeze(negativeYs,axis=2),0] = 1
     y_c2[np.squeeze(positiveYs,axis=2),0] = 1
@@ -1478,7 +1478,7 @@ def load_features_modular(config, thisAsset, separators, assdirname, init_date, 
             
     return features
 
-def load_stats_modular(config, thisAsset, first_date, last_date, symbol):
+def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel):
     """  """
     movingWindow = config['movingWindow']
     nEventsPerStat = config['nEventsPerStat']
@@ -1487,7 +1487,7 @@ def load_stats_modular(config, thisAsset, first_date, last_date, symbol):
     else:
         symbol_type = 'ask'
     feature_keys = config['feature_keys']
-    asset_relation = config['asset_relation']
+    asset_relation = ass_rel#config['asset_relation']#
     nChannels = int(nEventsPerStat/movingWindow)
     stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
     means_in = np.zeros((nChannels, len(feature_keys)))
@@ -1868,8 +1868,13 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
             list_stats_in = [None for _ in range(len(outassdirnames))]
             list_stats_out = [None for _ in range(len(outassdirnames))]
             for ind, assdirname in enumerate(assdirnames):
-                #outassdirname = outassdirnames[ind]
-                list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol)
+                if 'direct' in assdirname:
+                    ass_rel = 'direct'
+                elif 'inverse' in assdirname:
+                    ass_rel = 'inverse'
+                else:
+                    raise ValueError
+                list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel)
     #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
     #                                            thisAsset, tag=tag_stats)
         
