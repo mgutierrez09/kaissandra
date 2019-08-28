@@ -587,6 +587,7 @@ class Trader:
                         self.next_candidate.p_md>=this_strategy.lb_md_ext and
                         self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
                         self.next_candidate.p_md<this_strategy.ub_md_ext)
+            prods_condition = condition
         elif this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2':
 #            previous_p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
 #            previous_p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
@@ -601,6 +602,7 @@ class Trader:
                          self.next_candidate.p_mc, self.next_candidate.p_md, 
                          int(np.abs(self.next_candidate.bet)-1))>margin and 
                          100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
+            prods_condition = condition
             #out = "lim GROI: "+str(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
             #print(out)
             #self.write_log(out)
@@ -608,13 +610,26 @@ class Trader:
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
         elif this_strategy.entry_strategy=='spread_ranges':
-            condition = dir_condition and self.next_candidate.p_mc>=\
+            prods_condition = self.next_candidate.p_mc>=\
                 this_strategy.info_spread_ranges['th'][0][0]+\
                 this_strategy.info_spread_ranges['mar'][0][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+\
-                this_strategy.info_spread_ranges['mar'][0][1] and \
+                this_strategy.info_spread_ranges['mar'][0][1]
+            condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
-        return condition, dir_condition
+        return condition, dir_condition, prods_condition
+    
+#    def check_close_dueto_dirchange(self):
+#        """  """
+#        this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
+#        if this_strategy.entry_strategy=='spread_ranges':
+#            if self.next_candidate.p_mc>=\
+#                this_strategy.info_spread_ranges['th'][0][0]+\
+#                this_strategy.info_spread_ranges['mar'][0][0] and\
+#                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+\
+#                this_strategy.info_spread_ranges['mar'][0][1]:
+#                    return True
+        return False
 
     def update_stoploss(self, idx):
         # update stoploss
@@ -1040,18 +1055,19 @@ if __name__ == '__main__':
     list_name = ['01010PS2NYk1-2K2E5-2ALSR','01010PS2NYk1-2K2E5-3BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.9, 1.1, 1.3, 1.5, 1.7, 2.3, 2.7, 3.0, 3.2, 4.4, 5],
-                           'th':[(.5,.56),(.53,.57),(.51,.59),(.52,.59),(.54,.59),(.54,.61),(.59,.61),(.64,.61),(.65,.61),(.67,.61),(.67,.63)],
-                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)]},
-                          {'sp':[.8, .9, 1.3, 1.6, 1.8, 2.4, 2.5, 2.9, 3.9, 4, 5],
-                           'th':[(.5,.54),(.51,.54),(.55,.54),(.51,.58),(.5,.59),(.61,.57),(.64,.59),(.66,.59),(.67,.59),(.7,.59),(.73,.59)],
-                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)]}]
+    list_spread_ranges = [{'sp':[1.3, 1.5, 1.7, 2.3, 2.7, 3.0, 3.2, 4.4, 5],
+                           'th':[(.51,.59),(.52,.59),(.54,.59),(.54,.61),(.59,.61),(.64,.61),(.65,.61),(.67,.61),(.67,.63)],
+                           'mar':[(.02,.02) for _ in range(9)]},
+                          {'sp':[1.3, 1.6, 1.8, 2.4, 2.5, 2.9, 3.9, 4, 5],
+                           'th':[(.55,.54),(.51,.58),(.5,.59),(.61,.57),(.64,.59),(.66,.59),(.67,.59),(.7,.59),(.73,.59)],
+                           'mar':[(.02,.02) for _ in range(9)]}]
     list_lim_groi_ext = [-.1 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5 for i in range(numberNetwors)]
     list_lb_md_ext = [.56,.54]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['','']
+    list_if_dir_change_close = [False for i in range(numberNetwors)]
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
@@ -1101,7 +1117,6 @@ if __name__ == '__main__':
     list_fix_spread = [False for i in range(numberNetwors)]
     list_fixed_spread_pips = [4 for i in range(numberNetwors)]
     list_flexible_lot_ratio = [False for i in range(numberNetwors)]
-    list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_if_dir_change_extend = [False for i in range(numberNetwors)]
     
 #    +'_'+'_'.join([list_IDresults[i]+'E'+str(list_epoch_journal[i])+'TI'+
@@ -1440,7 +1455,7 @@ if __name__ == '__main__':
                             curr_GROI, _, _, _ = trader.get_rois(ass_idx, date_time=DateTimes[event_idx].decode("utf-8"), roi_ratio=1)
                             # update GROI limit for extension
                             #trader.update_groi_limit(ass_idx, curr_GROI)
-                            ext_condition, dir_condition = trader.check_secondary_condition_for_extention(
+                            ext_condition, dir_condition, prods_condition = trader.check_secondary_condition_for_extention(
                                     ass_idx, curr_GROI)
                             if ext_condition:
                                 # include third condition for thresholds
@@ -1468,28 +1483,32 @@ if __name__ == '__main__':
                                 trader.write_log(out)
                                 
                                 EXIT, rewind = trader.update_candidates()
-                            else:
+                            elif prods_condition and strategys[name2str_map[
+                                        trader.next_candidate.strategy]
+                                        ].if_dir_change_close: # if p_mc/p_md greater than min values for market access, then close
                                 # close due to change direction
 #                                close_dueto_dirchange += 1
-                                #out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
-                                pass
-#                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-#                                       Assets[event_idx].decode("utf-8")+
-#                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
-#                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-#                                      " pofitability {0:.3f}".format(profitability)+
-#                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
-#                                      str(trader.next_candidate.bet)+
-#                                      " cGROI {0:.2f} ".format(100*curr_GROI))
-#                                print(out)
-#                                trader.write_log(out)
+                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
+                                print(out)
+                                trader.write_log(out)
+#                                pass
+                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
+                                       Assets[event_idx].decode("utf-8")+
+                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
+                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+                                      " pofitability {0:.3f}".format(profitability)+
+                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+                                      str(trader.next_candidate.bet)+
+                                      " cGROI {0:.2f} ".format(100*curr_GROI))
+                                print(out)
+                                trader.write_log(out)
 #                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
 ##                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
 #                                print(out)
 #                                trader.write_log(out)
-#                                trader.close_position(DateTimes[event_idx], 
-#                                              Assets[event_idx].decode("utf-8"), 
-#                                              ass_idx)
+                                trader.close_position(DateTimes[event_idx], 
+                                              Assets[event_idx].decode("utf-8"), 
+                                              ass_idx)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0

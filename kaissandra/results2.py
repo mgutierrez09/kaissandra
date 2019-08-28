@@ -29,19 +29,6 @@ pip_extensions = [str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_
 eROIs_list = ['eROI'+str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]#['eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4','eROI5']
 NSPs_list = ['NSP'+str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]
 
-def extract_result(TR, dict_inputs, list_kpis):
-    """ Extract single results """
-    # init idxs to Trues
-    idxs = TR['epoch']>=0
-    for key,func in dict_inputs.items():
-        idxs = idxs & (TR[key].apply(func))
-    dict_out = {}
-    for kpi in list_kpis:
-        maxidx = TR[kpi][idxs].idxmax()
-        dict_out[kpi] = TR.iloc[maxidx]
-        print(kpi)
-        print(dict_out[kpi].to_string())
-
 def get_last_saved_epoch2(resultsDir, ID):
     """
     <DocString>
@@ -522,7 +509,96 @@ def get_best_results_list():
     """ get list containing the entries to get the best results from """
     return ['eGROI','eROI']+eROIs_list+['SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5',
            '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
+
+def extract_result(TR, dict_inputs, kpi):
+    """ Extract single results """
+    # init idxs to Trues
+    idxs = TR['epoch']>=0
+    for key,func in dict_inputs.items():
+        idxs = idxs & (TR[key].apply(func))
+#    print(idxs)
+    if max(idxs)>0:
+        maxidx = TR[kpi][idxs].idxmax()
+    else:
+        maxidx = TR[kpi].idxmax()
+    return maxidx
+
+def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, value, operation, name='NPS', apply_to='eROI', save=0, from_mg=False):
+    """ Get best result subject to a constraint """
+    import re
     
+    best_results_list = get_best_results_list()
+    for c in best_results_list:
+        if c not in TR.columns:
+            TR[c] = -100000
+    best_dir = resultsDir+IDresults+'/best/'
+    if not os.path.exists(best_dir):
+        os.mkdir(best_dir)
+    if not save:
+        file = open(best_dir+'best'+name+'.txt',"w")
+        file.close()
+        file = open(best_dir+'best'+name+'.txt',"a")
+    for b in best_results_list:
+#        best_filename = best_dir+'best_'+b+'.csv'
+#        if not os.path.exists(best_filename):
+#            if not from_mg:
+#                pd.DataFrame(columns = get_results_entries()).to_csv(best_filename, 
+#                            mode="w",index=False,sep='\t')
+#            else:
+#                pd.DataFrame(columns = get_performance_entries()).to_csv(best_filename, 
+#                            mode="w",index=False,sep='\t')
+        if b in eROIs_list:# TEMP!! Only for eROIs
+            # get extension
+            ext = re.split(apply_to, b)[-1]
+            # define operation
+            if operation == '==':
+                constraint = {name+ext:lambda x:x==value}
+            elif operation == '>=':
+                constraint = {name+ext:lambda x:x>=value}
+            elif operation == '>':
+                constraint = {name+ext:lambda x:x>value}
+            # extract index result
+#            print(TR)
+#            print(constraint)
+#            print(b)
+            idx = extract_result(TR, constraint, b)#TR[b].idxmax()
+
+            
+        # reset file
+        
+#        if save:
+#            df = pd.DataFrame(TR.loc[idx:idx])
+#            success = 0
+#            while not success:
+#                try:
+#                    df.to_csv(best_filename, mode='a', header=False, index=False, sep='\t')
+#                    success = 1
+#                except PermissionError:
+#                    print("WARNING! PermissionError. Close programs using "+
+#                          best_filename)
+#                    time.sleep(1)
+            if not from_mg:
+                thr_text = " thr_mc "+str(TR['thr_mc'].loc[idx])+\
+                      " thr_md "+str(TR['thr_md'].loc[idx])
+            else:
+                thr_text = " thr_mc "+str(TR['thr_mg'].loc[idx])
+            
+            out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
+                  " t_index "+str(TR['t_index'].loc[idx])+thr_text+\
+                  " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])+\
+                  " GSP {0:.2f}".format(TR['GSP'].loc[idx])+\
+                  " ADA {0:.2f}".format(TR['ADA'].loc[idx])+\
+                  " AD {0:.2f}".format(TR['AD'].loc[idx])+\
+                  " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])
+            
+            out += " "+name+ext+" {0:.2f}".format(TR[name+ext].loc[idx])
+            print(out)
+            if not save:
+                file.write(out+"\n")
+    if not save:
+        file.close()
+    return None
+
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_mg=False):
     """  """
     best_results_list = get_best_results_list()
@@ -571,7 +647,8 @@ def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_m
               " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])+\
               " GSP {0:.2f}".format(TR['GSP'].loc[idx])+\
               " ADA {0:.2f}".format(TR['ADA'].loc[idx])+\
-              " AD {0:.2f}".format(TR['AD'].loc[idx])
+              " AD {0:.2f}".format(TR['AD'].loc[idx])+\
+              " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])
         print(out)
         if not save:
             file.write(out+"\n")
@@ -993,8 +1070,14 @@ def get_performance_meta(config, y, soft_tilde, DTA, epoch,
     get_best_results(TP[TP.epoch==epoch], performance_filename, 
                      local_vars.results_directory,
                      IDresults, save=1, from_mg=True)
+    get_best_results_constraint(TP[TP.epoch==epoch], performance_filename, 
+                                local_vars.results_directory, IDresults, 55, 
+                                '>=', name='NPS', apply_to='eROI', save=1, 
+                                from_mg=True)
     print("\nThe very best:")
     get_best_results(TP, performance_filename, local_vars.results_directory, IDresults, from_mg=True)
+    get_best_results_constraint(TP, performance_filename, local_vars.results_directory, 
+                                IDresults, 55, '>=', name='NPS', apply_to='eROI', from_mg=True)
     return results_extended
 
 def get_performance_mg(config, y, soft_tilde, DTA, epoch, performance_filename):
@@ -1384,8 +1467,15 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         #TR = TR[TR.epoch==epoch]
         get_best_results(TR[TR.epoch==epoch], results_filename, 
                          resultsDir, IDresults, save=1)
+        print("\n\nBest constrait results:")
+        get_best_results_constraint(TR[TR.epoch==epoch], results_filename, 
+                                resultsDir, IDresults, 55, 
+                                '>=', name='NSP', apply_to='eROI', save=1)
         print("\nThe very best:")
         get_best_results(TR, results_filename, resultsDir, IDresults)
+        print("\n\nThe very best constrait results:")
+        get_best_results_constraint(TR, results_filename, resultsDir, 
+                                IDresults, 55, '>=', name='NSP', apply_to='eROI')
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:
