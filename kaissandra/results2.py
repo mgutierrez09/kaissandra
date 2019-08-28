@@ -535,9 +535,9 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
     if not save:
-        file = open(best_dir+'best'+name+'.txt',"w")
+        file = open(best_dir+'best'+name+str(value)+'.txt',"w")
         file.close()
-        file = open(best_dir+'best'+name+'.txt',"a")
+        file = open(best_dir+'best'+name+str(value)+'.txt',"a")
     for b in best_results_list:
 #        best_filename = best_dir+'best_'+b+'.csv'
 #        if not os.path.exists(best_filename):
@@ -1469,13 +1469,13 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                          resultsDir, IDresults, save=1)
         print("\n\nBest constrait results:")
         get_best_results_constraint(TR[TR.epoch==epoch], results_filename, 
-                                resultsDir, IDresults, 55, 
+                                resultsDir, IDresults, 57, 
                                 '>=', name='NSP', apply_to='eROI', save=1)
         print("\nThe very best:")
         get_best_results(TR, results_filename, resultsDir, IDresults)
         print("\n\nThe very best constrait results:")
         get_best_results_constraint(TR, results_filename, resultsDir, 
-                                IDresults, 55, '>=', name='NSP', apply_to='eROI')
+                                IDresults, 57, '>=', name='NSP', apply_to='eROI')
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:

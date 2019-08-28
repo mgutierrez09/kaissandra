@@ -1051,23 +1051,22 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010PS2NYCMF181112T190822ALk1-2E5-2','R01010PS2NYCMF181112T190822BSk1-2E5-3']
-    list_name = ['01010PS2NYk1-2K2E5-2ALSR','01010PS2NYk1-2K2E5-3BSSR']
+    list_IDresults = ['R01010PS2NYCMF181112T190802ALk1-2E6','R01010PS2NYCMF181112T190802BSk1-2E4-5']
+    list_name = ['01010PS2NYk1-2E6ALSR','01010PS2NYk1-2E4-5BSSR']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[1.3, 1.5, 1.7, 2.3, 2.7, 3.0, 3.2, 4.4, 5],
-                           'th':[(.51,.59),(.52,.59),(.54,.59),(.54,.61),(.59,.61),(.64,.61),(.65,.61),(.67,.61),(.67,.63)],
-                           'mar':[(.02,.02) for _ in range(9)]},
-                          {'sp':[1.3, 1.6, 1.8, 2.4, 2.5, 2.9, 3.9, 4, 5],
-                           'th':[(.55,.54),(.51,.58),(.5,.59),(.61,.57),(.64,.59),(.66,.59),(.67,.59),(.7,.59),(.73,.59)],
-                           'mar':[(.02,.02) for _ in range(9)]}]
+    list_spread_ranges = [{'sp':[.5, .6, .7, .8, 1.1, 1.3, 1.5, 1.7, 1.9, 2.7, 3.3, 3.8, 4.8, 4.9, 5],
+                           'th':[(.58,.58),(.6,.58),(.64,.55),(.63,.58),(.64,.58),(.64,.59),(.64,.61),(.63,.63),(.64,.63),(.7,.61),(.72,.61),(.72,.65),(.74,.65),(.74,.66),(.78,.7)],
+                           'mar':[(0,0) for _ in range(15)]},
+                          {'sp':[.5, .6, .8, .9, 1.1, 1.2, 1.5, 3.1, 5],
+                           'th':[(.57,.59),(.61,.59),(.6,.6),(.5,.64),(.62,.63),(.63,.63),(.64,.63),(.74,.6),(.78,.6)],
+                           'mar':[(0,0) for _ in range(9)]}]
     list_lim_groi_ext = [-.1 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.56,.54]
+    list_lb_mc_ext = [.5, .6]
+    list_lb_md_ext = [.55, .53]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['','']
-    list_if_dir_change_close = [False for i in range(numberNetwors)]
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
