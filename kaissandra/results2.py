@@ -510,6 +510,119 @@ def get_best_results_list():
     return ['eGROI','eROI']+eROIs_list+['SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5',
            '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
 
+def extract_result_v2(TR, dict_inputs, list_funcs, list_names, kpi):
+    """ Extract single results """
+    # init idxs to Trues
+    idxs = TR['epoch']>=0
+    for key,func in dict_inputs.items():
+#        print(list_funcs[list_names.index(key)])
+#        print(func('mean'))
+#        idxs = idxs & (TR[key].apply(func))
+        print(list_funcs[list_names.index(key)]('mean'))
+        idxs = idxs & (TR[key].apply(list_funcs[list_names.index(key)]))
+#        print(sum(TR[key].apply(list_funcs[list_names.index(key)])))
+#    print(idxs)
+    if max(idxs)>0:
+        maxidx = TR[kpi][idxs].idxmax()
+    else:
+        print("WARNING! No entry matching the criteria")
+        maxidx = TR[kpi].idxmax()
+    return maxidx
+
+def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, values, operations, names=['NPS'], apply_to='eROI', save=0, from_mg=False):
+    """ Get best result subject to a constraint """
+    import re
+    
+    best_results_list = get_best_results_list()
+    for c in best_results_list:
+        if c not in TR.columns:
+            TR[c] = -100000
+    best_dir = resultsDir+IDresults+'/best/'
+    if not os.path.exists(best_dir):
+        os.mkdir(best_dir)
+    if not save:
+        file = open(best_dir+'best'+str(names)+str(values)+'.txt',"w")
+        file.close()
+        file = open(best_dir+'best'+str(names)+str(values)+'.txt',"a")
+    for b in best_results_list:
+        if b in eROIs_list:# WARNING!! Only for eROIs
+            # get extension
+            
+            constraints = {}
+            list_funcs = []
+            list_names = []
+            
+#            print(operations)
+            for i, name in enumerate(names):
+                if 'NSP' in name:
+                    ext = re.split(apply_to, b)[-1]
+                    
+                else:
+                    ext = ''
+#                print(values[i])
+#                print(name+ext)
+#                print(operations[i])
+#                print(operations[i] == '==')
+#                print(operations[i] == '>=')
+                # define operation
+                if operations[i] == '==':
+#                    print(operations[i])
+#                    print(name+ext)
+#                    print(values[i])
+#                    print(i)
+                    func1 = lambda y:y==values[i]
+                    list_funcs.append(func1)
+                    
+                    constraints[name+ext] = ''
+#                    print(constraints[name+ext]('mean'))
+#                    constraint = {name+ext:lambda x:x==values[i]}
+                if operations[i] == '>=':
+#                    print(operations[i])
+#                    print(values[i])
+#                    print(name+ext)
+#                    print(values[i])
+                    func2 = lambda x:x>=values[i]
+                    constraints[name+ext] = ''
+#                    print(constraints[name+ext](100))
+                    list_funcs.append(func2)
+#                    constraint = {name+ext:lambda x:x>=values[i]}
+#                if operations[i] == '>':
+#                    constraints[name+ext] = lambda x:x>values[i]
+#                    constraint = {name+ext:lambda x:x>values[i]}
+                list_names.append(name+ext)
+#            print(constraints)
+#            for key,func in constraints.items():
+#                print(key)
+#                print(constraints[key])
+#                a = TR[key].apply(list_funcs[list_names.index(key)])
+#                if key=='t_index':
+#                    a = TR[key].apply(list_funcs[1])#lambda y:y=='mean'
+#                elif key=='NSP0.5':
+#                    a = TR[key].apply(list_funcs[0])#lambda y:y>=57
+            idx = extract_result(TR, constraints, list_funcs, list_names, b)#TR[b].idxmax()
+            
+            if not from_mg:
+                thr_text = " thr_mc "+str(TR['thr_mc'].loc[idx])+\
+                      " thr_md "+str(TR['thr_md'].loc[idx])
+            else:
+                thr_text = " thr_mc "+str(TR['thr_mg'].loc[idx])
+            
+            out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
+                  " t_index "+str(TR['t_index'].loc[idx])+thr_text+\
+                  " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])+\
+                  " GSP {0:.2f}".format(TR['GSP'].loc[idx])+\
+                  " ADA {0:.2f}".format(TR['ADA'].loc[idx])+\
+                  " AD {0:.2f}".format(TR['AD'].loc[idx])+\
+                  " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])
+            
+            out += " "+name+ext+" {0:.2f}".format(TR['NSP'+ext].loc[idx])
+            print(out)
+            if not save:
+                file.write(out+"\n")
+    if not save:
+        file.close()
+    return None
+
 def extract_result(TR, dict_inputs, kpi):
     """ Extract single results """
     # init idxs to Trues
@@ -598,6 +711,7 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
     if not save:
         file.close()
     return None
+
 
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_mg=False):
     """  """

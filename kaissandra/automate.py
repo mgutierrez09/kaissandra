@@ -486,7 +486,9 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
                    get_results=True):
     """  """
     import numpy as np
+    import os
     from kaissandra.results2 import init_results_dir, get_results
+    
     results_directory = local_vars.results_directory
     if 'build_XY_mode' in entries:
         build_XY_mode = entries['build_XY_mode']
@@ -570,6 +572,13 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
     Xte = f_IOte['X']
     DTA = pickle.load( open( IO_results_name, "rb" ))
     n_models = len(model_names)
+    # save model names
+    if not os.path.exists(local_vars.results_directory+IDresults):
+        os.mkdir(local_vars.results_directory+IDresults)
+    with open(local_vars.results_directory+IDresults+'/model_names.txt',"w") as file:    
+        file.write('\n'.join(model_names))
+        file.close()
+    
     outputs_stacked = np.zeros((Yte.shape[0], n_models*seq_len, size_output_layer))
     #J_tests = 0
     for i, name in enumerate(model_names):
