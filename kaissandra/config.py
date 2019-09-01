@@ -671,33 +671,41 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN01010PS2SRv2'
+    config_name = 'TN0101-40K5-2PS2SRv1'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
         
-        numberNetworks = 2
-        IDresults = ['R01010PS2ALk1k2E4-5','R01010PS2BSk1k2E4']
-        IDweights = [['W01010PS2k1K5A','W01010PS2k2K5A'],['W01010PS2k1K5B','W01010PS2k2K5B']]
-        list_name = ['01010k1-2K5E14ASR','01010k1-2K5E14BSR']
-        list_spread_ranges = [{'sp':[1, 2, 2.1, 2.3, 2.9, 3.2, 3.9, 5],
-                           'th':[(.52,.57),(.64,.56),(.64,.61),(.65,.61),(.68,.62),(.74,.59),(.72,.62),(.74,.62)],
-                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)],
+        numberNetworks = 4
+        IDresults = ['R01010PS2NYALk1-2K2E5-2','R01010PS2NYBSk1-2K2E5-3']+['R01040PS2ALk1-2K5E11-14','R01040PS2BSk1-2K5E14']
+        IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A'],['W01010PS2NYk1K2B','W01010PS2NYk2K2B'],['W01040PS2k1K5A','W01040PS2k2K5A'],['W01040PS2k1K5A','W01040PS2k2K5A']]
+        list_name = ['01010PS2NYk1-2K2E5-2ALSRNSP60','01010PS2NYk1-2K2E5-3BSSRNSP60']+['01040PS2k1-2K5E11-14ALSRNSP60','01040PS2k1-2K5E14BSSRNSP60']
+        list_spread_ranges = [{'sp':[.7, .8, .9, 1, 1.1, 1.2, 1.4, 1.5, 1.7, 1.9, 2, 2.3, 2.5, 3, 3.2, 3.7, 3.8, 4.2, 4.3, 4.6, 4.8, 5],
+                           'th':[(.5,.59),(.51,.59),(.54,.59),(.56,.59),(.57,.59),(.53,.6),(.51,.61),(.52,.61),(.54,.61),(.56,.61),(.57,.61),(.59,.61),(.6,.61),(.64,.61),(.65,.61),(.67,.61),(.68,.61),(.7,.61),(.67,.63),(.7,.62),(.72,.62),(.74,.62)],
+                           'mar':[(0,0) for _ in range(22)],
                            'dir':'ASKS'},
-                          {'sp':[.7, 1, 1.6, 2, 2.5, 3.5, 4.8, 5],
-                           'th':[(.58,.53),(.6,.56),(.6,.6),(.65,.6),(.72,.58),(.77,.56),(.77,.61),(.79,.62)],
-                           'mar':[(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02),(.02,.02)],
+                          {'sp':[.6, .7, .8, .9, 1, 1.1, 1.2, 1.7, 1.9, 2.4, 2.9, 3.1, 3.6, 4.1, 5],
+                           'th':[(.5,.59),(.53,.59),(.56,.59),(.57,.59),(.58,.59),(.59,.59),(.64,.59),(.66,.59),(.67,.59),(.68,.59),(.7,.59),(.72,.59),(.73,.59),(.74,.59),(.75,.59)],
+                           'mar':[(0,0) for _ in range(15)],
+                           'dir':'BIDS'}]+\
+                          [{'sp':[.5, .6, .7, .8, .9, 1.1, 1.2, 1.4, 1.6, 1.8, 1.9, 2.2, 2.5, 3.1, 3.4, 3.9, 4.7, 5],
+                           'th':[(.5,.6),(.66,.57),(.58,.6),(.5,.62),(.51,.62),(.7,.57),(.59,.62),(.7,.58),(.7,.59),(.66,.62),(.73,.57),(.66,.63),(.71,.62),(.73,.62),(.73,.63),(.74,.62),(.75,.62),(.79,.62)],
+                           'mar':[(0,0) for _ in range(18)],
+                           'dir':'ASKS'},
+                           {'sp':[.5, .6, .7, .8, .9, 1, 1.2, 1.4, 1.6, 1.7, 2.2, 2.5, 3.8, 4.3, 5],
+                           'th':[(.57,.61),(.58,.61),(.57,.62),(.64,.61),(.65,.61),(.69,.59),(.68,.61),(.68,.62),(.69,.61),(.69,.62),(.69,.67),(.71,.67),(.71,.69),(.76,.68),(.74,.7)],
+                           'mar':[(0,0) for _ in range(15)],
                            'dir':'BIDS'}]
         
-        mWs = [500, 500]
-        nExSs = [5000, 5000]
-        outputGains = [1, 1]
+        mWs = [500, 500, 400, 400]
+        nExSs = [5000, 5000, 4000, 4000]
+        outputGains = [1, 1, 1, 1]
         #lBs = [1300]
-        list_feats_from_bids = [False, True]
+        list_feats_from_bids = [False, True, False, True]
         combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
         
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
-        stacked = [2, 2]
+        stacked = [2, 2, 2, 2]
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
                          'results_from':list_spread_ranges[i]['dir'],
@@ -707,19 +715,19 @@ def configuration_trader(*ins):
                        'nEventsPerStat':nExSs[i],
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[4,5], [4,4]]
-        netNames = ['RRNN01010PS2Ak1k2', 'RRNN01010PS2Bk1k2']
-        list_t_indexs = [[0], [0]]
+        IDepoch = [[5,2], [5,3], [11,14], [14,14]]
+        netNames = ['RRNN01010PS2NYAk1k2K2', 'RRNN01010PS2NYBk1k2K2', 'RRNN01040PS2Ak1k2K5', 'RRNN01040PS2Ak1k2K5']
+        list_t_indexs = [[0], [0], [0], [0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
-        list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
+        list_priorities = [[0], [0], [0], [0]]#[[3],[2],[1],[0]]
         phase_shifts = [2 for i in range(numberNetworks)]
         
         
-        list_lim_groi_ext = [-0.15 for i in range(numberNetworks)]
+        list_lim_groi_ext = [-10 for i in range(numberNetworks)]
         list_thr_sl = [50 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
@@ -738,7 +746,7 @@ def configuration_trader(*ins):
         list_fixed_spread_pips = [4 for i in range(numberNetworks)]
         
         list_flexible_lot_ratio = [False for i in range(numberNetworks)]
-        list_if_dir_change_close = [True for i in range(numberNetworks)]
+        list_if_dir_change_close = [False for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
         
         model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],

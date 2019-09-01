@@ -599,7 +599,7 @@ def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
 #                    a = TR[key].apply(list_funcs[1])#lambda y:y=='mean'
 #                elif key=='NSP0.5':
 #                    a = TR[key].apply(list_funcs[0])#lambda y:y>=57
-            idx = extract_result(TR, constraints, list_funcs, list_names, b)#TR[b].idxmax()
+            idx = extract_result(TR, constraints, list_funcs, list_names, b, constraints=[])#'ROI>=.6GROI'
             
             if not from_mg:
                 thr_text = " thr_mc "+str(TR['thr_mc'].loc[idx])+\
@@ -613,7 +613,8 @@ def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
                   " GSP {0:.2f}".format(TR['GSP'].loc[idx])+\
                   " ADA {0:.2f}".format(TR['ADA'].loc[idx])+\
                   " AD {0:.2f}".format(TR['AD'].loc[idx])+\
-                  " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])
+                  " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])+\
+                  " eGROI {0:.2f}".format(TR['eGROI'].loc[idx])
             
             out += " "+name+ext+" {0:.2f}".format(TR['NSP'+ext].loc[idx])
             print(out)
@@ -623,16 +624,21 @@ def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
         file.close()
     return None
 
-def extract_result(TR, dict_inputs, kpi):
+def extract_result(TR, dict_inputs, kpi, constraints=['ROI>=.6GROI']):
     """ Extract single results """
     # init idxs to Trues
     idxs = TR['epoch']>=0
+    #print('aaaaaaaaaaa')
+    for constraint in constraints:
+        if constraint=='ROI>=.6GROI':
+            idxs = idxs & (TR[kpi]>=.6*TR['eGROI'])
     for key,func in dict_inputs.items():
         idxs = idxs & (TR[key].apply(func))
 #    print(idxs)
     if max(idxs)>0:
         maxidx = TR[kpi][idxs].idxmax()
     else:
+        print("WARNING! Constraints not met found")
         maxidx = TR[kpi].idxmax()
     return maxidx
 
@@ -674,7 +680,7 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
 #            print(TR)
 #            print(constraint)
 #            print(b)
-            idx = extract_result(TR, constraint, b)#TR[b].idxmax()
+            idx = extract_result(TR, constraint, b, constraints=[])#TR[b].idxmax()
 
             
         # reset file
@@ -702,7 +708,8 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
                   " GSP {0:.2f}".format(TR['GSP'].loc[idx])+\
                   " ADA {0:.2f}".format(TR['ADA'].loc[idx])+\
                   " AD {0:.2f}".format(TR['AD'].loc[idx])+\
-                  " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])
+                  " pNZA {0:.2f}".format(TR['pNZA'].loc[idx])+\
+                  " eGROI {0:.2f}".format(TR['eGROI'].loc[idx])
             
             out += " "+name+ext+" {0:.2f}".format(TR[name+ext].loc[idx])
             print(out)

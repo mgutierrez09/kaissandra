@@ -1051,19 +1051,19 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01040PS2lR05CMF181112T190822ALk1-2K5E7-14','R01040PS2lR05CMF181112T190822BSk1-2K5E13-12']
-    list_name = ['01010PS2lR05k1-2K5E7-14ALSRNSP60','01010PS2lR05k1-2K5E13-12BSSRNSP60']
+    list_IDresults = ['R01010PS2NYCMF181112T190822ALk1-2K5E4-5','R01010PS2NYCMF181112T190822BSk1-2K5E4']
+    list_name = ['01010PS2NYk1-2K5E4-5BSSRNSP60','01010PS2NYk1-2K5E4BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.7, .8, .9, 1, 1.1, 1.3, 1.4, 1.7, 2.1, 3.3, 4.6, 5],
-                           'th':[(.5,.61),(.55,.61),(.51,.63),(.53,.63),(.61,.61),(.65,.61),(.66,.61),(.68,.61),(.68,.63),(.71,.63),(.71,.67),(.72,.67)],
-                           'mar':[(0,0) for _ in range(12)]},
-                          {'sp':[.6, .7, .8, .9, 1.2, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.4, 2.5, 3.2, 3.5, 5],
-                           'th':[(.59,.6),(.59,.61),(.59,.62),(.65,.6),(.66,.6),(.66,.62),(.74,.6),(.69,.63),(.76,.59),(.75,.6),(.76,.6),(.76,.61),(.78,.59),(.78,.6),(.79,.6),(.75,.72)],
-                           'mar':[(0,0) for _ in range(16)]}]
+    list_spread_ranges = [{'sp':[.5, .6, .8, 1.2, 1.5, 1.6, 1.7, 1.9, 2.1, 2.2, 3.1, 3.3, 4.3, 4.9, 5],
+                           'th':[(.59,.6),(.59,.61),(.62,.6),(.62,.61),(.64,.61),(.64,.62),(.69,.6),(.68,.62),(.69,.62),(.74,.59),(.72,.62),(.74,.61),(.74,.62),(.74,.64),(.74,.66)],
+                           'mar':[(0,0) for _ in range(15)]},
+                          {'sp':[.5, .6, .7, .9, 1, 1.3, 2.4, 4.4, 5],
+                           'th':[(.57,.62),(.65,.63),(.69,.63),(.71,.62),(.72,.64),(.77,.61),(.79,.55),(.78,.61),(.79,.62)],
+                           'mar':[(0,0) for _ in range(9)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5, .59]
-    list_lb_md_ext = [.61, .60]
+    list_lb_mc_ext = [.59, .57]
+    list_lb_md_ext = [.6, .55]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]

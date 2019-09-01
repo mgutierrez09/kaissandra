@@ -3398,7 +3398,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[2,3,4,7,10,11,12,13,14,16,17,19,28,29,31], 
            synchroned_run=True, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3467,7 +3467,7 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = False
 
-    config_names = ['TN01010PS2SRv2']#['TTEST10']#'TPRODN01010N01011'
+    config_names = ['TN0101-40K5-2PS2SRv1']#['TTEST10']#'TPRODN01010N01011'
     test = False
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
