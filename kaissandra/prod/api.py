@@ -66,12 +66,13 @@ class API():
         params_networks = []
         for s in range(len(config_trader['list_name'])):
             symbols = ['BID' if i['feats_from_bids'] else 'ASK' for i in config_trader['config_list'][s]]
+            print("WARNING!! symbols overcut!!! in api.py line 75")
             params_strategy = {'strategyname':config_trader['list_name'][s],
                                      'phaseshift':config_trader['phase_shifts'][s],
                                      'poslots':config_trader['list_max_lots_per_pos'][s],
                                      'nexs':config_trader['nExSs'][s],
                                      'oraclename':config_trader['netNames'][s],
-                                     'symbol':symbols[s],
+                                     'symbol':symbols[0],
                                      'extthr':config_trader['list_lim_groi_ext'][s],
                                      'og':config_trader['config_list'][s][0]['outputGain'],
                                      'mw':config_trader['mWs'][s],
