@@ -2928,7 +2928,8 @@ def run(config_traders_list, running_assets, start_time, test, api):
 #                          dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]        
         # add unique networks
         for nn in range(numberNetworks):
-            if netNames[nn] not in unique_nets:
+            # TODO! Take unique networks!
+            if 1:#netNames[nn] not in unique_nets:
                 unique_nets.append(netNames[nn])
                 configs = config_list[nn]
                 #list_data.append(data)
