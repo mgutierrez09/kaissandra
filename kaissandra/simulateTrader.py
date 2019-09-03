@@ -171,7 +171,8 @@ class Strategy():
                  ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
                  name='',t_index=3,IDr=None,IDgre=None,epoch='11',p_md_margin=0.02,
-                 weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr'):
+                 weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr',
+                 extend_for_any_thr=True):
         
         self.name = name
         self.dir_origin = direct
@@ -195,6 +196,7 @@ class Strategy():
         self.ub_md_op = ub_md_op
         self.ub_mc_ext = ub_mc_ext
         self.ub_md_ext = ub_md_ext
+        self.extend_for_any_thr = extend_for_any_thr
         
         self.if_dir_change_close = if_dir_change_close
         self.if_dir_change_extend = if_dir_change_extend
@@ -305,7 +307,7 @@ class Strategy():
 class Trader:
     
     def __init__(self, next_candidate, init_budget=10000,log_file='',summary_file='',
-                 positions_dir='',positions_file=''):
+                 positions_dir='',positions_file='', allow_candidates=False):
         """  """
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(data.AllAssets))])
@@ -315,6 +317,7 @@ class Trader:
         self.list_take_profits = []
         self.list_lots_per_pos = []
         self.list_lots_entry = []
+        self.list_ts = []
         self.list_last_bid = []
         self.list_last_ask = []
         self.list_sl_thr_vector = []
@@ -352,6 +355,7 @@ class Trader:
         self.gross_successes = 0
         self.n_pos_extended = 0
         self.n_entries = 0
+        self.allow_candidates = allow_candidates
         
         self.save_log = 1
         if log_file=='':
@@ -380,6 +384,7 @@ class Trader:
         self.list_count_events.append(0)
         self.list_lots_per_pos.append(lots)
         self.list_lots_entry.append(lots)
+        self.list_ts.append(t)
         self.list_last_bid.append(bid)
         self.list_last_ask.append(ask)
         self.list_EM.append(bid)
@@ -397,7 +402,10 @@ class Trader:
         self.list_lim_groi.append(strategys[name2str_map[
                                                self.next_candidate.strategy]].lim_groi_ext)
         
-        
+    def add_candidate(self):
+        """  """
+        pass
+    
     def remove_position(self, idx):
         """  """
         self.list_opened_positions = self.list_opened_positions[
@@ -420,6 +428,9 @@ class Trader:
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_lots_entry = self.list_lots_entry[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_lots_entry[
+                        self.map_ass_idx2pos_idx[idx]+1:]
+        self.list_ts = self.list_ts[
+                :self.map_ass_idx2pos_idx[idx]]+self.list_ts[
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_last_bid = self.list_last_bid[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_last_bid[
@@ -545,6 +556,7 @@ class Trader:
                 this_strategy.info_spread_ranges['mar'][t][1] and\
                 e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
                 if second_condition_open:
+                    
                     return second_condition_open, t
                     
         else:
@@ -575,6 +587,7 @@ class Trader:
         """
         margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
+        
         dir_condition = self.list_opened_positions[
                         self.map_ass_idx2pos_idx[idx]
                         ].direction==self.next_candidate.direction
@@ -610,11 +623,16 @@ class Trader:
 #                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
 #                              self.next_candidate.p_md>=previous_p_md-.05
         elif this_strategy.entry_strategy=='spread_ranges':
+            
+            if this_strategy.extend_for_any_thr:
+                t = 0
+            else:
+                t = self.list_ts[self.map_ass_idx2pos_idx[idx]]
             prods_condition = self.next_candidate.p_mc>=\
-                this_strategy.info_spread_ranges['th'][0][0]+\
-                this_strategy.info_spread_ranges['mar'][0][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+\
-                this_strategy.info_spread_ranges['mar'][0][1]
+                this_strategy.info_spread_ranges['th'][t][0]+\
+                this_strategy.info_spread_ranges['mar'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
+                this_strategy.info_spread_ranges['mar'][t][1]
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
         return condition, dir_condition, prods_condition
@@ -846,8 +864,15 @@ class Trader:
         self.write_log(out)
         print(out)
         assert(lot_ratio<=1.00 and lot_ratio>0)
+        
+    def create_candidate(self, idx, approached, n_pos_opened, lots):
+        """ """
+        if self.allow_candidates:
+            pass
+        else:
+            self.open_position(idx, approached, n_pos_opened, lots)
     
-    def open_position(self, idx, approached, n_pos_opened, lots):
+    def open_position(self, idx, approached, n_pos_opened, lots, t):
         """
         
         """
@@ -857,7 +882,7 @@ class Trader:
         n_pos_opened += 1
         
         # update vector of opened positions
-        self.add_position(idx, lots)
+        self.add_position(idx, lots, t)
         # update candidate positions
         EXIT, rewind = self.update_candidates()
         out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Open "+
@@ -1068,6 +1093,7 @@ if __name__ == '__main__':
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
+    list_extend_for_any_thr = [False for i in range(numberNetwors)]
     
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
@@ -1143,7 +1169,8 @@ if __name__ == '__main__':
                           epoch=str(list_epoch_gre[i]),weights=list_weights[i],
                           info_spread_ranges=list_spread_ranges[i],
                           lim_groi_ext=list_lim_groi_ext[i],
-                          entry_strategy=list_entry_strategy[i]) 
+                          entry_strategy=list_entry_strategy[i],
+                          extend_for_any_thr=list_extend_for_any_thr[i]) 
                           for i in range(numberNetwors)]
     
     name2str_map = {}
@@ -1305,7 +1332,7 @@ if __name__ == '__main__':
         trader = Trader(Position(journal.iloc[0], AD_resume, eROIpb), 
                                  init_budget=init_budget, log_file=log_file,
                                  summary_file=summary_file,positions_dir=positions_dir,
-                                 positions_file=positions_file)
+                                 positions_file=positions_file,allow_candidates=False)
         
         out = ("Week counter "+str(week_counter)+". From "+data.dateTest[init_list_index]+
                " to "+data.dateTest[end_list_index]+
@@ -1406,7 +1433,7 @@ if __name__ == '__main__':
                         approached, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, 
                                                                                       approached, 
                                                                                       n_pos_opened, 
-                                                                                      lots=lots)
+                                                                                      lots, t)
                     else:
                         no_budget = True
             elif (trader.chech_ground_condition_for_opening() and 

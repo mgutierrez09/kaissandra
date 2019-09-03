@@ -716,7 +716,7 @@ def configuration_trader(*ins):
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
         IDepoch = [[5,2], [5,3], [11,14], [14,14]]
-        netNames = ['RRNN01010PS2NYAk1k2K2', 'RRNN01010PS2NYBk1k2K2', 'RRNN01040PS2Ak1k2K5', 'RRNN01040PS2Ak1k2K5']
+        netNames = ['RRNN01010PS2NYAk1k2K2', 'RRNN01010PS2NYBk1k2K2', 'RRNN01040PS2Ak1k2K5n1', 'RRNN01040PS2Ak1k2K5n2']
         list_t_indexs = [[0], [0], [0], [0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
