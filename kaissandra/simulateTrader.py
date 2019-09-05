@@ -317,7 +317,7 @@ class Trader:
         self.list_take_profits = []
         self.list_lots_per_pos = []
         self.list_lots_entry = []
-        self.list_ts = []
+        self.list_sps = []
         self.list_last_bid = []
         self.list_last_ask = []
         self.list_sl_thr_vector = []
@@ -378,13 +378,13 @@ class Trader:
         return self.next_candidate.entry_bid*(1-self.next_candidate.direction*
                                               self.sl_thr_vector*self.pip)
     
-    def add_position(self, idx, lots):
+    def add_position(self, idx, lots, sp):
         """  """
         self.list_opened_positions.append(self.next_candidate)
         self.list_count_events.append(0)
         self.list_lots_per_pos.append(lots)
         self.list_lots_entry.append(lots)
-        self.list_ts.append(t)
+        self.list_sps.append(sp)
         self.list_last_bid.append(bid)
         self.list_last_ask.append(ask)
         self.list_EM.append(bid)
@@ -429,8 +429,8 @@ class Trader:
         self.list_lots_entry = self.list_lots_entry[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_lots_entry[
                         self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_ts = self.list_ts[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_ts[
+        self.list_sps = self.list_sps[
+                :self.map_ass_idx2pos_idx[idx]]+self.list_sps[
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_last_bid = self.list_last_bid[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_last_bid[
@@ -556,8 +556,8 @@ class Trader:
                 this_strategy.info_spread_ranges['mar'][t][1] and\
                 e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
                 if second_condition_open:
-                    
-                    return second_condition_open, t
+                    sp = this_strategy.info_spread_ranges['sp'][t]
+                    return second_condition_open, sp
                     
         else:
             raise ValueError("Unknown entry strategy")
@@ -627,7 +627,10 @@ class Trader:
             if this_strategy.extend_for_any_thr:
                 t = 0
             else:
-                t = self.list_ts[self.map_ass_idx2pos_idx[idx]]
+                sp = self.list_sps[self.map_ass_idx2pos_idx[idx]]
+                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges['sp']) if x>=sp), len(this_strategy.info_spread_ranges['sp'])-1)
+#            print(t)
+#            print(this_strategy.info_spread_ranges)
             prods_condition = self.next_candidate.p_mc>=\
                 this_strategy.info_spread_ranges['th'][t][0]+\
                 this_strategy.info_spread_ranges['mar'][t][0] and\
@@ -872,7 +875,7 @@ class Trader:
         else:
             self.open_position(idx, approached, n_pos_opened, lots)
     
-    def open_position(self, idx, approached, n_pos_opened, lots, t):
+    def open_position(self, idx, approached, n_pos_opened, lots, sp):
         """
         
         """
@@ -882,7 +885,7 @@ class Trader:
         n_pos_opened += 1
         
         # update vector of opened positions
-        self.add_position(idx, lots, t)
+        self.add_position(idx, lots, sp)
         # update candidate positions
         EXIT, rewind = self.update_candidates()
         out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Open "+
@@ -1076,24 +1079,24 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010PS2NYCMF181112T190822ALk1-2K5E4-5','R01010PS2NYCMF181112T190822BSk1-2K5E4']
-    list_name = ['01010PS2NYk1-2K5E4-5BSSRNSP60','01010PS2NYk1-2K5E4BSSRNSP60']
+    list_IDresults = ['R01010PS2NYCMF181112T190822ALk1-2E5-2','R01010PS2NYCMF181112T190822BSk1-2E5-3']
+    list_name = ['01010PS2NYk1-2K2E5-2ALSRNSP60','01010PS2NYk1-2K2E5-3BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.5, .6, .8, 1.2, 1.5, 1.6, 1.7, 1.9, 2.1, 2.2, 3.1, 3.3, 4.3, 4.9, 5],
-                           'th':[(.59,.6),(.59,.61),(.62,.6),(.62,.61),(.64,.61),(.64,.62),(.69,.6),(.68,.62),(.69,.62),(.74,.59),(.72,.62),(.74,.61),(.74,.62),(.74,.64),(.74,.66)],
-                           'mar':[(0,0) for _ in range(15)]},
-                          {'sp':[.5, .6, .7, .9, 1, 1.3, 2.4, 4.4, 5],
-                           'th':[(.57,.62),(.65,.63),(.69,.63),(.71,.62),(.72,.64),(.77,.61),(.79,.55),(.78,.61),(.79,.62)],
-                           'mar':[(0,0) for _ in range(9)]}]
+    list_spread_ranges = [{'sp':[.7, .8, .9, 1, 1.1, 1.2, 1.4, 1.5, 1.7, 1.9, 2, 2.3, 2.5, 3, 3.2, 3.7, 3.8, 4.2, 4.3, 4.6, 4.8, 5],
+                           'th':[(.5,.59),(.51,.59),(.54,.59),(.56,.59),(.57,.59),(.53,.6),(.51,.61),(.52,.61),(.54,.61),(.56,.61),(.57,.61),(.59,.61),(.6,.61),(.64,.61),(.65,.61),(.67,.61),(.68,.61),(.7,.61),(.67,.63),(.7,.62),(.72,.62),(.74,.62)],
+                           'mar':[(0,0) for _ in range(22)]},
+                          {'sp':[.6, .7, .8, .9, 1, 1.1, 1.2, 1.7, 1.9, 2.4, 2.9, 3.1, 3.6, 4.1, 5],
+                           'th':[(.5,.59),(.53,.59),(.56,.59),(.57,.59),(.58,.59),(.59,.59),(.64,.59),(.66,.59),(.67,.59),(.68,.59),(.7,.59),(.72,.59),(.73,.59),(.74,.59),(.75,.59)],
+                           'mar':[(0,0) for _ in range(15)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.59, .57]
-    list_lb_md_ext = [.6, .55]
+    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
+    list_lb_md_ext = [.59,.59]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['' for i in range(numberNetwors)]
-    list_if_dir_change_close = [False for i in range(numberNetwors)]
-    list_extend_for_any_thr = [False for i in range(numberNetwors)]
+    list_IDgre = ['','']
+    list_if_dir_change_close = [True for i in range(numberNetwors)]
+    list_extend_for_any_thr = [True for i in range(numberNetwors)]
     
     # depricated/not supported
     list_epoch_gre = [None for i in range(numberNetwors)]
@@ -1368,6 +1371,7 @@ if __name__ == '__main__':
         not_entered_secondary = 0
         close_dueto_dirchange = 0
         w = 1-1/20
+        
         # get to 
         while event_idx<nEvents:
             rewind = 0
@@ -1385,39 +1389,34 @@ if __name__ == '__main__':
                 trader.list_last_bid[list_idx] = bid
                 trader.list_last_ask[list_idx] = ask
                 em = w*trader.list_EM[list_idx]+(1-w)*bid
+#                dev_em = trader.list_EM[list_idx]-em
                 trader.list_EM[list_idx] = em
             
             ban_condition = trader.check_asset_not_banned()
             if not EXIT:
-                sec_cond, t = trader.check_secondary_contition_for_opening()
+                sec_cond, sp = trader.check_secondary_contition_for_opening()
             else:
                 sec_cond = False
+                
             condition_open = (trader.chech_ground_condition_for_opening() and 
                               trader.check_primary_condition_for_opening() and 
                               sec_cond and ban_condition)
-#            print("trader.chech_ground_condition_for_opening()")
-#            print(trader.chech_ground_condition_for_opening())
-#            print("trader.check_primary_condition_for_opening()")
-#            print(trader.check_primary_condition_for_opening())
-#            print("trader.check_secondary_contition_for_opening()")
-#            print(trader.check_secondary_contition_for_opening())
-#            print("ban_condition")
-#            print(ban_condition)
+            
             if condition_open:
-                profitability = strategys[name2str_map[trader.next_candidate.strategy
-                                                       ]].get_profitability(
-                                                       trader.next_candidate.p_mc, 
-                                                        trader.next_candidate.p_md, 
-                                                        int(np.abs(trader.next_candidate.bet)-1))
+#                profitability = strategys[name2str_map[trader.next_candidate.strategy
+#                                                       ]].get_profitability(
+#                                                       trader.next_candidate.p_mc, 
+#                                                        trader.next_candidate.p_md, 
+#                                                        int(np.abs(trader.next_candidate.bet)-1))
                 this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
                 out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
                        Assets[event_idx].decode("utf-8")+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                      " pofitability {0:.3f}".format(profitability)+
+                      #" pofitability {0:.3f}".format(profitability)+
                       " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(int(trader.next_candidate.bet))+
-                      " Open Condition met "+" SP = "+str(this_strategy.info_spread_ranges['sp'][t]))
+                      " Open Condition met "+" SP = "+str(sp))
                 print(out)
                 trader.write_log(out)
                 
@@ -1430,27 +1429,29 @@ if __name__ == '__main__':
                     #print("trader.available_bugdet_in_lots "+str(trader.available_bugdet_in_lots))
     
                     if trader.available_bugdet_in_lots>=lots:
+                        # add candidate for opening
+                        
                         approached, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, 
                                                                                       approached, 
                                                                                       n_pos_opened, 
-                                                                                      lots, t)
+                                                                                      lots, sp)
                     else:
                         no_budget = True
             elif (trader.chech_ground_condition_for_opening() and 
                   trader.check_primary_condition_for_opening() and 
                   not sec_cond):
                 #pass
-                profitability = strategys[name2str_map
-                                          [trader.next_candidate.strategy]
-                                          ].get_profitability(
-                                        trader.next_candidate.p_mc, 
-                                        trader.next_candidate.p_md, 
-                                        int(np.abs(trader.next_candidate.bet)-1))
+#                profitability = strategys[name2str_map
+#                                          [trader.next_candidate.strategy]
+#                                          ].get_profitability(
+#                                        trader.next_candidate.p_mc, 
+#                                        trader.next_candidate.p_md, 
+#                                        int(np.abs(trader.next_candidate.bet)-1))
                 out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
                        Assets[event_idx].decode("utf-8")+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                      " pofitability {0:.3f}".format(profitability)+
+                      #" pofitability {0:.3f}".format(profitability)+
                       " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(trader.next_candidate.bet)+
                       " Open condition not met")
@@ -1492,16 +1493,16 @@ if __name__ == '__main__':
                                 
                             elif dir_condition: # means that the reason for no extension is not direction change
                                 # extend conditon not met
-                                profitability = strategys[name2str_map[
-                                        trader.next_candidate.strategy]
-                                        ].get_profitability(trader.next_candidate.p_mc, 
-                                                            trader.next_candidate.p_md, 
-                                                            int(np.abs(trader.next_candidate.bet)-1))
+#                                profitability = strategys[name2str_map[
+#                                        trader.next_candidate.strategy]
+#                                        ].get_profitability(trader.next_candidate.p_mc, 
+#                                                            trader.next_candidate.p_md, 
+#                                                            int(np.abs(trader.next_candidate.bet)-1))
                                 out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
                                        Assets[event_idx].decode("utf-8")+
                                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                                      " pofitability {0:.3f}".format(profitability)+
+                                      #" pofitability {0:.3f}".format(profitability)+
                                       " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                                       str(trader.next_candidate.bet)+
                                       " cGROI {0:.2f} ".format(100*curr_GROI)+
@@ -1511,32 +1512,47 @@ if __name__ == '__main__':
                                 trader.write_log(out)
                                 
                                 EXIT, rewind = trader.update_candidates()
-                            elif prods_condition and strategys[name2str_map[
+                                
+                            
+                            elif strategys[name2str_map[
                                         trader.next_candidate.strategy]
                                         ].if_dir_change_close: # if p_mc/p_md greater than min values for market access, then close
+                                sp = trader.list_sps[trader.map_ass_idx2pos_idx[ass_idx]]
+                                this_strategy = strategys[name2str_map[
+                                        trader.next_candidate.strategy]]
+                                # check if the new level is as certain as the opening one
+                                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges['sp']) if x>=sp), 
+                                         len(this_strategy.info_spread_ranges['sp'])-1)
+                                
+                                prods_condition = trader.next_candidate.p_mc>=\
+                                    this_strategy.info_spread_ranges['th'][t][0]+\
+                                    this_strategy.info_spread_ranges['mar'][t][0] and\
+                                    trader.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
+                                    this_strategy.info_spread_ranges['mar'][t][1]
                                 # close due to change direction
 #                                close_dueto_dirchange += 1
-                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
-                                print(out)
-                                trader.write_log(out)
-#                                pass
-                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                                       Assets[event_idx].decode("utf-8")+
-                                       " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
-                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                                      " pofitability {0:.3f}".format(profitability)+
-                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
-                                      str(trader.next_candidate.bet)+
-                                      " cGROI {0:.2f} ".format(100*curr_GROI))
-                                print(out)
-                                trader.write_log(out)
-#                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
-##                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
-#                                print(out)
-#                                trader.write_log(out)
-                                trader.close_position(DateTimes[event_idx], 
-                                              Assets[event_idx].decode("utf-8"), 
-                                              ass_idx)
+                                if prods_condition:
+                                    out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Close due to change of direction"
+                                    print(out)
+                                    trader.write_log(out)
+    #                                pass
+                                    out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
+                                           Assets[event_idx].decode("utf-8")+
+                                           " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
+                                           " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+                                          #" pofitability {0:.3f}".format(profitability)+
+                                          " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+                                          str(trader.next_candidate.bet)+
+                                          " cGROI {0:.2f} ".format(100*curr_GROI))
+                                    print(out)
+                                    trader.write_log(out)
+    #                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" Change of direction."
+    ##                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
+    #                                print(out)
+    #                                trader.write_log(out)
+                                    trader.close_position(DateTimes[event_idx], 
+                                                  Assets[event_idx].decode("utf-8"), 
+                                                  ass_idx)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0
