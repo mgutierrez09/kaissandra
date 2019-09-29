@@ -1074,31 +1074,34 @@ def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,
     print("DONE")
     return DateTimes, SymbolBids, SymbolAsks, Assets, nEvents
 
+def round_num(number, prec):
+    return round(prec*number)/prec
 
 if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010PS2NYCMF181112T190822ALk1-2E5-2','R01010PS2NYCMF181112T190822BSk1-2E5-3']
-    list_name = ['01010PS2NYk1-2K2E5-2ALSRNSP60','01010PS2NYk1-2K2E5-3BSSRNSP60']
+    list_IDresults = ['R01010REDOCMF181112T190822ALk1-2K5E14','R01010REDOCMF181112T190822BSk1-2K5E14']
+    list_name = ['01010REDOk1-2K5E14ALSRNSP60','01010REDOk1-2K5E14BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.7, .8, .9, 1, 1.1, 1.2, 1.4, 1.5, 1.7, 1.9, 2, 2.3, 2.5, 3, 3.2, 3.7, 3.8, 4.2, 4.3, 4.6, 4.8, 5],
-                           'th':[(.5,.59),(.51,.59),(.54,.59),(.56,.59),(.57,.59),(.53,.6),(.51,.61),(.52,.61),(.54,.61),(.56,.61),(.57,.61),(.59,.61),(.6,.61),(.64,.61),(.65,.61),(.67,.61),(.68,.61),(.7,.61),(.67,.63),(.7,.62),(.72,.62),(.74,.62)],
-                           'mar':[(0,0) for _ in range(22)]},
-                          {'sp':[.6, .7, .8, .9, 1, 1.1, 1.2, 1.7, 1.9, 2.4, 2.9, 3.1, 3.6, 4.1, 5],
-                           'th':[(.5,.59),(.53,.59),(.56,.59),(.57,.59),(.58,.59),(.59,.59),(.64,.59),(.66,.59),(.67,.59),(.68,.59),(.7,.59),(.72,.59),(.73,.59),(.74,.59),(.75,.59)],
-                           'mar':[(0,0) for _ in range(15)]}]
+    list_spread_ranges = [{'sp':[.5, .6, .8, .9, 1, 1, 1.1, 1.3, 1.5, 1.5, 1.7, 2, 2.5, 2.7, 3.2, 3.4, 4.6, 5],
+                           'th':[(.57,.6),(.57,.61),(.52,.63),(.54,.63),(.56,.63),(.76,.57),(.57,.63),(.54,.64),(.69,.61),(.76,.58),(.58,.65),(.79,.58),(.73,.61),(.73,.64),(.77,.63),(.73,.65),(.75,.66),(.78,.65)],
+                           'mar':[(0,0) for i in range(18)]},
+                          {'sp':[.5, .6, .7, 1, 1, 1.1, 1.4, 1.5, 1.8, 2, 2.1, 2.6, 2.7, 2.8, 3.1, 3.3, 3.6, 3.7, 4.2, 4.4, 4.5, 5],
+                           'th':[(.53,.57),(.53,.58),(.5,.59),(.54,.59),(.66,.57),(.62,.58),(.66,.57),(.72,57),(.62,.59),(.76,.57),(.61,.6),(.61,.61),(.62,.61),(.66,.6),(.67,.6),(.71,.6),(.69,.61),(.73,.6),(.69,.61),(.71,.61),(.75,.6),(.8,.55)],
+                           'mar':[(0,0) for i in range(22)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5 for i in range(numberNetwors)]
-    list_lb_md_ext = [.59,.59]
+    list_lb_mc_ext = [.52, .5]
+    list_lb_md_ext = [.57,.57]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['','']
-    list_if_dir_change_close = [True for i in range(numberNetwors)]
+    list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
-    
+
     # depricated/not supported
+    list_IDgre = ['' for i in range(numberNetwors)]
     list_epoch_gre = [None for i in range(numberNetwors)]
     list_weights = [np.array([0,1]) for i in range(numberNetwors)]
     list_w_str = ["" for i in range(numberNetwors)]

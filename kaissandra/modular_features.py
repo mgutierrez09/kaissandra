@@ -358,6 +358,161 @@ def get_sar(sar, maxValue, minValue, n_parsars):
         
     return [parSARhigh, parSARlow, sar]
 
+def init_sto(numer_periods, number_channels):
+    """ Init Stochastic Oscilator signal """
+    class STO:
+        lows = np.zeros((numer_periods, number_channels)) # the lowest price traded in last numer_periods
+        highs = np.zeros((numer_periods, number_channels)) # the highest price traded in last numer_periods
+        value = 0
+    return STO
+
+def update_sto(STO, C, new_max, new_min, n_samples, lookback):
+    """ Update STO """
+    # get current channel
+    n_channels = STO.lows.shape[1]
+    chan = (n_samples-1)%n_channels
+    # shift registers
+    STO.lows[:-1,chan] = STO.lows[1:,chan]
+    STO.highs[:-1,chan] = STO.highs[1:,chan]
+    # update registers last positions
+    STO.lows[-1,chan] = new_min
+    STO.highs[-1,chan] = new_max
+    # update value
+    samples_chan = np.floor(n_samples/n_channels)
+    index = lookback-min(samples_chan, lookback)
+    STO.value = (C-min(STO.lows[index:,chan]))/(max(STO.highs[index:,chan])-min(STO.lows[index:,chan]))
+    
+    return STO
+
+def init_rsi(number_periods, number_channels):
+    """  """
+    class RSI:
+        returns = np.zeros((number_periods, number_channels)) # returns for the last number_periods
+        value = 0.0
+    return RSI
+
+def update_rsi(RSI, n_samples, last_return):
+    """ Update Relative Strength Index (RSI) """
+    n_channels = RSI.returns.shape[1]
+    chan = (n_samples-1)%n_channels
+    samples_chan = np.floor(n_samples/n_channels)
+    lookback = RSI.returns.shape[0]
+    n = min(samples_chan, lookback)
+    index = lookback-n
+    last_gain = max(0, last_return)
+    last_loss = max(0, (-1)*last_return)
+    if samples_chan==1:
+        gains = last_gain
+        losses = last_loss
+    else:
+        gains = np.sum(RSI.returns[RSI.returns[index:,chan]>=0])/n
+        losses = (-1)*np.sum(RSI.returns[RSI.returns[index:,chan]<=0])/n
+    # update returns
+    RSI.returns[:-1,chan] = RSI.returns[1:,chan]
+    RSI.returns[-1,chan] = last_return
+    # update registers last positions
+    if losses*(n-1)+last_loss!=0: # avoid division by zero
+        smoothened_gain = (gains*(n-1)+last_gain)/n
+        smoothened_loss = (losses*(n-1)+last_loss)/n
+        RSI.value = 1-1/(1+smoothened_gain/smoothened_loss)
+    else:
+        RSI.value = 1.0
+    return RSI
+
+def init_adx(number_periods, number_channels, first_symbols, mW):
+    """ Init Average Directional Index """
+    class ADX:
+        lookback = number_periods
+        DMplus = np.zeros((number_periods, number_channels))
+        DMminus = np.zeros((number_periods, number_channels))
+        TR = np.zeros((number_periods, number_channels))
+        prev_close = first_symbols[::mW]
+        prev_high = max(first_symbols)+np.zeros((number_channels))
+        prev_low = min(first_symbols)+np.zeros((number_channels))
+        
+        value = 0.0
+    return ADX
+
+def update_adx(ADX, symbols, n_samples):
+    """ Update ADX """
+    n_channels = ADX.returns.shape[1]
+    chan = (n_samples-1)%n_channels
+    samples_chan = np.floor(n_samples/n_channels)
+    lookback = ADX.lookback
+    n = min(samples_chan, lookback)
+    index = lookback-n
+    # max and min
+    max_symb = max(symbols)
+    min_symb = min(symbols)
+    # current values
+    currTR = max(max_symb-min_symb, abs(max_symb-ADX.prev_close[chan]), abs(ADX.prev_close[chan]-min_symb))
+    currDMp = max_symb-ADX.prev_high[chan] # DM+
+    currDMm = ADX.prev_low[chan]-min_symb # DM-
+    # smoothing values
+    sDMp = wilder_smoothing_1(ADX.DMplus[index:,chan], currDMp)# smoothed DM+
+    sDMm = wilder_smoothing_1(ADX.DMminus[index:,chan], currDMm)# smoothed DM-
+    ATR = wilder_smoothing_1(ADX.TR[index:,chan], currTR)# smoothed DM-
+    
+    DIp = sDMp/ATR
+    DIm = sDMm/ATR
+    try:
+        DX = abs(DIp-DIm)/abs(DIp+DIm) # WARNING! Check division by zero
+    except ZeroDivisionError:
+        DX = 1
+    ADX.value = wilder_smoothing_2(ADX.value, DX)
+    # update structure
+    ADX.prev_close[chan] = symbols[-1]
+    ADX.DMplus[:-1,chan] = ADX.DMplus[1:,chan]
+    ADX.DMplus[-1] = currDMp
+    ADX.DMminus[:-1,chan] = ADX.DMminus[1:,chan]
+    ADX.DMminus[-1] = currDMm
+    ADX.TR[:-1,chan] = ADX.TR[1:,chan]
+    ADX.TR[-1] = currTR
+    ADX.prev_high[chan] = max_symb
+    ADX.prev_low[chan] = min_symb
+    
+    return ADX
+
+def init_will(number_periods, number_channels):
+    """ Init Williams %R indicator """
+    class WILL:
+        lookback = number_periods
+        lows = np.zeros((number_periods, number_channels)) # the lowest price traded in last numer_periods
+        highs = np.zeros((number_periods, number_channels)) # the highest price traded in last numer_periods
+        value = 0
+        
+        value = 0.0
+    return WILL
+
+def update_will(WILL, C, new_max, new_min, n_samples, lookback):
+    """ Update Williams %R indicator """
+    n_channels = WILL.lows.shape[1]
+    chan = (n_samples-1)%n_channels
+    # shift registers
+    WILL.lows[:-1,chan] = WILL.lows[1:,chan]
+    WILL.highs[:-1,chan] = WILL.highs[1:,chan]
+    # update registers last positions
+    WILL.lows[-1,chan] = new_min
+    WILL.highs[-1,chan] = new_max
+    # update value
+    samples_chan = np.floor(n_samples/n_channels)
+    index = lookback-min(samples_chan, lookback)
+    WILL.value = (C-min(WILL.highs[index:,chan]))/(max(WILL.highs[index:,chan])-min(WILL.lows[index:,chan]))
+    
+    return WILL
+
+def wilder_smoothing_1(historic, curr):
+    """  """
+    periods = historic.shape[0]
+    if periods==0:
+        return sum(historic)
+    else:
+        return sum(historic)*(1-1/periods)+curr
+    
+def wilder_smoothing_2(prev, curr, period):
+    """  """
+    return (prev*(period-1)+curr)/period
+
 def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
     """
     Function that calculates features from raw data in per batches
@@ -394,6 +549,7 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
     # init scalars
     nExS = nEventsPerStat
     mW = movingWindow
+    number_channels = round(nExS/mW)
     
     features_files = []
     features = []
@@ -421,7 +577,19 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
     boolSars = [C.FI['parSARhigh'+i] in feature_keys for i in C.sar_ext]
     idxSars = [i for i in range(len(boolSars)) if boolSars[i]]
     n_parsars = sum(boolSars)#int(C.FI['parSARhigh20'] in feature_keys) + int(C.FI['parSARhigh2'] in feature_keys)
-        
+    # Stochastic Oscillators
+    boolStos = [C.FI['STO'+i] in feature_keys for i in C.sto_ext]
+    idxStos = [i for i in range(len(boolStos)) if boolStos[i]]
+    n_stos = sum(boolStos)
+    # RSIs
+    boolRSIs = [C.FI['RSI'+i] in feature_keys for i in C.rsi_ext]
+    idxRSIs = [i for i in range(len(boolRSIs)) if boolRSIs[i]]
+    n_rsis = sum(boolRSIs)
+    # ADXs
+    boolADXs = [C.FI['ADX'+i] in feature_keys for i in C.adx_ext]
+    idxADXs = [i for i in range(len(boolADXs)) if boolADXs[i]]
+    n_adxs = sum(boolADXs)
+    
     # loop over batched
     if len(features_files) > 0:
         if asset_relation=='inverse':
@@ -432,6 +600,14 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
         
         if n_parsars>0:
             sar = init_sar(Symbol[0])
+        # init STOs
+        sto_struct_list = [init_sto(int(C.sto_ext[st]), number_channels) for st in range(n_stos) if boolStos[st]]
+        
+        # init RSIs
+        rsi_struct_list = [init_rsi(int(C.rsi_ext[i]), number_channels) for i in range(n_rsis) if boolRSIs[i]]
+        
+        # init ADXs
+        adx_struct_list = [init_adx(int(C.adx_ext[i]), number_channels, Symbol[:nExS], mW) for i in range(n_adxs) if boolADXs[i]]
         
         batch_size = 10000000
         par_batches = int(np.ceil(m/batch_size))
@@ -465,6 +641,12 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
             if n_parsars>0:
                 parSARhigh = np.zeros((m_i, n_parsars))
                 parSARlow = np.zeros((m_i, n_parsars))
+            if n_stos>0:
+                STO = np.zeros((m_i, n_stos))
+            if n_rsis>0:
+                RSI = np.zeros((m_i, n_rsis))
+            if n_adxs>0:
+                ADX = np.zeros((m_i, n_adxs))
             if n_feat_tf>0:
                 features_tsfresh = np.zeros((m_i,n_feat_tf))
             
@@ -508,29 +690,28 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
                     parSARhigh[mm,:] = outsar[0]
                     parSARlow[mm,:] = outsar[1]
                     sar = outsar[2]
+                    
+                for st in range(n_stos):
+                    sto_struct_list[st] = update_sto(sto_struct_list[st], 
+                                   Symbol[thisPeriod[-1]], np.max(thisPeriodBids), 
+                                   np.min(thisPeriodBids), mm+1, C.sto_ext[idxStos[st]])
+                    STO[mm, st] = sto_struct_list[st].value
+                    
+                for i in range(n_rsis):
+                    rsi_struct_list[i] = update_rsi(rsi_struct_list[i], 
+                                   mm+1, Symbol[thisPeriod[-1]]-Symbol[thisPeriod[0]])
+                    RSI[mm, i] = rsi_struct_list[i].value
+                    
+                for i in range(n_adxs):
+                    adx_struct_list[i] = update_adx(adx_struct_list[i], Symbol[thisPeriod], mm+1)
+                    ADX[mm, i] = adx_struct_list[i].value
                 
                 if n_feat_tf>0:
                     for idx, feat in enumerate(feature_key_tsfresh):
                         func_name = C.PF[feat][1]
                         params = C.PF[feat][2:]
                         features_tsfresh[mm, idx] = feval(func_name,thisPeriodBids,params)
-                        
-#                        group_name_feat = group_name_chunck+'/'+str(f)
-#                        if group_name_feat not in file_features_tsf:
-#                            
-#                            new_feats = feval(params[0],x,params[1:])
-#                            n_new_feats = params[-1]
-#                            features[m_counter,c:c+n_new_feats] = new_feats                                
-#                            c += n_new_feats
-                    
-            # end of for mm in range(m_i):
-#            print("variance")
-#            print(variance)
-#            if n_feat_tf>0:
-#                for idx, feat in enumerate(feature_key_tsfresh):
-#                    func_name = C.PF[feat][1]
-#                    print(C.PF[feat][1])
-#                    print(features_tsfresh[:,idx])
+            # end of loop
             l_index = startIndex+mW
             #print(l_index)
             toc = time.time()
@@ -562,7 +743,7 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
                 if C.FI['parSARhigh'+C.sar_ext[idxSars[e]]] in feature_keys:
                     nF = feature_keys.index(C.FI['parSARhigh'+C.sar_ext[idxSars[e]]])
                     features[nF][init_idx:end_idx, 0] = parSARhigh[:,e]
-                #if C.FI['parSARlow'+C.sar_ext[idxSars[e]]] in feature_keys:
+                    
                     nF = feature_keys.index(C.FI['parSARlow'+C.sar_ext[idxSars[e]]])
                     features[nF][init_idx:end_idx, 0] = parSARlow[:,e]
             
@@ -619,6 +800,22 @@ def get_features_modular(config, groupdirname, DateTime, Symbol, m, shift):
                     nF = feature_keys.index(C.FI[feat_name])
                     features[nF][init_idx:end_idx, 0] = features_tsfresh[:,idx]
             
+            ## Trading features ##
+            # Stochastic oscilators
+            for st in range(n_stos):
+                if C.FI['STO'+C.sto_ext[idxStos[st]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['STO'+C.sto_ext[idxStos[st]]])
+                    features[nF][init_idx:end_idx, 0] = STO[:,st]
+            # RSI
+            for e in range(n_rsis):
+                if C.FI['RSI'+C.rsi_ext[idxRSIs[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['RSI'+C.rsi_ext[idxRSIs[e]]])
+                    features[nF][init_idx:end_idx, 0] = RSI[:,e]
+            # ADX
+            for e in range(n_adxs):
+                if C.FI['ADX'+C.adx_ext[idxADXs[e]]] in feature_keys:
+                    nF = feature_keys.index(C.FI['ADX'+C.adx_ext[idxADXs[e]]])
+                    features[nF][init_idx:end_idx, 0] = ADX[:,e]
         # close file
         (file.close() for file in features_files)
     else:

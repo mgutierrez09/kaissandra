@@ -118,7 +118,16 @@ class Config():
           "agg_mean5inter":60,
           "agg_min10inter":61,
           "agg_mean10inter":62,
-          "agg_max5inter":63}
+          "agg_max5inter":63,
+          # Trading Signals
+          "STO14":2000,
+          "STO3":2001,
+          "RSI14":2002,
+          "RSI3":2003,
+          "ADX14":2004,
+          "ADX3":2005,
+          "WILL14":2006,
+          "WILL3":2007}
     
     # Primary features
     PF = {FI["symbol"]:["symbol"],
@@ -185,7 +194,16 @@ class Config():
           FI["agg_mean5inter"]:["agg_mean5inter","agg_linear_trend","mean",5,"intercept"],
           FI["agg_min10inter"]:["agg_min10inter","agg_linear_trend","min",10,"intercept"],
           FI["agg_mean10inter"]:["agg_mean10inter","agg_linear_trend","mean",10,"intercept"],
-          FI["agg_max5inter"]:["agg_max5inter","agg_linear_trend","max",5,"intercept"]}
+          FI["agg_max5inter"]:["agg_max5inter","agg_linear_trend","max",5,"intercept"],
+          # Trading signals
+          FI["STO14"]:["STO14", [14]], # Stochastic Oscilator
+          FI["STO3"]:["STO3", [3]],
+          FI["RSI14"]:["RSI14", [14]], # Relative Strength Index
+          FI["RSI3"]:["RSI3", [3]],
+          FI["ADX14"]:["ADX14", [14]], # Average Directional Index
+          FI["ADX3"]:["ADX3", [3]], 
+          FI["WILL14"]:["WILL14", [14]],
+          FI["WILL3"]:["WILL3", [3]]}
     
     secsInDay = 86400.0
     
@@ -195,6 +213,9 @@ class Config():
     maxStepSars = [20, 2]
     stepAF = 0.02
     sar_ext = ['20','2']
+    sto_ext = ['14','3']
+    rsi_ext = ['14','3']
+    adx_ext = ['14','3']
     
     std_var = 0.1
     std_time = 0.1
@@ -671,41 +692,41 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN0101-40K5-2PS2SRv1'
+    config_name = 'TN01010FS2NYREDOK2K52145314SRv1'
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
         
-        numberNetworks = 4
-        IDresults = ['R01010PS2NYALk1-2K2E5-2','R01010PS2NYBSk1-2K2E5-3']+['R01040PS2ALk1-2K5E11-14','R01040PS2BSk1-2K5E14']
-        IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A'],['W01010PS2NYk1K2B','W01010PS2NYk2K2B'],['W01040PS2k1K5A','W01040PS2k2K5A'],['W01040PS2k1K5A','W01040PS2k2K5A']]
-        list_name = ['01010PS2NYk1-2K2E5-2ALSRNSP60','01010PS2NYk1-2K2E5-3BSSRNSP60']+['01040PS2k1-2K5E11-14ALSRNSP60','01040PS2k1-2K5E14BSSRNSP60']
-        list_spread_ranges = [{'sp':[.7, .8, .9, 1, 1.1, 1.2, 1.4, 1.5, 1.7, 1.9, 2, 2.3, 2.5, 3, 3.2, 3.7, 3.8, 4.2, 4.3, 4.6, 4.8, 5],
-                           'th':[(.5,.59),(.51,.59),(.54,.59),(.56,.59),(.57,.59),(.53,.6),(.51,.61),(.52,.61),(.54,.61),(.56,.61),(.57,.61),(.59,.61),(.6,.61),(.64,.61),(.65,.61),(.67,.61),(.68,.61),(.7,.61),(.67,.63),(.7,.62),(.72,.62),(.74,.62)],
-                           'mar':[(0,0) for _ in range(22)],
+        numberNetworks = 2
+        IDresults = ['R01010PS2NYREDOALk12K5k12K2E1452','R01010PS2NYREDOBSk12K5k12K2E1453']
+        IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A'],['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A']]
+        list_name = ['R01010PS2NYREDOALk12K5k12K2E1452SRNSP60','R01010PS2NYREDOBSk12K5k12K2E1453SRNSP60']
+        list_spread_ranges = [{'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
+                           'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
+                                 (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
+                                 (0.665, 0.61), (0.685, 0.625), (0.685, 0.625), (0.705, 0.62), (0.705, 0.62), (0.705, 0.62), (0.71, 0.62), (0.71, 0.62), (0.7, 0.63), (0.7, 0.63), 
+                                 (0.71, 0.635), (0.71, 0.635), (0.71, 0.635), (0.715, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.71, 0.645), (0.725, 0.64), 
+                                 (0.725, 0.64), (0.725, 0.64), (0.75, 0.635), (0.75, 0.635), (0.76, 0.635), (0.76, 0.635)],
+                           'mar':[(0,0) for _ in range(46)],
                            'dir':'ASKS'},
-                          {'sp':[.6, .7, .8, .9, 1, 1.1, 1.2, 1.7, 1.9, 2.4, 2.9, 3.1, 3.6, 4.1, 5],
-                           'th':[(.5,.59),(.53,.59),(.56,.59),(.57,.59),(.58,.59),(.59,.59),(.64,.59),(.66,.59),(.67,.59),(.68,.59),(.7,.59),(.72,.59),(.73,.59),(.74,.59),(.75,.59)],
-                           'mar':[(0,0) for _ in range(15)],
-                           'dir':'BIDS'}]+\
-                          [{'sp':[.5, .6, .7, .8, .9, 1.1, 1.2, 1.4, 1.6, 1.8, 1.9, 2.2, 2.5, 3.1, 3.4, 3.9, 4.7, 5],
-                           'th':[(.5,.6),(.66,.57),(.58,.6),(.5,.62),(.51,.62),(.7,.57),(.59,.62),(.7,.58),(.7,.59),(.66,.62),(.73,.57),(.66,.63),(.71,.62),(.73,.62),(.73,.63),(.74,.62),(.75,.62),(.79,.62)],
-                           'mar':[(0,0) for _ in range(18)],
-                           'dir':'ASKS'},
-                           {'sp':[.5, .6, .7, .8, .9, 1, 1.2, 1.4, 1.6, 1.7, 2.2, 2.5, 3.8, 4.3, 5],
-                           'th':[(.57,.61),(.58,.61),(.57,.62),(.64,.61),(.65,.61),(.69,.59),(.68,.61),(.68,.62),(.69,.61),(.69,.62),(.69,.67),(.71,.67),(.71,.69),(.76,.68),(.74,.7)],
-                           'mar':[(0,0) for _ in range(15)],
+                          {'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
+                           'th':[(0.515, 0.58), (0.515, 0.585), (0.515, 0.59), (0.55, 0.59), (0.555, 0.59), (0.56, 0.59), (0.605, 0.585), (0.65, 0.58), (0.66, 0.58), (0.66, 0.58), (0.64, 0.59), 
+                                 (0.64, 0.59), (0.64, 0.59), (0.645, 0.59), (0.64, 0.595), (0.645, 0.595), (0.645, 0.595), (0.645, 0.6), (0.645, 0.6), (0.645, 0.6), (0.655, 0.6), (0.655, 0.6), 
+                                 (0.66, 0.6), (0.68, 0.595), (0.685, 0.595), (0.695, 0.595), (0.695, 0.595), (0.72, 0.595), (0.72, 0.595), (0.71, 0.6), (0.71, 0.6), (0.71, 0.6), (0.735, 0.595), 
+                                 (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.72, 0.6), (0.73, 0.6), (0.73, 0.6), (0.75, 0.595), (0.775, 0.57), (0.775, 0.57), (0.775, 0.57), 
+                                 (0.775, 0.57), (0.775, 0.57)],
+                           'mar':[(0,0) for _ in range(46)],
                            'dir':'BIDS'}]
         
-        mWs = [500, 500, 400, 400]
-        nExSs = [5000, 5000, 4000, 4000]
-        outputGains = [1, 1, 1, 1]
+        mWs = [500, 500]
+        nExSs = [5000, 5000]
+        outputGains = [1, 1]
         #lBs = [1300]
-        list_feats_from_bids = [False, True, False, True]
+        list_feats_from_bids = [False, True]
         combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
         
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
-        stacked = [2, 2, 2, 2]
+        stacked = [4, 4]
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
                          'results_from':list_spread_ranges[i]['dir'],
@@ -715,15 +736,15 @@ def configuration_trader(*ins):
                        'nEventsPerStat':nExSs[i],
                        'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[5,2], [5,3], [11,14], [14,14]]
-        netNames = ['RRNN01010PS2NYAk1k2K2', 'RRNN01010PS2NYBk1k2K2', 'RRNN01040PS2Ak1k2K5n1', 'RRNN01040PS2Ak1k2K5n2']
-        list_t_indexs = [[0], [0], [0], [0]]
+        IDepoch = [[5,2,14,14], [5,3,14,14]]
+        netNames = ['R01010PS2NYREDOALk12K5k12K2E145', 'R01010PS2NYREDOBSk12K5k12K2E1453']
+        list_t_indexs = [[0], [0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
-        list_priorities = [[0], [0], [0], [0]]#[[3],[2],[1],[0]]
+        list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
         phase_shifts = [2 for i in range(numberNetworks)]
         
         

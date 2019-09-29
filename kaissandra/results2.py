@@ -637,12 +637,16 @@ def extract_result(TR, dict_inputs, kpi, constraints=['ROI>=.6GROI']):
 #    print(idxs)
     if max(idxs)>0:
         maxidx = TR[kpi][idxs].idxmax()
+        success = 1
     else:
         print("WARNING! Constraints not met found")
         maxidx = TR[kpi].idxmax()
-    return maxidx
+        success = 0
+    return maxidx, success
 
-def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, value, operation, name='NPS', apply_to='eROI', save=0, from_mg=False):
+def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, value, 
+                                operation, name='NPS', apply_to='eROI', save=0, 
+                                from_mg=False, very_best=False):
     """ Get best result subject to a constraint """
     import re
     
@@ -658,14 +662,6 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
         file.close()
         file = open(best_dir+'best'+name+str(value)+'.txt',"a")
     for b in best_results_list:
-#        best_filename = best_dir+'best_'+b+'.csv'
-#        if not os.path.exists(best_filename):
-#            if not from_mg:
-#                pd.DataFrame(columns = get_results_entries()).to_csv(best_filename, 
-#                            mode="w",index=False,sep='\t')
-#            else:
-#                pd.DataFrame(columns = get_performance_entries()).to_csv(best_filename, 
-#                            mode="w",index=False,sep='\t')
         if b in eROIs_list:# TEMP!! Only for eROIs
             # get extension
             ext = re.split(apply_to, b)[-1]
@@ -676,26 +672,8 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
                 constraint = {name+ext:lambda x:x>=value}
             elif operation == '>':
                 constraint = {name+ext:lambda x:x>value}
-            # extract index result
-#            print(TR)
-#            print(constraint)
-#            print(b)
-            idx = extract_result(TR, constraint, b, constraints=[])#TR[b].idxmax()
+            idx, success = extract_result(TR, constraint, b, constraints=[])#TR[b].idxmax()
 
-            
-        # reset file
-        
-#        if save:
-#            df = pd.DataFrame(TR.loc[idx:idx])
-#            success = 0
-#            while not success:
-#                try:
-#                    df.to_csv(best_filename, mode='a', header=False, index=False, sep='\t')
-#                    success = 1
-#                except PermissionError:
-#                    print("WARNING! PermissionError. Close programs using "+
-#                          best_filename)
-#                    time.sleep(1)
             if not from_mg:
                 thr_text = " thr_mc "+str(TR['thr_mc'].loc[idx])+\
                       " thr_md "+str(TR['thr_md'].loc[idx])
@@ -715,6 +693,33 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
             print(out)
             if not save:
                 file.write(out+"\n")
+            # extract list of best combinations
+            if very_best:
+                
+                epoch = TR['epoch'].loc[idx]
+#                mc = TR['thr_mc'].loc[idx]
+#                md = TR['thr_md'].loc[idx]
+                t_index = TR['t_index'].loc[idx]
+                TRcopy = TR[(TR['epoch']==epoch) & (TR['t_index']==t_index)]
+                #print(TRcopy)
+                TRcopy = TRcopy.drop_duplicates()
+                #print(TRcopy.drop_duplicates())
+                idx, success = extract_result(TRcopy, constraint, b, constraints=[])
+                # drop idx row
+                df = pd.DataFrame(TRcopy.loc[idx:idx])
+                list_best_filename = best_dir+'list_best_'+b+name+str(value)+'.csv'
+                pd.DataFrame(columns = get_results_entries()).to_csv(list_best_filename, 
+                            mode="w",index=False,sep='\t')
+                df.to_csv(list_best_filename, mode='a', header=False, index=False, sep='\t')
+                TRcopy = TRcopy.drop(idx)
+                while success and TRcopy.shape[0]>=1:
+                    idx, success = extract_result(TRcopy, constraint, b, constraints=[])
+                    if success:
+                        df = pd.DataFrame(TRcopy.loc[idx:idx])
+                        df.to_csv(list_best_filename, mode='a', header=False, index=False, sep='\t')
+                    TRcopy = TRcopy.drop(idx)
+                
+            
     if not save:
         file.close()
     return None
@@ -1590,13 +1595,15 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                          resultsDir, IDresults, save=1)
         print("\n\nBest constrait results:")
         get_best_results_constraint(TR[TR.epoch==epoch], results_filename, 
-                                resultsDir, IDresults, 57, 
+                                resultsDir, IDresults, 60, 
                                 '>=', name='NSP', apply_to='eROI', save=1)
         print("\nThe very best:")
         get_best_results(TR, results_filename, resultsDir, IDresults)
         print("\n\nThe very best constrait results:")
         get_best_results_constraint(TR, results_filename, resultsDir, 
-                                IDresults, 57, '>=', name='NSP', apply_to='eROI')
+                                IDresults, 50, '>=', name='NSP', apply_to='eROI', very_best=True)
+        get_best_results_constraint(TR, results_filename, resultsDir, 
+                                IDresults, 60, '>=', name='NSP', apply_to='eROI', very_best=True)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:

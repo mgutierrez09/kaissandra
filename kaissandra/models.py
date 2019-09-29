@@ -1320,8 +1320,9 @@ def retrieve_costs(tOt='tr', IDweights='FDNN00001', IDresults='FDNN10001'):
 #        weights_directory = params['weights_directory']
 #    else:
 #        weights_directory = local_vars.weights_directory
-    if os.path.exists(directory+"/cost.p"):
-        costs = pickle.load( open( directory+"/cost.p", "rb" ))
+    print("Loading "+directory+"cost.p")
+    if os.path.exists(directory+"cost.p"):
+        costs = pickle.load( open( directory+"cost.p", "rb" ))
     else:
         raise ValueError("File cost.p does not exist.")
 #    directory_list = sorted(os.listdir(weights_directory+IDweights+"/"))
