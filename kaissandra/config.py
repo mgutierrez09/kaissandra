@@ -90,7 +90,7 @@ class Config():
           "difSymbolOema10":34,
           "difSymbolOema50":35,
           "difSymbolOema100":36,
-          
+          # TSFRESH
           "quantile0.3":37,
           "quantile0.4":38,
           "quantile0.2":39,
@@ -120,14 +120,18 @@ class Config():
           "agg_mean10inter":62,
           "agg_max5inter":63,
           # Trading Signals
-          "STO14":2000,
+          "STO14":2000, # Stochastic Oscilator
           "STO3":2001,
-          "RSI14":2002,
+          "RSI14":2002, # Relative Strength Index
           "RSI3":2003,
-          "ADX14":2004,
+          "ADX14":2004, # Average Directional Index
           "ADX3":2005,
-          "WILL14":2006,
-          "WILL3":2007}
+          "WILL14":2006, # Williams %R indicator
+          "WILL3":2007,
+          "BOLLUP20":2008, # Bollinger Bands
+          "BOLLUP10":2009,
+          "BOLLLOW20":2010,
+          "BOLLLOW10":2011}
     
     # Primary features
     PF = {FI["symbol"]:["symbol"],
@@ -203,7 +207,11 @@ class Config():
           FI["ADX14"]:["ADX14", [14]], # Average Directional Index
           FI["ADX3"]:["ADX3", [3]], 
           FI["WILL14"]:["WILL14", [14]],
-          FI["WILL3"]:["WILL3", [3]]}
+          FI["WILL3"]:["WILL3", [3]],
+          FI["BOLLUP20"]:["BOLLUP20",[20]],
+          FI["BOLLUP10"]:["BOLLUP10",[10]],
+          FI["BOLLLOW20"]:["BOLLLOW20",[20]],
+          FI["BOLLLOW10"]:["BOLLLOW10",[10]]}
     
     secsInDay = 86400.0
     
@@ -216,6 +224,8 @@ class Config():
     sto_ext = ['14','3']
     rsi_ext = ['14','3']
     adx_ext = ['14','3']
+    will_ext = ['14','3']
+    boll_ext = ['20','10']
     
     std_var = 0.1
     std_time = 0.1

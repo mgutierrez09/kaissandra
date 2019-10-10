@@ -501,6 +501,31 @@ def update_will(WILL, C, new_max, new_min, n_samples, lookback):
     
     return WILL
 
+def init_boll(number_periods, number_channels):
+    """ Init Bollinger Bands """
+    class BOLL:
+        lookback = number_periods
+        TPs = np.zeros((number_periods, number_channels)) # typical prices vector
+        BOLU = 0.0
+        BOLD = 0.0
+        m = 2
+    return BOLL
+
+def update_boll(BOLL, symbols, n_samples):
+    """ Update Bollinger Bands """
+    n_channels = BOLL.TPs.shape[1]
+    chan = (n_samples-1)%n_channels
+    
+    TP = (max(symbols)+min(symbols)+symbols[-1])/3
+    BOLL.TPs[:-1,chan] = BOLL.TPs[1:,chan]
+    BOLL.TPs[-1,chan] = TP
+    sigma = np.var(BOLL.TPs[:,chan])
+    MA = np.mean(BOLL.TPs[:,chan])
+    BOLL.BOLU = MA+BOLL.m*sigma
+    BOLL.BOLD = MA-BOLL.m*sigma
+    
+    return BOLL
+
 def wilder_smoothing_1(historic, curr):
     """  """
     periods = historic.shape[0]
