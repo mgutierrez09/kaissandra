@@ -3466,7 +3466,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv1')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+            list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
         list_config_traders = [retrieve_config('TTEST01010FS2NYREDOK2K52145314SR')]#'TTEST10'#'TPRODN01010N01011'
@@ -3502,11 +3502,11 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = False
+send_info_api = True
 
 if __name__=='__main__':
     import sys
@@ -3520,7 +3520,7 @@ if __name__=='__main__':
         print(path+" already added to python path")
     synchroned_run = False
     test = False
-    config_names = ['TN01010FS2NYREDOK2K52145314SRv1']#['TTEST10']#'TPRODN01010N01011'
+    config_names = ['TN01010FS2NYREDOK2K52145314SRv2']#['TTEST10']#'TPRODN01010N01011'
     
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
