@@ -369,6 +369,7 @@ class Trader:
         self.list_deadlines = []
         self.positions_tracker = []
         self.list_symbols_tracking = []
+        self.list_is_asset_banned = [False for _ in running_assets]
         
         self.journal_idx = 0
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
@@ -579,7 +580,6 @@ class Trader:
         self.list_symbols_tracking = self.list_symbols_tracking\
             [:self.map_ass_idx2pos_idx[idx]]+self.list_symbols_tracking\
             [self.map_ass_idx2pos_idx[idx]+1:]
-            
         
         mask = self.map_ass_idx2pos_idx>self.map_ass_idx2pos_idx[idx]
         self.map_ass_idx2pos_idx[idx] = -1
@@ -1319,132 +1319,136 @@ class Trader:
                     self.add_new_candidate(position)
                     ass_idx = self.ass2index_mapping[thisAsset]
                     ass_id = self.running_assets[ass_idx]
-                    
-                    # open market
-                    if not self.is_opened(ass_id):
-                        # check if condition for opening is met
-                        condition_open, reason = self.check_contition_for_opening(tactic)
-                        if condition_open:
-                            # assign budget
-                            lots = self.assign_lots(new_entry[entry_time_column])
-                            # check if there is enough budget
-                            if self.available_bugdet_in_lots>=lots:
-                                if not run_back_test:
-                                    self.send_open_command(directory_MT5_ass, ass_idx)
-                                self.open_position(ass_id, lots, 
-                                                   new_entry[entry_time_column], 
-                                                   self.next_candidate.e_spread, 
-                                                   self.next_candidate.entry_bid, 
-                                                   self.next_candidate.entry_ask, 
-                                                   self.next_candidate.deadline)
-                            else: # no opening due to budget lack
-                                out = "Not enough budget"
-                                print("\r"+out)
+                    # check if asset is banned
+                    if not self.list_is_asset_banned[ass_idx]:
+                        # open market
+                        if not self.is_opened(ass_id):
+                            # check if condition for opening is met
+                            condition_open, reason = self.check_contition_for_opening(tactic)
+                            if condition_open:
+                                # assign budget
+                                lots = self.assign_lots(new_entry[entry_time_column])
+                                # check if there is enough budget
+                                if self.available_bugdet_in_lots>=lots:
+                                    if not run_back_test:
+                                        self.send_open_command(directory_MT5_ass, ass_idx)
+                                    self.open_position(ass_id, lots, 
+                                                       new_entry[entry_time_column], 
+                                                       self.next_candidate.e_spread, 
+                                                       self.next_candidate.entry_bid, 
+                                                       self.next_candidate.entry_ask, 
+                                                       self.next_candidate.deadline)
+                                else: # no opening due to budget lack
+                                    out = "Not enough budget"
+                                    print("\r"+out)
+                                    self.write_log(out)
+                                    # check swap of resources
+                                    if self.next_candidate.strategy.entry_strategy=='gre':
+            #                             and self.check_resources_swap()
+                                        # TODO: Check propertly function of swapinng
+                                        # lauch swap of resourves
+                                        pass
+                                        ### WARNING! With asynched traders no swap
+                                        ### possible
+                                        #self.initialize_resources_swap(directory_MT5_ass)
+                                # break loop over tactics
+                                continue
+                            else:
+                                out = new_entry[entry_time_column]+" not opened "+\
+                                          thisAsset+" due to "+reason
+                                if verbose_trader:
+                                    print("\r"+out)
                                 self.write_log(out)
-                                # check swap of resources
-                                if self.next_candidate.strategy.entry_strategy=='gre':
-        #                             and self.check_resources_swap()
-                                    # TODO: Check propertly function of swapinng
-                                    # lauch swap of resourves
-                                    pass
-                                    ### WARNING! With asynched traders no swap
-                                    ### possible
-                                    #self.initialize_resources_swap(directory_MT5_ass)
-                            # break loop over tactics
-                            continue
-                        else:
-                            out = new_entry[entry_time_column]+" not opened "+\
-                                      thisAsset+" due to "+reason
+                        else: # position is opened
+                            curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                            out = new_entry[entry_time_column]+" "+thisAsset+\
+                                           " deadline in "+str(self.list_deadlines[
+                                               self.map_ass_idx2pos_idx[ass_id]])+\
+                                            " current GROI = {0:.2f}%".format(100*curr_GROI)+\
+                                            " current ROI = {0:.2f}%".format(100*curr_ROI)
                             if verbose_trader:
                                 print("\r"+out)
                             self.write_log(out)
-                    else: # position is opened
-                        curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
-                        out = new_entry[entry_time_column]+" "+thisAsset+\
-                                       " deadline in "+str(self.list_deadlines[
-                                           self.map_ass_idx2pos_idx[ass_id]])+\
-                                        " current GROI = {0:.2f}%".format(100*curr_GROI)+\
-                                        " current ROI = {0:.2f}%".format(100*curr_ROI)
-                        if verbose_trader:
-                            print("\r"+out)
-                        self.write_log(out)
-                        # check for extension
-                        if self.check_primary_condition_for_extention(ass_id):
-                            
-                            extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
-                            if extention:    
-                                # include third condition for thresholds
-                                # extend deadline
-                                if not run_back_test:
-                                    self.send_open_command(directory_MT5_ass, ass_idx)
-                                self.update_position(ass_id)
-                                self.n_pos_extended += 1
-                                # track position
-                                self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
-                                # print out
+                            # check for extension
+                            if self.check_primary_condition_for_extention(ass_id):
                                 
-                                out = (new_entry[entry_time_column]+" "+
-                                       thisAsset+" Extended "+str(self.list_deadlines[
-                                           self.map_ass_idx2pos_idx[ass_id]])+" samps"+
-    #                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
-    #                                       self.map_ass_idx2pos_idx[ass_id]])+
-                                   " bet "+str(new_entry['Bet'])+
-                                   " p_mc={0:.2f}".format(new_entry['P_mc'])+
-                                   " p_md={0:.2f}".format(new_entry['P_md'])+ 
-                                   " spread={0:.3f}".format(new_entry['E_spread'])+
-                                   " strategy "+strategy_name)
-                                # send position extended command to api
-                                if send_info_api:
-                                    self.send_extend_pos_api(new_entry[entry_time_column], 
-                                                             thisAsset, 100*curr_GROI, 
-                                                             new_entry['P_mc'], new_entry['P_md'], 
-                                                             int(new_entry['Bet']), strategy_name,
-                                                             100*curr_ROI, 
-                                                             self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
-                                #out = new_entry[entry_time_column]+" Extended "+thisAsset
-                                if verbose_trader:
-                                    print("\r"+out)
-                                self.write_log(out)
-                            else: # if candidate for extension does not meet requirements
-                                out = new_entry[entry_time_column]+" not extended "+\
-                                      thisAsset+" due to "+reason
-                                if verbose_trader:
-                                    print("\r"+out)
-                                self.write_log(out)
-                        else: # if direction is different
-                            this_strategy = self.next_candidate.strategy
-                            close_pos = False
-                            #if this_strategy.if_dir_change_close:
-                            # TODO: Deeper analysis on when to close due to direction change
-                            if this_strategy.entry_strategy=='spread_ranges':
-                                if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
-                                self.check_same_strategy(ass_id) and \
-                                self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0] and \
-                                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]:
-                                    close_pos = True
-                            elif this_strategy.entry_strategy=='gre_v2':
-                                if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
-                                self.check_same_strategy(ass_id) and \
-                                self.next_candidate.profitability>self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
-                                    print("self.next_candidate.profitability")
-                                    print(self.next_candidate.profitability)
-                                    print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
-                                    print(self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability)
-                                    close_pos = True
-                            if close_pos:
-                                # close position due to direction change
-                                out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
-                                +" closing due to direction change!"
-                                if verbose_trader:
-                                    print("\r"+out)
-                                self.write_log(out)
-                                if run_back_test:
-                                    self.close_position(new_entry[entry_time_column], 
-                                                        thisAsset, ass_id, results)
-                                else:
-                                    send_close_command(thisAsset)
-    #                                # TODO: study the option of not only closing 
-                        # end of extention options
+                                extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
+                                if extention:    
+                                    # include third condition for thresholds
+                                    # extend deadline
+                                    if not run_back_test:
+                                        self.send_open_command(directory_MT5_ass, ass_idx)
+                                    self.update_position(ass_id)
+                                    self.n_pos_extended += 1
+                                    # track position
+                                    self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
+                                    # print out
+                                    
+                                    out = (new_entry[entry_time_column]+" "+
+                                           thisAsset+" Extended "+str(self.list_deadlines[
+                                               self.map_ass_idx2pos_idx[ass_id]])+" samps"+
+        #                               " Lots {0:.1f} ".format(self.list_lots_per_pos[
+        #                                       self.map_ass_idx2pos_idx[ass_id]])+
+                                       " bet "+str(new_entry['Bet'])+
+                                       " p_mc={0:.2f}".format(new_entry['P_mc'])+
+                                       " p_md={0:.2f}".format(new_entry['P_md'])+ 
+                                       " spread={0:.3f}".format(new_entry['E_spread'])+
+                                       " strategy "+strategy_name)
+                                    # send position extended command to api
+                                    if send_info_api:
+                                        self.send_extend_pos_api(new_entry[entry_time_column], 
+                                                                 thisAsset, 100*curr_GROI, 
+                                                                 new_entry['P_mc'], new_entry['P_md'], 
+                                                                 int(new_entry['Bet']), strategy_name,
+                                                                 100*curr_ROI, 
+                                                                 self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
+                                    #out = new_entry[entry_time_column]+" Extended "+thisAsset
+                                    if verbose_trader:
+                                        print("\r"+out)
+                                    self.write_log(out)
+                                else: # if candidate for extension does not meet requirements
+                                    out = new_entry[entry_time_column]+" not extended "+\
+                                          thisAsset+" due to "+reason
+                                    if verbose_trader:
+                                        print("\r"+out)
+                                    self.write_log(out)
+                            else: # if direction is different
+                                this_strategy = self.next_candidate.strategy
+                                close_pos = False
+                                #if this_strategy.if_dir_change_close:
+                                # TODO: Deeper analysis on when to close due to direction change
+                                if this_strategy.entry_strategy=='spread_ranges':
+                                    if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                                    self.check_same_strategy(ass_id) and \
+                                    self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0] and \
+                                    self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]:
+                                        close_pos = True
+                                elif this_strategy.entry_strategy=='gre_v2':
+                                    if this_strategy.if_dir_change_close and not self.check_same_direction(ass_id) and \
+                                    self.check_same_strategy(ass_id) and \
+                                    self.next_candidate.profitability>self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability:
+                                        print("self.next_candidate.profitability")
+                                        print(self.next_candidate.profitability)
+                                        print("self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability")
+                                        print(self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].profitability)
+                                        close_pos = True
+                                if close_pos:
+                                    # close position due to direction change
+                                    out = "WARNING! "+new_entry[entry_time_column]+" "+thisAsset\
+                                    +" closing due to direction change!"
+                                    if verbose_trader:
+                                        print("\r"+out)
+                                    self.write_log(out)
+                                    if run_back_test:
+                                        self.close_position(new_entry[entry_time_column], 
+                                                            thisAsset, ass_id, results)
+                                    else:
+                                        send_close_command(thisAsset)
+        #                                # TODO: study the option of not only closing 
+                            # end of extention options
+                    else: # asset banned
+                        self.track_banned_asset(new_entry, ass_idx)
+                        
                 # end of for tactics    
             else:
                 pass
@@ -1620,10 +1624,12 @@ class Trader:
                             list_idx = self.map_ass_idx2pos_idx[ass_id]
                             self.close_position(DateTime, asset, ass_id, results, from_sl=1)
                             if run_back_test:
-                                bid = self.list_last_bid[list_idx][-1]
+                                pass
+#                                bid = self.list_last_bid[list_idx][-1]
                             else:
                                 bid = self.list_symbols_tracking[list_idx].SymbolBid.iloc[-1]
-                            lists = flush_asset(lists, ass_idx, bid)
+#                            lists = flush_asset(lists, ass_idx, bid)
+                            self.ban_asset(DateTime, asset, ass_idx)
                         else:
                             out = asset+" NOT banned due to different directions"
                             print(out)
@@ -1643,9 +1649,9 @@ class Trader:
             
         return lists
     
-    def send_ban_command(self, ban_asset, message):
+    def send_ban_command(self, asset_banned, message):
         """ Send ban command to an asset """
-        file = open(self.ban_currencies_dir+self.start_time+ban_asset,"w")
+        file = open(self.ban_currencies_dir+self.start_time+asset_banned,"w")
         file.write(message+"\n")
         file.close()
         return None
@@ -1661,6 +1667,51 @@ class Trader:
                      thisDirection*otherDirection<0))
         
         return condition
+    
+    def ban_asset(self, DateTime, thisAsset, ass_idx):
+        """  """
+        self.list_is_asset_banned[ass_idx] = True
+        if not hasattr(self, 'list_dict_banned_assets'):
+            self.list_dict_banned_assets = [None for _ in self.list_is_asset_banned]
+            
+        tracing_dict = {'lastDateTime':DateTime,
+                        'counter':100}
+        self.list_dict_banned_assets[ass_idx] = tracing_dict
+        out = DateTime+" "+thisAsset+\
+                " ban counter set to "\
+                +str(self.list_dict_banned_assets[ass_idx]['counter'])
+        if verbose_trader:
+            print("\r"+out)
+        self.write_log(out)
+        
+    def track_banned_asset(self, entry, ass_idx):
+        """ """
+        
+        if self.list_dict_banned_assets[ass_idx]['lastDateTime'] != entry[entry_time_column]:
+            self.list_dict_banned_assets[ass_idx]['lastDateTime'] = entry[entry_time_column]
+            self.list_dict_banned_assets[ass_idx]['counter'] -= 1
+            out = entry[entry_time_column]+" "+entry['Asset']+\
+                " ban counter set to "\
+                +str(self.list_dict_banned_assets[ass_idx]['counter'])
+            if verbose_trader:
+                print("\r"+out)
+            self.write_log(out)
+            if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
+                self.lift_ban_asset(ass_idx)
+                out = "Ban lifted"
+                if verbose_trader:
+                    print("\r"+out)
+                self.write_log(out)
+        else:
+            out = entry[entry_time_column]+" "+entry['Asset']+\
+                " ban counter already reduced for this DT"
+            if verbose_trader:
+                print("\r"+out)
+            self.write_log(out)
+                
+    def lift_ban_asset(self, ass_idx):
+        """  """
+        self.list_is_asset_banned[ass_idx] = False
 
 def write_log(log_message, log_file):
         """
@@ -1683,7 +1734,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
 ##################################################################################################################################
 ########################################################## WARNING!!!!! ##########################################################
 ##################################################################################################################################
-    thr_mc = 0.5
+    thr_mc = 0
     thr_levels = 5
     lb_level = 5
     first_nonzero = 0
@@ -1780,9 +1831,9 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 listFillingX[sc] = False
         else:
 ########################################### Predict ###########################            
-            if verbose_RNN:
-                out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName
-                print("\r"+out, sep=' ', end='', flush=True)
+#            if verbose_RNN:
+#                out = tradeInfoLive.DateTime.iloc[-1]+" "+thisAsset+netName
+#                print("\r"+out, sep=' ', end='', flush=True)
                 #write_log(out, log_file)
             
             soft_tilde = model.predict(list_X_i[sc])
@@ -1842,6 +1893,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 elif verbose_RNN:
                     Bi = int(np.round(tradeInfoLive.SymbolBid.iloc[-1]*100000))/100000
                     Ai = int(np.round(tradeInfoLive.SymbolAsk.iloc[-1]*100000))/100000
+                    
                     out = thisAsset+netName+\
                         tradeInfoLive.DateTime.iloc[-1]+\
                         " Bi "+str(Bi)+" Ai "+str(Ai)+\
@@ -2492,7 +2544,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 list_idx = trader.map_ass_idx2pos_idx[ass_id]
 #                bid = float(info_split[6])
 #                ask = float(info_split[7])
-                DateTime = info_split[2]
+#                DateTime = info_split[2]
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
                     
@@ -2526,7 +2578,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
-                
+                # ban asset
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, 
                                               results, direction)
             
@@ -2850,7 +2902,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
     dir_log = dir_results+'log/'
     if not os.path.exists(dir_log):
         os.makedirs(dir_log)
-    AllAssets = Data().AllAssets
+    AllAssets = C.AllAssets
     # unique network list
     unique_nets = []
     list_models = []
@@ -3149,8 +3201,8 @@ def run(config_traders_list, running_assets, start_time, test, api):
     if 1:
         shutdown = False
         if run_back_test:
-            first_day = '2018.12.31'
-            last_day = '2019.01.04'
+            first_day = '2018.11.12'
+            last_day = '2019.08.22'
             init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
             end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
             delta_dates = end_day-init_day
@@ -3160,7 +3212,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
                 if d.weekday()<5:
                     dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
             ##### TEMP! #####
-            dateTest = dateTest+['2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15']
+#            dateTest = dateTest+['2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15']
             day_index = 0
             #t_journal_entries = 0
             week_counter = 0
@@ -3226,7 +3278,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
                 lists['list_stds_in'] = list_stds_in
                 lists['list_stds_out'] = list_stds_out
                 lists['ADs'] = ADs
-                lists['netNames'] = unique_netNames
+                lists['netNames'] = netNames
                 lists['listCountPoss'] = listCountPoss
                 lists['list_list_weights_matrix'] = list_list_weights_matrix
                 lists['list_list_time_to_entry'] = list_list_time_to_entry
@@ -3399,8 +3451,8 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[2,3,4,7,10,11,12,13,14,16,17,19,28,29,31], 
-           synchroned_run=True, test=False, api=None):
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+           synchroned_run=False, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
     import datetime as dt
@@ -3417,7 +3469,7 @@ def launch(config_names=[], running_assets=[2,3,4,7,10,11,12,13,14,16,17,19,28,2
             list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv1')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv1')]#'TTEST10'#'TPRODN01010N01011'
+        list_config_traders = [retrieve_config('TTEST01010FS2NYREDOK2K52145314SR')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     #print("Test "+str(test))
@@ -3426,7 +3478,7 @@ def launch(config_names=[], running_assets=[2,3,4,7,10,11,12,13,14,16,17,19,28,2
         sessiontype = 'backtest'
     else:
         sessiontype = 'live'
-    renew_directories(Data().AllAssets, running_assets)
+    renew_directories(C.AllAssets, running_assets)
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
     print("send_info_api")
@@ -3450,11 +3502,11 @@ def launch(config_names=[], running_assets=[2,3,4,7,10,11,12,13,14,16,17,19,28,2
 verbose_RNN = True
 verbose_trader = True
 #test = False
-run_back_test = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = True
+send_info_api = False
 
 if __name__=='__main__':
     import sys
@@ -3467,9 +3519,9 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-
-    config_names = ['TN01010FS2NYREDOK2K52145314SRv1']#['TTEST10']#'TPRODN01010N01011'
     test = False
+    config_names = ['TN01010FS2NYREDOK2K52145314SRv1']#['TTEST10']#'TPRODN01010N01011'
+    
     for arg in sys.argv:
         if re.search('^synchroned_run=False',arg)!=None:
             synchroned_run = False
@@ -3484,8 +3536,7 @@ if __name__=='__main__':
 #        raise ValueError("test cannot be False if config_names is TTEST")
     #
 from kaissandra.simulateTrader import load_in_memory
-from kaissandra.inputs import (Data,
-                                   initFeaturesLive_v2,
+from kaissandra.inputs import (initFeaturesLive_v2,
                                    extractFeaturesLive_v2)
 from kaissandra.preprocessing import (load_stats_manual_v2,
                                           load_stats_output_v2)
@@ -3494,7 +3545,7 @@ import shutil
 from kaissandra.local_config import local_vars as LC
 if send_info_api:
     from kaissandra.prod.api import API
-
+from kaissandra.config import Config as C
 
 #directory_MT5_IO = local_vars.directory_MT5_IO
 #io_dir = local_vars.io_live_dir

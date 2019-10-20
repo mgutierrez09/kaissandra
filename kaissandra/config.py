@@ -702,7 +702,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN01010FS2NYREDOK2K52145314SRv1'
+    config_name = 'TN01010FS2NYREDOK2K52145314SRv2'#'TTEST01010FS2NYREDOK2K52145314SR'#
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -759,7 +759,7 @@ def configuration_trader(*ins):
         
         
         list_lim_groi_ext = [-10 for i in range(numberNetworks)]
-        list_thr_sl = [50 for i in range(numberNetworks)]#50
+        list_thr_sl = [30 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.02 for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
