@@ -106,6 +106,9 @@ def reset_networks():
             #print("Sent command to "+directory_MT5_ass)
             send_command(directory_io_ass, command)
 
+from kaissandra.config import Config
+from kaissandra.local_config import local_vars
+    
 if __name__=='__main__':
     # add kaissandra to path
     
@@ -117,8 +120,7 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     
-    from kaissandra.config import Config
-    from kaissandra.local_config import local_vars
+    
     #from kaissandra.prod.config import Config as CC
     
     for arg in sys.argv:

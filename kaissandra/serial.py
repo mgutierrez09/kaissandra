@@ -3506,7 +3506,7 @@ run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = True
+send_info_api = False
 
 if __name__=='__main__':
     import sys

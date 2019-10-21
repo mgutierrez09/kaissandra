@@ -1366,6 +1366,15 @@ def print_results_mg(acc, CM, PR, RC, FS, scores, t, t_idx):
 #        print(FS[:,t,s])
     return None
 
+#def extract_wrong_predictions(wrong_preds, Journal_wrong, t):
+#    """ Extract wong predictions from journal """
+#    wrong_preds.append(np.array(Journal_wrong.index))
+#    return wrong_preds
+
+#def save_wrong_predictions(wrong_preds, dirfilename):
+#    """  """
+#    pickle.dump(wrong_preds, open( dirfilename, "wb" ))
+
 def get_results(config, y, DTA, J_test, soft_tilde,
                  costs, epoch, lastTrained, results_filename,
                  costs_filename, from_var=False, keep_old_cost=False):
@@ -1374,19 +1383,6 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         - 
     Return:
         - """
-#    print("y")
-#    print(y)
-#    print(y.shape)
-#    print(np.sum(np.sum(y[:,0,1:3],axis=1)))
-#    print(np.sum(1-y[:,0,5]))
-#    print(np.sum(y[:,0,0]))
-#    print("soft_tilde")
-#    print(soft_tilde[:,-1,:])
-#    mc5=soft_tilde[:,-1,0]>.5
-#    print(soft_tilde[mc5,-1,:])
-#    print(soft_tilde[mc5,-1,0])
-#    a=p
-    #dateTest = config['dateTest']
     IDresults = config['IDresults']
     IDweights = config['IDweights']
     save_journal = config['save_journal']
@@ -1412,16 +1408,6 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         asset_relation = 'direrct'
     if 'combine_ts' in config:
         combine_ts = config['combine_ts']
-    
-    
-#        if_combine = config['combine_ts']['if_combine']
-#        params_combine = config['combine_ts']['params_combine']
-#        columns_AD = [str(tmc)+str(tmd) for tmc in thresholds_md for tmd in thresholds_md]#config['combine_ts']['columns_AD']
-#        map_idx2thr = [columns_AD.index(str(int(tmc*10))+str(int(tmd*10))) \
-#                       for tmc in thresholds_mc for tmd in thresholds_md]
-#        extra_ts = len(params_combine)
-#        weights_list = [np.zeros((model.seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
-        
         if_combine = combine_ts['if_combine']
         if if_combine:
             extended_t_index = [seq_len]
@@ -1437,15 +1423,6 @@ def get_results(config, y, DTA, J_test, soft_tilde,
 
         weights_list = [np.zeros((seq_len+1,len(columns_AD),1)) for i in range(extra_ts)]
         
-        
-        #map_idx2thr = np.zeros((len(thresholds_mc)*len(thresholds_md))).astype(int)
-        
-#        idx = 0
-#        for tmc in thresholds_mc:
-#            for tmd in thresholds_md:
-#                col_name = str(int(tmc*10))+str(int(tmd*10))
-#                map_idx2thr[idx] = columns_AD.index(col_name)
-#                idx += 1
     else:
         if_combine = False
         extra_ts = 0
@@ -1537,6 +1514,12 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                                       ys_mc['probs_mc'][ys_md['y_md_tilde']], 
                                       ys_md['probs_md'])
                 
+#                if extract_wrong_preds and thr_mc==.5 and thr_md==.5:
+#                    Journal_wrong = Journal[Journal['Diff']<0]
+#                    if t_index==0: # init wrong indexes
+#                        wrong_preds = []
+#                    wrong_preds = extract_wrong_predictions(wrong_preds, Journal_wrong, t_index)
+                    
                 # Filter out positions with non-tackled direction
                 Journal = filter_journal(config, Journal)
                 # flip journal if the assets are inverted
@@ -1587,6 +1570,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
             print('')
         # end of for thr_mc in thresholds_mc:
     # end of for t_index in range(model.seq_len+1):
+#    if extract_wrong_preds:
+#        save_wrong_predictions(wrong_preds, dirfilename)
     # extract best result this epoch
     if resolution>0:
         TR = pd.read_csv(results_filename+'.csv', sep='\t')
