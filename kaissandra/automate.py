@@ -214,7 +214,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False, extW=''):
+                 oneNet=False, extW='', only_misclassified=False, misclass_name=''):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
@@ -238,9 +238,25 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         IDresults = config['IDresults']
         if not just_build:
             f_IOtr = h5py.File(dirfilename_tr,'r')
-            if 'Tr' in tAt:
+            if 'Tr' in tAt and not only_misclassified:
                 Ytr = f_IOtr['Y']
                 Xtr = f_IOtr['X']
+            elif only_misclassified:
+                print(dirfilename_tr)
+                error_idx_vect = pickle.load( open( local_vars.RNN_directory+'error/'+(dirfilename_tr.split('/')[-1]).split('.')[0]+'.p', "rb" ))
+                n_misclassified = sum(error_idx_vect)
+                f_tr = h5py.File(local_vars.IO_directory+rootname_config+'k'+str(fold_idx+1)+'K'+str(K)+misclass_name+'.hdf5','w')
+                shapeX = f_IOtr['X'].shape
+                shapeY = f_IOtr['Y'].shape
+                print("only_misclassified TRUE")
+                print("Shape original struct: "+str(shapeX))
+                print("Number of misclassified entries: "+str(n_misclassified))
+                Xtr = f_tr.create_dataset('X', (n_misclassified, shapeX[1], shapeX[2]),
+                                dtype=float)
+                Ytr = f_tr.create_dataset('Y', (n_misclassified, shapeY[1], shapeY[2]),
+                                dtype=float)
+                Xtr[:,:,:] = f_IOtr['X'][n_misclassified,:,:]
+                Ytr[:,:,:] = f_IOtr['Y'][n_misclassified,:,:]
             f_IOte = h5py.File(dirfilename_te,'r')
             if 'Te' in tAt:
                 Yte = f_IOte['Y']

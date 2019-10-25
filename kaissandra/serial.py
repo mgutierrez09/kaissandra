@@ -1623,11 +1623,11 @@ class Trader:
                             
                             list_idx = self.map_ass_idx2pos_idx[ass_id]
                             self.close_position(DateTime, asset, ass_id, results, from_sl=1)
-                            if run_back_test:
-                                pass
-#                                bid = self.list_last_bid[list_idx][-1]
-                            else:
-                                bid = self.list_symbols_tracking[list_idx].SymbolBid.iloc[-1]
+#                            if run_back_test:
+#                                pass
+##                                bid = self.list_last_bid[list_idx][-1]
+#                            else:
+#                                bid = self.list_symbols_tracking[list_idx].SymbolBid.iloc[-1]
 #                            lists = flush_asset(lists, ass_idx, bid)
                             self.ban_asset(DateTime, asset, ass_idx)
                         else:
@@ -1683,6 +1683,8 @@ class Trader:
         if verbose_trader:
             print("\r"+out)
         self.write_log(out)
+        if send_info_api:
+            api.send_network_log(out)
         
     def track_banned_asset(self, entry, ass_idx):
         """ """
@@ -1696,19 +1698,25 @@ class Trader:
             if verbose_trader:
                 print("\r"+out)
             self.write_log(out)
+            if send_info_api:
+                api.send_network_log(out)
             if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
                 self.lift_ban_asset(ass_idx)
                 out = "Ban lifted"
                 if verbose_trader:
                     print("\r"+out)
                 self.write_log(out)
+                if send_info_api:
+                    api.send_network_log(out)
         else:
             out = entry[entry_time_column]+" "+entry['Asset']+\
                 " ban counter already reduced for this DT"
             if verbose_trader:
                 print("\r"+out)
             self.write_log(out)
-                
+            if send_info_api:
+                api.send_network_log(out)
+    
     def lift_ban_asset(self, ass_idx):
         """  """
         self.list_is_asset_banned[ass_idx] = False
@@ -3451,7 +3459,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[10,11,12,13,14,31], 
            synchroned_run=False, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3469,7 +3477,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
             list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
-        list_config_traders = [retrieve_config('TTEST01010FS2NYREDOK2K52145314SR')]#'TTEST10'#'TPRODN01010N01011'
+        list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
         print("WARNING! TEST ON")
     print("synchroned_run: "+str(synchroned_run))
     #print("Test "+str(test))
@@ -3519,7 +3527,7 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-    test = False
+    test = True
     config_names = ['TN01010FS2NYREDOK2K52145314SRv2']#['TTEST10']#'TPRODN01010N01011'
     
     for arg in sys.argv:
