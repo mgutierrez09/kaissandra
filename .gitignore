@@ -3,4 +3,5 @@
 kaissandra/local_config.py
 notebooks/.ipynb_checkpoints
 /__pycache__/
-
+/notebooks/
+/kaissandra/prod/__pycache__

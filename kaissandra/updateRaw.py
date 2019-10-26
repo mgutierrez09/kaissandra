@@ -12,7 +12,8 @@ import h5py
 import numpy as np
 import pandas as pd
 import datetime as dt
-from inputs import Data, extractSeparators
+from kaissandra.inputs import Data, extractSeparators
+from kaissandra.local_config import local_vars
 
 def check_consecutive_trading_days(directory,prev_day, post_day):
     """
@@ -138,6 +139,11 @@ def merge_separators_list(list_bussines_days, data, separators_list, thrs):
             # if there is a transition between training and testing dates
             if (time_difference.total_seconds()/60-24*60*time_difference.days>thrs or 
                 transition_train_test(data, prev_day, post_day)):
+#                print(time_difference.days)
+#                print(prev_day)
+#                print(post_day)
+#                print(time_difference.total_seconds()/60-24*60*time_difference.days)
+#                print('ifif')
                 # append day separators to separators
                 separators = separators.append(separators_list[s].iloc[-1]).append(separators_list[s+1].iloc[0])
             else:
@@ -152,13 +158,24 @@ def merge_separators_list(list_bussines_days, data, separators_list, thrs):
     separators = separators.append(pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"],data=separators_list[-1].iloc[-1:]))
     return separators
 
+def find_bussines_days_v2(first_day=dt.datetime(2016, 1, 1, 0, 0).date(), 
+                          last_day=dt.datetime(2018, 11, 9, 0 ,0).date()):
+    """  """
+    delta_dates = last_day-first_day
+    dateTestDt = [first_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+    bussines_days = []
+    for d in dateTestDt:
+        if d.weekday()<5:
+            bussines_days.append(dt.date.strftime(d,'%Y.%m.%d'))
+    return bussines_days
+
 def find_bussines_days(data, directory_destination):
     # loop over all assets
     b_days_list = []
     for ass in data.assets:
         thisAsset = data.AllAssets[str(ass)]
         #print(thisAsset)
-        directory_origin = 'D:/SDC/py/Data/'+thisAsset+'/'#'../Data/'+thisAsset+'/'
+        directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
             
         files_list = []
         # get files list, and beginning and end current dates
@@ -196,9 +213,46 @@ def find_bussines_days(data, directory_destination):
     #print(missing_days['Days'].tolist())
     b_days_list = sorted(b_days_list+missing_days['Days'].tolist())
     return b_days_list
-                    
 
-dateTest = ([                                                    '2018.03.09',
+def get_dateTest(init_date='2017.09.27', end_date='2018.11.09'):
+    """  """
+    init_day = dt.datetime.strptime(init_date,'%Y.%m.%d').date()
+    end_day = dt.datetime.strptime(end_date,'%Y.%m.%d').date()
+#    init_day = dt.datetime.strptime('2018.11.12','%Y.%m.%d').date()
+#    end_day = dt.datetime.strptime('2019.03.29','%Y.%m.%d').date()
+#    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
+#    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+    delta_dates = end_day-init_day
+    dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+#    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+    dateTest = []
+    for d in dateTestDt:
+        if d.weekday()<5:
+            dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+    return dateTest
+# limit the build of the HDF5 to data comprised in these dates
+build_partial_raw = False
+build_test_db = True
+int_date = '180928'
+end_date = '181109'
+init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
+end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
+
+directory_destination = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'
+if build_partial_raw and not build_test_db:
+    hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
+    directory_root = 'D:/SDC/py/Data/'
+    separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
+elif build_test_db and not build_partial_raw:
+    hdf5_file_name = 'tradeinfo_test.hdf5'
+    directory_root = local_vars.data_test_dir
+    separators_directory_name = 'separators_test/'
+    dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.08.23')
+elif not build_test_db and not build_partial_raw:
+    hdf5_file_name = 'tradeinfo.hdf5'
+    separators_directory_name = 'separators/'
+    directory_root = 'D:/SDC/py/Data/'
+    dateTest = ([                                                 '2018.03.09',
              '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
              '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
              '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
@@ -232,35 +286,17 @@ dateTest = ([                                                    '2018.03.09',
              '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
              '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
              '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
-
-
-#    ['2017.11.27','2017.11.28','2017.11.29','2017.11.30','2017.12.01',
-#             '2017.12.04','2017.12.05','2017.12.06','2017.12.07','2017.12.08']+
-
-data = Data(dateTest = dateTest)
-
-# limit the build of the HDF5 to data comprised in these dates
-build_partial_raw = True
-int_date = '180928'
-end_date = '181109'
-init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
-end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
-
-directory_destination = 'D:/SDC/py/HDF5/'
-if build_partial_raw:
-    hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
-    separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
 else:
-    hdf5_file_name = 'tradeinfo.hdf5'
-    separators_directory_name = 'separators/'
+    raise ValueError("Not supported")
 trusted_source = False
+data = Data(dateTest = dateTest)
 # create directory if not exists
 if not os.path.exists(directory_destination+separators_directory_name):
     os.mkdir(directory_destination+separators_directory_name)
 # thresholds for separators
 bidThresDay = 0.0
 bidThresNight = 0.0
-minThresDay = 15
+minThresDay = 20
 minThresNight = 20
 
 # reset file
@@ -273,13 +309,17 @@ if reset_file:
 f = h5py.File(directory_destination+hdf5_file_name,'a')
 
 # get gussines days
-list_bussines_days = find_bussines_days(data, directory_destination)
+#list_bussines_days = find_bussines_days(data, directory_destination)
+first_day = dt.datetime.strptime(dateTest[0], '%Y.%m.%d').date()
+last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
+list_bussines_days = find_bussines_days_v2(first_day=first_day, 
+                                           last_day=last_day)
     
 # loop over all assets
 for ass in data.assets:
     thisAsset = data.AllAssets[str(ass)]
     print(thisAsset)
-    directory_origin = 'D:/SDC/py/Data/'+thisAsset+'/'#'../Data/'+thisAsset+'/'
+    directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
     # extend the threshold margin for GOLD since it always starts at 01:00 am
     if thisAsset == 'GOLD':
         inter_day_thres = 120
@@ -359,6 +399,7 @@ for ass in data.assets:
         except ValueError:
             # if dates are wrong, start with all files
             print("ERROR in attributes. Reseting group.")
+            del f[thisAsset]
             group = f.create_group(thisAsset)
         
             group.create_dataset("DateTime", (0,), maxshape=(None,),dtype='S19')
@@ -420,8 +461,9 @@ for ass in data.assets:
         if tradeInfo.shape[0]>0:
             if not trusted_source:
                 # extract separators
-                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
+                this_separators = extractSeparators(tradeInfo,minThresDay,minThresNight,
                                                        bidThresDay,bidThresNight,[])
+                
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
                 list_separators_older.append(this_separators)
@@ -496,7 +538,7 @@ for ass in data.assets:
             # add old separators' bottom
             list_separators_older.append(old_separators.iloc[:1].append(old_separators.iloc[-1:]))
         # merge separators
-        new_older_separators = merge_separators_list(list_bussines_days, data, list_separators_older, inter_day_thres)
+        new_older_separators = merge_separators_list(list_bussines_days, data, list_separators_older, minThresDay)
         # save new separators
         if old_separators.shape[0]>0:
             # if separators exist, remove new older bottom sep and old newer lit sep
@@ -550,6 +592,7 @@ for ass in data.assets:
                 # get eparators from latest info
                 this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                        bidThresDay,bidThresNight,[])
+#                print(this_separators)
                 # reference index according to general pointer
                 this_separators.index = this_separators.index+pointer_sep
                 # update list
@@ -598,7 +641,7 @@ for ass in data.assets:
             # build separators list
             list_separators_newer.append(new_separators_newer)
         # merge separators
-        new_newer_separators = merge_separators_list(list_bussines_days, data, list_separators_newer, inter_day_thres)
+        new_newer_separators = merge_separators_list(list_bussines_days, data, list_separators_newer, minThresDay)
         # save new separators
         if old_separators.shape[0]>0:
             separators = old_separators.iloc[:-1].append(new_newer_separators.iloc[1:])

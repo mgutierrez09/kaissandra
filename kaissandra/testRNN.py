@@ -49,12 +49,10 @@ def test_RNN(*ins):
         inverse_load = config['inverse_load']
     else:
         inverse_load = False
-    if 'resolution' not in config:
-        resolution = 10
+    if 'feats_from_bids' in config:
+        feats_from_bids = config['feats_from_bids']
     else:
-        resolution = config['resolution']
-    
-    weights_directory = local_vars.weights_directory
+        feats_from_bids = True
     # create data structure
     data=Data(movingWindow=config['movingWindow'],
                   nEventsPerStat=config['nEventsPerStat'],
@@ -67,11 +65,6 @@ def test_RNN(*ins):
                   feature_keys_tsfresh=feature_keys_tsfresh)
     
     #if_build_IO = config['if_build_IO']
-    startFrom = config['startFrom']
-    endAt = config['endAt']
-    save_journal = config['save_journal']
-    dateTest = config['dateTest']
-    IDweights = config['IDweights']
     IDresults = config['IDresults']
     if 'IO_results_name' not in config:
         IO_results_name = IDresults
@@ -83,16 +76,32 @@ def test_RNN(*ins):
     if not os.path.exists(IO_directory):
         os.mkdir(IO_directory)
     
-    filename_prep_IO = (hdf5_directory+'IO_mW'+str(data.movingWindow)+'_nE'+
-                        str(data.nEventsPerStat)+'_nF'+str(data.nFeatures)+
-                        '.hdf5')
+    if type(feats_from_bids)==bool:
+        if feats_from_bids:
+            # only get short bets (negative directions)
+            tag = 'IO_mW'
+            tag_stats = 'IOB'
+        else:
+            # only get long bets (positive directions)
+            tag = 'IOA_mW'
+            tag_stats = 'IOA'
+    else:
+        raise ValueError("feats_from_bids must be a bool")
+    if 'build_test_db' in config:
+        build_test_db = config['build_test_db']
+    else:
+        build_test_db = False
+    if build_test_db:
+        test_flag = '_test'
+    else:
+        test_flag = ''
+    filename_prep_IO = (hdf5_directory+tag+str(data.movingWindow)+'_nE'+
+                        str(data.nEventsPerStat)+'_nF'+str(data.n_feats_manual)+test_flag+'.hdf5')
     filename_features_tsf = (hdf5_directory+'feats_tsf_mW'+str(data.movingWindow)+
                              '_nE'+str(data.nEventsPerStat)+'_2.hdf5')
     
     if 'build_partial_raw' in config:
         build_partial_raw = config['build_partial_raw']
-        
-        
     else:
         build_partial_raw = False
         
@@ -102,7 +111,7 @@ def test_RNN(*ins):
         end_date = '181109'
         separators_directory = hdf5_directory+'separators_F'+int_date+'T'+end_date+'/'
     else:
-        separators_directory = hdf5_directory+'separators/'
+        separators_directory = hdf5_directory+'separators'+test_flag+'/'
         
     if 'from_stats_file' in config:
         from_stats_file = config['from_stats_file']
@@ -145,14 +154,22 @@ def test_RNN(*ins):
                    lR0=config['lR0'])
     
     if if_build_IO:
-        
+        print("Tag = "+str(tag))
         # open IO file for writting
         f_IO = h5py.File(filename_IO,'w')
         # init IO data sets
         X = f_IO.create_dataset('X', (0, model.seq_len, model.nFeatures), 
                                 maxshape=(None,model.seq_len, model.nFeatures), 
                                 dtype=float)
+        XA = f_IO.create_dataset('XA', (0, model.seq_len, model.nFeatures), 
+                                maxshape=(None,model.seq_len, model.nFeatures), 
+                                dtype=float)
         Y = f_IO.create_dataset('Y', (0,model.seq_len,
+                                      model.commonY+model.size_output_layer),
+                                      maxshape=(None,model.seq_len,
+                                      model.commonY+model.size_output_layer),
+                                      dtype=float)
+        YA = f_IO.create_dataset('YA', (0,model.seq_len,
                                       model.commonY+model.size_output_layer),
                                       maxshape=(None,model.seq_len,
                                       model.commonY+model.size_output_layer),
@@ -173,6 +190,8 @@ def test_RNN(*ins):
         IO = {}
         IO['X'] = X
         IO['Y'] = Y
+        IO['XA'] = XA
+        IO['YA'] = YA
         IO['I'] = I
         IO['D'] = D
         IO['B'] = B
@@ -189,8 +208,7 @@ def test_RNN(*ins):
         
         tic = time.time()
         # load separators
-        separators = load_separators(data, thisAsset, separators_directory,
-                                     tOt='te', from_txt=1)
+        separators = load_separators(thisAsset, separators_directory, from_txt=1)
 
         # retrive asset group
         if f_prep_IO != None:
@@ -199,11 +217,11 @@ def test_RNN(*ins):
                                thisAsset, 
                                ass_group,
                                from_stats_file=from_stats_file, 
-                               hdf5_directory=hdf5_directory+'stats/')
+                               hdf5_directory=hdf5_directory+'stats/',tag=tag_stats)
         else:
             stats_manual = []
         
-        stats_output = load_stats_output(data, hdf5_directory, thisAsset)
+        stats_output = load_stats_output(data, hdf5_directory+'stats/', thisAsset, tag=tag_stats)
         
         if f_feats_tsf != None:
             stats_tsf = load_stats_tsf(data, thisAsset, hdf5_directory, f_feats_tsf,
@@ -245,7 +263,7 @@ def test_RNN(*ins):
                     if features_manual.shape[0]==0:
                         features_manual = np.zeros((features_tsf.shape[0],0))
                         
-                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, s)
+                    returns_struct = load_returns(data, hdf5_directory, thisAsset, separators, filename_prep_IO, s)
                     # build network input and output
                     # get first day after separator
                     day_s = separators.DateTime.iloc[s][0:10]
@@ -364,4 +382,22 @@ def test_RNN(*ins):
 if __name__=='__main__':
     pass
     #test_RNN()
+    # edit config without saving for test purposes
     
+#from kaissandra.testRNN import test_RNN
+#from kaissandra.config import *
+#config=retrieve_config('C0520BS')
+##config['config_name'] = 'C0520BSNFR'
+##config['IDweights'] = '000520'
+#config['IDresults'] = '100520BSNFR'
+#config['save_journal'] = False
+#config['startFrom'] = 8
+#config['endAt']= -1
+#resolution = 10
+#config['resolution'] = resolution
+#config['thresholds_mc'] = [.5+i/resolution for i in range(int(resolution/2))]
+#config['thresholds_md'] = [.5+i/resolution for i in range(int(resolution/2))]
+#
+##config['cost_name'] = '000318TI02'
+
+#test_RNN(config)

@@ -24,12 +24,13 @@ from kaissandra.inputs import (Data,
 from kaissandra.config import retrieve_config
 from kaissandra.local_config import local_vars
 
-def train_RNN(*ins):
+def evaluateRNN(*ins):
     """  """
     ticTotal = time.time()
     # create data structure
     if len(ins)>0:
-        config = ins[0]
+        tOt = ins[0]
+        config = ins[1]
     else:    
         config = retrieve_config('CTESTNR')
     # Feed retrocompatibility
@@ -53,8 +54,6 @@ def train_RNN(*ins):
         feats_from_bids = config['feats_from_bids']
     else:
         feats_from_bids = True
-        
-    weights_directory = local_vars.weights_directory
     
     data=Data(movingWindow=config['movingWindow'],
               nEventsPerStat=config['nEventsPerStat'],
@@ -66,7 +65,12 @@ def train_RNN(*ins):
               feature_keys_manual=feature_keys_manual,
               feature_keys_tsfresh=feature_keys_tsfresh)
     # init structures
-    IDweights = config['IDweights']
+    if tOt == 'tr':
+        filetag = config['IDweights']
+    elif tOt == 'te':
+        filetag = config['IDresults']
+    else:
+        raise ValueError("tOt not known")
     hdf5_directory = local_vars.hdf5_directory
     IO_directory = local_vars.IO_directory
     if not os.path.exists(IO_directory):
@@ -90,7 +94,7 @@ def train_RNN(*ins):
                          str(data.nEventsPerStat)+'_2.hdf5')
     
     separators_directory = hdf5_directory+'separators/'
-    filename_IO = IO_directory+'IO_'+IDweights+'.hdf5'
+    filename_IO = IO_directory+'IOE_'+filetag+'.hdf5'
     if 0:#len(ins)>0:
         # wait while files are locked
         while os.path.exists(filename_prep_IO+'.flag'):
@@ -153,6 +157,10 @@ def train_RNN(*ins):
         I = f_IO.create_dataset('I', 
                                 (0,model.seq_len,2),maxshape=(None,model.seq_len,2),
                                 dtype=int)
+        R = f_IO.create_dataset('R', 
+                                (0,1),
+                                maxshape=(None,1),
+                                dtype=float)
             # attributes to track asset-IO belonging
         ass_IO_ass = np.zeros((len(data.assets))).astype(int)
         # structure that tracks the number of samples per level
@@ -162,10 +170,9 @@ def train_RNN(*ins):
         IO['X'] = X
         IO['Y'] = Y
         IO['I'] = I
+        IO['R'] = R # return
         IO['pointer'] = 0
         
-    # init total number of samples
-    aloc = 2**20
     # index asset
     ass_idx = 0
     # array containing bids means
@@ -213,7 +220,9 @@ def train_RNN(*ins):
                 day_s = separators.DateTime.iloc[s][0:10]
                 # check if number of events is not enough to build two features and one return
                 if nE>=2*data.nEventsPerStat:
-                    if day_s not in data.dateTest and day_s<=data.dateTest[-1]:
+                    if (tOt == 'tr' and (day_s not in data.dateTest and day_s<=data.dateTest[-1])) or \
+                        (tOt == 'te' and (day_s in data.dateTest and day_s<=data.dateTest[-1])):  
+                    #if day_s not in data.dateTest and day_s<=data.dateTest[-1]:
                         
                         # load features, returns and stats from HDF files
                         if f_prep_IO != None: 
@@ -258,7 +267,8 @@ def train_RNN(*ins):
                                                                       IO, 
                                                                       totalSampsPerLevel, 
                                                                       s, nE, thisAsset, 
-                                                                      inverse_load)
+                                                                      inverse_load,
+                                                                      save_output=True)
                                 # close temp file
                                 file_temp.close()
                                 os.remove(file_temp_name)
@@ -325,14 +335,19 @@ def train_RNN(*ins):
     print("Samples to RNN: "+str(m_t))
     if if_build_IO:
         print("Percent per level:"+str(totalSampsPerLevel/m_t))
-    # reset graph
-    tf.reset_default_graph()
-    # start session
-    with tf.Session() as sess:    
-        model.train(sess, int(np.ceil(m_t/aloc)), weights_directory, 
-                    ID=IDweights, IDIO=IDweights, 
-                    data_format='hdf5', filename_IO=filename_IO, aloc=aloc)
+    output_filename = IO_directory+'NNIO'+filetag
+    if not os.path.exists(output_filename):
+        # reset graph
+        tf.reset_default_graph()
+        # start session
+        with tf.Session() as sess:
+            f_IO = h5py.File(filename_IO,'r')
+            X = f_IO['X']
+            Y = f_IO['Y']
+            model.evaluate(sess, X, Y, tOt=tOt)
+            f_IO.close()
+    else:
+        print("Output file "+output_filename+" already exists. Delete it to run evaluate")
         
 if __name__ == "__main__":
-    
-    train_RNN()
+    pass

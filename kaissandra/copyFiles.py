@@ -13,15 +13,17 @@ from inputs import Data
 
 #
 destiny = 'D:/SDC/py/Data_test/'
-origin = 'D:/SDC/py/Data_aws_8/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
+origin = 'D:/SDC/py/Data_aws_16/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
 data = Data()
 
 if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
 
-copyFrom = '2018.11.24 00:00:00'
+copyFrom = '2019.08.05 00:00:00'
+copyUntil = '2019.09.01 23:59:59'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
+copyUntilDT = dt.datetime.strptime(copyUntil,'%Y.%m.%d %H:%M:%S')
 
 for i in data.assets:
     thisAsset = data.AllAssets[str(i)]
@@ -49,7 +51,7 @@ for i in data.assets:
                 #print(fileTime)
                 fileTimeDT = dt.datetime.strptime(fileTime,'%Y%m%d%H%M%S')
                 #dt.datetime.strftime(dt.datetime.strptime(m.group(),'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
-                if fileTimeDT-copyFromDT>dt.timedelta(0):
+                if fileTimeDT-copyFromDT>dt.timedelta(0) and copyUntilDT-fileTimeDT>=dt.timedelta(0):
                     listDir.append(thisFile)
             
         for fileID in listDir: 
