@@ -3514,7 +3514,7 @@ run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = False
+send_info_api = True
 
 if __name__=='__main__':
     import sys
@@ -3527,7 +3527,7 @@ if __name__=='__main__':
     else:
         print(path+" already added to python path")
     synchroned_run = False
-    test = True
+    test = False
     config_names = ['TN01010FS2NYREDOK2K52145314SRv2']#['TTEST10']#'TPRODN01010N01011'
     
     for arg in sys.argv:
