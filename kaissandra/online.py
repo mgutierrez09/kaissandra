@@ -2289,6 +2289,14 @@ def run(running_assets, start_time):
     IDweights = ['000288INVO']#['000289STRO']
     IDresults = ['100288INVO']
     lIDs = [len(IDweights[i]) for i in range(numberNetworks)]
+<<<<<<< HEAD:runLive.py
+    list_name = ['77_27','77_19']
+    IDepoch = ['27','19']
+    netNames = ['27','19']
+    list_t_indexs = [[2],[2]]
+    phase_shifts = [5,5]
+    list_thr_sl = [20 for i in range(numberNetworks)]
+=======
     list_name = ['10_2']#['89_4']
     IDepoch = ['10']
     netNames = ['28810']
@@ -2296,6 +2304,7 @@ def run(running_assets, start_time):
     list_inv_out = [True]
     phase_shifts = [1]
     list_thr_sl = [1000 for i in range(numberNetworks)]
+>>>>>>> 1055fe6dbc5df4421297beda8e1bb52808df3df6:kaissandra/online.py
     list_thr_tp = [1000 for i in range(numberNetworks)]
     delays = [0,0]
     mWs = [100]

@@ -214,7 +214,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False, extW=''):
+                 oneNet=False, extW='', only_misclassified=False, misclass_name=''):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
@@ -238,9 +238,25 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
         IDresults = config['IDresults']
         if not just_build:
             f_IOtr = h5py.File(dirfilename_tr,'r')
-            if 'Tr' in tAt:
+            if 'Tr' in tAt and not only_misclassified:
                 Ytr = f_IOtr['Y']
                 Xtr = f_IOtr['X']
+            elif only_misclassified:
+                print(dirfilename_tr)
+                error_idx_vect = pickle.load( open( local_vars.RNN_directory+'error/'+(dirfilename_tr.split('/')[-1]).split('.')[0]+'.p', "rb" ))
+                n_misclassified = sum(error_idx_vect)
+                f_tr = h5py.File(local_vars.IO_directory+rootname_config+'k'+str(fold_idx+1)+'K'+str(K)+misclass_name+'.hdf5','w')
+                shapeX = f_IOtr['X'].shape
+                shapeY = f_IOtr['Y'].shape
+                print("only_misclassified TRUE")
+                print("Shape original struct: "+str(shapeX))
+                print("Number of misclassified entries: "+str(n_misclassified))
+                Xtr = f_tr.create_dataset('X', (n_misclassified, shapeX[1], shapeX[2]),
+                                dtype=float)
+                Ytr = f_tr.create_dataset('Y', (n_misclassified, shapeY[1], shapeY[2]),
+                                dtype=float)
+                Xtr[:,:,:] = f_IOtr['X'][n_misclassified,:,:]
+                Ytr[:,:,:] = f_IOtr['Y'][n_misclassified,:,:]
             f_IOte = h5py.File(dirfilename_te,'r')
             if 'Te' in tAt:
                 Yte = f_IOte['Y']
@@ -277,7 +293,60 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
 def cross_entropy_loss(Y, Y_tilde):
     """  """
     return np.sum(Y*-np.log(Y_tilde)+(1-Y)*-np.log(1-Y_tilde))/Y.shape[0]
+
+def extract_wrong_predictions(rootname_config, epoch, entries={}, K=5, 
+                 sufix='' ,k_init=0, k_end=-1, log='', 
+                 modular=False, sufix_io='', basename_IO=''):
+    """  """
+    import os
+    configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
+        (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
+         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO)
     
+    count = 0
+    for fold_idx in range(k_init,k_end):
+        
+        config = configs[count]
+        t_indexes = config['t_indexes']
+        IDresults = config['IDresults']
+        IDweights = config['IDweights']
+        
+        dirfilename_tr = dirfilename_trs[count]
+        dirfilename_te = dirfilename_tes[count]
+        IO_results_name = IO_results_names[count]
+        # Get IO sets
+        f_IOtr = h5py.File(dirfilename_tr,'r')
+        Ytr = f_IOtr['Y']
+        Xtr = f_IOtr['X']
+        f_IOte = h5py.File(dirfilename_te,'r')
+        Yte = f_IOte['Y']
+        Xte = f_IOte['X']
+        DTA = pickle.load( open( IO_results_name, "rb" ))
+        # get predictions from base model
+#        print("Xtr.shape")
+#        print(Xtr.shape)
+#        print("Ytr.shape")
+#        print(Ytr.shape)
+        print("Getting Yte_tilde")
+        Str_tilde = RNN(config).predict_batch(Xtr, epoch)
+#        print("Getting Yte_tilde")
+#        Ste_tilde = RNN(config).predict_batch(Xte, epoch)
+        
+        # extract wrong classified outputs
+        short_bets_idx = 1*(np.mean(Str_tilde[:,:,1],1)<.5)
+        short_out_idx = 1*(Ytr[:,0,1]<.5)
+        errors_idx = np.abs(short_bets_idx-short_out_idx)>0
+#        YerrTr = Ytr[errors_idx,:,:]
+        # save error vector
+        print(errors_idx)
+        assert(max(abs(Yte[:,0,0]-Yte[:,-1,0]))==0)
+        
+        directory = local_vars.RNN_directory+'error/'
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        pickle.dump(errors_idx, open(directory+ (dirfilename_tr.split('/')[-1]).split('.')[0]+'.p', "wb" ))
+    print("DONE")
+        
 def boosting(rootname_config, epoch, entries={}, K=5, 
                  sufix='' ,k_init=0, k_end=-1, log='', 
                  modular=False, sufix_io='', basename_IO=''):
@@ -288,7 +357,7 @@ def boosting(rootname_config, epoch, entries={}, K=5,
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
          modular=modular, sufix_io=sufix_io, basename_IO=basename_IO)
-        
+    
     
     # loop over k-foldings
     count = 0
