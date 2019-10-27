@@ -3451,7 +3451,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,16,17,19,27,28,29,30,32], 
            synchroned_run=False, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
