@@ -351,7 +351,7 @@ def configuration(entries, save=True):
         if 'noVarFeatsManual' in entries:
             noVarFeatsManual = entries['noVarFeatsManual']
         else:
-            noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+            noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]+[i for i in range(2000,2019)]
         if 'feature_keys_tsfresh' in entries:
             feature_keys_tsfresh = entries['feature_keys_tsfresh']
         else:

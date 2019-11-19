@@ -77,13 +77,14 @@ def compress_zip(config, sources, features=[i for i in range(37)],
     
 def decompress_zip(filepath, destiny=''):
     """  """
+    from tqdm import tqdm
     if destiny=='':
         destiny = local_vars.hdf5_directory
     if not os.path.exists(destiny):
         os.makedirs(destiny)
     zfile = zipfile.ZipFile(filepath)
-    for finfo in zfile.infolist():
-        print(finfo.filename)
+    for finfo in tqdm(zfile.infolist(), mininterval=1):
+#        print(finfo.filename)
         zfile.extract(finfo.filename, destiny)
 
 def save_stats_func(config, all_stats, thisAsset, first_date, last_date, assdirname, outassdirname):
