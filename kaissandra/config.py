@@ -220,7 +220,7 @@ class Config():
           FI["BOLLUP20"]:["BOLLUP20",[20]],
           FI["BOLLUP10"]:["BOLLUP10",[10]],
           FI["BOLLDOWN20"]:["BOLLDOWN20",[20]],
-          FI["BOLLDOWN10"]:["BOLDOWN10",[10]],
+          FI["BOLLDOWN10"]:["BOLLDOWN10",[10]],
           FI["PERBOLL20"]:["PERBOLL20",[20]],
           FI["PERBOLL10"]:["PERBOLL10",[10]],
           FI["ADI"]:["ADI"],
