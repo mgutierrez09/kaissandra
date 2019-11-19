@@ -22,7 +22,7 @@ import zipfile
 
 def compress_zip(config, sources, features=[i for i in range(37)], 
                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
-                relations=['direct'],dirname='',namefile='compressed.zip'):
+                relations=['direct','inverse'],dirname='',namefile='compressed.zip'):
     """  """
     from tqdm import tqdm
     if 'movingWindow' in config:
