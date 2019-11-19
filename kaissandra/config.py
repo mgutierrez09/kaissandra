@@ -90,35 +90,36 @@ class Config():
           "difSymbolOema10":34,
           "difSymbolOema50":35,
           "difSymbolOema100":36,
+          "volume":37,
           # TSFRESH
-          "quantile0.3":37,
-          "quantile0.4":38,
-          "quantile0.2":39,
-          "quantile0.1":40,
-          "quantile0.5":41,
-          "quantile0.8":42,
-          "quantile0.9":43,
-          "quantile0.6":44,
-          "quantile0.7":45,
-          "fft_coefficient0real":46,
+          "quantile0.3":137,
+          "quantile0.4":138,
+          "quantile0.2":139,
+          "quantile0.1":140,
+          "quantile0.5":141,
+          "quantile0.8":142,
+          "quantile0.9":143,
+          "quantile0.6":144,
+          "quantile0.7":145,
+          "fft_coefficient0real":146,
           #"fft_coefficient0abs":47,
-          "sum_values":47,
-          "median":48,
-          "c3_3":49,
-          "c3_2":50,
-          "c3_1":51,
-          "mean":52,
-          "abs_energy":53,
-          "linear_trend":54,
-          "agg_min50inter":55,
-          "agg_min5inter":56,
-          "agg_max10inter":57,
-          "agg_mean50inter":58,
-          "agg_max50inter":59,
-          "agg_mean5inter":60,
-          "agg_min10inter":61,
-          "agg_mean10inter":62,
-          "agg_max5inter":63,
+          "sum_values":147,
+          "median":148,
+          "c3_3":149,
+          "c3_2":150,
+          "c3_1":151,
+          "mean":152,
+          "abs_energy":153,
+          "linear_trend":154,
+          "agg_min50inter":155,
+          "agg_min5inter":156,
+          "agg_max10inter":157,
+          "agg_mean50inter":158,
+          "agg_max50inter":159,
+          "agg_mean5inter":160,
+          "agg_min10inter":161,
+          "agg_mean10inter":162,
+          "agg_max5inter":163,
           # Trading Signals
           "STO14":2000, # Stochastic Oscilator
           "STO3":2001,
@@ -130,8 +131,15 @@ class Config():
           "WILL3":2007,
           "BOLLUP20":2008, # Bollinger Bands
           "BOLLUP10":2009,
-          "BOLLLOW20":2010,
-          "BOLLLOW10":2011}
+          "BOLLDOWN20":2010,
+          "BOLLDOWN10":2011,
+          "PERBOLL20":2012, # %B
+          "PERBOLL10":2013,
+          "ADI":2014, # Accumulation/Distribution Indicator
+          "AROUP25":2015, # Aroon up/down indicators
+          "ARODOWN25":2016,
+          "AROUP10":2017,
+          "ARODOWN10":2018}
     
     # Primary features
     PF = {FI["symbol"]:["symbol"],
@@ -171,6 +179,7 @@ class Config():
           FI["difSymbolOema10"]:["difSymbolOema10"],
           FI["difSymbolOema50"]:["difSymbolOema50"],
           FI["difSymbolOema100"]:["difSymbolOema100"],
+          FI["volume"]:["volume"],
           
           FI["quantile0.3"]:["quantile0.3","quantile",0.3],
           FI["quantile0.4"]:["quantile0.4","quantile",0.4],
@@ -210,8 +219,15 @@ class Config():
           FI["WILL3"]:["WILL3", [3]],
           FI["BOLLUP20"]:["BOLLUP20",[20]],
           FI["BOLLUP10"]:["BOLLUP10",[10]],
-          FI["BOLLLOW20"]:["BOLLLOW20",[20]],
-          FI["BOLLLOW10"]:["BOLLLOW10",[10]]}
+          FI["BOLLDOWN20"]:["BOLLDOWN20",[20]],
+          FI["BOLLDOWN10"]:["BOLDOWN10",[10]],
+          FI["PERBOLL20"]:["PERBOLL20",[20]],
+          FI["PERBOLL10"]:["PERBOLL10",[10]],
+          FI["ADI"]:["ADI"],
+          FI["AROUP25"]:["AROUP25",[25]],
+          FI["ARODOWN25"]:["ARODOWN25",[25]],
+          FI["AROUP10"]:["AROUP10",[10]],
+          FI["ARODOWN10"]:["ARODOWN10",[10]]}
     
     secsInDay = 86400.0
     
@@ -226,6 +242,8 @@ class Config():
     adx_ext = ['14','3']
     will_ext = ['14','3']
     boll_ext = ['20','10']
+    adi_ext = ['']
+    aro_ext = ['25','10']
     
     std_var = 0.1
     std_time = 0.1
@@ -505,14 +523,14 @@ def configuration(entries, save=True):
             save_stats = entries['save_stats']
         else:
             save_stats = False
-        if 'load_features_from' in entries:
-            load_features_from = entries['load_features_from']
-        else:
-            load_features_from = 'manual' # {manual, tsfresh}
-        if 'build_partial_raw' in entries:
-            build_partial_raw = entries['build_partial_raw']
-        else:
-            build_partial_raw = False
+#        if 'load_features_from' in entries:
+#            load_features_from = entries['load_features_from']
+#        else:
+#            load_features_from = 'manual' # {manual, tsfresh}
+#        if 'build_partial_raw' in entries:
+#            build_partial_raw = entries['build_partial_raw']
+#        else:
+#            build_partial_raw = False
         if 'build_test_db' in entries:
             build_test_db = entries['build_test_db']
         else:
@@ -584,8 +602,8 @@ def configuration(entries, save=True):
                   'thresholds_mg':thresholds_mg,
                   
                   'save_stats':save_stats,
-                  'load_features_from':load_features_from,
-                  'build_partial_raw':build_partial_raw,
+#                  'load_features_from':load_features_from,
+#                  'build_partial_raw':build_partial_raw,
                   'feats_from_bids':feats_from_bids,
                   'feats_from_all':feats_from_all,
                   'build_test_db':build_test_db,

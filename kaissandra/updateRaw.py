@@ -238,7 +238,7 @@ end_date = '181109'
 init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
 end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
 
-directory_destination = local_vars.hdf5_directory#'D:/SDC/py/HDF5/'
+directory_destination = local_vars.data_dir#'D:/SDC/py/HDF5/'
 if build_partial_raw and not build_test_db:
     hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
     directory_root = 'D:/SDC/py/Data/'

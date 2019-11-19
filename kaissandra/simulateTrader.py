@@ -323,6 +323,7 @@ class Trader:
         self.list_sl_thr_vector = []
         self.list_EM = []
         self.list_banned_counter = np.zeros((len(data.assets)))-1
+        self.list_is_asset_banned = [False for _ in data.assets]
         
         self.next_candidate = next_candidate
         self.journal_idx = 0
@@ -564,14 +565,14 @@ class Trader:
             
         return second_condition_open, -1
     
-    def check_asset_not_banned(self):
-        """  """
-        condition = self.list_banned_counter[ass_idx]==-1
-#        if not condition:
-#            out = data.AllAssets[str(data.assets[ass_idx])]+" is banned"
-#            self.write_log(out)
-#            print(out)
-        return condition
+#    def check_asset_not_banned(self):
+#        """  """
+#        condition = self.list_banned_counter[ass_idx]==-1
+##        if not condition:
+##            out = data.AllAssets[str(data.assets[ass_idx])]+" is banned"
+##            self.write_log(out)
+##            print(out)
+#        return condition
         
     def check_primary_condition_for_extention(self, time_stamp, idx):
         """
@@ -628,7 +629,8 @@ class Trader:
                 t = 0
             else:
                 sp = self.list_sps[self.map_ass_idx2pos_idx[idx]]
-                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges['sp']) if x>=sp), len(this_strategy.info_spread_ranges['sp'])-1)
+                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges['sp']) if x>=sp), 
+                         len(this_strategy.info_spread_ranges['sp'])-1)
 #            print(t)
 #            print(this_strategy.info_spread_ranges)
             prods_condition = self.next_candidate.p_mc>=\
@@ -688,13 +690,13 @@ class Trader:
             exit_pos = 0
         return exit_pos, stoplosses
     
-    def ban_asset(self, ass_idx):
-        """  """
-        self.list_banned_counter[ass_idx] = data.lB
-        out = data.AllAssets[str(ass_idx)]+" banned"
-        print(out)
-        self.write_log(out)
-        return None
+#    def ban_asset(self, ass_idx):
+#        """  """
+#        self.list_banned_counter[ass_idx] = data.lB
+#        out = data.AllAssets[str(ass_idx)]+" banned"
+#        print(out)
+#        self.write_log(out)
+#        return None
     
     def decrease_ban_counter(self, ass_idx, n_counts):
         """  """
@@ -806,7 +808,7 @@ class Trader:
 #                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
 #            else:
 #                ROI_live = GROI_live-roi_ratio*spread
-        GROI_live, ROI_live, spread, pos_info = self.get_rois(idx, date_time=date_time.decode("utf-8"),
+        GROI_live, ROI_live, spread, pos_info = self.get_rois(idx, date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
         self.write_pos_info(pos_info)
@@ -850,7 +852,7 @@ class Trader:
 #            ].get_profitability(self.next_candidate.p_mc, 
 #            self.next_candidate.p_md, 
 #            int(np.abs(self.next_candidate.bet)-1))
-        out =( date_time.decode("utf-8")+" "+str(direction)+" close "+ass+
+        out =( date_time+" "+str(direction)+" close "+ass+
               " p_mc={0:.2f}".format(p_mc)+
               " p_md={0:.2f}".format(p_md)+
               " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
@@ -860,7 +862,7 @@ class Trader:
                               " Earnings {0:.2f}".format(earnings)
               +". Remeining open "+str(len(self.list_opened_positions)))
         # update results
-        results.datetimes.append(date_time.decode("utf-8"))
+        results.datetimes.append(date_time)
         results.GROIs = np.append(results.GROIs,100*GROI_live)
         results.ROIs = np.append(results.ROIs,100*ROI_live)
         results.earnings = np.append(results.GROIs,nett_win)
@@ -1012,6 +1014,75 @@ class Trader:
             file.write(out+"\n")
             file.close()
         return None
+    
+    def ban_asset(self, position, DateTime, thisAsset, ass_idx, Bo, Ao):
+        """  """
+        self.list_is_asset_banned[ass_idx] = True
+        if not hasattr(self, 'list_dict_banned_assets'):
+            self.list_dict_banned_assets = [None for _ in self.list_is_asset_banned]
+        GROI = 100*self.get_groi_banned_asset(position, Bo, Ao)
+        tracing_dict = {'lastDateTime':DateTime,
+                        'counter':50,
+                        'position':position}
+        self.list_dict_banned_assets[ass_idx] = tracing_dict
+        out = DateTime+" "+thisAsset+\
+                " ban counter set to "\
+                +str(self.list_dict_banned_assets[ass_idx]['counter'])+\
+                " GROI = "+str(GROI)
+        print("\r"+out)
+        self.write_log(out)
+    
+    def get_groi_banned_asset(self, position, Bo, Ao):
+        """  """
+        direction = position.direction
+#        Ti = \
+#            dt.datetime.strftime(position.entry_time,
+#                                 '%Y.%m.%d %H:%M:%S')
+#        Dir = np.sign(position.bet)     
+        Bi = position.entry_bid
+        Ai = position.entry_ask
+#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
+#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+#        espread = (Ai-Bi)/Ai
+        if direction>0:
+            GROI_live = (Ao-Ai)/Ai
+#            spread = (Ao-Bo)/Ai
+            
+        else:
+            GROI_live = (Bi-Bo)/Ao
+#            spread = (Ao-Bo)/Ao
+        
+
+#        ROI_live = GROI_live-spread
+
+        return GROI_live
+    
+    def track_banned_asset(self, DateTime, thisAsset, ass_idx, Bo, Ao):
+        """ """
+        
+        self.list_dict_banned_assets[ass_idx]['counter'] -= 1
+        GROI = 100*self.get_groi_banned_asset(self.list_dict_banned_assets[ass_idx]['position'], Bo, Ao)
+        out = DateTime+" "+thisAsset+\
+        " ban counter set to "\
+        +str(self.list_dict_banned_assets[ass_idx]['counter'])+\
+        " GROI = "+str(GROI)
+        print("\r"+out)
+        self.write_log(out)
+        if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
+            self.lift_ban_asset(ass_idx)
+            out = "Ban lifted due to counter 0"
+            print("\r"+out)
+            self.write_log(out)
+        # check if trend has changed and get in again
+        elif GROI>-0.3: # hard coded stoploss
+            self.lift_ban_asset(ass_idx)
+            out = "Ban lifted due to GROI > stoploss"
+            print("\r"+out)
+            self.write_log(out)
+    
+    def lift_ban_asset(self, ass_idx):
+        """  """
+        self.list_is_asset_banned[ass_idx] = False
 
 
 def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,root_dir='D:/SDC/py/Data/'):
@@ -1081,24 +1152,33 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010REDOCMF181112T190822ALk1-2K5E14','R01010REDOCMF181112T190822BSk1-2K5E14']
-    list_name = ['01010REDOk1-2K5E14ALSRNSP60','01010REDOk1-2K5E14BSSRNSP60']
+    list_IDresults = ['R01010REDOCMF181112T190822ALk12K5k12K2E1452','R01010REDOCMF181112T190822BSk12K5k12K2E1453']
+    list_name = ['01010REDONYk12K5k12K2E1452ALSRNSP60','01010REDONYk12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.5, .6, .8, .9, 1, 1, 1.1, 1.3, 1.5, 1.5, 1.7, 2, 2.5, 2.7, 3.2, 3.4, 4.6, 5],
-                           'th':[(.57,.6),(.57,.61),(.52,.63),(.54,.63),(.56,.63),(.76,.57),(.57,.63),(.54,.64),(.69,.61),(.76,.58),(.58,.65),(.79,.58),(.73,.61),(.73,.64),(.77,.63),(.73,.65),(.75,.66),(.78,.65)],
-                           'mar':[(0,0) for i in range(18)]},
-                          {'sp':[.5, .6, .7, 1, 1, 1.1, 1.4, 1.5, 1.8, 2, 2.1, 2.6, 2.7, 2.8, 3.1, 3.3, 3.6, 3.7, 4.2, 4.4, 4.5, 5],
-                           'th':[(.53,.57),(.53,.58),(.5,.59),(.54,.59),(.66,.57),(.62,.58),(.66,.57),(.72,57),(.62,.59),(.76,.57),(.61,.6),(.61,.61),(.62,.61),(.66,.6),(.67,.6),(.71,.6),(.69,.61),(.73,.6),(.69,.61),(.71,.61),(.75,.6),(.8,.55)],
-                           'mar':[(0,0) for i in range(22)]}]
+    list_spread_ranges = [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                           'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
+                                 (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
+                                 (0.665, 0.61), (0.685, 0.625), (0.685, 0.625), (0.705, 0.62), (0.705, 0.62), (0.705, 0.62), (0.71, 0.62), (0.71, 0.62), (0.7, 0.63), (0.7, 0.63), 
+                                 (0.71, 0.635), (0.71, 0.635), (0.71, 0.635), (0.715, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.71, 0.645), (0.725, 0.64), 
+                                 (0.725, 0.64), (0.725, 0.64), (0.75, 0.635), (0.75, 0.635), (0.76, 0.635), (0.76, 0.635)],
+                           'mar':[(0,0) for _ in range(46)]},
+                          {'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                           'th':[(0.515, 0.58), (0.515, 0.585), (0.515, 0.59), (0.55, 0.59), (0.555, 0.59), (0.56, 0.59), (0.605, 0.585), (0.65, 0.58), (0.66, 0.58), (0.66, 0.58), (0.64, 0.59), 
+                                 (0.64, 0.59), (0.64, 0.59), (0.645, 0.59), (0.64, 0.595), (0.645, 0.595), (0.645, 0.595), (0.645, 0.6), (0.645, 0.6), (0.645, 0.6), (0.655, 0.6), (0.655, 0.6), 
+                                 (0.66, 0.6), (0.68, 0.595), (0.685, 0.595), (0.695, 0.595), (0.695, 0.595), (0.72, 0.595), (0.72, 0.595), (0.71, 0.6), (0.71, 0.6), (0.71, 0.6), (0.735, 0.595), 
+                                 (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.72, 0.6), (0.73, 0.6), (0.73, 0.6), (0.75, 0.595), (0.775, 0.57), (0.775, 0.57), (0.775, 0.57), 
+                                 (0.775, 0.57), (0.775, 0.57)],
+                           'mar':[(0,0) for _ in range(46)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.52, .5]
-    list_lb_md_ext = [.57,.57]
+    list_lb_mc_ext = [.5, .5]
+    list_lb_md_ext = [.59,.57]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
-    list_IDgre = ['','']
+    list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
+    list_thr_sl = [50 for i in range(numberNetwors)]
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1139,7 +1219,7 @@ if __name__ == '__main__':
         ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
         ass_index += 1
 
-    list_thr_sl = [1000 for i in range(numberNetwors)]
+    #list_thr_sl = [1000 for i in range(numberNetwors)]
     list_thr_tp = [1000 for i in range(numberNetwors)]
     list_lb_mc_op = [.5 for i in range(numberNetwors)]
     list_lb_md_op = [.8 for i in range(numberNetwors)]
@@ -1380,12 +1460,14 @@ if __name__ == '__main__':
             rewind = 0
             no_budget = False
             # get time stamp
-            time_stamp = dt.datetime.strptime(DateTimes[event_idx].decode("utf-8"),
+            DateTime = DateTimes[event_idx].decode("utf-8")
+            time_stamp = dt.datetime.strptime(DateTime,
                                               '%Y.%m.%d %H:%M:%S')
             bid = int(np.round(SymbolBids[event_idx]*100000))/100000
             ask = int(np.round(SymbolAsks[event_idx]*100000))/100000
             e_spread = (ask-bid)/ask
-            ass_idx = ass2index_mapping[Assets[event_idx].decode("utf-8")]
+            thisAsset = Assets[event_idx].decode("utf-8")
+            ass_idx = ass2index_mapping[thisAsset]
             list_idx = trader.map_ass_idx2pos_idx[ass_idx]
             # update bid and ask lists if exist
             if list_idx>-1:
@@ -1395,7 +1477,7 @@ if __name__ == '__main__':
 #                dev_em = trader.list_EM[list_idx]-em
                 trader.list_EM[list_idx] = em
             
-            ban_condition = trader.check_asset_not_banned()
+            ban_condition = trader.list_is_asset_banned[ass_idx]#trader.check_asset_not_banned()
             if not EXIT:
                 sec_cond, sp = trader.check_secondary_contition_for_opening()
             else:
@@ -1403,7 +1485,7 @@ if __name__ == '__main__':
                 
             condition_open = (trader.chech_ground_condition_for_opening() and 
                               trader.check_primary_condition_for_opening() and 
-                              sec_cond and ban_condition)
+                              sec_cond and not ban_condition)
             
             if condition_open:
 #                profitability = strategys[name2str_map[trader.next_candidate.strategy
@@ -1412,8 +1494,8 @@ if __name__ == '__main__':
 #                                                        trader.next_candidate.p_md, 
 #                                                        int(np.abs(trader.next_candidate.bet)-1))
                 this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
-                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                       Assets[event_idx].decode("utf-8")+
+                out = (DateTime+" "+
+                       thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                       #" pofitability {0:.3f}".format(profitability)+
@@ -1428,7 +1510,7 @@ if __name__ == '__main__':
                     
                     # assign budget
                     #lot_ratio = 1#/(len(trader.list_opened_positions)+1)
-                    lots = trader.assign_lots(DateTimes[event_idx])
+                    lots = trader.assign_lots(DateTime)
                     #print("trader.available_bugdet_in_lots "+str(trader.available_bugdet_in_lots))
     
                     if trader.available_bugdet_in_lots>=lots:
@@ -1450,8 +1532,8 @@ if __name__ == '__main__':
 #                                        trader.next_candidate.p_mc, 
 #                                        trader.next_candidate.p_md, 
 #                                        int(np.abs(trader.next_candidate.bet)-1))
-                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                       Assets[event_idx].decode("utf-8")+
+                out = (DateTime+" "+
+                       thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                       #" pofitability {0:.3f}".format(profitability)+
@@ -1468,10 +1550,12 @@ if __name__ == '__main__':
                 if exit_pos:
                     # save original exit time for skipping positions
                     #original_exit_time = trader.list_opened_positions[0].exit_time
-                    trader.close_position(DateTimes[event_idx], 
-                                          Assets[event_idx].decode("utf-8"), 
+                    
+                    trader.ban_asset(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]],
+                                     DateTime, thisAsset, ass_idx, bid, ask)
+                    trader.close_position(DateTime, 
+                                          thisAsset, 
                                           ass_idx)
-                    #trader.ban_asset(ass_idx)
                     # reset approched
                     if len(trader.list_opened_positions)==0:
                         approached = 0
@@ -1484,7 +1568,7 @@ if __name__ == '__main__':
                         if (trader.check_primary_condition_for_extention(
                                 time_stamp, ass_idx)):#next_pos.eGROI>e_spread):
                             #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+Assets[event_idx].decode("utf-8")+" Primary condition fulfilled")
-                            curr_GROI, _, _, _ = trader.get_rois(ass_idx, date_time=DateTimes[event_idx].decode("utf-8"), roi_ratio=1)
+                            curr_GROI, _, _, _ = trader.get_rois(ass_idx, date_time=DateTime, roi_ratio=1)
                             # update GROI limit for extension
                             #trader.update_groi_limit(ass_idx, curr_GROI)
                             ext_condition, dir_condition, prods_condition = trader.check_secondary_condition_for_extention(
@@ -1501,8 +1585,8 @@ if __name__ == '__main__':
 #                                        ].get_profitability(trader.next_candidate.p_mc, 
 #                                                            trader.next_candidate.p_md, 
 #                                                            int(np.abs(trader.next_candidate.bet)-1))
-                                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                                       Assets[event_idx].decode("utf-8")+
+                                out = (DateTime+" "+
+                                       thisAsset+
                                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                                       #" pofitability {0:.3f}".format(profitability)+
@@ -1539,8 +1623,8 @@ if __name__ == '__main__':
                                     print(out)
                                     trader.write_log(out)
     #                                pass
-                                    out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" "+
-                                           Assets[event_idx].decode("utf-8")+
+                                    out = (DateTime+" "+
+                                           thisAsset+
                                            " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                            " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                                           #" pofitability {0:.3f}".format(profitability)+
@@ -1553,8 +1637,8 @@ if __name__ == '__main__':
     ##                                out= "WARNING! "+Assets[event_idx].decode("utf-8")+" NO Change of direction."
     #                                print(out)
     #                                trader.write_log(out)
-                                    trader.close_position(DateTimes[event_idx], 
-                                                  Assets[event_idx].decode("utf-8"), 
+                                    trader.close_position(DateTime, 
+                                                  thisAsset, 
                                                   ass_idx)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
@@ -1584,8 +1668,8 @@ if __name__ == '__main__':
                                 time_stamp==trader.list_opened_positions[
                                 trader.map_ass_idx2pos_idx[ass_idx]].exit_time):#and trader.list_count_events[trader.map_ass_idx2pos_idx[ass_idx]]>=nExS
                         
-                        trader.close_position(DateTimes[event_idx], 
-                                              Assets[event_idx].decode("utf-8"), 
+                        trader.close_position(DateTime, 
+                                              thisAsset, 
                                               ass_idx)
                         # reset approched
                         if len(trader.list_opened_positions)==0:
@@ -1595,15 +1679,32 @@ if __name__ == '__main__':
     #                        break
                     
                 # end of if count_events==nExS or timeout==0 or exit_pos:
-            elif trader.list_banned_counter[ass_idx]>=0:
+            elif trader.chech_ground_condition_for_opening() and \
+                trader.check_primary_condition_for_opening() and \
+                trader.list_is_asset_banned[ass_idx]:
                 #out = "decreasing ban counter"
                 #trader.write_log(out)
                 #print(out)
-                trader.decrease_ban_counter(ass_idx, 1)
+                #trader.decrease_ban_counter(ass_idx, 1)
+                trader.track_banned_asset(DateTime, thisAsset, ass_idx, bid, ask)
+                EXIT, rewind = trader.update_candidates()
             # uptade posiitions if ADm is too low or eGROI is too low too
+#            if (trader.chech_ground_condition_for_opening() and 
+#                trader.check_primary_condition_for_opening()):
+#                print("Primary and sec ok")
+#                print(trader.check_secondary_contition_for_opening()[0])
+#                print(ban_condition)
+#            elif trader.chech_ground_condition_for_opening() and not trader.check_primary_condition_for_opening():
+#                print("Primary ok and sec no")
+#                print(trader.check_secondary_contition_for_opening()[0])
+#                print(ban_condition)
+#            elif not trader.chech_ground_condition_for_opening() and trader.check_primary_condition_for_opening():
+#                print("Primary no and sec ok")
+#                print(trader.check_secondary_contition_for_opening()[0])
+#                print(ban_condition)
             if (trader.chech_ground_condition_for_opening() and 
                 trader.check_primary_condition_for_opening() and (not 
-                trader.check_secondary_contition_for_opening() or ban_condition)):
+                trader.check_secondary_contition_for_opening()[0] or not ban_condition)):
                 not_entered_secondary += 1
                 #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Secondary condition failed "+Assets[event_idx].decode("utf-8"))
                 EXIT, rewind = trader.update_candidates()
@@ -1615,9 +1716,10 @@ if __name__ == '__main__':
             if condition_open and no_budget:
                 not_entered += 1
                 not_entered_av_budget += 1
-                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+
-                      " Not enough butget "+Assets[event_idx].decode("utf-8"))
+                out = (DateTime+
+                      " Not enough butget "+thisAsset)
                 print(out)
+                trader.write_log(out)
                 if trader.flexible_lot_ratio:
                     raise ValueError(out+" and trader.flexible_lot_ratio== True")
                 EXIT, rewind = trader.update_candidates()
@@ -1625,7 +1727,7 @@ if __name__ == '__main__':
                     approached = 0
             if (trader.next_candidate!= None and 
                 trader.next_candidate.entry_time<time_stamp):# and len(trader.list_opened_positions)==0
-                out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+
+                out = (DateTime+
                       " ERROR! Next exit time should be "+
                       "later than current time stamp."+" Updating candidates")
                 print(out)
@@ -1640,17 +1742,17 @@ if __name__ == '__main__':
                 if not rewind:
                     event_idx += 1
                 else:
-                    original_time = time_stamp.strftime('%Y.%m.%d %H:%M:%S')
+                    original_time = DateTime
 #                    out = "WARNING! "+original_time+" Rewind @ index "+str(event_idx)
 #                    print(out)
 #                    trader.write_log(out)
                     event_idx -= 100
-                    trader.list_banned_counter[trader.list_banned_counter>-1] = \
-                        trader.list_banned_counter[trader.list_banned_counter>-1]+100
-                    while DateTimes[event_idx].decode("utf-8")==original_time:
+#                    trader.list_banned_counter[trader.list_banned_counter>-1] = \
+#                        trader.list_banned_counter[trader.list_banned_counter>-1]+100
+                    while DateTimes[event_idx]==original_time:
                         event_idx -= 100
-                        trader.list_banned_counter[trader.list_banned_counter>-1] = \
-                            trader.list_banned_counter[trader.list_banned_counter>-1]+100
+#                        trader.list_banned_counter[trader.list_banned_counter>-1] = \
+#                            trader.list_banned_counter[trader.list_banned_counter>-1]+100
                     #print("Rewinded to "+DateTimes[event_idx].decode("utf-8"))
                     rewinded += 1
         
@@ -1664,8 +1766,8 @@ if __name__ == '__main__':
                                 Assets[event_idx:]==trader.next_candidate.asset))
                         if idx.shape[0]>0:
                             event_idx = idx[0]+event_idx
-                            trader.list_banned_counter[trader.list_banned_counter>-1] = \
-                                np.maximum(trader.list_banned_counter[trader.list_banned_counter>-1]-idx[0],-1)
+#                            trader.list_banned_counter[trader.list_banned_counter>-1] = \
+#                                np.maximum(trader.list_banned_counter[trader.list_banned_counter>-1]-idx[0],-1)
                             approached = 1
                         else:
                             out = " WARNING! Entry not found. Skipping it"
