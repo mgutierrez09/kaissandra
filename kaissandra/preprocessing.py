@@ -1732,9 +1732,9 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
     outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
-        separators_directory = hdf5_directory+'separators/'
+        separators_directory = local_vars.data_dir+'separators/'
     else:
-        separators_directory = hdf5_directory+'separators_test/'
+        separators_directory = local_vars.data_dir+'separators_test/'
     
     
     IO_tr_name = config['IO_tr_name']

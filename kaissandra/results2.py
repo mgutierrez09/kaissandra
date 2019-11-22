@@ -1474,6 +1474,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
             weights_id = 0
 #            print("weights_id")
 #            print(weights_id)
+            t_y = y[:,-1,:]
             if t_str=='adc':
                 t_soft_tilde = combine_ts_fn(seq_len, soft_tilde, weights_list[weights_id], 
                                           map_idx2thr, thresholds_mc, thresholds_md)

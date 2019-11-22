@@ -541,9 +541,7 @@ class RNN(Model):
                     print(mess)
                     if len(log)>0:
                         write_log(mess)
-                    if save_cost:
-                        self._save_cost(epoch, Js, From='results', 
-                                        params={'IDresults':IDresults})
+                    
                     if save_output:
                         self.save_output_fn(output, Js, 
                                             method='hdf5', tag=tag)
@@ -574,6 +572,9 @@ class RNN(Model):
                             get_results(config, Y, DTA, 
                                 Js, output, costs_dict, epoch, -1, results_filename,
                                 costs_filename, from_var=False)
+                    if save_cost:
+                        self._save_cost(epoch, Js, From='results', 
+                                        params={'IDresults':IDresults})
             except KeyboardInterrupt:
                 mess = "CV stopped due to KeyboardInterrupt exception"
                 print(mess)
