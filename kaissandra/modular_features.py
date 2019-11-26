@@ -20,6 +20,84 @@ from kaissandra.local_config import local_vars
 
 import zipfile
 
+def change_feature_name(oldfeatname, newfeatname, 
+                        assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
+                        relations=['direct','inverse'], mW=500, nExS=5000, sources=['bid','ask']):
+    """  """
+    #from tqdm import tqdm
+    
+    rootdir = local_vars.hdf5_directory
+    assetsdirs = ['mW'+str(mW)+'_nE'+str(nExS)+'/'+rel+'/'+s+'/'+C.AllAssets[str(ass)]+'/' for rel in relations for s in sources for ass in assets]
+    statsdirs = [local_vars.stats_modular_directory+'mW'+str(mW)+'nE'+str(nExS)+'/'+rel+'/' for rel in relations]
+    # change names from stats directory             
+    for statdir in statsdirs:
+        list_stats = sorted(os.listdir(statdir))
+        for statfile in list_stats:
+            if oldfeatname in statfile:
+                print(statfile)
+                list_name_splits = statfile.split(oldfeatname)
+                newname = list_name_splits[0]+newfeatname+list_name_splits[1]
+                print(newname)
+                os.rename(statdir+statfile, statdir+newname)
+    
+    # change names from features directories
+    for assetsdir in assetsdirs:#tqdm(assetsdirs, mininterval=1):#os.walk(path)
+        list_all_dirs = sorted(os.listdir(rootdir+assetsdir))
+        for file in list_all_dirs:
+            if os.path.isdir(rootdir+assetsdir+file):
+                list_feats = sorted(os.listdir(rootdir+assetsdir+file+'/'))
+                for featfile in list_feats:
+                    if oldfeatname in featfile:
+                        print(featfile)
+                        list_name_splits = featfile.split(oldfeatname)
+                        newname = list_name_splits[0]+newfeatname+list_name_splits[1]
+                        print(newname)
+                        # modify HDF5 vector name
+                        
+                        os.rename(rootdir+assetsdir+file+'/'+featfile, 
+                                  rootdir+assetsdir+file+'/'+newname)
+                    elif newfeatname in featfile:
+                        # make sure vector name is correc
+                        filenamesplit = featfile.split('.')
+                        if filenamesplit[-1] == 'hdf5':
+                            groupname = (filenamesplit[0]).split('_')[0]
+#                            print(featfile)
+                            ft = h5py.File(rootdir+assetsdir+file+'/'+featfile,'a')
+                            if groupname not in ft:
+                                # do it manually
+#                                print(groupname)
+                                print(rootdir+assetsdir+file+'/'+featfile)
+                                vector = ft['BOLDOWN10']['BOLDOWN10'][:]
+                                newvectorfeat = ft.create_group(groupname).\
+                                create_dataset(groupname, vector.shape, dtype=float)
+                                newvectorfeat[:] = vector
+                                #print(vector)
+#                            elif groupname in ft and 'BOLDOWN10' in ft:
+#                                print(rootdir+assetsdir+file+'/'+featfile)
+#                                ft[groupname][groupname][:] = ft['BOLDOWN10']['BOLDOWN10'][:]
+#                                print("ft[groupname][groupname][:] = ft['BOLDOWN10']['BOLDOWN10'][:]")
+                                #a = p
+                            ft.close()
+                        
+                        
+#                        group_temp = ft.create_group('temp')
+#                        # load features
+#                        filedirname = groupdirname+C.PF[f][0]+'_0.hdf5'
+#                        feature_file = h5py.File(filedirname,'r')
+#                #        groupname = '_'.join(groupdirname.split('/'))
+#                        features = feature_file[C.PF[f][0]][C.PF[f][0]]
+#                        # create variations vector
+#                        variations = group_temp.create_dataset("variations", (features.shape[0],nChannels), dtype=float)
+#                        pass
+            else:
+                if oldfeatname in file:
+                    print(file)
+                    list_name_splits = file.split(oldfeatname)
+                    newname = list_name_splits[0]+newfeatname+list_name_splits[1]
+                    print(newname)
+                    os.rename(rootdir+assetsdir+file, rootdir+assetsdir+newname)
+    
+
 def compress_zip(config, sources, features=[i for i in range(37)], 
                 assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
                 relations=['direct','inverse'],dirname='',namefile='compressed.zip'):

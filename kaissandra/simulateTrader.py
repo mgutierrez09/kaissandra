@@ -1152,33 +1152,25 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010REDOCMF181112T190822ALk12K5k12K2E1452','R01010REDOCMF181112T190822BSk12K5k12K2E1453']
-    list_name = ['01010REDONYk12K5k12K2E1452ALSRNSP60','01010REDONYk12K5k12K2E1453BSSRNSP60']
+    list_IDresults = ['R21050PS2CMF181112T190822ALk12K2E2215','R21050PS2CMF181112T190822BSk12K2E2215']
+    list_name = ['21050PS2ALk12K2E2215SRNSP60','21050PS2BSk12K2E2215SRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                           'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
-                                 (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
-                                 (0.665, 0.61), (0.685, 0.625), (0.685, 0.625), (0.705, 0.62), (0.705, 0.62), (0.705, 0.62), (0.71, 0.62), (0.71, 0.62), (0.7, 0.63), (0.7, 0.63), 
-                                 (0.71, 0.635), (0.71, 0.635), (0.71, 0.635), (0.715, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.71, 0.645), (0.725, 0.64), 
-                                 (0.725, 0.64), (0.725, 0.64), (0.75, 0.635), (0.75, 0.635), (0.76, 0.635), (0.76, 0.635)],
-                           'mar':[(0,0) for _ in range(46)]},
-                          {'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                           'th':[(0.515, 0.58), (0.515, 0.585), (0.515, 0.59), (0.55, 0.59), (0.555, 0.59), (0.56, 0.59), (0.605, 0.585), (0.65, 0.58), (0.66, 0.58), (0.66, 0.58), (0.64, 0.59), 
-                                 (0.64, 0.59), (0.64, 0.59), (0.645, 0.59), (0.64, 0.595), (0.645, 0.595), (0.645, 0.595), (0.645, 0.6), (0.645, 0.6), (0.645, 0.6), (0.655, 0.6), (0.655, 0.6), 
-                                 (0.66, 0.6), (0.68, 0.595), (0.685, 0.595), (0.695, 0.595), (0.695, 0.595), (0.72, 0.595), (0.72, 0.595), (0.71, 0.6), (0.71, 0.6), (0.71, 0.6), (0.735, 0.595), 
-                                 (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.72, 0.6), (0.73, 0.6), (0.73, 0.6), (0.75, 0.595), (0.775, 0.57), (0.775, 0.57), (0.775, 0.57), 
-                                 (0.775, 0.57), (0.775, 0.57)],
-                           'mar':[(0,0) for _ in range(46)]}]
+    list_spread_ranges = [{'sp':[.5, .7, .9, 1.2, 1.5, 1.7, 1.8, 2.2, 5],
+                           'th':[(.5,.61),(.52,.64),(.52,.65),(.56,.68),(.58,.69),(.59,.79),(.59,.8),(.64,.8),(.93,.59)],
+                           'mar':[(0,0) for _ in range(9)]},
+                          {'sp':[.6, .8, 1, 2.4, 2.9, 3.9, 4.3, 4.9, 5],
+                           'th':[(.8,.61), (.81,.61), (.83,.61), (.88,.58), (.88,.59), (.87,.61), (.89,.58), (.88,.62), (.9,.57)],
+                           'mar':[(0,0) for _ in range(9)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5, .5]
-    list_lb_md_ext = [.59,.57]
+    list_lb_mc_ext = [.5, .8]
+    list_lb_md_ext = [.65,.61]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
-    list_thr_sl = [50 for i in range(numberNetwors)]
+    list_thr_sl = [1000 for i in range(numberNetwors)]
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]

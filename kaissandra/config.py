@@ -132,7 +132,7 @@ class Config():
           "BOLLUP20":2008, # Bollinger Bands
           "BOLLUP10":2009,
           "BOLLDOWN20":2010,
-          "BOLDOWN10":2011,
+          "BOLLDOWN10":2011,
           "PERBOLL20":2012, # %B
           "PERBOLL10":2013,
           "ADI":2014, # Accumulation/Distribution Indicator
@@ -220,7 +220,7 @@ class Config():
           FI["BOLLUP20"]:["BOLLUP20",[20]],
           FI["BOLLUP10"]:["BOLLUP10",[10]],
           FI["BOLLDOWN20"]:["BOLLDOWN20",[20]],
-          FI["BOLDOWN10"]:["BOLDOWN10",[10]],
+          FI["BOLLDOWN10"]:["BOLLDOWN10",[10]],
           FI["PERBOLL20"]:["PERBOLL20",[20]],
           FI["PERBOLL10"]:["PERBOLL10",[10]],
           FI["ADI"]:["ADI"],

@@ -1857,7 +1857,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 sep_for_stats = separators
             else:
                 sep_for_stats = load_separators(thisAsset, 
-                                         hdf5_directory+'separators/', 
+                                         local_vars.data_dir+'separators/', 
                                          from_txt=1)
 
             first_date = dt.datetime.strftime(dt.datetime.strptime(
