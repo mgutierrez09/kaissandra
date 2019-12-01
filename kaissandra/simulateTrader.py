@@ -1152,19 +1152,20 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R21050PS2CMF181112T190822ALk12K2E2215','R21050PS2CMF181112T190822BSk12K2E2215']
-    list_name = ['21050PS2ALk12K2E2215SRNSP60','21050PS2BSk12K2E2215SRNSP60']
+    list_IDresults = ['R21050PS2CMF181112T190822ALk2K2E15','R21050PS2CMF181112T190822BSk2K2E15']
+    list_name = ['21050PS2ALk2K2E15SRNSP50','21050PS2BSk2K2E15SRNSP50']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.5, .7, .9, 1.2, 1.5, 1.7, 1.8, 2.2, 5],
-                           'th':[(.5,.61),(.52,.64),(.52,.65),(.56,.68),(.58,.69),(.59,.79),(.59,.8),(.64,.8),(.93,.59)],
-                           'mar':[(0,0) for _ in range(9)]},
-                          {'sp':[.6, .8, 1, 2.4, 2.9, 3.9, 4.3, 4.9, 5],
-                           'th':[(.8,.61), (.81,.61), (.83,.61), (.88,.58), (.88,.59), (.87,.61), (.89,.58), (.88,.62), (.9,.57)],
-                           'mar':[(0,0) for _ in range(9)]}]
+    list_spread_ranges = [{'sp':[.5, .6, .8, .9, 1, 1.1, 1.2, 1.3, 1.8, 1.9, 2, 2.1, 2.3, 2.4, 2.7, 3.1, 4, 4.1, 5],
+                           'th':[(.5,.54),(.53,.54),(.53,.56),(.55,.57),(.59,.57),(.66,.56),(.54,.62),(.55,.63),(.59,.62),
+                                 (.65,.62),(.68,.62),(.6,.67),(.62,.67),(.65,.67),(.71,.67),(.71,.73),(.74,.73),(.79,.73),(.82,.73)],
+                           'mar':[(0,0) for _ in range(19)]},
+                          {'sp':[.5, .6, .9, 1.2, 1.3, 1.8, 2.1, 3.3, 3.8, 5],
+                           'th':[(.5,.55),(.51,.57),(.51,.59),(.77,.52),(.79,.52),(.8,.52),(.83,.52),(.85,.52),(.86,.52),(.87,.52)],
+                           'mar':[(0,0) for _ in range(10)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5, .8]
-    list_lb_md_ext = [.65,.61]
+    list_lb_mc_ext = [.5, .5]
+    list_lb_md_ext = [.54,.52]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]

@@ -263,7 +263,7 @@ def get_stats_modular(config, groupdirname, groupoutdirname):
         for i, f in enumerate(feature_keys):
             if not os.path.exists(groupdirname+C.PF[f][0]+"_stats.p"):
                 # create temp file for variations
-                filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(1000))+'.hdf5'
+                filename = local_vars.hdf5_directory+'temp'+str(np.random.randint(10000))+'.hdf5'
                 try:
                     ft = h5py.File(filename,'w')
                     group_temp = ft.create_group('temp')
