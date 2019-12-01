@@ -3474,7 +3474,7 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,16,17,19,27,
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
         else:
-            list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv2')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+            list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv3')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
     # override list configs if test is True
     else:
         list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
