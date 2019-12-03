@@ -58,7 +58,7 @@ for ass in assets:
         trade_info = pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk'])
         counter = 0
         # init file name
-        dt_name = dt.datetime.strftime(current_time,'%y%m%d%H%M%S')
+        dt_name = dt.datetime.strftime(current_time,'%Y%m%d%H%M%S')
         filename = C.AllAssets[str(ass)]+'_'+dt_name
         dirfilename = ass_dir+filename+'.txt'
         print(filename)

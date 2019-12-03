@@ -13,7 +13,7 @@ from inputs import Data
 
 #
 destiny = 'D:/SDC/py/Data_test/'
-origin = 'D:/SDC/py/Data_aws_16/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
+origin = 'D:/SDC/py/Data_aws_20/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
 data = Data()
 
@@ -21,7 +21,7 @@ if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
 
 copyFrom = '2019.08.05 00:00:00'
-copyUntil = '2019.09.01 23:59:59'
+copyUntil = '2020.09.01 23:59:59'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
 copyUntilDT = dt.datetime.strptime(copyUntil,'%Y.%m.%d %H:%M:%S')
 
