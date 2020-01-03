@@ -350,7 +350,7 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  AllAssets, log_file, results_dir="", 
-                 start_time='', config_name='',net2strategy=[], api=None):
+                 start_time='', config_name='',net2strategy=[]):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
@@ -461,7 +461,7 @@ class Trader:
         self.rewind = 0
         self.approached = 0
         self.swap_pending = 0
-        self.api = api
+        #self.api = api
     
     def get_account_status(self):
         """ Get account status from broker """
@@ -1034,7 +1034,7 @@ class Trader:
                   'strategyname':self.list_opened_positions[-1].strategy.name,
                   'p_mc':self.list_opened_positions[-1].p_mc,
                   'p_md':self.list_opened_positions[-1].p_md}
-        self.api.open_position(params, asynch=True)
+        api.open_position(params, asynch=True)
         
     def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                             direction, strategy, roi, ticks):
@@ -1048,7 +1048,7 @@ class Trader:
                   'direction':direction,
                   'strategyname':strategy,
                   'roi':roi}
-        self.api.extend_position(thisAsset, params, asynch=True)
+        api.extend_position(thisAsset, params, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
                            roisoll, returns, filename, dirfilename):
@@ -1062,7 +1062,7 @@ class Trader:
                   'returns':returns,
                   'filename':filename
                 }
-        self.api.close_postition(thisAsset, params, dirfilename, asynch=True)
+        api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1465,7 +1465,7 @@ class Trader:
             file.write(log+"\n")
             file.close()
         if send_info_api:
-            self.api.send_trader_log(log)
+            api.send_trader_log(log)
         return None
     
     def send_open_command(self, directory_MT5_ass, ass_idx):
@@ -2589,10 +2589,18 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # ban asset
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, 
                                               results, direction)
-            
+        # Communicate with server to update structures
+        # TODO: Only enter once a sec (or every 10 secs)
+#        if send_info_api:
+#            api.parameters_enquiry()
+        
     # end of while run
     budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
     return budget
+
+#def update_params():
+#    """ Update parameters coming from server """
+    
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               traders, list_results, running_assets, ass2index_mapping, lists,
@@ -3311,8 +3319,9 @@ def run(config_traders_list, running_assets, start_time, test, api):
                                     ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                     log_file, results_dir=dir_results, 
                                     start_time=start_time, config_name=config_trader['config_name'],
-                                    net2strategy=list_net2strategy[idx_tr], api=api)
-                    
+                                    net2strategy=list_net2strategy[idx_tr])#, api=api
+                    # pass trader to api
+                    api.init_trader(trader)
 #                    if not os.path.exists(trader.log_file):
 #                        write_log(out, trader.log_file)
 #                        write_log(out, trader.log_summary)
@@ -3459,7 +3468,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,16,17,19,27,28,29,30,32], 
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,32], 
            synchroned_run=False, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process

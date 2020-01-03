@@ -11,6 +11,7 @@ import h5py
 from multiprocessing import Process
 import pickle
 import numpy as np
+import datetime as dt
 
 from kaissandra.trainRNN import train_RNN
 from kaissandra.testRNN import test_RNN
@@ -83,7 +84,8 @@ def automate(*ins):
 
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
                  sufix='',k_init=0, k_end=-1, log='', 
-                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW=''):
+                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW='',
+                 first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -193,17 +195,23 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log)
+                                                                     log=log,
+                                                                     first_day=first_day, 
+                                                                     last_day=last_day)
         elif not oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log)
+                                                                     log=log,
+                                                                     first_day=first_day, 
+                                                                     last_day=last_day)
         elif oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular_oneNet(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log)
+                                                                     log=log,
+                                                                     first_day=first_day, 
+                                                                     last_day=last_day)
         configs.append(config)
         dirfilename_trs.append(dirfilename_tr)
         dirfilename_tes.append(dirfilename_te)
@@ -214,12 +222,14 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False, extW='', only_misclassified=False, misclass_name=''):
+                 oneNet=False, extW='', only_misclassified=False, misclass_name='',
+                 first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
-         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW)
+         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW,
+         first_day=first_day, last_day=last_day)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']
     else:
@@ -457,8 +467,10 @@ def boosting(rootname_config, epoch, entries={}, K=5,
 
 def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[], 
                         build_IDrs=False, its=15, sufix='', IDr_merged='', log='', 
-                        just_build=False, if_merge_results=False,IDweights=''):
+                        just_build=False, if_merge_results=False,IDweights='',
+                        first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
+    
     if 'build_XY_mode' in entries:
         build_XY_mode = entries['build_XY_mode']
     else:
@@ -514,7 +526,8 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
     IDresults = config['IDresults']
     
     dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
-                                                                     log=log)
+                                                    log=log, first_day=first_day, 
+                                                    last_day=last_day)
     
     if not just_build:
         f_IOtr = h5py.File(dirfilename_tr,'r')

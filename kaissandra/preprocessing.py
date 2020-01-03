@@ -701,7 +701,7 @@ def get_numer_days(thisAsset):
     
     return len(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
 
-def get_edges_datasets(K, config, dataset_dirfilename=''):
+def get_edges_datasets(K, config, dataset_dirfilename='', first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -739,8 +739,8 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
         samps_ass = np.zeros((len(assets)))
         n_days_ass = np.zeros((len(assets)))
         
-        first_day=dt.date(2016, 1, 1)
-        last_day=dt.date(2018, 11, 9)
+        #first_day=dt.date(2016, 1, 1)
+        #last_day=dt.date(2018, 11, 9)
         max_days = (last_day-first_day).days+1
         A = np.zeros((len(assets), max_days))
         AllAssets = Data().AllAssets
@@ -750,7 +750,7 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
             samps_ass[a] = dataset_file[thisAsset].attrs.get("m_t_out")
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)
@@ -1035,7 +1035,8 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def build_datasets(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets(folds=3, fold_idx=0, config={}, log='', 
+                   first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1111,7 +1112,8 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                             str(nEventsPerStat)+'_nF'+str(nFeatures)+'_test.hdf5')
         separators_directory = hdf5_directory+'separators_test/'
     
-    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
+    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO, 
+                                         first_day=first_day, last_day=last_day)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'

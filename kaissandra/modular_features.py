@@ -133,7 +133,11 @@ def compress_zip(config, sources, features=[i for i in range(37)],
     # ziph is zipfile handle
     stats_files = ['m_in','m_out','output']
     for assetsdir in tqdm(assetsdirs, mininterval=1):#os.walk(path)
-        list_all_dirs = sorted(os.listdir(rootdir+assetsdir))
+        try:
+            list_all_dirs = sorted(os.listdir(rootdir+assetsdir))
+        except FileNotFoundError:
+            print("WARNING! File "+rootdir+assetsdir+" could not be found. Skipped")
+            continue
         for file in list_all_dirs:
             if os.path.isdir(rootdir+assetsdir+file):
                 #print(rootdir+assetsdir+file)
@@ -1445,7 +1449,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
             (file.close() for file in features_files)
             (os.remove(filedirname) for filediername in filedirnames)
             print("Interrupt in get_features_modular_parallel. Files closed and deleted")
-            raise ValueError
+            raise ValueError("KeyboardInterrupt. Files deleted")
     else:
         print("\tAll features already calculated. Skipped.")
     return feature_keys, Symbol
@@ -1541,7 +1545,7 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
     
     return all_stats
 
-def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[], get_feats=True):
+def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[], get_feats=True, from_py=False):
     """  """
     import time
     from kaissandra.inputs import load_separators
@@ -1585,6 +1589,10 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[],
         test_flag = '_test'
     else:
         test_flag = ''
+    if not from_py:
+        py_flag = ''
+    else:
+        py_flag = '_py'
     if 'asset_relation' in config:
         asset_relation = config['asset_relation']
     else:
@@ -1598,8 +1606,8 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[],
         rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/ask/'
     outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
     
-    filename_raw = local_vars.data_dir+'tradeinfo'+test_flag+'.hdf5'
-    separators_directory = local_vars.data_dir+'separators'+test_flag+'/'
+    filename_raw = local_vars.data_dir+'tradeinfo'+py_flag+test_flag+'.hdf5'
+    separators_directory = local_vars.data_dir+'separators'+py_flag+test_flag+'/'
     
     #assert(not (build_test_db and save_stats))
     # init hdf5 files

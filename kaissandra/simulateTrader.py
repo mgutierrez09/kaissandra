@@ -1174,7 +1174,7 @@ if __name__ == '__main__':
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5, .5]
     list_lb_md_ext = [.59,.57]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    list_max_lots_per_pos = [1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
@@ -1360,7 +1360,7 @@ if __name__ == '__main__':
 #    journal_all_days = journal_purged
     
     total_journal_entries = journal_all_days.shape[0]
-    init_budget = 10000
+    init_budget = 20000
     results = Results()
     
     directory = local_vars.live_results_dict+"simulate/trader/"
