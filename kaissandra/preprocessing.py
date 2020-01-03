@@ -675,7 +675,7 @@ def get_list_unique_days(thisAsset):
     try:
         list_dir = sorted(os.listdir(dir_ass))
         list_regs = [re.search('^'+thisAsset+'_\d+'+'.txt$',f) for f in list_dir]
-        list_unique_days = list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
+        list_unique_days = sorted(list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs])))
         
         pickle.dump( list_unique_days, open( local_vars.hdf5_directory+"list_unique_days_"+thisAsset+".p", "wb" ))
     except FileNotFoundError:
@@ -687,7 +687,13 @@ def get_day_indicator(list_unique_days, first_day=dt.date(2016, 1, 1), last_day=
     """  """
     max_days = (last_day-first_day).days+1
     x = np.zeros((max_days))
-    days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days]
+    print(first_day)
+    print(last_day)
+    ### TODO: WARNING! It only works if first and last days are in list_unique_days[0]
+    init_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days==0][0]
+    end_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-last_day).days==0][0]
+    days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days[init_idx:end_idx]]
+    #print(days_idx)
     x[days_idx] = 1
     return x
     
@@ -1432,7 +1438,7 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
         AllAssets = Data().AllAssets
         for a, ass in enumerate(assets):
             thisAsset = AllAssets[str(ass)]
-            
+            print(thisAsset)
             separators = load_separators(thisAsset, 
                                      separators_directory, 
                                      from_txt=1)
