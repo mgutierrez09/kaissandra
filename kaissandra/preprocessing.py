@@ -1446,7 +1446,7 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
                                      first_date+last_date+'.p', "rb"))['m']
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)

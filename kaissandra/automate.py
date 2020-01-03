@@ -202,16 +202,12 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log,
-                                                                     first_day=first_day, 
-                                                                     last_day=last_day)
+                                                                     log=log)
         elif oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular_oneNet(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log,
-                                                                     first_day=first_day, 
-                                                                     last_day=last_day)
+                                                                     log=log)
         configs.append(config)
         dirfilename_trs.append(dirfilename_tr)
         dirfilename_tes.append(dirfilename_te)
@@ -222,14 +218,12 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False, extW='', only_misclassified=False, misclass_name='',
-                 first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
+                 oneNet=False, extW='', only_misclassified=False, misclass_name=''):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
         (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
-         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW,
-         first_day=first_day, last_day=last_day)
+         modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']
     else:
