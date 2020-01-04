@@ -47,7 +47,7 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     # quantize output to get y
     out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
         (size_output_mg-1)/2),(size_output_mg-1)/2)
-    
+    #print(Output)
     y = out_quantized+int((size_output_mg-1)/2)
     # conver y as integer
     y_dec=y.astype(int)
@@ -292,10 +292,22 @@ def build_variations_modular(config, file_temp, features, stats):
 #    print(variations.shape)
     # loop over channels
     for r in range(nC):
-        variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
-                                               VarIdx]-features[
-                                                :-(channels[r]+1),
-                                                VarIdx])
+        with np.errstate(invalid='raise'):
+            #all_zeros / 0.  # Raises FloatingPointError
+            try:
+                variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
+                                                   VarIdx]-features[
+                                                    :-(channels[r]+1),
+                                                    VarIdx])
+            except:
+                print(config['asset_relation'])
+                print(features[channels[r]+1:,VarIdx].shape)
+                infs = []
+                #feats = features[channels[r]+1:,VarIdx]
+                #for i in range(feats
+                #infs = np.isinf(features[channels[r]+1:,VarIdx])
+                print(features[channels[r]+1:,VarIdx])
+                raise FloatingPointError
         if nonVarFeats.shape[0]>0:
             variations[channels[r]+1:,nonVarIdx,r] = features[:-(channels[r]+1), nonVarIdx]
             
@@ -1670,7 +1682,7 @@ def sort_input(array, sorted_idx, prevPointerCv, char=False):
 #    IO['Bcv'][prevPointerCv:,:,:] = temp
     return temp
 
-def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1737,10 +1749,14 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         symbol = 'bid'
     else:
         symbol = 'ask'
+    if not from_py:
+        py_flag = ''
+    else:
+        py_flag = '_py'
     featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
     outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
-        separators_directory = local_vars.data_dir+'separators/'
+        separators_directory = local_vars.data_dir+'separators'+py_flag+'/'
     else:
         separators_directory = local_vars.data_dir+'separators_test/'
     
