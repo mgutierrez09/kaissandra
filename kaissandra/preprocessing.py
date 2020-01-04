@@ -47,7 +47,7 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     # quantize output to get y
     out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
         (size_output_mg-1)/2),(size_output_mg-1)/2)
-    
+    #print(Output)
     y = out_quantized+int((size_output_mg-1)/2)
     # conver y as integer
     y_dec=y.astype(int)
@@ -292,10 +292,22 @@ def build_variations_modular(config, file_temp, features, stats):
 #    print(variations.shape)
     # loop over channels
     for r in range(nC):
-        variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
-                                               VarIdx]-features[
-                                                :-(channels[r]+1),
-                                                VarIdx])
+        with np.errstate(invalid='raise'):
+            #all_zeros / 0.  # Raises FloatingPointError
+            try:
+                variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
+                                                   VarIdx]-features[
+                                                    :-(channels[r]+1),
+                                                    VarIdx])
+            except:
+                print(config['asset_relation'])
+                print(features[channels[r]+1:,VarIdx].shape)
+                infs = []
+                #feats = features[channels[r]+1:,VarIdx]
+                #for i in range(feats
+                #infs = np.isinf(features[channels[r]+1:,VarIdx])
+                print(features[channels[r]+1:,VarIdx])
+                raise FloatingPointError
         if nonVarFeats.shape[0]>0:
             variations[channels[r]+1:,nonVarIdx,r] = features[:-(channels[r]+1), nonVarIdx]
             
@@ -675,7 +687,7 @@ def get_list_unique_days(thisAsset):
     try:
         list_dir = sorted(os.listdir(dir_ass))
         list_regs = [re.search('^'+thisAsset+'_\d+'+'.txt$',f) for f in list_dir]
-        list_unique_days = list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
+        list_unique_days = sorted(list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs])))
         
         pickle.dump( list_unique_days, open( local_vars.hdf5_directory+"list_unique_days_"+thisAsset+".p", "wb" ))
     except FileNotFoundError:
@@ -687,7 +699,13 @@ def get_day_indicator(list_unique_days, first_day=dt.date(2016, 1, 1), last_day=
     """  """
     max_days = (last_day-first_day).days+1
     x = np.zeros((max_days))
-    days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days]
+    print(first_day)
+    print(last_day)
+    ### TODO: WARNING! It only works if first and last days are in list_unique_days[0]
+    init_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days==0][0]
+    end_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-last_day).days==0][0]
+    days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days[init_idx:end_idx]]
+    #print(days_idx)
     x[days_idx] = 1
     return x
     
@@ -701,7 +719,7 @@ def get_numer_days(thisAsset):
     
     return len(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
 
-def get_edges_datasets(K, config, dataset_dirfilename=''):
+def get_edges_datasets(K, config, dataset_dirfilename='', first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -739,8 +757,8 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
         samps_ass = np.zeros((len(assets)))
         n_days_ass = np.zeros((len(assets)))
         
-        first_day=dt.date(2016, 1, 1)
-        last_day=dt.date(2018, 11, 9)
+        #first_day=dt.date(2016, 1, 1)
+        #last_day=dt.date(2018, 11, 9)
         max_days = (last_day-first_day).days+1
         A = np.zeros((len(assets), max_days))
         AllAssets = Data().AllAssets
@@ -750,7 +768,7 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
             samps_ass[a] = dataset_file[thisAsset].attrs.get("m_t_out")
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)
@@ -1035,7 +1053,8 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def build_datasets(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets(folds=3, fold_idx=0, config={}, log='', 
+                   first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1111,7 +1130,8 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                             str(nEventsPerStat)+'_nF'+str(nFeatures)+'_test.hdf5')
         separators_directory = hdf5_directory+'separators_test/'
     
-    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
+    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO, 
+                                         first_day=first_day, last_day=last_day)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
@@ -1430,7 +1450,7 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
         AllAssets = Data().AllAssets
         for a, ass in enumerate(assets):
             thisAsset = AllAssets[str(ass)]
-            
+            print(thisAsset)
             separators = load_separators(thisAsset, 
                                      separators_directory, 
                                      from_txt=1)
@@ -1444,7 +1464,7 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
                                      first_date+last_date+'.p', "rb"))['m']
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)
@@ -1662,7 +1682,7 @@ def sort_input(array, sorted_idx, prevPointerCv, char=False):
 #    IO['Bcv'][prevPointerCv:,:,:] = temp
     return temp
 
-def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1729,10 +1749,14 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         symbol = 'bid'
     else:
         symbol = 'ask'
+    if not from_py:
+        py_flag = ''
+    else:
+        py_flag = '_py'
     featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
     outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
-        separators_directory = local_vars.data_dir+'separators/'
+        separators_directory = local_vars.data_dir+'separators'+py_flag+'/'
     else:
         separators_directory = local_vars.data_dir+'separators_test/'
     
@@ -1857,7 +1881,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 sep_for_stats = separators
             else:
                 sep_for_stats = load_separators(thisAsset, 
-                                         hdf5_directory+'separators/', 
+                                         local_vars.data_dir+'separators/', 
                                          from_txt=1)
 
             first_date = dt.datetime.strftime(dt.datetime.strptime(

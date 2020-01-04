@@ -1152,10 +1152,11 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010REDOCMF181112T190822ALk12K5k12K2E1452','R01010REDOCMF181112T190822BSk12K5k12K2E1453']
+    list_IDresults = ['R01010REDOCMF181112T191129ALk12K5k12K2E1452','R01010REDOCMF181112T191129BSk12K5k12K2E1453']
     list_name = ['01010REDONYk12K5k12K2E1452ALSRNSP60','01010REDONYk12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
+    
     list_spread_ranges = [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                            'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
                                  (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
@@ -1173,12 +1174,12 @@ if __name__ == '__main__':
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5, .5]
     list_lb_md_ext = [.59,.57]
-    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
+    list_max_lots_per_pos = [1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
-    list_thr_sl = [50 for i in range(numberNetwors)]
+    list_thr_sl = [1000 for i in range(numberNetwors)]
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1189,7 +1190,7 @@ if __name__ == '__main__':
     root_dir = local_vars.data_test_dir
     
     init_day_str = '20181112'#'20190701'#
-    end_day_str = '20190822'
+    end_day_str = '20191129'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     
@@ -1359,7 +1360,7 @@ if __name__ == '__main__':
 #    journal_all_days = journal_purged
     
     total_journal_entries = journal_all_days.shape[0]
-    init_budget = 10000
+    init_budget = 20000
     results = Results()
     
     directory = local_vars.live_results_dict+"simulate/trader/"
