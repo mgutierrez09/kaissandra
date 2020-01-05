@@ -45,8 +45,17 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y = np.zeros((Output.shape))
     #print(y.shape)
     # quantize output to get y
-    out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
-        (size_output_mg-1)/2),(size_output_mg-1)/2)
+    with np.errstate(invalid='raise'):
+        #all_zeros / 0.  # Raises FloatingPointError
+        try:
+            out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
+                                                  (size_output_mg-1)/2),(size_output_mg-1)/2)
+        except:
+            print(config['asset_relation'])
+            print(Output)
+            
+            raise FloatingPointError
+    
     #print(Output)
     y = out_quantized+int((size_output_mg-1)/2)
     # conver y as integer
@@ -568,9 +577,15 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         
         # normalize output
         if len(stds_out.shape)==2:
+            
             R_i = R_i/stds_out[0, lookAheadIndex]#stdO#
+            
         elif len(stds_out.shape)==1:
+            #print("R_i")
+            #print(R_i)
             R_i = R_i/stds_out[lookAheadIndex]#stdO#
+            #print("stds_out[lookAheadIndex]")
+            #print(stds_out[lookAheadIndex])
         #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # get decimal and binary outputs
         # TODO: generalize for the number of outputs
@@ -1299,6 +1314,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log='',
                             Vars = build_variations(config, file_temp, 
                                                     features_manual, 
                                                     stats_manual)
+                            
                             IO = build_XY(config, Vars, returns_struct, 
                                           stats_output, IO, edges_dt,
                                           folds, fold_idx, save_output=False)
@@ -1759,7 +1775,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
         separators_directory = local_vars.data_dir+'separators'+py_flag+'/'
     else:
         separators_directory = local_vars.data_dir+'separators_test/'
-    
+    print(hdf5_directory)
+    print(separators_directory)
     
     IO_tr_name = config['IO_tr_name']
     IO_cv_name = config['IO_cv_name']
@@ -1953,6 +1970,10 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                                     skip_cv = False
                                 else:
                                     skip_cv = True
+                                #print("assdirnames[ind]")
+                                #print(assdirnames[ind])
+                                #print("shift")
+                                #print(shift)
                                 IO = build_XY(config, Vars, list_returns_struct[ind][s], 
                                               list_stats_out[ind], IO, edges_dt,
                                               folds, fold_idx, save_output=False, 

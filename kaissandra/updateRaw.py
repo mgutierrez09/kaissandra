@@ -277,9 +277,9 @@ elif build_test_db and not build_partial_raw:
     separators_directory_name = 'separators_test/'
     dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.11.29')
 elif not build_test_db and not build_partial_raw:
-    hdf5_file_name = 'tradeinfo_py.hdf5'
-    separators_directory_name = 'separators_py/'
-    directory_root = 'D:/SDC/py/Data_PY/'
+    hdf5_file_name = 'tradeinfo_py_2.hdf5'
+    separators_directory_name = 'separators_py_2/'
+    directory_root = 'E:/SDC/py/Data_PY/'
     dateTest = get_dateTest(init_date='2014.01.02', end_date='2018.11.09')
 else:
     raise ValueError("Not supported")
@@ -309,7 +309,7 @@ first_day = dt.datetime.strptime(dateTest[0], '%Y.%m.%d').date()
 last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
 list_bussines_days = find_bussines_days_v2(first_day=first_day, 
                                            last_day=last_day)
-assets = [16,17,19,27,28,29,30,31,32]
+assets = [4]
 # loop over all assets
 for ass in assets:
     thisAsset = data.AllAssets[str(ass)]
