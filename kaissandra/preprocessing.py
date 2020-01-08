@@ -308,15 +308,22 @@ def build_variations_modular(config, file_temp, features, stats):
                                                    VarIdx]-features[
                                                     :-(channels[r]+1),
                                                     VarIdx])
+                err = 0
             except:
-                print(config['asset_relation'])
-                print(features[channels[r]+1:,VarIdx].shape)
-                infs = []
+                print("WARNING! Invalid value encountered")
+                err = 1
+                #print(features[channels[r]+1:,VarIdx].shape)
+                #infs = []
                 #feats = features[channels[r]+1:,VarIdx]
                 #for i in range(feats
                 #infs = np.isinf(features[channels[r]+1:,VarIdx])
-                print(features[channels[r]+1:,VarIdx])
-                raise FloatingPointError
+                #print(features[channels[r]+1:,VarIdx])
+                #raise FloatingPointError
+        if err:
+            variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
+                                                       VarIdx]-features[
+                                                        :-(channels[r]+1),
+                                                        VarIdx])
         if nonVarFeats.shape[0]>0:
             variations[channels[r]+1:,nonVarIdx,r] = features[:-(channels[r]+1), nonVarIdx]
             

@@ -831,7 +831,7 @@ def configuration_trader(*ins):
         
         
         list_lim_groi_ext = [-10 for i in range(numberNetworks)]
-        list_thr_sl = [1 for i in range(numberNetworks)]#50
+        list_thr_sl = [50 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.04 for i in range(numberNetworks)]
         list_invest_strategy = [{'name':'scale',
