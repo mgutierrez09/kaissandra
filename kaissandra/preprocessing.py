@@ -2017,7 +2017,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
 #                            int(s/2),int(len(separators)/2-1)))
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
-        if 1:
+        if if_build_IO:
             ass_IO_ass_tr[ass_idx] = IO['pointerTr']
             ass_IO_ass_cv[ass_idx] = IO['pointerCv']
             mess = "\tTime for "+thisAsset+":"+str(np.floor(time.time()-tic))+"s"+\
@@ -2029,7 +2029,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
         ass_idx += 1
         
     # end of for ass in data.assets:
-    if 1:
+    if if_build_IO:
         mess = "Building DTA..."
         print(mess)
         if len(log)>0:
