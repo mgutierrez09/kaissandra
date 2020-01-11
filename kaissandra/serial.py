@@ -1675,7 +1675,7 @@ class Trader:
             self.list_dict_banned_assets = [None for _ in self.list_is_asset_banned]
             
         tracing_dict = {'lastDateTime':DateTime,
-                        'counter':100}
+                        'counter':10}
         self.list_dict_banned_assets[ass_idx] = tracing_dict
         out = DateTime+" "+thisAsset+\
                 " ban counter set to "\
@@ -1983,8 +1983,13 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 
                 # wait for output to come
                 if listCountPos[sc]>nChannels+seq_len-1:#t_t=2:listCountPos[sc]>nChannels+model.seq_len-1
+                    if not modular:
+                        std_out = stds_out[0,lookAheadIndex]
+                    else:
+                        std_out = stds_out[lookAheadIndex]
                     Output_i=(tradeInfoLive.SymbolBid.iloc[-2]-EOF.SymbolBid.iloc[c]
-                             )/stds_out[0,lookAheadIndex]
+                                 )/std_out
+                    
                     countOut+=1
                                 
                     Y = (np.minimum(np.maximum(np.sign(Output_i)*np.round(
@@ -2940,6 +2945,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
     list_net2strategy = [[] for _ in range(len(config_traders_list))]
     list_unique_configs = []
     list_tags = []
+    list_tags_modular = []
     #log_files = []
     # init tensorflow graph
     tf.reset_default_graph()
@@ -3027,12 +3033,15 @@ def run(config_traders_list, running_assets, start_time, test, api):
                     # only get short bets (negative directions)
                     #tag = 'IO_mW'
                     tag_stats = 'IOB'
+                    tag_stats_modular = 'bid'
                 else:
                     # only get long bets (positive directions)
                     #tag = 'IOA_mW'
                     tag_stats = 'IOA'
+                    tag_stats_modular = 'ask'
                 print(tag_stats)
                 list_tags.append(tag_stats)
+                list_tags_modular.append(tag_stats_modular)
 #                filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
 #                                    str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5')
 #                list_filenames.append(filename_prep_IO)
@@ -3160,33 +3169,60 @@ def run(config_traders_list, running_assets, start_time, test, api):
     
     #########################################
     
-    #print(h5py.File(list_filenames[0],'r')[AllAssets[str(running_assets[0])]])
-#    f_prep_IO = h5py.File(filename_prep_IO,'r')
     if not test:
-        list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
-                        None, 
-                        from_stats_file=True, hdf5_directory=LC.hdf5_directory+'stats/',tag=list_tags[nn]) 
-                        for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], LC.hdf5_directory+
-                        'stats/', AllAssets[str(running_assets[ass])], 
-                        tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
+        if modular:
+            # TODO: get directory from LC
+            separators_directory = 'D:/SDC/py/Data/separators/'
+            
+            list_separators = [load_separators(AllAssets[str(running_assets[ass])], 
+                                         separators_directory, 
+                                         from_txt=1) for ass in range(nAssets)]
+        
+            list_first_dates = [dt.datetime.strftime(dt.datetime.strptime(
+                    list_separators[ass].DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
+            list_last_dates = [dt.datetime.strftime(dt.datetime.strptime(
+                    list_separators[ass].DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
+            list_stats = [[load_stats_modular(configs[0], AllAssets[str(running_assets[ass])], 
+                                                            list_first_dates[ass], list_last_dates[ass], list_tags_modular[nn], 'direct',
+                                                            stats_modular_directory='D:/SDC/py/HDF5/stats_modular/')
+                                                            for nn in range(nNets)] 
+                                                            for ass in range(nAssets)]
+            #print(list_tags_modular)
+            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
+            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
+        else:
+            list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
+                            None, 
+                            from_stats_file=True, hdf5_directory='D:/SDC/py/HDF5/stats/',tag=list_tags[nn]) 
+                            for nn in range(nNets)] for ass in range(nAssets)]
+            list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], 'D:/SDC/py/HDF5/stats/', AllAssets[str(running_assets[ass])], 
+                            tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
     else:
         list_stats_feats = [[load_stats_manual_v2({}, AllAssets[str(running_assets[ass])], 
                         None, 
-                        from_stats_file=True, hdf5_directory=LC.hdf5_directory+'stats/') 
+                        from_stats_file=True, hdf5_directory='D:/SDC/py/HDF5/stats/') 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2({}, LC.hdf5_directory+
-                        'stats/', AllAssets[str(running_assets[ass])]) 
+        list_stats_rets = [[load_stats_output_v2({}, 'D:/SDC/py/HDF5/stats/', 
+                            AllAssets[str(running_assets[ass])]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
         gain = .000000001
     
+    
+    
+        
     list_means_in =  [[list_stats_feats[ass][nn]['means_t_in'] for nn in range(nNets)] 
-                                                             for ass in range(nAssets)]
+                                                                 for ass in range(nAssets)]
+#    print(list_means_in[0][0].shape)
+#    print(list_means_in[0][0][1,:])
     list_stds_in =  [[gain*list_stats_feats[ass][nn]['stds_t_in'] for nn in range(nNets)] 
-                                                                for ass in range(nAssets)]
+                                                                    for ass in range(nAssets)]
+#    print(list_stds_in[0][0].shape)
+#    print(list_stds_in[0][0][1,:])    
     list_stds_out =  [[gain*list_stats_rets[ass][nn]['stds_t_out'] for nn in range(nNets)] 
                                                                   for ass in range(nAssets)]
+#    print(list_stds_out[0][0])
+#    a=p
     # pre allocate memory size
     
     # init non-variation features
@@ -3321,7 +3357,8 @@ def run(config_traders_list, running_assets, start_time, test, api):
                                     start_time=start_time, config_name=config_trader['config_name'],
                                     net2strategy=list_net2strategy[idx_tr])#, api=api
                     # pass trader to api
-                    api.init_trader(trader)
+                    if send_info_api:
+                        api.init_trader(trader)
 #                    if not os.path.exists(trader.log_file):
 #                        write_log(out, trader.log_file)
 #                        write_log(out, trader.log_summary)
@@ -3416,7 +3453,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
                                 ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
                                 start_time=start_time, config_name=config_trader['config_name'],
-                                net2strategy=list_net2strategy[idx_tr], api=api)
+                                net2strategy=list_net2strategy[idx_tr])
                     
 #                if not os.path.exists(trader.log_file):
 #                    write_log(out, trader.log_file)
@@ -3468,7 +3505,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,32], 
+def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
            synchroned_run=False, test=False, api=None):
     # runLive in multiple processes
     from multiprocessing import Process
@@ -3524,6 +3561,7 @@ spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 send_info_api = True
+modular = False
 
 if __name__=='__main__':
     import sys
@@ -3554,9 +3592,11 @@ if __name__=='__main__':
     #
 from kaissandra.simulateTrader import load_in_memory
 from kaissandra.inputs import (initFeaturesLive_v2,
-                                   extractFeaturesLive_v2)
+                               extractFeaturesLive_v2,
+                               load_separators)
 from kaissandra.preprocessing import (load_stats_manual_v2,
-                                          load_stats_output_v2)
+                                      load_stats_output_v2,
+                                      load_stats_modular)
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC

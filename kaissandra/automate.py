@@ -559,7 +559,7 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
         
 def combine_models(entries, model_names, epochs, rootname_config, sufix='', 
                    melting_func='mean', tag_from_till='',log='', modular=False, sufix_io='', 
-                   get_results=True):
+                   get_results=True, from_py=True):
     """  """
     import numpy as np
     import os
@@ -642,7 +642,7 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
                                                                      log=log)
     else:
         dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(config=config, 
-                                                                     log=log)
+                                                                     log=log,from_py=from_py)
     f_IOte = h5py.File(dirfilename_te,'r')
     Yte = f_IOte['Y']
     Xte = f_IOte['X']

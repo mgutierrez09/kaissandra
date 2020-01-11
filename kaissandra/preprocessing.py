@@ -702,10 +702,10 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     
     return IO
 
-def get_list_unique_days(thisAsset):
+def get_list_unique_days(data_dir, thisAsset):
     """  """
     import re
-    dir_ass = local_vars.data_dir+thisAsset
+    dir_ass = data_dir+thisAsset
     try:
         list_dir = sorted(os.listdir(dir_ass))
         list_regs = [re.search('^'+thisAsset+'_\d+'+'.txt$',f) for f in list_dir]
@@ -1075,7 +1075,7 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def build_datasets(folds=3, fold_idx=0, config={}, log='', 
+def build_datasets(folds=3, fold_idx=0, config={}, log='', data_dir=local_vars.data_dir,
                    first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     ticTotal = time.time()
@@ -1153,7 +1153,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log='',
         separators_directory = hdf5_directory+'separators_test/'
     
     edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO, 
-                                         first_day=first_day, last_day=last_day)
+                                         first_day=first_day, last_day=last_day, data_dir=data_dir)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
@@ -1430,7 +1430,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log='',
         write_log(mess)
     return filename_tr, filename_cv, IO_results_name
 
-def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
+def get_edges_datasets_modular(K, config, separators_directory, data_dir, symbol='bid'):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -1485,7 +1485,7 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
             samps_ass[a] = pickle.load(open( local_vars.hdf5_directory+'stats_modular/mW'+str(movingWindow)+
                                      'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'+thisAsset+'_'+symbol+'_out_'+
                                      first_date+last_date+'.p', "rb"))['m']
-            list_unique_days = get_list_unique_days(thisAsset)
+            list_unique_days = get_list_unique_days(data_dir, thisAsset)
             n_days_ass[a] = len(list_unique_days)
             A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
@@ -1521,30 +1521,30 @@ def load_features_modular(config, thisAsset, separators, assdirname, init_date, 
             
     return features
 
-def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel):
+def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel, stats_modular_directory=local_vars.stats_modular_directory):
     """  """
     movingWindow = config['movingWindow']
     nEventsPerStat = config['nEventsPerStat']
-    if config['feats_from_bids']:
-        symbol_type = 'bid'
-    else:
-        symbol_type = 'ask'
+#    if config['feats_from_bids']:
+#        symbol_type = 'bid'
+#    else:
+#        symbol_type = 'ask'
     feature_keys = config['feature_keys']
     asset_relation = ass_rel#config['asset_relation']#
     nChannels = int(nEventsPerStat/movingWindow)
-    stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+    stats_dir = stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
     means_in = np.zeros((nChannels, len(feature_keys)))
     stds_in = np.zeros((nChannels, len(feature_keys)))
     for i, feat in enumerate(feature_keys):
         key = C.PF[feat][0]
         # copy in stats directory
-        filedirname = stats_dir+thisAsset+'_'+symbol_type+'_'+key+'_'+first_date+last_date+'.p'
+        filedirname = stats_dir+thisAsset+'_'+symbol+'_'+key+'_'+first_date+last_date+'.p'
         stats = pickle.load(open( filedirname, "rb"))
         means_in[:,i] = stats['mean'][:,0]
         stds_in[:,i] = stats['std'][:,0]
     stats_in = {'means_t_in':means_in,
                 'stds_t_in':stds_in}
-    filedirname = stats_dir+thisAsset+'_'+symbol_type+'_out_'+first_date+last_date+'.p'
+    filedirname = stats_dir+thisAsset+'_'+symbol+'_out_'+first_date+last_date+'.p'
     out = pickle.load( open( filedirname, "rb" ))
     stats_out = {'stds_t_out':out['std_'+symbol],
                  'means_t_out':out['mean_'+symbol],
@@ -1774,14 +1774,16 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
         symbol = 'ask'
     if not from_py:
         py_flag = ''
+        data_dir = local_vars.data_dir
     else:
         py_flag = '_py'
+        data_dir = local_vars.data_dir_py
     featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
     outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
-        separators_directory = local_vars.data_dir+'separators'+py_flag+'/'
+        separators_directory = data_dir+'separators'+py_flag+'/'
     else:
-        separators_directory = local_vars.data_dir+'separators_test/'
+        separators_directory = data_dir+'separators_test/'
     print(hdf5_directory)
     print(separators_directory)
     
@@ -1795,7 +1797,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
     print(IO_results_name)
     
     
-    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol=symbol)
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, data_dir, symbol=symbol)
     print("Edges:")
     print(edges)
     
@@ -1905,7 +1907,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                 sep_for_stats = separators
             else:
                 sep_for_stats = load_separators(thisAsset, 
-                                         local_vars.data_dir+'separators/', 
+                                         data_dir+'separators'+py_flag+'/', 
                                          from_txt=1)
 
             first_date = dt.datetime.strftime(dt.datetime.strptime(
