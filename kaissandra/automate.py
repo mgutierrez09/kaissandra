@@ -650,7 +650,7 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
     n_models = len(model_names)
     # save model names
     if not os.path.exists(local_vars.results_directory+IDresults):
-        os.mkdir(local_vars.results_directory+IDresults)
+        os.makedirs(local_vars.results_directory+IDresults)
     with open(local_vars.results_directory+IDresults+'/model_names.txt',"w") as file:    
         file.write('\n'.join(model_names))
         file.close()

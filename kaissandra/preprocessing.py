@@ -837,12 +837,12 @@ def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False,
     
     elif from_stats_file:
         try:
-            stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
+            stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
         except FileNotFoundError:
-            print("WARNING FileNotFoundError: "+hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
+            print("WARNING FileNotFoundError: "+local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p. Getting stats from features file")
@@ -880,7 +880,7 @@ def load_stats_output_v2(config, hdf5_directory, thisAsset, tag='IOB'):
         nEventsPerStat = 500
     nF = len(feature_keys_manual)
     # TODO: pass output stats to their own container and load them from there
-    stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
+    stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
@@ -1907,7 +1907,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                 sep_for_stats = separators
             else:
                 sep_for_stats = load_separators(thisAsset, 
-                                         data_dir+'separators'+py_flag+'/', 
+                                         'E:/SDC/py/Data/'+'separators'+py_flag+'/', 
                                          from_txt=1)
 
             first_date = dt.datetime.strftime(dt.datetime.strptime(

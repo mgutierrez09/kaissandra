@@ -1152,7 +1152,7 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01010REDOCMF181112T191129ALk12K5k12K2E1452','R01010REDOCMF181112T191129BSk12K5k12K2E1453']
+    list_IDresults = ['R01010WEEKTESTCMF200106T200110ALk12K5k12K2E1452','R01010WEEKTESTCMF200106T200110BSk12K5k12K2E1453']
     list_name = ['01010REDONYk12K5k12K2E1452ALSRNSP60','01010REDONYk12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
@@ -1173,8 +1173,8 @@ if __name__ == '__main__':
                            'mar':[(0,0) for _ in range(46)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5, .5]
-    list_lb_md_ext = [.59,.57]
-    list_max_lots_per_pos = [1 for i in range(numberNetwors)]
+    list_lb_md_ext = [.5,.5]
+    list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
@@ -1189,8 +1189,8 @@ if __name__ == '__main__':
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
     
-    init_day_str = '20181112'#'20190701'#
-    end_day_str = '20191129'
+    init_day_str = '20200106'#'20190701'#
+    end_day_str = '20200110'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     
@@ -1368,7 +1368,7 @@ if __name__ == '__main__':
     summary_file = directory+start_time+"summary.log"
     positions_dir = directory+"positions/"
     if not os.path.exists(positions_dir):
-        os.mkdir(positions_dir)
+        os.makedirs(positions_dir)
     
     
     columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo\tstrategy'

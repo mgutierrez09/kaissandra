@@ -1735,7 +1735,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
                   list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
-                  results_file, model, config, log_file, nonVarIdx, list_inv_out, api):
+                  results_file, model, config, log_file, nonVarIdx, list_inv_out):
     """
     <DocString>
     """
@@ -2138,7 +2138,7 @@ def flush_asset(lists, ass_idx, bid):
     print("Flushed")
     return lists
 
-def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, api):
+def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
     #AllAssets, assets, running_assets, nCxAxN, buffSizes, simulation, delays, PA, verbose
     '''
     inputs: AllAssets
@@ -2201,8 +2201,7 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, api):
                                        lists['list_unique_configs'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn],
-                                       api)
+                                       lists['list_inv_out'][nn])
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -2374,7 +2373,7 @@ def send_close_command(asset):
                 print("Error writing LC")
     
 def fetch(lists, trader, directory_MT5, AllAssets, 
-          running_assets, log_file, results, api):
+          running_assets, log_file, results):
     """ Fetch info coming from MT5 """
     print("Fetcher lauched")
     #nAssets = len(running_assets)
@@ -2454,7 +2453,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
-                                                log_file, api)
+                                                log_file)
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
@@ -2609,7 +2608,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               traders, list_results, running_assets, ass2index_mapping, lists,
-              AllAssets, log_file, api):
+              AllAssets, log_file):
     """
     <DocString>
     """
@@ -2688,7 +2687,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         if sampsBuffersCounter[ass_idx]==0:
             outputs, new_outputs = dispatch(lists, buffers[ass_idx], AllAssets, 
                                             ass_id, ass_idx, 
-                                            log_file, api)
+                                            log_file)
 
             ####### Update counters and buffers ##########
             fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
@@ -2895,14 +2894,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time, test, api):
+def run_carefully(config_trader, running_assets, start_time, test):
     """  """
     try:
-        run(config_trader, running_assets, start_time, test, api)
+        run(config_trader, running_assets, start_time, test)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time, test, api):
+def run(config_traders_list, running_assets, start_time, test):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
@@ -3193,17 +3192,17 @@ def run(config_traders_list, running_assets, start_time, test, api):
         else:
             list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
                             None, 
-                            from_stats_file=True, hdf5_directory='D:/SDC/py/HDF5/stats/',tag=list_tags[nn]) 
+                            from_stats_file=True, hdf5_directory=LC.stats_live_dir,tag=list_tags[nn]) 
                             for nn in range(nNets)] for ass in range(nAssets)]
-            list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], 'D:/SDC/py/HDF5/stats/', AllAssets[str(running_assets[ass])], 
+            list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], LC.stats_live_dir, AllAssets[str(running_assets[ass])], 
                             tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
     else:
         list_stats_feats = [[load_stats_manual_v2({}, AllAssets[str(running_assets[ass])], 
                         None, 
-                        from_stats_file=True, hdf5_directory='D:/SDC/py/HDF5/stats/') 
+                        from_stats_file=True, hdf5_directory=LC.stats_live_dir) 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2({}, 'D:/SDC/py/HDF5/stats/', 
+        list_stats_rets = [[load_stats_output_v2({}, LC.stats_live_dir, 
                             AllAssets[str(running_assets[ass])]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
         gain = .000000001
@@ -3253,8 +3252,8 @@ def run(config_traders_list, running_assets, start_time, test, api):
     if 1:
         shutdown = False
         if run_back_test:
-            first_day = '2018.11.12'
-            last_day = '2019.08.22'
+            first_day = '2020.01.06'#'2018.11.12'
+            last_day = '2020.01.10'#'2019.08.22'
             init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
             end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
             delta_dates = end_day-init_day
@@ -3378,7 +3377,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
                                         ass2index_mapping, lists, AllAssets, 
-                                        log_file, api)
+                                        log_file)
         else:
             
             buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
@@ -3467,7 +3466,7 @@ def run(config_traders_list, running_assets, start_time, test, api):
 #                                start_time=start_time)
             # launch fetcher
             fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
-                  running_assets, log_file, results, api)
+                  running_assets, log_file, results)
         
         for idx, trader in enumerate(traders):
             # gather results
@@ -3505,48 +3504,16 @@ def run(config_traders_list, running_assets, start_time, test, api):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
-           synchroned_run=False, test=False, api=None):
-    # runLive in multiple processes
-    from multiprocessing import Process
-    import datetime as dt
-    import time
-    from kaissandra.config import retrieve_config
-    if not test:
-        if len(config_names)>0:
-            list_config_traders = [retrieve_config(config_name) for config_name in config_names]
-            print(config_names)
-    #        for config_name in ins:
-    #            #config_trader = retrieve_config(ins[0])
-    #            list_config_traders.append(retrieve_config(config_name))
-        else:
-            list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv3')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
-    # override list configs if test is True
-    else:
-        list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
-        print("WARNING! TEST ON")
-    print("synchroned_run: "+str(synchroned_run))
-    #print("Test "+str(test))
-    #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
-    if run_back_test:
-        sessiontype = 'backtest'
-    else:
-        sessiontype = 'live'
-    renew_directories(C.AllAssets, running_assets)
+def launch(synchroned_run=False, test=False):
     
-    start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-    print("send_info_api")
-    print(send_info_api)
-    if send_info_api:
-        api.intit_all(list_config_traders[0], running_assets, sessiontype)
         #a=p
     if synchroned_run:
-        run(list_config_traders, running_assets, start_time, test, api)
+        run(list_config_traders, running_assets, start_time, test)
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, api])
+            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test])
             disp.start()
             time.sleep(2)
         time.sleep(30)
@@ -3555,13 +3522,16 @@ def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,
 
 verbose_RNN = True
 verbose_trader = True
-#test = False
-run_back_test = False
+test = False
+synchroned_run = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 send_info_api = True
 modular = False
+
+config_names = ['TN01010FS2NYREDOK2K52145314SRv3']
 
 if __name__=='__main__':
     import sys
@@ -3573,20 +3543,20 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
-    synchroned_run = False
-    test = False
-    config_names = ['TN01010FS2NYREDOK2K52145314SRv3']#['TTEST10']#'TPRODN01010N01011'
-    
-    for arg in sys.argv:
-        if re.search('^synchroned_run=False',arg)!=None:
-            synchroned_run = False
-        if re.search('^test',arg)!=None:
-            print(arg)
-            if (arg.split('=')[-1])=='True' or (arg.split('=')[-1])=='true':
-                test = True
-        if re.search('^config_names',arg)!=None:
-            config_names = (arg.split('=')[-1]).split(',')
-            print(config_names)
+#    synchroned_run = False
+#    test = False
+#    config_names = ['TN01010FS2NYREDOK2K52145314SRv3']#['TTEST10']#'TPRODN01010N01011'
+#    
+#    for arg in sys.argv:
+#        if re.search('^synchroned_run=False',arg)!=None:
+#            synchroned_run = False
+#        if re.search('^test',arg)!=None:
+#            print(arg)
+#            if (arg.split('=')[-1])=='True' or (arg.split('=')[-1])=='true':
+#                test = True
+#        if re.search('^config_names',arg)!=None:
+#            config_names = (arg.split('=')[-1]).split(',')
+#            print(config_names)
 #    if ('TTEST10' not in config_names or len(config_names)>1) and test:
 #        raise ValueError("test cannot be False if config_names is TTEST")
     #
@@ -3604,18 +3574,50 @@ if send_info_api:
     from kaissandra.prod.api import API
 from kaissandra.config import Config as C
 
-#directory_MT5_IO = local_vars.directory_MT5_IO
-#io_dir = local_vars.io_live_dir
-#ADsDir = local_vars.results_directory
-#hdf5_directory = local_vars.hdf5_directory
+if send_info_api:
+    api = API()
+else:
+    api = None
+    
+# runLive in multiple processes
+from multiprocessing import Process
+from kaissandra.config import retrieve_config
+if not test:
+    if len(config_names)>0:
+        list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+        print(config_names)
+    #        for config_name in ins:
+    #            #config_trader = retrieve_config(ins[0])
+    #            list_config_traders.append(retrieve_config(config_name))
+    else:
+        list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv3')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+# override list configs if test is True
+else:
+    list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
+    print("WARNING! TEST ON")
+print("synchroned_run: "+str(synchroned_run))
+#print("Test "+str(test))
+#running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
+if run_back_test:
+    sessiontype = 'backtest'
+else:
+    sessiontype = 'live'
 
+running_assets=[7,31]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+renew_directories(C.AllAssets, running_assets)
+
+start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
+print("send_info_api")
+print(send_info_api)
+if send_info_api:
+    api.intit_all(list_config_traders[0], running_assets, sessiontype)
+    print("api.trader_json:")
+    print(api.trader_json)
+        
 if __name__=='__main__':
     # lauch
-    if send_info_api:
-        api = API()
-    else:
-        api = None
-    launch(config_names=config_names,synchroned_run=synchroned_run, test=test, api=api)#
+    
+    launch(synchroned_run=synchroned_run, test=test)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%

@@ -1637,9 +1637,11 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[],
     if not save_stats and not get_feats:
         raise ValueError("get_feats and get_feats cannot both be false. Nothing is gonna be done.")
     if feats_from_bids:
+        symbol = 'bid'
         rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/bid/'#test_flag+'_legacy_test.hdf5'
     else:
         rootdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/ask/'
+        symbol = 'ask'
     outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
     
     filename_raw = local_vars.data_dir+'tradeinfo'+py_flag+test_flag+'.hdf5'
@@ -1687,7 +1689,7 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[],
             #print(nE)
             # check if number of events is not enough to build two features and one return
             if nE>=2*nEventsPerStat:
-                print("\t"+"Config "+config['config_name']+" "+thisAsset+
+                print("\t"+"Config "+asset_relation+" "+symbol+" "+config['config_name']+" "+thisAsset+
                       " s {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+
                       ". From "+separators.DateTime.iloc[s]+" to "+separators.DateTime.iloc[s+1])
                 init_date = dt.datetime.strftime(dt.datetime.strptime(
@@ -2606,8 +2608,8 @@ if __name__=='__main__':
     feats_from_bids = False
     movingWindow = 500
     nEventsPerStat = 5000
-    build_test_db = False
-    save_stats = True
+    build_test_db = True
+    save_stats = False
     feature_keys = [i for i in range(37)]#+[i for i in range(2000,2019)]#
     config_name = 'CFEATS500MAN2014'
     entries = {'config_name':config_name,
@@ -2617,14 +2619,14 @@ if __name__=='__main__':
     #config=retrieve_config(config_name)
     config=configuration(entries)
 
-    assets = [3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-    list_feats_from_bids = [True]
-    list_asset_relation = ['inverse']
+    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    list_feats_from_bids = [False,True]
+    list_asset_relation = ['direct','inverse']
     for feats_from_bids in list_feats_from_bids:
         config['feats_from_bids'] = feats_from_bids
         for asset_relation in list_asset_relation:
             config['asset_relation'] = asset_relation
-            wrapper_wrapper_get_features_modular(config, from_py=True, assets=assets)
+            wrapper_wrapper_get_features_modular(config, from_py=False, assets=assets)
 #    feats_from_bids = False
 #    movingWindow = 500
 #    nEventsPerStat = 5000
