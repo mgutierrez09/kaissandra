@@ -3504,38 +3504,8 @@ def run(config_traders_list, running_assets, start_time, test):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-<<<<<<< HEAD
-def launch(config_names=[], running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
-           synchroned_run=False, test=False, api=None):
-    # runLive in multiple processes
-    from multiprocessing import Process
-    import datetime as dt
-    import time
-    from kaissandra.config import retrieve_config
-    if not test:
-        if len(config_names)>0:
-            list_config_traders = [retrieve_config(config_name) for config_name in config_names]
-            print(config_names)
-    #        for config_name in ins:
-    #            #config_trader = retrieve_config(ins[0])
-    #            list_config_traders.append(retrieve_config(config_name))
-        else:
-            list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv3')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
-    # override list configs if test is True
-    else:
-        list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
-        print("WARNING! TEST ON")
-    print("synchroned_run: "+str(synchroned_run))
-    #print("Test "+str(test))
-    #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
-    if run_back_test:
-        sessiontype = 'backtest'
-    else:
-        sessiontype = 'live'
-    renew_directories(C.AllAssets, running_assets)
-=======
+
 def launch(synchroned_run=False, test=False):
->>>>>>> ec6c35e20a174fc94278d8bcc4d2930f93b6b02e
     
         #a=p
     if synchroned_run:
