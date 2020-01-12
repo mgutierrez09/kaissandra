@@ -45,9 +45,18 @@ def build_bin_output_mcmdmg(config, Output, batch_size):
     y = np.zeros((Output.shape))
     #print(y.shape)
     # quantize output to get y
-    out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
-        (size_output_mg-1)/2),(size_output_mg-1)/2)
+    with np.errstate(invalid='raise'):
+        #all_zeros / 0.  # Raises FloatingPointError
+        try:
+            out_quantized = np.minimum(np.maximum(np.sign(Output)*np.round(abs(Output)*outputGain),-
+                                                  (size_output_mg-1)/2),(size_output_mg-1)/2)
+        except:
+            print(config['asset_relation'])
+            print(Output)
+            
+            raise FloatingPointError
     
+    #print(Output)
     y = out_quantized+int((size_output_mg-1)/2)
     # conver y as integer
     y_dec=y.astype(int)
@@ -292,10 +301,29 @@ def build_variations_modular(config, file_temp, features, stats):
 #    print(variations.shape)
     # loop over channels
     for r in range(nC):
-        variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
-                                               VarIdx]-features[
-                                                :-(channels[r]+1),
-                                                VarIdx])
+        with np.errstate(invalid='raise'):
+            #all_zeros / 0.  # Raises FloatingPointError
+            try:
+                variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
+                                                   VarIdx]-features[
+                                                    :-(channels[r]+1),
+                                                    VarIdx])
+                err = 0
+            except:
+                print("WARNING! Invalid value encountered")
+                err = 1
+                #print(features[channels[r]+1:,VarIdx].shape)
+                #infs = []
+                #feats = features[channels[r]+1:,VarIdx]
+                #for i in range(feats
+                #infs = np.isinf(features[channels[r]+1:,VarIdx])
+                #print(features[channels[r]+1:,VarIdx])
+                #raise FloatingPointError
+        if err:
+            variations[channels[r]+1:,VarIdx,r] = (features[channels[r]+1:,
+                                                       VarIdx]-features[
+                                                        :-(channels[r]+1),
+                                                        VarIdx])
         if nonVarFeats.shape[0]>0:
             variations[channels[r]+1:,nonVarIdx,r] = features[:-(channels[r]+1), nonVarIdx]
             
@@ -556,9 +584,15 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         
         # normalize output
         if len(stds_out.shape)==2:
+            
             R_i = R_i/stds_out[0, lookAheadIndex]#stdO#
+            
         elif len(stds_out.shape)==1:
+            #print("R_i")
+            #print(R_i)
             R_i = R_i/stds_out[lookAheadIndex]#stdO#
+            #print("stds_out[lookAheadIndex]")
+            #print(stds_out[lookAheadIndex])
         #OA_i = OA_i/stds_out[0,data.lookAheadIndex]
         # get decimal and binary outputs
         # TODO: generalize for the number of outputs
@@ -668,14 +702,14 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     
     return IO
 
-def get_list_unique_days(thisAsset):
+def get_list_unique_days(data_dir, thisAsset):
     """  """
     import re
-    dir_ass = local_vars.data_dir+thisAsset
+    dir_ass = data_dir+thisAsset
     try:
         list_dir = sorted(os.listdir(dir_ass))
         list_regs = [re.search('^'+thisAsset+'_\d+'+'.txt$',f) for f in list_dir]
-        list_unique_days = list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
+        list_unique_days = sorted(list(set([re.search('\d+',m.group()).group()[:8] for m in list_regs])))
         
         pickle.dump( list_unique_days, open( local_vars.hdf5_directory+"list_unique_days_"+thisAsset+".p", "wb" ))
     except FileNotFoundError:
@@ -687,7 +721,13 @@ def get_day_indicator(list_unique_days, first_day=dt.date(2016, 1, 1), last_day=
     """  """
     max_days = (last_day-first_day).days+1
     x = np.zeros((max_days))
-    days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days]
+    print(first_day)
+    print(last_day)
+    ### TODO: WARNING! It only works if first and last days are in list_unique_days[0]
+    init_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days==0][0]
+    end_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-last_day).days==0][0]
+    days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days[init_idx:end_idx]]
+    #print(days_idx)
     x[days_idx] = 1
     return x
     
@@ -701,7 +741,7 @@ def get_numer_days(thisAsset):
     
     return len(set([re.search('\d+',m.group()).group()[:8] for m in list_regs]))
 
-def get_edges_datasets(K, config, dataset_dirfilename=''):
+def get_edges_datasets(K, config, dataset_dirfilename='', first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -739,8 +779,8 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
         samps_ass = np.zeros((len(assets)))
         n_days_ass = np.zeros((len(assets)))
         
-        first_day=dt.date(2016, 1, 1)
-        last_day=dt.date(2018, 11, 9)
+        #first_day=dt.date(2016, 1, 1)
+        #last_day=dt.date(2018, 11, 9)
         max_days = (last_day-first_day).days+1
         A = np.zeros((len(assets), max_days))
         AllAssets = Data().AllAssets
@@ -750,7 +790,7 @@ def get_edges_datasets(K, config, dataset_dirfilename=''):
             samps_ass[a] = dataset_file[thisAsset].attrs.get("m_t_out")
             list_unique_days = get_list_unique_days(thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)
@@ -797,12 +837,12 @@ def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False,
     
     elif from_stats_file:
         try:
-            stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
+            stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
         except FileNotFoundError:
-            print("WARNING FileNotFoundError: "+hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
+            print("WARNING FileNotFoundError: "+local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p. Getting stats from features file")
@@ -840,7 +880,7 @@ def load_stats_output_v2(config, hdf5_directory, thisAsset, tag='IOB'):
         nEventsPerStat = 500
     nF = len(feature_keys_manual)
     # TODO: pass output stats to their own container and load them from there
-    stats = pickle.load( open( local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
+    stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
@@ -1035,7 +1075,8 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
-def build_datasets(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets(folds=3, fold_idx=0, config={}, log='', data_dir=local_vars.data_dir,
+                   first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1111,7 +1152,8 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                             str(nEventsPerStat)+'_nF'+str(nFeatures)+'_test.hdf5')
         separators_directory = hdf5_directory+'separators_test/'
     
-    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO)
+    edges, edges_dt = get_edges_datasets(folds, config, dataset_dirfilename=filename_prep_IO, 
+                                         first_day=first_day, last_day=last_day, data_dir=data_dir)
     
     filename_tr = IO_directory+'IOKFW'+filetag[1:]+'.hdf5'
     filename_cv = IO_directory+'IOKF'+filetag+'.hdf5'
@@ -1279,6 +1321,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
                             Vars = build_variations(config, file_temp, 
                                                     features_manual, 
                                                     stats_manual)
+                            
                             IO = build_XY(config, Vars, returns_struct, 
                                           stats_output, IO, edges_dt,
                                           folds, fold_idx, save_output=False)
@@ -1387,7 +1430,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log=''):
         write_log(mess)
     return filename_tr, filename_cv, IO_results_name
 
-def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
+def get_edges_datasets_modular(K, config, separators_directory, data_dir, symbol='bid'):
     """ Get the edges representing days that split the dataset in K-1/K ratio of
     samples for training and 1/K ratio for cross-validation """
     print("Getting dataset edges...")
@@ -1430,7 +1473,7 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
         AllAssets = Data().AllAssets
         for a, ass in enumerate(assets):
             thisAsset = AllAssets[str(ass)]
-            
+            print(thisAsset)
             separators = load_separators(thisAsset, 
                                      separators_directory, 
                                      from_txt=1)
@@ -1442,9 +1485,9 @@ def get_edges_datasets_modular(K, config, separators_directory, symbol='bid'):
             samps_ass[a] = pickle.load(open( local_vars.hdf5_directory+'stats_modular/mW'+str(movingWindow)+
                                      'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'+thisAsset+'_'+symbol+'_out_'+
                                      first_date+last_date+'.p', "rb"))['m']
-            list_unique_days = get_list_unique_days(thisAsset)
+            list_unique_days = get_list_unique_days(data_dir, thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days)
+            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)
@@ -1478,30 +1521,30 @@ def load_features_modular(config, thisAsset, separators, assdirname, init_date, 
             
     return features
 
-def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel):
+def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel, stats_modular_directory=local_vars.stats_modular_directory):
     """  """
     movingWindow = config['movingWindow']
     nEventsPerStat = config['nEventsPerStat']
-    if config['feats_from_bids']:
-        symbol_type = 'bid'
-    else:
-        symbol_type = 'ask'
+#    if config['feats_from_bids']:
+#        symbol_type = 'bid'
+#    else:
+#        symbol_type = 'ask'
     feature_keys = config['feature_keys']
     asset_relation = ass_rel#config['asset_relation']#
     nChannels = int(nEventsPerStat/movingWindow)
-    stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+    stats_dir = stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
     means_in = np.zeros((nChannels, len(feature_keys)))
     stds_in = np.zeros((nChannels, len(feature_keys)))
     for i, feat in enumerate(feature_keys):
         key = C.PF[feat][0]
         # copy in stats directory
-        filedirname = stats_dir+thisAsset+'_'+symbol_type+'_'+key+'_'+first_date+last_date+'.p'
+        filedirname = stats_dir+thisAsset+'_'+symbol+'_'+key+'_'+first_date+last_date+'.p'
         stats = pickle.load(open( filedirname, "rb"))
         means_in[:,i] = stats['mean'][:,0]
         stds_in[:,i] = stats['std'][:,0]
     stats_in = {'means_t_in':means_in,
                 'stds_t_in':stds_in}
-    filedirname = stats_dir+thisAsset+'_'+symbol_type+'_out_'+first_date+last_date+'.p'
+    filedirname = stats_dir+thisAsset+'_'+symbol+'_out_'+first_date+last_date+'.p'
     out = pickle.load( open( filedirname, "rb" ))
     stats_out = {'stds_t_out':out['std_'+symbol],
                  'means_t_out':out['mean_'+symbol],
@@ -1662,7 +1705,7 @@ def sort_input(array, sorted_idx, prevPointerCv, char=False):
 #    IO['Bcv'][prevPointerCv:,:,:] = temp
     return temp
 
-def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
+def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1729,13 +1772,20 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
         symbol = 'bid'
     else:
         symbol = 'ask'
+    if not from_py:
+        py_flag = ''
+        data_dir = local_vars.data_dir
+    else:
+        py_flag = '_py'
+        data_dir = local_vars.data_dir_py
     featuredirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/'+symbol+'/' for bar in build_asset_relations]
     outrdirnames = [hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+bar+'/out/' for bar in build_asset_relations]
     if not build_test_db:
-        separators_directory = local_vars.data_dir+'separators/'
+        separators_directory = data_dir+'separators'+py_flag+'/'
     else:
-        separators_directory = local_vars.data_dir+'separators_test/'
-    
+        separators_directory = data_dir+'separators_test/'
+    print(hdf5_directory)
+    print(separators_directory)
     
     IO_tr_name = config['IO_tr_name']
     IO_cv_name = config['IO_cv_name']
@@ -1747,7 +1797,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
     print(IO_results_name)
     
     
-    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, symbol=symbol)
+    edges, edges_dt = get_edges_datasets_modular(folds, config, separators_directory, data_dir, symbol=symbol)
     print("Edges:")
     print(edges)
     
@@ -1857,7 +1907,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                 sep_for_stats = separators
             else:
                 sep_for_stats = load_separators(thisAsset, 
-                                         local_vars.data_dir+'separators/', 
+                                         'E:/SDC/py/Data/'+'separators'+py_flag+'/', 
                                          from_txt=1)
 
             first_date = dt.datetime.strftime(dt.datetime.strptime(
@@ -1929,6 +1979,10 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log=''):
                                     skip_cv = False
                                 else:
                                     skip_cv = True
+                                #print("assdirnames[ind]")
+                                #print(assdirnames[ind])
+                                #print("shift")
+                                #print(shift)
                                 IO = build_XY(config, Vars, list_returns_struct[ind][s], 
                                               list_stats_out[ind], IO, edges_dt,
                                               folds, fold_idx, save_output=False, 

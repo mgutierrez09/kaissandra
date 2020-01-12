@@ -547,7 +547,7 @@ def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNi
     #separators.index.name = "real_index"
     # append first and last entry already if not all zeros
     if belong2tOt.min()==0:
-        separators = separators.append(tradeInfo.loc[(~belong2tOt).argmax()]).append(tradeInfo.loc[(~belong2tOt)[::-1].argmax()])
+        separators = separators.append(tradeInfo.loc[(~belong2tOt).idxmax()]).append(tradeInfo.loc[(~belong2tOt)[::-1].idxmax()])
     
     dTs = pd.to_datetime(tradeInfo["DateTime"],format='%Y.%m.%d %H:%M:%S').to_frame()
     dTs1 = dTs[:-1]
@@ -558,7 +558,8 @@ def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNi
     tID2 = belong2tOt[1:]
     tID2.index = tID1.index
     #print(belong2tOt)
-    tOtTransition = np.logical_xor(belong2tOt.iloc[:-1],belong2tOt.iloc[1:])
+    #print(np)
+    tOtTransition = pd.Series(np.logical_xor(np.array(belong2tOt.iloc[:-1]),np.array(belong2tOt.iloc[1:])))
     #print(tOtTransition.index[tOtTransition])
     
     indexesTrans = np.union1d(tOtTransition.index[tOtTransition],tOtTransition.index[tOtTransition]+1)

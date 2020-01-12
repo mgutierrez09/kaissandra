@@ -1152,20 +1152,28 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R21050PS2CMF181112T190822ALk2K2E15','R21050PS2CMF181112T190822BSk2K2E15']
-    list_name = ['21050PS2ALk2K2E15SRNSP50','21050PS2BSk2K2E15SRNSP50']
+    list_IDresults = ['R01010WEEKTESTCMF200106T200110ALk12K5k12K2E1452','R01010WEEKTESTCMF200106T200110BSk12K5k12K2E1453']
+    list_name = ['01010REDONYk12K5k12K2E1452ALSRNSP60','01010REDONYk12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    list_spread_ranges = [{'sp':[.5, .6, .8, .9, 1, 1.1, 1.2, 1.3, 1.8, 1.9, 2, 2.1, 2.3, 2.4, 2.7, 3.1, 4, 4.1, 5],
-                           'th':[(.5,.54),(.53,.54),(.53,.56),(.55,.57),(.59,.57),(.66,.56),(.54,.62),(.55,.63),(.59,.62),
-                                 (.65,.62),(.68,.62),(.6,.67),(.62,.67),(.65,.67),(.71,.67),(.71,.73),(.74,.73),(.79,.73),(.82,.73)],
-                           'mar':[(0,0) for _ in range(19)]},
-                          {'sp':[.5, .6, .9, 1.2, 1.3, 1.8, 2.1, 3.3, 3.8, 5],
-                           'th':[(.5,.55),(.51,.57),(.51,.59),(.77,.52),(.79,.52),(.8,.52),(.83,.52),(.85,.52),(.86,.52),(.87,.52)],
-                           'mar':[(0,0) for _ in range(10)]}]
+    
+    list_spread_ranges = [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                           'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
+                                 (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
+                                 (0.665, 0.61), (0.685, 0.625), (0.685, 0.625), (0.705, 0.62), (0.705, 0.62), (0.705, 0.62), (0.71, 0.62), (0.71, 0.62), (0.7, 0.63), (0.7, 0.63), 
+                                 (0.71, 0.635), (0.71, 0.635), (0.71, 0.635), (0.715, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.71, 0.645), (0.725, 0.64), 
+                                 (0.725, 0.64), (0.725, 0.64), (0.75, 0.635), (0.75, 0.635), (0.76, 0.635), (0.76, 0.635)],
+                           'mar':[(0,0) for _ in range(46)]},
+                          {'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                           'th':[(0.515, 0.58), (0.515, 0.585), (0.515, 0.59), (0.55, 0.59), (0.555, 0.59), (0.56, 0.59), (0.605, 0.585), (0.65, 0.58), (0.66, 0.58), (0.66, 0.58), (0.64, 0.59), 
+                                 (0.64, 0.59), (0.64, 0.59), (0.645, 0.59), (0.64, 0.595), (0.645, 0.595), (0.645, 0.595), (0.645, 0.6), (0.645, 0.6), (0.645, 0.6), (0.655, 0.6), (0.655, 0.6), 
+                                 (0.66, 0.6), (0.68, 0.595), (0.685, 0.595), (0.695, 0.595), (0.695, 0.595), (0.72, 0.595), (0.72, 0.595), (0.71, 0.6), (0.71, 0.6), (0.71, 0.6), (0.735, 0.595), 
+                                 (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.72, 0.6), (0.73, 0.6), (0.73, 0.6), (0.75, 0.595), (0.775, 0.57), (0.775, 0.57), (0.775, 0.57), 
+                                 (0.775, 0.57), (0.775, 0.57)],
+                           'mar':[(0,0) for _ in range(46)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5, .5]
-    list_lb_md_ext = [.54,.52]
+    list_lb_md_ext = [.5,.5]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1181,8 +1189,8 @@ if __name__ == '__main__':
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
     
-    init_day_str = '20181112'#'20190701'#
-    end_day_str = '20190822'
+    init_day_str = '20200106'#'20190701'#
+    end_day_str = '20200110'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     
@@ -1352,7 +1360,7 @@ if __name__ == '__main__':
 #    journal_all_days = journal_purged
     
     total_journal_entries = journal_all_days.shape[0]
-    init_budget = 10000
+    init_budget = 20000
     results = Results()
     
     directory = local_vars.live_results_dict+"simulate/trader/"
@@ -1360,7 +1368,7 @@ if __name__ == '__main__':
     summary_file = directory+start_time+"summary.log"
     positions_dir = directory+"positions/"
     if not os.path.exists(positions_dir):
-        os.mkdir(positions_dir)
+        os.makedirs(positions_dir)
     
     
     columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo\tstrategy'

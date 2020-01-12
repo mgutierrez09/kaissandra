@@ -172,7 +172,7 @@ def find_bussines_days_v2(first_day=dt.datetime(2016, 1, 1, 0, 0).date(),
 def find_bussines_days(data, directory_destination):
     # loop over all assets
     b_days_list = []
-    for ass in data.assets:
+    for ass in assets:
         thisAsset = data.AllAssets[str(ass)]
         #print(thisAsset)
         directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
@@ -230,62 +230,57 @@ def get_dateTest(init_date='2017.09.27', end_date='2018.11.09'):
         if d.weekday()<5:
             dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
     return dateTest
+
+def get_fileidxs(files_asset, init_date, end_date, isgold=False):
+    """ get file idxs in files_asset list within init_date and end_date """
+    init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
+    end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
+    init_idx = []
+    if isgold:
+        idateidx = 5
+        edateidx = 13
+    else:
+        idateidx = 7
+        edateidx = 15
+    #print(files_asset[0][idateidx:edateidx])
+    while len(init_idx)<1 and init_date_dt<end_date_dt:
+        init_idx = [f for f,file in enumerate(files_asset) if init_date in file[idateidx:edateidx]]
+        init_date_dt = init_date_dt+dt.timedelta(days=1)
+        init_date = dt.datetime.strftime(init_date_dt,'%Y%m%d')
+    end_idx = []
+    while len(end_idx)<1 and init_date_dt<end_date_dt:
+        end_idx = [f for f,file in enumerate(files_asset) if end_date in file[idateidx:edateidx]]
+        end_date_dt = end_date_dt-dt.timedelta(days=1)
+        end_date = dt.datetime.strftime(end_date_dt,'%Y%m%d')
+    #print(init_idx)
+    #print(end_idx)
+    assert(len(init_idx)==1)
+    assert(len(end_idx)==1)
+    return init_idx[0], end_idx[0]
+
 # limit the build of the HDF5 to data comprised in these dates
 build_partial_raw = False
 build_test_db = True
-int_date = '180928'
-end_date = '181109'
-init_date_dt = dt.datetime.strptime(int_date,'%y%m%d')
-end_date_dt = dt.datetime.strptime(end_date,'%y%m%d')
+init_date = '20200106'#'180928'
+end_date = '20200110'#'181109'
+init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
+end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
 
-directory_destination = local_vars.data_dir#'D:/SDC/py/HDF5/'
+directory_destination = local_vars.data_test_dir#'D:/SDC/py/HDF5/'
 if build_partial_raw and not build_test_db:
-    hdf5_file_name = 'tradeinfo_F'+int_date+'T'+end_date+'.hdf5'
+    hdf5_file_name = 'tradeinfo_F'+init_date+'T'+end_date+'.hdf5'
     directory_root = 'D:/SDC/py/Data/'
-    separators_directory_name = 'separators_F'+int_date+'T'+end_date+'/'
+    separators_directory_name = 'separators_F'+init_date+'T'+end_date+'/'
 elif build_test_db and not build_partial_raw:
     hdf5_file_name = 'tradeinfo_test.hdf5'
     directory_root = local_vars.data_test_dir
     separators_directory_name = 'separators_test/'
-    dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.08.23')
+    dateTest = get_dateTest(init_date='2020.01.06', end_date='2020.01.10')
 elif not build_test_db and not build_partial_raw:
-    hdf5_file_name = 'tradeinfo.hdf5'
-    separators_directory_name = 'separators/'
-    directory_root = 'D:/SDC/py/Data/'
-    dateTest = ([                                                 '2018.03.09',
-             '2018.03.12','2018.03.13','2018.03.14','2018.03.15','2018.03.16',
-             '2018.03.19','2018.03.20','2018.03.21','2018.03.22','2018.03.23',
-             '2018.03.26','2018.03.27','2018.03.28','2018.03.29','2018.03.30',
-             '2018.04.02','2018.04.03','2018.04.04','2018.04.05','2018.04.06',
-             '2018.04.09','2018.04.10','2018.04.11','2018.04.12','2018.04.13',
-             '2018.04.16','2018.04.17','2018.04.18','2018.04.19','2018.04.20',
-             '2018.04.23','2018.04.24','2018.04.25','2018.04.26','2018.04.27',
-             '2018.04.30','2018.05.01','2018.05.02','2018.05.03','2018.05.04',
-             '2018.05.07','2018.05.08','2018.05.09','2018.05.10','2018.05.11',
-             '2018.05.14','2018.05.15','2018.05.16','2018.05.17','2018.05.18',
-             '2018.05.21','2018.05.22','2018.05.23','2018.05.24','2018.05.25',
-             '2018.05.28','2018.05.29','2018.05.30','2018.05.31','2018.06.01',
-             '2018.06.04','2018.06.05','2018.06.06','2018.06.07','2018.06.08',
-             '2018.06.11','2018.06.12','2018.06.13','2018.06.14','2018.06.15',
-             '2018.06.18','2018.06.19','2018.06.20','2018.06.21','2018.06.22',
-             '2018.06.25','2018.06.26','2018.06.27','2018.06.28','2018.06.29',
-             '2018.07.02','2018.07.03','2018.07.04','2018.07.05','2018.07.06',
-             '2018.07.09','2018.07.10','2018.07.11','2018.07.12','2018.07.13',
-             '2018.07.30','2018.07.31','2018.08.01','2018.08.02','2018.08.03',
-             '2018.08.06','2018.08.07','2018.08.08','2018.08.09','2018.08.10']+
-            ['2018.08.13','2018.08.14','2018.08.15','2018.08.16','2018.08.17',
-             '2018.08.20','2018.08.21','2018.08.22','2018.08.23','2018.08.24',
-             '2018.08.27','2018.08.28','2018.08.29','2018.08.30','2018.08.31',
-             '2018.09.03','2018.09.04','2018.09.05','2018.09.06','2018.09.07',
-             '2018.09.10','2018.09.11','2018.09.12','2018.09.13','2018.09.14',
-             '2018.09.17','2018.09.18','2018.09.19','2018.09.20','2018.09.21',
-             '2018.09.24','2018.09.25','2018.09.26','2018.09.27']+['2018.09.28',
-             '2018.10.01','2018.10.02','2018.10.03','2018.10.04','2018.10.05',
-             '2018.10.08','2018.10.09','2018.10.10','2018.10.11','2018.10.12',
-             '2018.10.15','2018.10.16','2018.10.17','2018.10.18','2018.10.19',
-             '2018.10.22','2018.10.23','2018.10.24','2018.10.25','2018.10.26',
-             '2018.10.29','2018.10.30','2018.10.31','2018.11.01','2018.11.02',
-             '2018.11.05','2018.11.06','2018.11.07','2018.11.08','2018.11.09'])
+    hdf5_file_name = 'tradeinfo_py.hdf5'
+    separators_directory_name = 'separators_py/'
+    directory_root = 'E:/SDC/py/Data_PY/'
+    dateTest = get_dateTest(init_date='2014.01.02', end_date='2018.11.09')
 else:
     raise ValueError("Not supported")
 trusted_source = False
@@ -314,9 +309,9 @@ first_day = dt.datetime.strptime(dateTest[0], '%Y.%m.%d').date()
 last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
 list_bussines_days = find_bussines_days_v2(first_day=first_day, 
                                            last_day=last_day)
-    
+assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 # loop over all assets
-for ass in data.assets:
+for ass in assets:
     thisAsset = data.AllAssets[str(ass)]
     print(thisAsset)
     directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
@@ -416,6 +411,8 @@ for ass in data.assets:
     DateTime = group["DateTime"]
     SymbolBid = group["SymbolBid"]
     SymbolAsk = group["SymbolAsk"]
+    
+    init_idx, end_idx = get_fileidxs(new_files_newer, init_date, end_date, isgold=False)
     
     # init separators
     separators_filename = separators_directory_name+thisAsset+'_separators.txt'
@@ -579,7 +576,7 @@ for ass in data.assets:
     # init file index
     file_newer_index = 0
     # add new files that are newer
-    for file in new_files_newer:
+    for file in new_files_newer[init_idx:end_idx+1]:
         print("Copying "+file+" in HDF5 file")
         # read file and save it in a pandas data frame
         tradeInfo = tradeInfo.append(pd.read_csv(directory_origin+file), ignore_index=True)
@@ -623,17 +620,17 @@ for ass in data.assets:
         tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
     
     # end of file in new_files_newer:
-    if len(new_files_newer)>0:
+    if len(new_files_newer[init_idx:end_idx+1])>0:
         # build new separators if source is trustworthy
         if trusted_source:
             # update starting date attribute
             new_separators_newer = pd.DataFrame()
             # read fist new file
-            tradeInfo = pd.read_csv(directory_origin+new_files_newer[0])
+            tradeInfo = pd.read_csv(directory_origin+new_files_newer[init_idx])
             # add first entry as lit
             new_separators_newer = new_separators_newer.append(tradeInfo.iloc[0])
             # read last new file
-            tradeInfo = pd.read_csv(directory_origin+new_files_newer[-1])
+            tradeInfo = pd.read_csv(directory_origin+new_files_newer[end_idx])
             # add last entry as bottom
             new_separators_newer = new_separators_newer.append(tradeInfo.iloc[-1])
             # update the index pointer

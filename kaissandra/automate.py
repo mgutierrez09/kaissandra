@@ -11,6 +11,7 @@ import h5py
 from multiprocessing import Process
 import pickle
 import numpy as np
+import datetime as dt
 
 from kaissandra.trainRNN import train_RNN
 from kaissandra.testRNN import test_RNN
@@ -83,7 +84,8 @@ def automate(*ins):
 
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
                  sufix='',k_init=0, k_end=-1, log='', 
-                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW=''):
+                 modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW='',
+                 first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -193,7 +195,9 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log)
+                                                                     log=log,
+                                                                     first_day=first_day, 
+                                                                     last_day=last_day)
         elif not oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
                                                                      fold_idx=fold_idx, \
@@ -457,8 +461,10 @@ def boosting(rootname_config, epoch, entries={}, K=5,
 
 def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[], 
                         build_IDrs=False, its=15, sufix='', IDr_merged='', log='', 
-                        just_build=False, if_merge_results=False,IDweights=''):
+                        just_build=False, if_merge_results=False,IDweights='',
+                        first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
+    
     if 'build_XY_mode' in entries:
         build_XY_mode = entries['build_XY_mode']
     else:
@@ -514,7 +520,8 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
     IDresults = config['IDresults']
     
     dirfilename_tr, dirfilename_te, IO_results_name = build_datasets(config=config, 
-                                                                     log=log)
+                                                    log=log, first_day=first_day, 
+                                                    last_day=last_day)
     
     if not just_build:
         f_IOtr = h5py.File(dirfilename_tr,'r')
@@ -552,7 +559,7 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
         
 def combine_models(entries, model_names, epochs, rootname_config, sufix='', 
                    melting_func='mean', tag_from_till='',log='', modular=False, sufix_io='', 
-                   get_results=True):
+                   get_results=True, from_py=True):
     """  """
     import numpy as np
     import os
@@ -635,7 +642,7 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
                                                                      log=log)
     else:
         dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(config=config, 
-                                                                     log=log)
+                                                                     log=log,from_py=from_py)
     f_IOte = h5py.File(dirfilename_te,'r')
     Yte = f_IOte['Y']
     Xte = f_IOte['X']
@@ -643,7 +650,7 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
     n_models = len(model_names)
     # save model names
     if not os.path.exists(local_vars.results_directory+IDresults):
-        os.mkdir(local_vars.results_directory+IDresults)
+        os.makedirs(local_vars.results_directory+IDresults)
     with open(local_vars.results_directory+IDresults+'/model_names.txt',"w") as file:    
         file.write('\n'.join(model_names))
         file.close()

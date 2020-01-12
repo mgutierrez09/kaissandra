@@ -117,14 +117,14 @@ void openPosition(string origin, int thisPos){
          //string message = StringFormat();
          message = StringFormat("WARNING! Buy -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
          Print(message);
-         writeLog(message);
+         //writeLog(message);
          //Print("WARNING! Buy -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
       //string message = StringFormat("Buy -> talse. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       //Print("Buy -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       Print(message);
-      writeLog(message);
+      //writeLog(message);
       //stoploss = -Ai*sl_thr+Bi;
       stoploss = updateSL(Ai, thisPos, slThrPips);
       thisPosString = "Long";
@@ -134,12 +134,12 @@ void openPosition(string origin, int thisPos){
          //string message = StringFormat();
          message = StringFormat("WARNING! Sell -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
          Print(message);
-         writeLog(message);
+         //writeLog(message);
          //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
       message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       Print(message);
-      writeLog(message);
+      //writeLog(message);
       //Print("Sell -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       //stoploss = Bi*sl_thr+Ai;
       stoploss = updateSL(Bi, thisPos, slThrPips);
@@ -165,7 +165,7 @@ void openPosition(string origin, int thisPos){
    message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStat,dif_ticks,Bi_soll, 
          Bi,Ai_soll,Ai,stoploss,(Ai-Bi)/Ai);
    Print(message);
-   writeLog(message);
+   //writeLog(message);
    //Print(origin," ",thisPosString,". Number events ",nEventsPerStat," Ticks diff ",dif_ticks," Bi soll ",Bi_soll, " Bi ist ",Bi," Ai soll ",Ai_soll," Ai ",Ai," SL ",stoploss, " SP ",(Ai-Bi)/Ai);
 }
 
@@ -179,14 +179,14 @@ void closePosition(){
          executed = 1;
       message = StringFormat("Close position executed: %d",executed);
       Print(message);
-      writeLog(message);
+      //writeLog(message);
       //if(closed && m_Trade.ResultDeal()!=0)
       //   executed = true;
    }// close position if deadline reached
    if(position!=0){
       message = StringFormat("Close -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       Print(message);
-      writeLog(message);
+      //writeLog(message);
       deadline = -1;
       closingInProgress = true;
       
@@ -205,7 +205,7 @@ void closePosition(){
    else{
       message = "WARNING! Try to close position but no position is open. Skipped";
       Print(message);
-      writeLog(message);
+      //writeLog(message);
    }
 
 }
@@ -219,7 +219,7 @@ void checkForOpening(){
       if(FileIsExist(directoryNameLive+TTfile)==1 && !closingInProgress){
          message = "TT found";
          Print(message);
-         writeLog(message);
+         //writeLog(message);
          // open position
             first_pos = 1;
             
@@ -259,14 +259,14 @@ void checkForOpening(){
                      if(reset){
                         message = StringFormat("Deadline extended by %d",nEventsPerStat);
                         Print(message);
-                        writeLog(message);
+                        //writeLog(message);
                         //dif_ticks = dif_ticks+ticks_counter-ticks_counter_open;
                         // reset deadline
                         deadline = 1;
                      }else{
                         message = StringFormat("Deadline not extended. Remaining %d",nEventsPerStat-dif_ticks-deadline);
                         Print(message);
-                        writeLog(message);
+                        //writeLog(message);
                      }
                      
                   }
@@ -286,13 +286,13 @@ void checkForOpening(){
                         //dif_ticks = dif_ticks+ticks_counter-ticks_counter_open;
                         message = StringFormat("Deadline extended by %d",nEventsPerStat);
                         Print(message);
-                        writeLog(message);
+                        //writeLog(message);
                         // reset deadline
                         deadline = 1;
                      }else{
                         message = StringFormat("Deadline not extended. Remaining %d",nEventsPerStat-dif_ticks-deadline);
                         Print(message);
-                        writeLog(message);
+                        //writeLog(message);
                      }
                   }
                }
@@ -306,7 +306,7 @@ void checkForOpening(){
                }else{
                         message = StringFormat("ERROR!! Prediction cannot be zero!. Prediction string %s. Tries %d. Prediction %d",predictionString,tries,prediction);
                         Print(message);
-                        writeLog(message);
+                        //writeLog(message);
                      }
             }
             
@@ -314,7 +314,7 @@ void checkForOpening(){
       else{if(FileIsExist(directoryNameLive+TTfile)==1){
          message = "WARNING! TT found but closing in progress. Opening delayed";
          Print(message);
-         writeLog(message);
+         //writeLog(message);
       }
       
       }
@@ -351,7 +351,7 @@ void controlPositionFlow(){
          if (deadline==0){
             message = "Deadline reached";
             Print(message);
-            writeLog(message);
+            //writeLog(message);
             close_type = "CL";
             closePosition();
          }
@@ -361,7 +361,7 @@ void controlPositionFlow(){
             if((position==1 && ask<stoploss) || (position==-1 && bid>stoploss)){
                message = "SL reached";
                Print(message);
-               writeLog(message);
+               //writeLog(message);
                close_type = "SL";
                closePosition();
             }
@@ -584,7 +584,7 @@ void OnTimer(){
    if(FileIsExist(directoryNameLive+LCfile)==1 ){
       string message = "LC found";
       Print(message);
-      writeLog(message);
+      //writeLog(message);
       while(!FileDelete(directoryNameLive+LCfile));
       if(position!=0){
          close_type = "LC";
@@ -593,7 +593,7 @@ void OnTimer(){
       else{
          message = "WARNING! Position not opened. LC skipped";
          Print(message);
-         writeLog(message);
+         //writeLog(message);
       }
     }
     checkForOpening();
@@ -631,7 +631,7 @@ void saveAccountInfo()
    //int spreads=(int)SymbolInfoInteger(_Symbol,SYMBOL_SPREAD);
    string message = StringFormat("Equity %.2f Balance %.2f Profits %.2f",equity,balance,profits);
    Print(message);
-   writeLog(message);
+   //writeLog(message);
    int fh = FileOpen(directoryNameAccount+"Status.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
    if(fh>0){
       FileWrite(fh,balance,leverage,equity,profits);
@@ -692,7 +692,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f",
                                        close_type,position,Bi,Bi_soll,Ai,Ai_soll,bid,ask,spread,GROI,ROI,profit,dif_ticks,real_profit,equity);
          Print(message);
-         writeLog(message);
+         //writeLog(message);
          // send signal to trading manager that position has been closed
          if(close_type=="LC"){
              filename = "CL";
@@ -709,11 +709,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          if(deal_reason==DEAL_REASON_SL){
             //ExtLot*=2.0;
             Print("DEAL_REASON_SL");
-            writeLog("DEAL_REASON_SL");}
+            //writeLog("DEAL_REASON_SL");}
          else if(deal_reason==DEAL_REASON_TP){
             //ExtLot=m_symbol.LotsMin();
             Print("DEAL_REASON_TP");
-            writeLog("DEAL_REASON_TP");}
+            //writeLog("DEAL_REASON_TP");}
       }
       
    }

@@ -8,10 +8,10 @@ import os
 
 class Config(object):
     """ Configuration object providing necessary fields to connect with server """
-    URL = os.environ.get('URL') #or 'https://kaissandra-webapp.herokuapp.com/api/'#os.environ.get('URL') or 'https://localhost:5000/api/'#
+    URL = os.environ.get('URL') or 'https://kaissandra-webapp.herokuapp.com/api/'#'https://localhost:5000/api/'#or #os.environ.get('URL') 
     USERNAME = os.environ.get('USER') or 'kaissandra'
     PASSWORD = os.environ.get('PASSWORD') or "kaissandra"
-    TRADERNAME = os.environ.get('TRADERNAME') #or 'farnamstreet'
+    TRADERNAME = os.environ.get('TRADERNAME') or 'farnamstreet'
     MACHINE = os.environ.get('MACHINE')# or 'aws_i-0db4c8daa833808b4'
     MAGICNUMBER = os.environ.get('MAGICNUMBER') or 123456
     VERBOSE_RNN = os.environ.get('VERBOSE_RNN') or True
