@@ -2606,12 +2606,12 @@ if __name__=='__main__':
     from kaissandra.config import  configuration
     
     feats_from_bids = False
-    movingWindow = 500
-    nEventsPerStat = 5000
-    build_test_db = True
-    save_stats = False
-    feature_keys = [i for i in range(37)]#+[i for i in range(2000,2019)]#
-    config_name = 'CFEATS500MAN2014'
+    movingWindow = 1000
+    nEventsPerStat = 10000
+    build_test_db = False
+    save_stats = True
+    feature_keys = [i for i in range(37)]+[i for i in range(2000,2019)]#
+    config_name = 'CFEATS1000MAN2014'
     entries = {'config_name':config_name,
                'feats_from_bids':feats_from_bids,'movingWindow':movingWindow,
               'nEventsPerStat':nEventsPerStat,'feature_keys':feature_keys,

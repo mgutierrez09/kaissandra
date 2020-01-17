@@ -369,7 +369,7 @@ def configuration(entries, save=True):
         if 'assets' in entries:
             assets = entries['assets']
         else:
-            assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+            assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
         if 'channels' in entries:
             channels = entries['channels']
         else:
