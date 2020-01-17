@@ -3173,22 +3173,22 @@ def run(config_traders_list, running_assets, start_time, test):
             # TODO: get directory from LC
             separators_directory = 'D:/SDC/py/Data/separators/'
             
-            list_separators = [load_separators(AllAssets[str(running_assets[ass])], 
-                                         separators_directory, 
-                                         from_txt=1) for ass in range(nAssets)]
+#            list_separators = [load_separators(AllAssets[str(running_assets[ass])], 
+#                                         separators_directory, 
+#                                         from_txt=1) for ass in range(nAssets)]
         
-            list_first_dates = [dt.datetime.strftime(dt.datetime.strptime(
-                    list_separators[ass].DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
-            list_last_dates = [dt.datetime.strftime(dt.datetime.strptime(
-                    list_separators[ass].DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
-            list_stats = [[load_stats_modular(configs[0], AllAssets[str(running_assets[ass])], 
-                                                            list_first_dates[ass], list_last_dates[ass], list_tags_modular[nn], 'direct',
-                                                            stats_modular_directory='D:/SDC/py/HDF5/stats_modular/')
-                                                            for nn in range(nNets)] 
-                                                            for ass in range(nAssets)]
+#            list_first_dates = [dt.datetime.strftime(dt.datetime.strptime(
+#                    list_separators[ass].DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
+#            list_last_dates = [dt.datetime.strftime(dt.datetime.strptime(
+#                    list_separators[ass].DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
+#            list_stats = [[load_stats_modular(configs[0], AllAssets[str(running_assets[ass])], 
+#                                                            list_first_dates[ass], list_last_dates[ass], list_tags_modular[nn], 'direct',
+#                                                            stats_modular_directory='D:/SDC/py/HDF5/stats_modular/')
+#                                                            for nn in range(nNets)] 
+#                                                            for ass in range(nAssets)]
             #print(list_tags_modular)
-            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
-            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
+#            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
+#            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
         else:
             list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
                             None, 
@@ -3504,6 +3504,7 @@ def run(config_traders_list, running_assets, start_time, test):
             write_log(out, trader.log_summary)
             list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+
 def launch(synchroned_run=False, test=False):
     
         #a=p
@@ -3524,7 +3525,7 @@ verbose_RNN = True
 verbose_trader = True
 test = False
 synchroned_run = False
-run_back_test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
@@ -3543,6 +3544,7 @@ if __name__=='__main__':
         print(path+" added to python path")
     else:
         print(path+" already added to python path")
+    
 #    synchroned_run = False
 #    test = False
 #    config_names = ['TN01010FS2NYREDOK2K52145314SRv3']#['TTEST10']#'TPRODN01010N01011'
@@ -3565,8 +3567,7 @@ from kaissandra.inputs import (initFeaturesLive_v2,
                                extractFeaturesLive_v2,
                                load_separators)
 from kaissandra.preprocessing import (load_stats_manual_v2,
-                                      load_stats_output_v2,
-                                      load_stats_modular)
+                                      load_stats_output_v2)
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
@@ -3574,10 +3575,7 @@ if send_info_api:
     from kaissandra.prod.api import API
 from kaissandra.config import Config as C
 
-if send_info_api:
-    api = API()
-else:
-    api = None
+
     
 # runLive in multiple processes
 from multiprocessing import Process
@@ -3603,20 +3601,25 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets=[7,31]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-renew_directories(C.AllAssets, running_assets)
+running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
-print("send_info_api")
-print(send_info_api)
+
+if send_info_api:
+    api = API()
+else:
+     api = None
+     print("send_info_api")
+     print(send_info_api)
 if send_info_api:
     api.intit_all(list_config_traders[0], running_assets, sessiontype)
     print("api.trader_json:")
     print(api.trader_json)
-        
 if __name__=='__main__':
     # lauch
     
+    renew_directories(C.AllAssets, running_assets)
     launch(synchroned_run=synchroned_run, test=test)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%

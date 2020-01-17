@@ -19,7 +19,7 @@ class Config(object):
     TEST = os.environ.get('TEST') or False
     RUN_BACK_TEST = os.environ.get('RUN_BACK_TEST') or True
     SEND_INFO_API = os.environ.get('SEND_INFO_API') or True
-#    if URL == None:
-#        raise ValueError("URL environment variable cannot be None.")
-#    if TRADERNAME == None:
-#        raise ValueError("TRADERNAME environment variable cannot be None.")
+    if URL == None:
+        raise ValueError("URL environment variable cannot be None.")
+    if TRADERNAME == None:
+        raise ValueError("TRADERNAME environment variable cannot be None.")
