@@ -1927,7 +1927,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                 
                 list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, 'ask', ass_rel)
                 ### WARNING! Stats extracted from ask regardless of symbol!
-                print("WARNING! Stats extracted from ask regardless of symbol!")
+            print("WARNING! Stats extracted from ask regardless of symbol!")
     #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
     #                                            thisAsset, tag=tag_stats)
         
@@ -1941,7 +1941,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                 mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
                     ". From "+separators.DateTime.iloc[s]+" to "+\
                     separators.DateTime.iloc[s+1]
-                print(mess)
+                print("\r"+mess, sep=' ', end='', flush=True)
+                #print("\r"+DateTime+" "+thisAsset, sep=' ', end='', flush=True)
                 if len(log)>0:
                     write_log(mess)
                 # number of events within this separator chunk
@@ -2005,6 +2006,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                                 IO['Ycv'][prevPointerCv:,:,:] = sort_input(IO['Ycv'], sorted_idx, prevPointerCv, char=False)
                             
                     except (KeyboardInterrupt):
+                        print("")
                         mess = "KeyBoardInterrupt. Closing files and exiting program."
                         print(mess)
                         if len(log)>0:
@@ -2020,6 +2022,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
                     pass
 #                    print("\ts {0:d} of {1:d}. Not enough entries. Skipped.".format(
 #                            int(s/2),int(len(separators)/2-1)))
+            print("")
         # end of for s in range(0,len(separators)-1,2):
         # add pointer index for later separating assets
         if if_build_IO:

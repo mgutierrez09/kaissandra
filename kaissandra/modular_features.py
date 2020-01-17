@@ -1244,7 +1244,8 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                         
                         if mm%1000==0:
                             toc = time.time()
-                            print("\t\tmm="+str(b*batch_size+mm)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                            #print("\r"+mess, sep=' ', end='', flush=True)
+                            print("\r\t\tmm="+str(b*batch_size+mm)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s", sep=' ', end='', flush=True)
                         startIndex = l_index+mm*mW
                         endIndex = startIndex+nExS
                         thisPeriod = range(startIndex,endIndex)
@@ -1318,8 +1319,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                         for i in range(n_aros):
                             aro_struct_list[i] = update_aro(aro_struct_list[i], max_thisPeriod, min_thisPeriod, mm+1)
                             AROUP[mm, i] = aro_struct_list[i].AROU
-                            ARODOWN[mm, i] = aro_struct_list[i].AROD
-                            
+                            ARODOWN[mm, i] = aro_struct_list[i].AROD      
                     if boolVariance:
                         variance = np.var(parallel_symbs, axis=0)
         #                print("variance")
@@ -1337,7 +1337,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                     l_index = startIndex+mW
                     #print(l_index)
                     toc = time.time()
-                    print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                    print("\n\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
                     # update features vector
                     init_idx = b*batch_size
                     end_idx = b*batch_size+m_i
