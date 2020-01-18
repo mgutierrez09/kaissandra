@@ -1136,9 +1136,11 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
     #        print(DTA_i['DT1'].iloc[0])
     #        print(DTA_i['DT1'].iloc[-1])
             # append DTA this asset to all DTAs
-            D.resize((pointerTr+new_entries, 2))
-            B.resize((pointerTr+new_entries, 2))
-            A.resize((pointerTr+new_entries, 2))
+            dts.resize((pointerTr+new_entries/seq_len, 2))
+            bids.resize((pointerTr+new_entries/seq_len, 2))
+            asks.resize((pointerTr+new_entries/seq_len, 2))#seq_len
+            
+            dts[]
             
             DTA = DTA.append(DTA_i,ignore_index=True)
         last_ass_IO_ass = ass_IO_ass[ass_index]
