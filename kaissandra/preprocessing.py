@@ -1086,7 +1086,8 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
     if 'assets' in config:
         assets = config['assets']
     else:
-        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+        assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    seq_len = config['seq_len']
     # init columns
     columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
     # init DTA
@@ -1094,6 +1095,8 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
     f = h5py.File(dirfilename,'w')
     dts = f.create_dataset('D', (0,2),
                                 maxshape=(None,2),dtype='S19')
+    asses = f.create_dataset('ASS', (0,),
+                                maxshape=(None,),dtype='S6')
     bids = f.create_dataset('B', (0,2),
                                 maxshape=(None,2),dtype=float)
     asks = f.create_dataset('A', (0,2),
@@ -1112,7 +1115,7 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
 #        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
         # fill DTA_i up
         DTA_i['DT1'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
-        new_entries = DTA_i.shape[0]
+        new_entries = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].shape[0]
         if new_entries>0:
             DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
             print(DTA_i['DT1'].iloc[0])
@@ -1136,17 +1139,28 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
     #        print(DTA_i['DT1'].iloc[0])
     #        print(DTA_i['DT1'].iloc[-1])
             # append DTA this asset to all DTAs
-            dts.resize((pointerTr+new_entries/seq_len, 2))
-            bids.resize((pointerTr+new_entries/seq_len, 2))
-            asks.resize((pointerTr+new_entries/seq_len, 2))#seq_len
+            dts.resize((last_ass_IO_ass+new_entries, 2))
+            bids.resize((last_ass_IO_ass+new_entries, 2))
+            asks.resize((last_ass_IO_ass+new_entries, 2))
+            asses.resize((last_ass_IO_ass+new_entries, ))#seq_len
             
-            dts[]
+            dts[last_ass_IO_ass:ass_IO_ass[ass_index],0] = D[last_ass_IO_ass:ass_IO_ass[ass_index],0,0]
+            dts[last_ass_IO_ass:ass_IO_ass[ass_index],1] = D[last_ass_IO_ass:ass_IO_ass[ass_index],0,1]
             
-            DTA = DTA.append(DTA_i,ignore_index=True)
+            bids[last_ass_IO_ass:ass_IO_ass[ass_index],0] = B[last_ass_IO_ass:ass_IO_ass[ass_index],0,0]
+            bids[last_ass_IO_ass:ass_IO_ass[ass_index],1] = B[last_ass_IO_ass:ass_IO_ass[ass_index],0,1]
+            
+            asks[last_ass_IO_ass:ass_IO_ass[ass_index],0] = A[last_ass_IO_ass:ass_IO_ass[ass_index],0,0]
+            asks[last_ass_IO_ass:ass_IO_ass[ass_index],1] = A[last_ass_IO_ass:ass_IO_ass[ass_index],0,1]
+            
+            asses[last_ass_IO_ass:ass_IO_ass[ass_index]] = thisAsset.encode('utf-8')#DTA_i['Asset'].iloc[::seq_len].str.encode('utf-8')
+            print(asses[:])
+            #DTA = DTA.append(DTA_i,ignore_index=True)
         last_ass_IO_ass = ass_IO_ass[ass_index]
         ass_index += 1
+    f.close()
     # end of for ass in data.assets:
-    return DTA
+    return None
 
 def build_datasets(folds=3, fold_idx=0, config={}, log='', data_dir=local_vars.data_dir,
                    first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
@@ -1778,7 +1792,8 @@ def sort_input(array, sorted_idx, prevPointerCv, char=False):
 #    IO['Bcv'][prevPointerCv:,:,:] = temp
     return temp
 
-def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
+def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True, 
+                           seps = []):
     """  """
     ticTotal = time.time()
     # create data structure
@@ -1864,7 +1879,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
     IO_cv_name = config['IO_cv_name']
     filename_tr = IO_directory+'KFTr'+IO_tr_name+'.hdf5'
     filename_cv = IO_directory+'KFCv'+IO_cv_name+'.hdf5'
-    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.p'
+    IO_results_name = IO_directory+'DTA_'+IO_cv_name+'.hdf5'
     print(filename_tr)
     print(filename_cv)
     print(IO_results_name)
@@ -2004,13 +2019,16 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
     #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
     #                                            thisAsset, tag=tag_stats)
         
-        
+            if len(seps)==0:
+                range_seps = range(0,len(separators)-1,2)
+            else:
+                range_seps = seps
             mess = str(ass)+". "+thisAsset
             print(mess)
             if len(log)>0:
                 write_log(mess)
             # loop over separators
-            for s in range(0,len(separators)-1,2):
+            for s in range_seps:
                 mess = "\ts {0:d} of {1:d}".format(int(s/2),int(len(separators)/2-1))+\
                     ". From "+separators.DateTime.iloc[s]+" to "+\
                     separators.DateTime.iloc[s+1]

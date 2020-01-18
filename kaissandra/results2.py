@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import time
-#import h5py
+import h5py
 #import matplotlib.pyplot as plt
 #import scipy.io as sio
 
@@ -1463,6 +1463,11 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     save_costs(costs_filename, [epoch, J_train]+J_test)
     
+    f_dta = h5py.File(DTA,'r')
+    DT = f_dta['D']
+    ASS = f_dta['ASS']
+    B = f_dta['B']
+    A = f_dta['A']
     # loop over t_indexes
     tic = time.time()
     for t_index in t_indexes+extended_t_index:
@@ -1499,73 +1504,88 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                 ub_md = 1#thr_md+granularity
                 ys_md = get_md_vectors(t_soft_tilde, t_y, ys_mc, bits_mg, thr_md, ub_md)
                 # extract DTA structure for t_index
-                if from_var == True:
-                    DTAt = DTA.iloc[:,:]
-                else:
-                    DTAt = DTA.iloc[::seq_len,:]
+#                if from_var == True:
+#                    DTAt = DTA.iloc[:,:]
+#                else:
+#                    DTAt = DTA.iloc[::seq_len,:]
+#                
                 if asset_relation=='inverse':
-                    DTAt, ys_md = flip_output(DTAt, ys_md)
+                    raise ValueError
+                    #DTAt, ys_md = flip_output(DTAt, ys_md)
                 # get journal
 #                print("Number of entries with gain > 1:")
 #                print(sum(np.abs(ys_md['y_dec_mg_tilde'])>1))
-                Journal = get_journal(DTAt.iloc[ys_md['y_md_tilde']], 
-                                      ys_md['y_dec_mg_tilde'], 
-                                      ys_md['y_dec_mg'],
-                                      ys_md['diff_y_y_tilde'], 
-                                      ys_mc['probs_mc'][ys_md['y_md_tilde']], 
-                                      ys_md['probs_md'])
-                
-#                if extract_wrong_preds and thr_mc==.5 and thr_md==.5:
-#                    Journal_wrong = Journal[Journal['Diff']<0]
-#                    if t_index==0: # init wrong indexes
-#                        wrong_preds = []
-#                    wrong_preds = extract_wrong_predictions(wrong_preds, Journal_wrong, t_index)
+                if np.sum(ys_md['y_md_tilde'])>0:
+#                    print("DT[ys_md['y_md_tilde'],:]")
+#                    print(np.sum(ys_md['y_md_tilde']))
+#                    print(DT[ys_md['y_md_tilde'],:])
+#                    print("ASS[ys_md['y_md_tilde'],:]")
+#                    print(ASS[ys_md['y_md_tilde']])
+#                    print("B[ys_md['y_md_tilde'],:]")
+#                    print(B[ys_md['y_md_tilde'],:])
+#                    print("A[ys_md['y_md_tilde'],:]")
+#                    print(A[ys_md['y_md_tilde'],:])
+                    Journal = get_journal(DT[ys_md['y_md_tilde'],:], 
+                                          ASS[ys_md['y_md_tilde']],
+                                          B[ys_md['y_md_tilde'],:],
+                                          A[ys_md['y_md_tilde'],:],
+                                          ys_md['y_dec_mg_tilde'], 
+                                          ys_md['y_dec_mg'],
+                                          ys_md['diff_y_y_tilde'], 
+                                          ys_mc['probs_mc'][ys_md['y_md_tilde']], 
+                                          ys_md['probs_md'])
                     
-                # Filter out positions with non-tackled direction
-                Journal = filter_journal(config, Journal)
-                # flip journal if the assets are inverted
-#                if asset_relation=='inverse':
-#                    Journal = flip_journal(Journal)
-                ## calculate KPIs
-                results = get_basic_results_struct(ys_mc, ys_md, results, m)
-                results['tGROI'] = Journal['GROI'].sum()
-                results['tROI'] = Journal['ROI'].sum()
-                # init positions dir and filename
-                if save_journal:
-                    pos_dirname = resultsDir+IDresults+'/positions/'
-                    pos_filename = 'P_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
-                else:
-                    pos_dirname = ''
-                    pos_filename = ''
-                # get results with extensions
-                res_ext, log, _ = get_extended_results(Journal,
-                                                    bits_mg,
-                                                    n_days, get_positions=save_journal,
-                                                    pNZA=results['pNZA'],
-                                                    pos_dirname=pos_dirname,
-                                                    pos_filename=pos_filename, 
-                                                    feats_from_bids=config['feats_from_bids'], 
-                                                    save_positions=save_journal)
-                results.update(res_ext)
-                # combine ts
-                if if_combine:
-                    
-                    for i, params in enumerate(params_combine):
-                        weights_list[i] = update_weights_combine(weights_list[i], 
-                                    t_index, map_idx2thr[thr_idx], params, results)
-                    thr_idx += 1
-                # update cumm results list
-                CR[t_index][mc][md] = results
-                # print results
-                print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str)
-                # save results
-                save_results_fn(results_filename, results)
-                # save journal
-                if save_journal:# and (thr_mc>.5 or thr_md>.5):
-                    journal_dir = resultsDir+IDresults+'/journal/'
-                    journal_id = 'J_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
-                    ext = '.csv'
-                    save_journal_fn(Journal, journal_dir, journal_id, ext)
+    #                if extract_wrong_preds and thr_mc==.5 and thr_md==.5:
+    #                    Journal_wrong = Journal[Journal['Diff']<0]
+    #                    if t_index==0: # init wrong indexes
+    #                        wrong_preds = []
+    #                    wrong_preds = extract_wrong_predictions(wrong_preds, Journal_wrong, t_index)
+                        
+                    # Filter out positions with non-tackled direction
+                    Journal = filter_journal(config, Journal)
+                    # flip journal if the assets are inverted
+    #                if asset_relation=='inverse':
+    #                    Journal = flip_journal(Journal)
+                    ## calculate KPIs
+                    results = get_basic_results_struct(ys_mc, ys_md, results, m)
+                    results['tGROI'] = Journal['GROI'].sum()
+                    results['tROI'] = Journal['ROI'].sum()
+                    # init positions dir and filename
+                    if save_journal:
+                        pos_dirname = resultsDir+IDresults+'/positions/'
+                        pos_filename = 'P_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
+                    else:
+                        pos_dirname = ''
+                        pos_filename = ''
+                    # get results with extensions
+                    res_ext, log, _ = get_extended_results(Journal,
+                                                        bits_mg,
+                                                        n_days, get_positions=save_journal,
+                                                        pNZA=results['pNZA'],
+                                                        pos_dirname=pos_dirname,
+                                                        pos_filename=pos_filename, 
+                                                        feats_from_bids=config['feats_from_bids'], 
+                                                        save_positions=save_journal)
+                    results.update(res_ext)
+                    # combine ts
+                    if if_combine:
+                        
+                        for i, params in enumerate(params_combine):
+                            weights_list[i] = update_weights_combine(weights_list[i], 
+                                        t_index, map_idx2thr[thr_idx], params, results)
+                        thr_idx += 1
+                    # update cumm results list
+                    CR[t_index][mc][md] = results
+                    # print results
+                    print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str)
+                    # save results
+                    save_results_fn(results_filename, results)
+                    # save journal
+                    if save_journal:# and (thr_mc>.5 or thr_md>.5):
+                        journal_dir = resultsDir+IDresults+'/journal/'
+                        journal_id = 'J_E'+str(epoch)+'TI'+t_str+'MC'+str(thr_mc)+'MD'+str(thr_md)
+                        ext = '.csv'
+                        save_journal_fn(Journal, journal_dir, journal_id, ext)
                 
             # end of for thr_md in thresholds_md:
             print('')
@@ -1600,7 +1620,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     print("Time={0:.2f}".format(time.time()-tic)+" secs")
     return None
 
-def get_journal(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
+def get_journal(DT, ASS, B, A, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
     """
     Calculates trading journal given predictions.
     Args:
@@ -1630,20 +1650,23 @@ def get_journal(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
     tROIs = np.zeros((y_dec_tilde.shape))
     LtROIs = np.zeros((y_dec_tilde.shape))
     StROIs = np.zeros((y_dec_tilde.shape))
-    LgrossROIs = (DTA["A2"]-DTA["A1"])/DTA["A1"]
-    SgrossROIs = (DTA["B1"]-DTA["B2"])/DTA["A2"]
+    LgrossROIs = (A[:,1]-A[:,0])/A[:,0]#(DTA["A2"]-DTA["A1"])/DTA["A1"]
+    SgrossROIs = (B[:,0]-B[:,1])/B[:,1]#(DTA["B1"]-DTA["B2"])/DTA["A2"]
     grossROIs[long_pos] = LgrossROIs[long_pos]
     grossROIs[short_pos] = SgrossROIs[short_pos]
-    LtROIs = (DTA["B2"]-DTA["A1"])/DTA["A1"]
-    StROIs = (DTA["B1"]-DTA["A2"])/DTA["A2"]
+    LtROIs = (B[:,1]-A[:,0])/A[:,0]#(DTA["B2"]-DTA["A1"])/DTA["A1"]
+    StROIs = (B[:,0]-A[:,1])/A[:,1]#(DTA["B1"]-DTA["A2"])/DTA["A2"]
     tROIs[long_pos] = LtROIs[long_pos]
     tROIs[short_pos] = StROIs[short_pos]
-    espreads =  (DTA["A1"]-DTA["B1"])/DTA["A1"]
+    espreads =  (A[:,0]-B[:,0])/A[:,0]#(DTA["A1"]-DTA["B1"])/DTA["A1"]
     spreads =  grossROIs-tROIs
     
-    Journal['Asset'] = DTA['Asset'].iloc[:]
-    Journal['DTi'] = DTA['DT1'].iloc[:]
-    Journal['DTo'] = DTA['DT2'].iloc[:]
+    Journal['Asset'] = ASS[:]
+    Journal['DTi'] = DT[:,0]#DTA['DT1'].iloc[:]
+    Journal['DTo'] = DT[:,1]#DTA['DT2'].iloc[:]
+    Journal['Asset'] = Journal['Asset'].str.decode('utf-8')
+    Journal['DTi'] = Journal['DTi'].str.decode('utf-8')
+    Journal['DTo'] = Journal['DTo'].str.decode('utf-8')
     Journal['GROI'] = 100*grossROIs
     Journal['ROI'] = 100*tROIs
     Journal['Spread'] = 100*spreads
@@ -1651,10 +1674,10 @@ def get_journal(DTA, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
     Journal['Bet'] = y_dec_tilde.astype(int)
     Journal['Outcome'] = y_dec.astype(int)
     Journal['Diff'] = diff.astype(int)
-    Journal['Bi'] = DTA['B1'].iloc[:]
-    Journal['Bo'] = DTA['B2'].iloc[:]
-    Journal['Ai'] = DTA['A1'].iloc[:]
-    Journal['Ao'] = DTA['A2'].iloc[:]
+    Journal['Bi'] = B[:,0]#DTA['B1'].iloc[:]
+    Journal['Bo'] = B[:,1]#DTA['B2'].iloc[:]
+    Journal['Ai'] = A[:,0]#DTA['A1'].iloc[:]
+    Journal['Ao'] = A[:,1]#DTA['A2'].iloc[:]
     Journal['P_mc'] = probs_mc
     Journal['P_md'] = probs_md
     
@@ -1826,9 +1849,8 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         end_of_loop = 0
     count_dif_dir = 0
     for e in tqdm(range(1,end_of_loop),mininterval=1):
-
-        oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")
-        newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e],"%Y.%m.%d %H:%M:%S")
+        oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1].decode('ascii'),"%Y.%m.%d %H:%M:%S")
+        newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e].decode('ascii'),"%Y.%m.%d %H:%M:%S")
         
         extendExitMarket = (newEntryTime-oldExitTime<=dt.timedelta(0))
         sameAss = Journal['Asset'].iloc[e] == Journal['Asset'].iloc[e-1] 
@@ -1851,7 +1873,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             Bi = Journal[B1].iloc[eInit]
             if get_corr_signal:
                 # update correlation signal
-                secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+                secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[e-1].decode('ascii'),"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
             if direction>0:
                 GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
                 ROI = (Bo-Ai)/Ai
@@ -1952,7 +1974,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             this_pos_extended = 0
             eInit = e
             if get_corr_signal:
-                secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+                secInit = int((dt.datetime.strptime(Journal[DT1].iloc[eInit].decode('ascii'),"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
         # end of if (sameAss and extendExitMarket):
     # end of for e in range(1,Journal.shape[0]):
     
@@ -1963,7 +1985,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         Bo = Journal[B2].iloc[-1]
         Bi = Journal[B1].iloc[eInit]
         if get_corr_signal:
-            secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[-1],"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
+            secEnd = int((dt.datetime.strptime(Journal[DT2].iloc[-1].decode('ascii'),"%Y.%m.%d %H:%M:%S")-ref_date_dt).total_seconds())
         if direction>0:
             GROI = (Ao-Ai)/Ai#(Ao-Ai)/Ai
             ROI = (Bo-Ai)/Ai

@@ -83,7 +83,7 @@ def automate(*ins):
     #        time.sleep(1)
 
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
-                 sufix='',k_init=0, k_end=-1, log='', 
+                 sufix='',k_init=0, k_end=-1, log='', seps=[],
                  modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW='',
                  first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
@@ -202,7 +202,7 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log)
+                                                                     log=log, seps=seps)
         elif oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular_oneNet(folds=K, \
                                                                      fold_idx=fold_idx, \
@@ -218,11 +218,11 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False, extW='', only_misclassified=False, misclass_name=''):
+                 oneNet=False, extW='', only_misclassified=False, misclass_name='', seps=[]):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
-        (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log,
+        (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log, seps=seps,
          modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']
@@ -265,7 +265,9 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
             if 'Te' in tAt:
                 Yte = f_IOte['Y']
                 Xte = f_IOte['X']
-            DTA = pickle.load( open( IO_results_name, "rb" ))
+            #print(Xte[:])
+            DTA = IO_results_name
+            #DTA = pickle.load( open( IO_results_name, "rb" ))
             
             
             epochs_per_it = 1
@@ -559,7 +561,7 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
         
 def combine_models(entries, model_names, epochs, rootname_config, sufix='', 
                    melting_func='mean', tag_from_till='',log='', modular=False, sufix_io='', 
-                   get_results=True, from_py=True):
+                   get_results=True, from_py=True, seps=[]):
     """  """
     import numpy as np
     import os
@@ -642,11 +644,14 @@ def combine_models(entries, model_names, epochs, rootname_config, sufix='',
                                                                      log=log)
     else:
         dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(config=config, 
-                                                                     log=log,from_py=from_py)
+                                                                     log=log,from_py=from_py,
+                                                                     seps=seps)
     f_IOte = h5py.File(dirfilename_te,'r')
     Yte = f_IOte['Y']
     Xte = f_IOte['X']
-    DTA = pickle.load( open( IO_results_name, "rb" ))
+    
+    DTA = IO_results_name
+    #DTA = pickle.load( open( IO_results_name, "rb" ))
     n_models = len(model_names)
     # save model names
     if not os.path.exists(local_vars.results_directory+IDresults):
