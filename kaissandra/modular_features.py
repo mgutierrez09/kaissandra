@@ -1337,7 +1337,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                     l_index = startIndex+mW
                     #print(l_index)
                     toc = time.time()
-                    print("\n\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                    print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
                     # update features vector
                     init_idx = b*batch_size
                     end_idx = b*batch_size+m_i

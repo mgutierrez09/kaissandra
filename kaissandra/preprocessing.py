@@ -1075,6 +1075,77 @@ def build_DTA_v2(config, AllAssets, D, B, A, ass_IO_ass):
     # end of for ass in data.assets:
     return DTA
 
+def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
+    """
+    Function that builds structure based on IO to later get Journal and ROIs.
+    Args:
+        - data
+        - I: structure containing indexes
+        - ass_IO_ass: asset to IO assignment
+    """
+    if 'assets' in config:
+        assets = config['assets']
+    else:
+        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+    # init columns
+    columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
+    # init DTA
+    #DTA = pd.DataFrame()
+    f = h5py.File(dirfilename,'w')
+    dts = f.create_dataset('D', (0,2),
+                                maxshape=(None,2),dtype='S19')
+    bids = f.create_dataset('B', (0,2),
+                                maxshape=(None,2),dtype=float)
+    asks = f.create_dataset('A', (0,2),
+                                maxshape=(None,2),dtype=float)
+    # init hdf5 file with raw data
+    ass_index = 0
+    last_ass_IO_ass = 0
+    # loop over assets
+    for ass in assets:
+        # get this asset's name
+        thisAsset = AllAssets[str(ass)]
+        print(thisAsset)
+        # init DTA for this asset
+        DTA_i = pd.DataFrame(columns = columns)
+#        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+#        exit_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+        # fill DTA_i up
+        DTA_i['DT1'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+        new_entries = DTA_i.shape[0]
+        if new_entries>0:
+            DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+            print(DTA_i['DT1'].iloc[0])
+            print(DTA_i['DT1'].iloc[-1])
+            # TODO: Check that DTA set belongs to cros-val set
+#            if DTA_i['DT1'].iloc[0][:10] not in data.dateTest:
+#                print("WARNING!!! DTA_i['DT1'].iloc[0][:10] not in data.dateTest")
+            #assert(DTA_i['DT1'].iloc[0][:10] in data.dateTest)
+#            assert(DTA_i['DT1'].iloc[-1][:10] in data.dateTest)
+#            if DTA_i['DT1'].iloc[-1][:10] not in data.dateTest:
+#                print("WARNING!!! DTA_i['DT1'].iloc[-1][:10] not in data.dateTest")
+            #DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
+            DTA_i['B1'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+            DTA_i['A1'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
+            
+            DTA_i['DT2'] = D[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+            DTA_i['DT2'] = DTA_i['DT2'].str.decode('utf-8')
+            DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+            DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
+            DTA_i['Asset'] = thisAsset
+    #        print(DTA_i['DT1'].iloc[0])
+    #        print(DTA_i['DT1'].iloc[-1])
+            # append DTA this asset to all DTAs
+            D.resize((pointerTr+new_entries, 2))
+            B.resize((pointerTr+new_entries, 2))
+            A.resize((pointerTr+new_entries, 2))
+            
+            DTA = DTA.append(DTA_i,ignore_index=True)
+        last_ass_IO_ass = ass_IO_ass[ass_index]
+        ass_index += 1
+    # end of for ass in data.assets:
+    return DTA
+
 def build_datasets(folds=3, fold_idx=0, config={}, log='', data_dir=local_vars.data_dir,
                    first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
@@ -2042,9 +2113,12 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True):
         print(mess)
         if len(log)>0:
             write_log(mess)
-        DTA = build_DTA_v2(config, C.AllAssets, IO['Dcv'], 
-                           IO['Bcv'], IO['Acv'], ass_IO_ass_cv)
-        pickle.dump( DTA, open( IO_results_name, "wb" ))
+#        DTA = build_DTA_v2(config, C.AllAssets, IO['Dcv'], 
+#                           IO['Bcv'], IO['Acv'], ass_IO_ass_cv)
+#        pickle.dump( DTA, open( IO_results_name, "wb" ))
+        build_DTA_v3(config, C.AllAssets, IO['Dcv'], 
+                           IO['Bcv'], IO['Acv'], ass_IO_ass_cv, IO_results_name)
+        
         f_cv.attrs.create('ass_IO_ass', ass_IO_ass_cv, dtype=int)
         f_tr.attrs.create('ass_IO_ass', ass_IO_ass_tr, dtype=int)
         f_cv.attrs.create('totalSampsPerLevel', IO['totalSampsPerLevel'], dtype=int)
