@@ -3524,8 +3524,8 @@ def launch(synchroned_run=False, test=False):
 verbose_RNN = True
 verbose_trader = True
 test = False
-synchroned_run = False
-run_back_test = False
+synchroned_run = True
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
@@ -3601,7 +3601,7 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+running_assets=[7]
 
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
