@@ -1108,7 +1108,7 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
     for ass in assets:
         # get this asset's name
         thisAsset = AllAssets[str(ass)]
-        print(thisAsset)
+        #print(thisAsset)
         # init DTA for this asset
         DTA_i = pd.DataFrame(columns = columns)
 #        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))

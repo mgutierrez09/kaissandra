@@ -1464,10 +1464,10 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     save_costs(costs_filename, [epoch, J_train]+J_test)
     
     f_dta = h5py.File(DTA,'r')
-    DT = f_dta['D']
-    ASS = f_dta['ASS']
-    B = f_dta['B']
-    A = f_dta['A']
+    DT = f_dta['D'][:]
+    ASS = f_dta['ASS'][:]
+    B = f_dta['B'][:]
+    A = f_dta['A'][:]
     # loop over t_indexes
     tic = time.time()
     for t_index in t_indexes+extended_t_index:
@@ -1599,17 +1599,17 @@ def get_results(config, y, DTA, J_test, soft_tilde,
         #TR = TR[TR.epoch==epoch]
         get_best_results(TR[TR.epoch==epoch], results_filename, 
                          resultsDir, IDresults, save=1)
-        print("\n\nBest constrait results:")
-        get_best_results_constraint(TR[TR.epoch==epoch], results_filename, 
-                                resultsDir, IDresults, 60, 
-                                '>=', name='NSP', apply_to='eROI', save=1)
+#        print("\n\nBest constrait results:")
+#        get_best_results_constraint(TR[TR.epoch==epoch], results_filename, 
+#                                resultsDir, IDresults, 60, 
+#                                '>=', name='NSP', apply_to='eROI', save=1)
         print("\nThe very best:")
         get_best_results(TR, results_filename, resultsDir, IDresults)
-        print("\n\nThe very best constrait results:")
-        get_best_results_constraint(TR, results_filename, resultsDir, 
-                                IDresults, 50, '>=', name='NSP', apply_to='eROI', very_best=True)
-        get_best_results_constraint(TR, results_filename, resultsDir, 
-                                IDresults, 60, '>=', name='NSP', apply_to='eROI', very_best=True)
+#        print("\n\nThe very best constrait results:")
+#        get_best_results_constraint(TR, results_filename, resultsDir, 
+#                                IDresults, 50, '>=', name='NSP', apply_to='eROI', very_best=True)
+#        get_best_results_constraint(TR, results_filename, resultsDir, 
+#                                IDresults, 60, '>=', name='NSP', apply_to='eROI', very_best=True)
     # get results per MCxMD entry
 #    for t_index in range(model.seq_len+1):
 #        for mc in thresholds_mc:
@@ -1661,12 +1661,14 @@ def get_journal(DT, ASS, B, A, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
     espreads =  (A[:,0]-B[:,0])/A[:,0]#(DTA["A1"]-DTA["B1"])/DTA["A1"]
     spreads =  grossROIs-tROIs
     
-    Journal['Asset'] = ASS[:]
-    Journal['DTi'] = DT[:,0]#DTA['DT1'].iloc[:]
-    Journal['DTo'] = DT[:,1]#DTA['DT2'].iloc[:]
-    Journal['Asset'] = Journal['Asset'].str.decode('utf-8')
-    Journal['DTi'] = Journal['DTi'].str.decode('utf-8')
-    Journal['DTo'] = Journal['DTo'].str.decode('utf-8')
+    Journal['Asset'] = ASS[:].astype(str)
+    Journal['DTi'] = DT[:,0].astype(str)#DTA['DT1'].iloc[:]
+    Journal['DTo'] = DT[:,1].astype(str)#DTA['DT2'].iloc[:]
+    #print(Journal['Asset'])
+    #Journal['Asset'] = Journal['Asset'].astype(str)#.str.decode('utf-8')
+    #print(Journal['Asset'])
+    #Journal['DTi'] = Journal['DTi'].astype(str).str.decode('utf-8')
+    #Journal['DTo'] = Journal['DTo'].astype(str).str.decode('utf-8')
     Journal['GROI'] = 100*grossROIs
     Journal['ROI'] = 100*tROIs
     Journal['Spread'] = 100*spreads
@@ -1849,8 +1851,9 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
         end_of_loop = 0
     count_dif_dir = 0
     for e in tqdm(range(1,end_of_loop),mininterval=1):
-        oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1].decode('ascii'),"%Y.%m.%d %H:%M:%S")
-        newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e].decode('ascii'),"%Y.%m.%d %H:%M:%S")
+        #print(Journal[DT2])
+        oldExitTime = dt.datetime.strptime(Journal[DT2].iloc[e-1],"%Y.%m.%d %H:%M:%S")#.decode('ascii')
+        newEntryTime = dt.datetime.strptime(Journal[DT1].iloc[e],"%Y.%m.%d %H:%M:%S")
         
         extendExitMarket = (newEntryTime-oldExitTime<=dt.timedelta(0))
         sameAss = Journal['Asset'].iloc[e] == Journal['Asset'].iloc[e-1] 
