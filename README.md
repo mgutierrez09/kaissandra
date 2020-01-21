@@ -6,7 +6,8 @@
 
 ## How to use
 
-** How to use
+** Requests from Server:
+http PUT http://localhost:5000/api/traders/sessions/change_params lots=0.1
  
 ## Authors
 
