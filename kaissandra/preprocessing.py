@@ -275,10 +275,14 @@ def build_variations_modular(config, file_temp, features, stats):
     # number of features
     nF = len(feature_keys)
     # create group
-    group_temp = file_temp.create_group('temp')
-    # reserve memory space for variations and normalized variations
-    variations = group_temp.create_dataset('variations', (features.shape[0],nF,nC), dtype=float)
-    variations_normed = group_temp.create_dataset('variations_normed', (features.shape[0],nF,nC), dtype=float)
+    try:
+        group_temp = file_temp.create_group('temp')
+        # reserve memory space for variations and normalized variations
+        variations = group_temp.create_dataset('variations', (features.shape[0],nF,nC), dtype=float)
+        variations_normed = group_temp.create_dataset('variations_normed', (features.shape[0],nF,nC), dtype=float)
+    except AttributeError:
+        print("WARNING! AttributeError. Try to continue")
+        return [None, None]
     # init variations and normalized variations to 999 (impossible value)
     variations[:] = variations[:]+999
     variations_normed[:] = variations[:]
@@ -836,19 +840,19 @@ def load_stats_manual_v2(config, thisAsset, ass_group, from_stats_file=False,
         stats["m_t_in"] = ass_group.attrs.get("m_t_in")
     
     elif from_stats_file:
-        try:
-            stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
+        #try:
+        stats = pickle.load( open( hdf5_directory+thisAsset+'_'+tag+'stats_mW'+
                                       str(movingWindow)+
                                      '_nE'+str(nEventsPerStat)+
                                      '_nF'+str(nF)+".p", "rb" ))
-        except FileNotFoundError:
-            print("WARNING FileNotFoundError: "+local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
-                                      str(movingWindow)+
-                                     '_nE'+str(nEventsPerStat)+
-                                     '_nF'+str(nF)+".p. Getting stats from features file")
-            stats["means_t_in"] = ass_group.attrs.get("means_t_in")
-            stats["stds_t_in"] = ass_group.attrs.get("stds_t_in")
-            stats["m_t_in"] = ass_group.attrs.get("m_t_in")
+#        except FileNotFoundError:
+#            print("WARNING FileNotFoundError: "+local_vars.stats_directory+thisAsset+'_'+tag+'stats_mW'+
+#                                      str(movingWindow)+
+#                                     '_nE'+str(nEventsPerStat)+
+#                                     '_nF'+str(nF)+".p. Getting stats from features file")
+#            stats["means_t_in"] = ass_group.attrs.get("means_t_in")
+#            stats["stds_t_in"] = ass_group.attrs.get("stds_t_in")
+#            stats["m_t_in"] = ass_group.attrs.get("m_t_in")
     else:
         print("EROR: Not a possible combination of input parameters")
         raise ValueError
@@ -1108,7 +1112,7 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
     for ass in assets:
         # get this asset's name
         thisAsset = AllAssets[str(ass)]
-        #print(thisAsset)
+        print(thisAsset)
         # init DTA for this asset
         DTA_i = pd.DataFrame(columns = columns)
 #        entry_idx = I[last_ass_IO_ass:ass_IO_ass[ass_index],:,0].reshape((-1))
@@ -1154,7 +1158,7 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
             asks[last_ass_IO_ass:ass_IO_ass[ass_index],1] = A[last_ass_IO_ass:ass_IO_ass[ass_index],0,1]
             
             asses[last_ass_IO_ass:ass_IO_ass[ass_index]] = thisAsset.encode('utf-8')#DTA_i['Asset'].iloc[::seq_len].str.encode('utf-8')
-            print(asses[:])
+            #print(asses[:])
             #DTA = DTA.append(DTA_i,ignore_index=True)
         last_ass_IO_ass = ass_IO_ass[ass_index]
         ass_index += 1
@@ -1597,14 +1601,18 @@ def load_features_modular(config, thisAsset, separators, assdirname, init_date, 
     """
     Function that extracts features from previously saved structures.
     """
-    feature_keys = config['feature_keys']
-    groupdirname = assdirname+init_date+end_date+'/'
-    m_in = pickle.load( open( groupdirname+"m_in_"+str(shift)+".p", "rb" ))
-    features = np.zeros((m_in, len(feature_keys)))
-    for i,f in enumerate(feature_keys):
-        filedirname = groupdirname+C.PF[f][0]+'_'+str(shift)+'.hdf5'
-        feature_file = h5py.File(filedirname,'r')
-        features[:,i] = feature_file[C.PF[f][0]][C.PF[f][0]][:,0]
+    try:
+        feature_keys = config['feature_keys']
+        groupdirname = assdirname+init_date+end_date+'/'
+        m_in = pickle.load( open( groupdirname+"m_in_"+str(shift)+".p", "rb" ))
+        features = np.zeros((m_in, len(feature_keys)))
+        for i,f in enumerate(feature_keys):
+            filedirname = groupdirname+C.PF[f][0]+'_'+str(shift)+'.hdf5'
+            feature_file = h5py.File(filedirname,'r')
+            features[:,i] = feature_file[C.PF[f][0]][C.PF[f][0]][:,0]
+    except FileNotFoundError:
+        print("WARNING! FileNotFoundError: File "+ groupdirname+" does not exist. Try to continue")
+        return None
             
     return features
 

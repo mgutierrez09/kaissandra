@@ -22,8 +22,7 @@ entry_ask_column = 'Ai'
 exit_ask_column = 'Ao'
 exit_bid_column = 'Bo'
 
-# TODO: add it in parameters
-n_samps_buffer = 250
+
 nFiles = 100
 extension = ".txt"
 deli = "_"
@@ -204,8 +203,8 @@ class Strategy():
                  flexible_lot_ratio=False, lb_mc_op=0.6, lb_md_op=0.6, 
                  lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, 
                  ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
-                 if_dir_change_extend=False, name='',t_indexs=[3],entry_strategy='gre',
-                 IDr=None,epoch='11',weights=np.array([0,1]),info_spread_ranges={},
+                 if_dir_change_extend=False, name='',t_indexs=[3],entry_strategy='spread_ranges',
+                 IDr='',epoch='11',weights=np.array([0,1]),info_spread_ranges={},
                  priorities=[0],lim_groi_ext=-.02):
         
         self.name = name
@@ -235,7 +234,10 @@ class Strategy():
         # load GRE
         self.entry_strategy = entry_strategy
         self.IDr = IDr
-        self.IDgre = IDr+'R20INT'
+        if IDr:
+            self.IDgre = IDr+'R20INT'
+        else:
+            self.IDgre = None
         self.epoch = epoch
         self.t_indexs = t_indexs
         self.weights = weights
@@ -1675,7 +1677,7 @@ class Trader:
             self.list_dict_banned_assets = [None for _ in self.list_is_asset_banned]
             
         tracing_dict = {'lastDateTime':DateTime,
-                        'counter':10}
+                        'counter':4}
         self.list_dict_banned_assets[ass_idx] = tracing_dict
         out = DateTime+" "+thisAsset+\
                 " ban counter set to "\
@@ -2436,6 +2438,10 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     print("RESET command found.")
                     os.remove(io_ass_dir+'RESET')
                     lists = flush_asset(lists, ass_idx, 0.0)
+                elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
+                    print("\n\nENQUIRE PARAMETERS\n\n")
+                    api.parameters_enquiry(asynch=True)
+                    os.remove(io_ass_dir+'PARAM')
                 time.sleep(.01)
             # update file extension
             if success:
@@ -2743,6 +2749,11 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             print("RESET command found.")
             os.remove(io_ass_dir+'RESET')
             lists = flush_asset(lists, ass_idx, bid)
+        # Enquire parameters from Server
+        elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
+            print("\n\nENQUIRE PARAMETERS\n\n")
+            api.parameters_enquiry(asynch=True)
+            os.remove(io_ass_dir+'PARAM')
             
         ###################### End of Trader ###########################
         event_idx += 1
@@ -2909,7 +2920,7 @@ def run(config_traders_list, running_assets, start_time, test):
     
     # init futures session of API
     if send_info_api:
-        api.init_session()
+        api.init_future_session()
     # directories
     if run_back_test:
         dir_results = LC.live_results_dict+"back_test/"    
@@ -3372,7 +3383,7 @@ def run(config_traders_list, running_assets, start_time, test):
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir=LC.data_test_dir)
+                                   end_list_index, root_dir='D:/SDC/py/Data_aws_200110/')
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
@@ -3521,16 +3532,22 @@ def launch(synchroned_run=False, test=False):
     print("All RNNs launched")
     
 
-verbose_RNN = True
-verbose_trader = True
-test = False
-synchroned_run = True
+verbose_RNN = False
+verbose_trader = False
+test = True
+synchroned_run = False
 run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 send_info_api = True
 modular = False
+
+# TODO: add it in parameters
+if not test:
+    n_samps_buffer = 250
+else:
+    n_samps_buffer = 5
 
 config_names = ['TN01010FS2NYREDOK2K52145314SRv3']
 
@@ -3601,7 +3618,7 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets=[7]
+running_assets=[7,10,12]
 
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
@@ -3612,15 +3629,25 @@ else:
      api = None
      print("send_info_api")
      print(send_info_api)
-if send_info_api:
+
+if __name__=='__main__':
+    # lauch
+    api.reset_activate_sessions()
+    renew_directories(C.AllAssets, running_assets)
+    if synchroned_run:
+        api.intit_all(list_config_traders[0], running_assets, sessiontype)
+        print("api.trader_json:")
+        print(api.trader_json)
+    launch(synchroned_run=synchroned_run, test=test)#
+    if not synchroned_run:
+        # Controlling and message passing to releave traders of these tasks
+        from kaissandra.prod.control import control
+        control(running_assets)
+    
+elif send_info_api and not synchroned_run:
     api.intit_all(list_config_traders[0], running_assets, sessiontype)
     print("api.trader_json:")
     print(api.trader_json)
-if __name__=='__main__':
-    # lauch
-    
-    renew_directories(C.AllAssets, running_assets)
-    launch(synchroned_run=synchroned_run, test=test)#
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%

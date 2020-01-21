@@ -32,13 +32,14 @@ def shutdown(id=None):
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
-        print(asset)
+        
         try:
             fh = open(io_dir+asset+'/SD',"w")
             fh.close()
-            
+            print(asset)
         except FileNotFoundError:
-            print("FileNotFoundError")
+            #print("FileNotFoundError")
+            pass
     if id!=None:
         close_session(id)
 
@@ -53,12 +54,30 @@ def pause():
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
-        print(asset)
+        
         try:
             fh = open(io_dir+asset+'/PA',"w")
             fh.close()
+            print(asset)
         except FileNotFoundError:
-            print("Asset not running")
+            #print("Asset not running")
+            pass
+
+def check_params():
+    """  """
+    io_dir = local_vars.io_live_dir
+    AllAssets = Config.AllAssets
+    for asset_key in AllAssets:
+        asset = AllAssets[asset_key]
+        
+        try:
+            fh = open(io_dir+asset+'/PARAM',"w")
+            fh.close()
+            #print(asset)
+        except FileNotFoundError:
+            pass
+            #print("Asset not running")
+    print("Params checked")
 
 def resume():
     """  """
@@ -66,12 +85,14 @@ def resume():
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
-        print(asset)
+        
         try:
             fh = open(io_dir+asset+'/RE',"w")
             fh.close()
+            print(asset)
         except FileNotFoundError:
-            print("FileNotFoundError")
+            pass
+            #print("FileNotFoundError")
 
 def close_positions():
     """ Close all positions from py """

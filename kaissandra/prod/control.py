@@ -19,6 +19,8 @@ def control(running_assets, timeout=15):
     Args:
         - running_assets (list): list of assets being tracked by trader 
         - timeout (int): max timeout in minutes before reseting networks """
+    import kaissandra.prod.communication as ct
+    
     directory_MT5 = local_vars.directory_MT5_IO
     directory_io = local_vars.io_live_dir
     reset_command = 'RESET'
@@ -37,6 +39,8 @@ def control(running_assets, timeout=15):
                                                       reset_command, directory_MT5, 
                                                       list_last_file, timeouts, 
                                                       reset)
+        ct.check_params()
+        
         time.sleep(5)
         watchdog_counter += 1
         if watchdog_counter==24:

@@ -50,7 +50,7 @@ class API():
         """ Init session trader """
         self.trader = trader
         
-    def init_session(self):
+    def init_future_session(self):
         """  """
         self.futureSession = FuturesSession()
     
@@ -280,7 +280,7 @@ class API():
     
     def open_position(self, params, asynch=False):
         """ POST request to open a position """
-        try:
+        if 1:
             # check if close position waiting to be retrieved
             if asynch and params['asset'] in self.list_asset_positions:
                 id_list_futures = self.list_asset_positions.index(params['asset'])
@@ -306,9 +306,9 @@ class API():
             self.list_asset_positions.append(params['asset'])
             self.list_lastevent_positions.append('open')
             return True
-        except:
-            print("WARNING! Error when requesting opening position. Skiiped")
-            return False
+#        except:
+#            print("WARNING! Error when requesting opening position. Skiiped")
+#            return False
     
     def retrieve_response_open_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
@@ -336,7 +336,7 @@ class API():
     def extend_position(self, assetname, params, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        try:
+        if 1:
             if asynch:
                 id_list_futures = self.list_asset_positions.index(assetname)
                 if self.list_lastevent_positions[id_list_futures] == 'open':
@@ -368,9 +368,9 @@ class API():
             self.list_asset_positions.append(assetname)
             self.list_lastevent_positions.append('extend')
             return True
-        except:
-            print("WARNING! Error when requesting extending position. Skipped")
-            return False
+#        except:
+#            print("WARNING! Error when requesting extending position. Skipped")
+#            return False
     
     def retrieve_response_extend_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
@@ -401,7 +401,7 @@ class API():
     def close_postition(self, assetname, params, dirfilename, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        try:
+        if 1:
             if asynch:
                 id_list_futures = self.list_asset_positions.index(assetname)
                 if self.list_lastevent_positions[id_list_futures] == 'open':
@@ -445,9 +445,9 @@ class API():
             self.list_asset_positions.append(assetname)
             self.list_lastevent_positions.append('close')
             return True
-        except:
-            print("WARNING! Error when requesting closing position. Skiiped")
-            return False
+#        except:
+#            print("WARNING! Error when requesting closing position. Skiiped")
+#            return False
             
     
     def retrieve_response_close_position(self, assetname, id_list_futures):
@@ -498,23 +498,30 @@ class API():
         except:
             print("WARNING! Error in send_network_log die to timeout.")
             
+    def reset_activate_sessions(self):
+        """  """
+        url_ext = 'traders/sessions/reset'
+        response = requests.put(CC.URL+url_ext, headers=
+                                     self.build_token_header(), verify=self.verify_url)
+        print(response.json())
+            
     def parameters_enquiry(self, asynch=False):
         """ Enquire strategy parameters in case of external manipulation """
         # retrieve previous event if asynch
-        try:
+        if 1:
             # check if parameters enquiry waiting to be retrieved
             if asynch and 'PARAMS' in self.list_asset_positions:
                 id_list_futures = self.list_asset_positions.index('PARAMS')
-                self.retrieve_response_parameters_enquiry('PARAMS', id_list_futures)
+                self.retrieve_response_parameters_enquiry(id_list_futures)
             if not self.token or not self.session_json or 'id' not in self.session_json:
                 return False
-            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/params/'
+            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/get_params'
             if not asynch:
                 response = requests.get(CC.URL+url_ext, headers=self.build_token_header(), verify=self.verify_url)
                 print("Status code: "+str(response.status_code))
                 if response.status_code == 200:
                     print(response.json())
-                    self.positions_json_list.append(response.json()['params'][0])
+                    #self.positions_json_list.append(response.json()['params'])#[0]
                     return True
                 else:
                     print(response.text)
@@ -527,9 +534,9 @@ class API():
             self.list_asset_positions.append('PARAMS')
             self.list_lastevent_positions.append('null')
             return True
-        except:
-            print("WARNING! Error when enquiring parameters. Skiiped")
-            return False
+#        except:
+#            print("WARNING! Error when enquiring parameters. Skiiped")
+#            return False
         
     def retrieve_response_parameters_enquiry(self, id_list_futures):
         """ Retrieve response parameters enquiry """
@@ -542,8 +549,8 @@ class API():
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
-            params = response.json()['params'][0]
-            self.positions_json_list.append()
+            params = response.json()['params']#[0]
+            #self.positions_json_list.append(params)
             del self.list_futures[id_list_futures]
             del self.list_asset_positions[id_list_futures]
             del self.list_lastevent_positions[id_list_futures]
@@ -561,5 +568,6 @@ class API():
         """ Update parameters from trader if externally updated """
         for param in params:
             if param == 'lots':
+                print("LOTS UPDATED")
                 for s in range(len(self.trader.strategies)):
                     self.trader.strategies[s].max_lots_per_pos = params['lots']

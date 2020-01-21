@@ -261,8 +261,8 @@ def get_fileidxs(files_asset, init_date, end_date, isgold=False):
 # limit the build of the HDF5 to data comprised in these dates
 build_partial_raw = False
 build_test_db = True
-init_date = '20200106'#'180928'
-end_date = '20200110'#'181109'
+init_date = '20181112'#'180928'
+end_date = '20191212'#'181109'
 init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
 end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
 
@@ -275,7 +275,7 @@ elif build_test_db and not build_partial_raw:
     hdf5_file_name = 'tradeinfo_test.hdf5'
     directory_root = local_vars.data_test_dir
     separators_directory_name = 'separators_test/'
-    dateTest = get_dateTest(init_date='2020.01.06', end_date='2020.01.10')
+    dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.12.12')
 elif not build_test_db and not build_partial_raw:
     hdf5_file_name = 'tradeinfo_py.hdf5'
     separators_directory_name = 'separators_py/'
