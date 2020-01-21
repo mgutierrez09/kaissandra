@@ -315,7 +315,7 @@ class API():
         try:
             response = self.list_futures[id_list_futures].result()
         except :
-            print("WARNING! Timeout eror. Skipping connection")
+            print("WARNING! Timeout eror in retrieve_response_open_position. Skipping connection")
             return False
         # print result
         print("Status code: "+str(response.status_code))
@@ -377,7 +377,7 @@ class API():
         #try:
         response = self.list_futures[id_list_futures].result()
         #except :
-            #print("WARNING! Timeout eror. Skipping connection")
+            #print("WARNING! Timeout eror in retrieve_response_extend_position. Skipping connection")
             #return False
         # print result
         print("Status code: "+str(response.status_code))
@@ -455,7 +455,7 @@ class API():
         try:
             response = self.list_futures[id_list_futures].result()
         except :
-            print("WARNING! Timeout eror. Skipping connection")
+            print("WARNING! Timeout eror in retrieve_response_close_position. Skipping connection")
             return False
         # print result
         print("Status code: "+str(response.status_code))
@@ -540,11 +540,11 @@ class API():
         
     def retrieve_response_parameters_enquiry(self, id_list_futures):
         """ Retrieve response parameters enquiry """
-        try:
-            response = self.list_futures[id_list_futures].result()
-        except :
-            print("WARNING! Timeout eror. Skipping connection")
-            return False
+        #try:
+        response = self.list_futures[id_list_futures].result()
+#        except :
+#            print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
+#            return False
         # print result
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
@@ -571,3 +571,7 @@ class API():
                 print("LOTS UPDATED")
                 for s in range(len(self.trader.strategies)):
                     self.trader.strategies[s].max_lots_per_pos = params['lots']
+            elif param == 'stoploss':
+                print("SL UPDATED")
+                for s in range(len(self.trader.strategies)):
+                    self.trader.strategies[s].thr_sl = params['stoploss']
