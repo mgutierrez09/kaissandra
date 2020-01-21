@@ -2439,7 +2439,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     os.remove(io_ass_dir+'RESET')
                     lists = flush_asset(lists, ass_idx, 0.0)
                 elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
-                    print("\n\nENQUIRE PARAMETERS\n\n")
+                    #print("\n\nENQUIRE PARAMETERS\n\n")
                     api.parameters_enquiry(asynch=True)
                     os.remove(io_ass_dir+'PARAM')
                 time.sleep(.01)
@@ -2751,7 +2751,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             lists = flush_asset(lists, ass_idx, bid)
         # Enquire parameters from Server
         elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
-            print("\n\nENQUIRE PARAMETERS\n\n")
+            #print("\n\nENQUIRE PARAMETERS\n\n")
             api.parameters_enquiry(asynch=True)
             os.remove(io_ass_dir+'PARAM')
             
@@ -3468,7 +3468,8 @@ def run(config_traders_list, running_assets, start_time, test):
 #                if not os.path.exists(trader.log_file):
 #                    write_log(out, trader.log_file)
 #                    write_log(out, trader.log_summary)
-                    
+                if send_info_api:
+                     api.init_trader(trader)  
                 traders.append(trader)
             
 #            trader = Trader(running_assets,
@@ -3528,15 +3529,15 @@ def launch(synchroned_run=False, test=False):
             disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test])
             disp.start()
             time.sleep(2)
-        time.sleep(30)
+        #time.sleep(30)
     print("All RNNs launched")
     
 
-verbose_RNN = False
-verbose_trader = False
+verbose_RNN = True
+verbose_trader = True
 test = True
 synchroned_run = False
-run_back_test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
