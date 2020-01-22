@@ -29,6 +29,8 @@ pip_extensions = [str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_
 eROIs_list = ['eROI'+str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]#['eROI.5','eROI1','eROI1.5','eROI2','eROI3','eROI4','eROI5']
 NSPs_list = ['NSP'+str(np.round((pip_lim*10))/10) for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]
 
+spreads_list = [np.round((pip_lim*10))/10 for pip_lim in np.linspace(min_pip,max_pip,n_pip_steps)]
+
 def get_last_saved_epoch2(resultsDir, ID):
     """
     <DocString>
@@ -529,7 +531,9 @@ def extract_result_v2(TR, dict_inputs, list_funcs, list_names, kpi):
         maxidx = TR[kpi].idxmax()
     return maxidx
 
-def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, values, operations, names=['NPS'], apply_to='eROI', save=0, from_mg=False):
+def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
+                                   values, operations, names=['NPS'], apply_to='eROI', 
+                                   save=0, from_mg=False):
     """ Get best result subject to a constraint """
     import re
     
@@ -541,9 +545,9 @@ def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
     if not os.path.exists(best_dir):
         os.mkdir(best_dir)
     if not save:
-        file = open(best_dir+'best'+str(names)+str(values)+'.txt',"w")
+        file = open(best_dir+'best'+str(names)+str(values)+'_v2.txt',"w")
         file.close()
-        file = open(best_dir+'best'+str(names)+str(values)+'.txt',"a")
+        file = open(best_dir+'best'+str(names)+str(values)+'_v2.txt',"a")
     for b in best_results_list:
         if b in eROIs_list:# WARNING!! Only for eROIs
             # get extension
@@ -607,6 +611,7 @@ def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
             else:
                 thr_text = " thr_mc "+str(TR['thr_mg'].loc[idx])
             
+            
             out = "Best "+b+" = {0:.2f}".format(TR[b].loc[idx])+\
                   " t_index "+str(TR['t_index'].loc[idx])+thr_text+\
                   " epoch "+str(TR['epoch'].loc[idx])+" in "+str(TR['NO'].loc[idx])+\
@@ -620,6 +625,8 @@ def get_best_results_constraint_v2(TR, results_filename, resultsDir, IDresults, 
             print(out)
             if not save:
                 file.write(out+"\n")
+#            if get_spread_ranges:
+#                spread_ranges
     if not save:
         file.close()
     return None
@@ -646,10 +653,10 @@ def extract_result(TR, dict_inputs, kpi, constraints=['ROI>=.6GROI']):
 
 def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, value, 
                                 operation, name='NPS', apply_to='eROI', save=0, 
-                                from_mg=False, very_best=False):
+                                from_mg=False, very_best=False, get_spread_ranges=False):
     """ Get best result subject to a constraint """
     import re
-    
+    spread_ranges = {'sp':spreads_list,'th':[],'mar':[(0,0) for s in range(len(spreads_list))]}
     best_results_list = get_best_results_list()
     for c in best_results_list:
         if c not in TR.columns:
@@ -693,6 +700,8 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
             print(out)
             if not save:
                 file.write(out+"\n")
+            if get_spread_ranges:
+                spread_ranges['th'].append((TR['thr_mc'].loc[idx],TR['thr_md'].loc[idx]))
             # extract list of best combinations
             if very_best:
                 
@@ -722,6 +731,8 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
             
     if not save:
         file.close()
+    if get_spread_ranges:
+        print(spread_ranges)
     return None
 
 
