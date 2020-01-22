@@ -639,7 +639,7 @@ def extract_result(TR, dict_inputs, kpi, constraints=['ROI>=.6GROI']):
         maxidx = TR[kpi][idxs].idxmax()
         success = 1
     else:
-        print("WARNING! Constraints not met found")
+#        print("WARNING! Constraints not met found")
         maxidx = TR[kpi].idxmax()
         success = 0
     return maxidx, success

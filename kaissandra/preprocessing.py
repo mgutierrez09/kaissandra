@@ -1879,7 +1879,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True,
     if not build_test_db:
         separators_directory = data_dir+'separators'+py_flag+'/'
     else:
-        separators_directory = data_dir+'separators_test/'
+        separators_directory = data_dir+'separators'+py_flag+'_test/'
     print(hdf5_directory)
     print(separators_directory)
     
@@ -2003,9 +2003,10 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True,
                 sep_for_stats = separators
             else:
                 sep_for_stats = load_separators(thisAsset, 
-                                         'E:/SDC/py/Data/'+'separators'+py_flag+'/', 
+                                         'E:/SDC/py/Data_PY/'+'separators'+py_flag+'/', 
                                          from_txt=1)
-
+                print("directory for sep_for_stats:")
+                print('E:/SDC/py/Data_PY/'+'separators'+py_flag+'/')
             first_date = dt.datetime.strftime(dt.datetime.strptime(
                     sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
             last_date = dt.datetime.strftime(dt.datetime.strptime(
