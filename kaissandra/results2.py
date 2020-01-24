@@ -171,7 +171,7 @@ def print_results(results, epoch, J_test, J_train, thr_md, thr_mc, t_str):
 def get_results_entries():
     """  """
     results_entries = ['epoch','t_index','thr_mc','thr_md','AD','ADA','GSP','NSP','NO',
-                       'NZ','NZA','RD']+NSPs_list+['SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5','SI',
+                       'NZ','NZA','RD']+NSPs_list+['CA.5','CA1','CA1.5','CA2','CA3','CA4','CA5','CA',
                        'eGROI']+eROIs_list+['eROI','mSpread','pNZ','pNZA','tGROI','tROI','eRl1',
                        'eRl2','eGl1','eGl2','sharpe','NOl1','NOl2','eGROIL','eGROIS',
                        'NOL','NOS','GSPl','GSPs','99eGROI','99eROI','99eROI.5',
@@ -509,7 +509,7 @@ def get_single_result(CR_t, mc, md, thresholds_mc, thresholds_md):
 
 def get_best_results_list():
     """ get list containing the entries to get the best results from """
-    return ['eGROI','eROI']+eROIs_list+['SI','SI.5','SI1','SI1.5','SI2','SI3','SI4','SI5',
+    return ['eGROI','eROI']+eROIs_list+['CA','CA.5','CA1','CA1.5','CA2','CA3','CA4','CA5',
            '99eGROI','99eROI','99eROI.5','99eROI1','99eROI1.5','99eROI2','99eROI3','99eROI4','99eROI5']
 
 def extract_result_v2(TR, dict_inputs, list_funcs, list_names, kpi):
@@ -1778,6 +1778,10 @@ def remove_outliers(grois, spreads, thr=.99):
         
     return grois_no_outliers, rois_no_outliers, idx_sorted, low_arg_goi, high_arg_goi
 
+def capacity(pos):
+    """ The capacity of a position is C=sign(pos)*log_2(1+abs(pos)) """
+    return np.sign(pos)*np.log2(1+np.abs(pos))
+
 def get_extended_results(Journal, n_classes, n_days, get_log=False, 
                          get_positions=False, pNZA=0,
                          pos_dirname='', pos_filename='', reference_date='2018.03.09',
@@ -1927,16 +1931,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                 count_dif_dir += 1
             elif feats_from_bids and direction>0 and np.sign(Ao-Ai)!=np.sign(Bo-Bi):
                 count_dif_dir += 1
-            ### TEMP ###
-#            GROI = -direction*(Bi-Bo)/Ao
-#            thisSpread = (Ao-Bo)/Ao
-#            ROI = GROI-thisSpread#-direction*(Bi-Ao)/Ao
-#            if direction>0:
-#                eGROIL += GROI
-#                NOL += 1
-#            else:
-#                eGROIS += GROI
-#                NOS += 1
+            # get capacity
             #thisSpread = (Journal[A2].iloc[e-1]-Journal[B2].iloc[e-1])/Journal[B1].iloc[e-1]  
             mSpread += thisSpread
             #GROI = np.sign(Journal['Bet'].iloc[eInit])*(Journal[B2].iloc[e-1]-Journal[B1].iloc[eInit])/Journal[B1].iloc[eInit]
@@ -2129,6 +2124,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     except ZeroDivisionError:
         GSPs = 0
     n_bets = ROI_vector.shape[0]
+    
     if np.var(ROI_vector)>0:
         sharpe = np.sqrt(n_bets)*np.mean(ROI_vector)/np.sqrt(np.var(ROI_vector))
     else:
@@ -2136,8 +2132,15 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     # Success index per spread level
     #SIs = n_pos_opned*(NSPs-.53)
     #SI = n_pos_opned*(net_succ_per-.53)
-    SIs = (CSPs-CFPs)/np.sqrt(n_pos_opned)
-    SI = (net_succ_per-net_fail_counter)/np.sqrt(n_pos_opned)
+#    SIs = (CSPs-CFPs)/np.sqrt(n_pos_opned)
+#    SI = (net_succ_per-net_fail_counter)/np.sqrt(n_pos_opned)
+    # TEMP! Use SIs for Positions Capacity
+    
+    CA = np.sum(capacity(ROI_vector))
+    CAs = np.zeros((len(fixed_extensions)))
+    for i, fix_spread in enumerate(fixed_extensions):
+        CAs[i] = np.sum(capacity(100*(GROI_vector-float(fix_spread)*pip)))
+    #print(SIs)
     eGROI = 100*eGROI
     eROI = 100*eROI
     eROIs = 100*eROIs
@@ -2147,11 +2150,11 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     ROIS99 = [100*sum(GROIS99-spread) for spread in fixed_spread_ratios]
     list_ext_results = [[eGROI,'eGROI'], [eROI,'eROI'], [successes[1],'GSP'], \
                         [successes[2],'NSP'], [successes[0],'NO'], [sharpe,'sharpe'], \
-                        [SI,'SI'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \
+                        [CA,'CA'], [mSpread,'mSpread'], [rROIxLevel[:,0], 'eRl', ['1','2']], \
                         [rROIxLevel[:,1], 'eGl', ['1','2']], [rSampsXlevel[:,1], 'NOl', ['1','2']], \
                         [eROIs, 'eROI', pip_extensions], \
                         [successes[3], 'NSP', pip_extensions], \
-                        [SIs, 'SI', fixed_extensions], [100*eGROIL, 'eGROIL'], \
+                        [CAs, 'CA', fixed_extensions], [100*eGROIL, 'eGROIL'], \
                         [100*eGROIS, 'eGROIS'], [NOL, 'NOL'], [NOS, 'NOS'], \
                         [100*GSPl,'GSPl'],[100*GSPs,'GSPs'], \
                         [100*GROI99,'99eGROI'],[100*ROI99,'99eROI'],[ROIS99,'99eROI', fixed_extensions]]

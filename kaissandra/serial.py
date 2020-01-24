@@ -712,6 +712,11 @@ class Trader:
             self.list_count_events[self.map_ass_idx2pos_idx[ass_id]]
         return samps_remaining<samps_extension
     
+    def get_remain_samps(self, ass_id):
+        """  """
+        return self.list_deadlines[self.map_ass_idx2pos_idx[ass_id]]-\
+            self.list_count_events[self.map_ass_idx2pos_idx[ass_id]]
+    
     def check_primary_condition_for_extention(self, ass_id):
         """  """
         return self.check_same_direction(ass_id) and self.check_remain_samps(ass_id)
@@ -1364,10 +1369,11 @@ class Trader:
                         else: # position is opened
                             curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             out = new_entry[entry_time_column]+" "+thisAsset+\
-                                           " deadline in "+str(self.list_deadlines[
-                                               self.map_ass_idx2pos_idx[ass_id]])+\
+                                           " deadline in "+self.get_remain_samps(ass_id)+\
                                             " current GROI = {0:.2f}%".format(100*curr_GROI)+\
                                             " current ROI = {0:.2f}%".format(100*curr_ROI)
+#                                            +str(self.list_deadlines[
+#                                               self.map_ass_idx2pos_idx[ass_id]])
                             if verbose_trader:
                                 print("\r"+out)
                             self.write_log(out)
