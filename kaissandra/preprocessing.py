@@ -1616,7 +1616,7 @@ def load_features_modular(config, thisAsset, separators, assdirname, init_date, 
             
     return features
 
-def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel, stats_modular_directory=local_vars.stats_modular_directory):
+def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel, stats_dir):
     """  """
     movingWindow = config['movingWindow']
     nEventsPerStat = config['nEventsPerStat']
@@ -1625,9 +1625,8 @@ def load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel
 #    else:
 #        symbol_type = 'ask'
     feature_keys = config['feature_keys']
-    asset_relation = ass_rel#config['asset_relation']#
     nChannels = int(nEventsPerStat/movingWindow)
-    stats_dir = stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+    
     means_in = np.zeros((nChannels, len(feature_keys)))
     stds_in = np.zeros((nChannels, len(feature_keys)))
     for i, feat in enumerate(feature_keys):
@@ -2002,11 +2001,12 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True,
             if not build_test_db:
                 sep_for_stats = separators
             else:
-                sep_for_stats = load_separators(thisAsset, 
-                                         'E:/SDC/py/Data_PY/'+'separators'+py_flag+'/', 
+                #'E:/SDC/py/Data_PY/'+'separators'+py_flag+'/'
+                dir_seps_stats = local_vars.data_dir+'separators/'
+                sep_for_stats = load_separators(thisAsset, dir_seps_stats,
                                          from_txt=1)
                 print("directory for sep_for_stats:")
-                print('E:/SDC/py/Data_PY/'+'separators'+py_flag+'/')
+                print(dir_seps_stats)
             first_date = dt.datetime.strftime(dt.datetime.strptime(
                     sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
             last_date = dt.datetime.strftime(dt.datetime.strptime(
@@ -2021,10 +2021,12 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True,
                     ass_rel = 'inverse'
                 else:
                     raise ValueError
-                
-                list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, 'ask', ass_rel)
+                stats_dir = local_vars.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+                print("stats_dir")
+                print(stats_dir)
+                list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, symbol, ass_rel, stats_dir)#'ask'
                 ### WARNING! Stats extracted from ask regardless of symbol!
-            print("WARNING! Stats extracted from ask regardless of symbol!")
+            #print("WARNING! Stats extracted from ask regardless of symbol!")
     #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
     #                                            thisAsset, tag=tag_stats)
         

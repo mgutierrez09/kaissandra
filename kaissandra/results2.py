@@ -733,8 +733,14 @@ def get_best_results_constraint(TR, results_filename, resultsDir, IDresults, val
         file.close()
     if get_spread_ranges:
         print(spread_ranges)
+        pickle.dump(spread_ranges, open( best_dir+'spread_ranges_'+str(value)+'.p', "wb" ))
     return None
 
+def load_spread_ranges(resultsDir, IDresults, value=60):
+    """ Load spread_ranges structure """
+    best_dir = resultsDir+IDresults+'/best/'
+    dirfilename = best_dir+'spread_ranges_'+str(value)+'.p'
+    return pickle.load( open( dirfilename, "rb" ))
 
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_mg=False):
     """  """
@@ -1544,7 +1550,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
                                           ys_md['y_dec_mg'],
                                           ys_md['diff_y_y_tilde'], 
                                           ys_mc['probs_mc'][ys_md['y_md_tilde']], 
-                                          ys_md['probs_md'])
+                                          ys_md['probs_md'], save_journal=save_journal)
                     
     #                if extract_wrong_preds and thr_mc==.5 and thr_md==.5:
     #                    Journal_wrong = Journal[Journal['Diff']<0]
@@ -1631,7 +1637,7 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     print("Time={0:.2f}".format(time.time()-tic)+" secs")
     return None
 
-def get_journal(DT, ASS, B, A, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
+def get_journal(DT, ASS, B, A, y_dec_tilde, y_dec, diff, probs_mc, probs_md, save_journal=False):
     """
     Calculates trading journal given predictions.
     Args:
@@ -1675,6 +1681,10 @@ def get_journal(DT, ASS, B, A, y_dec_tilde, y_dec, diff, probs_mc, probs_md):
     Journal['Asset'] = ASS[:].astype(str)
     Journal['DTi'] = DT[:,0].astype(str)#DTA['DT1'].iloc[:]
     Journal['DTo'] = DT[:,1].astype(str)#DTA['DT2'].iloc[:]
+    if save_journal:
+        Journal['Dur'] = (pd.to_datetime(Journal['DTo'], format='%Y.%m.%d %H:%M:%S')-
+                          pd.to_datetime(Journal['DTi'], format='%Y.%m.%d %H:%M:%S')).dt.total_seconds()/60
+    #(df.fr-df.to).astype('timedelta64[h]')
     #print(Journal['Asset'])
     #Journal['Asset'] = Journal['Asset'].astype(str)#.str.decode('utf-8')
     #print(Journal['Asset'])
@@ -1789,12 +1799,13 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
     A1 = 'Ai'
     B1 = 'Bi'
     B2 = 'Bo'
+    DUR = 'Dur' # Durantion
     ref_date_dt = dt.datetime.strptime(reference_date,"%Y.%m.%d")
     log = pd.DataFrame(columns=['DateTime','Message'])
     # init positions
     df = []
     if get_positions:
-        columns_positions = ['Asset','Di','Ti','Do','To','GROI','ROI','spread',
+        columns_positions = ['Asset','Di','Ti','Do','To','Dur','GROI','ROI','spread',
                              'espread','ext','Dir','Bi','Bo','Ai','Ao']
         
         if not os.path.exists(pos_dirname) and save_positions:
@@ -1959,9 +1970,12 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
             CSPs = CSPs+((GROI-fixed_spread_ratios)>0)
             CFPs = CFPs+((GROI-fixed_spread_ratios)<=0)
             if get_positions:
+                duration = (pd.to_datetime(Journal[DT2].iloc[e-1], format='%Y.%m.%d %H:%M:%S')-
+                          pd.to_datetime(Journal[DT1].iloc[eInit], format='%Y.%m.%d %H:%M:%S')).total_seconds()/60
+                
                 this_list = [Journal['Asset'].iloc[e-1],Journal[DT1].iloc[eInit][:10],
                                  Journal[DT1].iloc[eInit][11:],Journal[DT2].iloc[e-1][:10],
-                                 Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
+                                 Journal[DT2].iloc[e-1][11:],duration,100*GROI,100*ROI,
                                  100*thisSpread,100*e_spread,this_pos_extended,direction,
                                  Bi,Bo,Ai,Ao]
                 #print(this_list)
@@ -2068,13 +2082,16 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                               " TGROI {0:.4f}% ".format(100*eGROI) },
                               ignore_index=True)
         if get_positions:
-                this_list = [Journal['Asset'].iloc[e-1], Journal[DT1].iloc[eInit][:10],
-                                 Journal[DT1].iloc[eInit][11:], Journal[DT2].iloc[e-1][:10],
-                                 Journal[DT2].iloc[e-1][11:],100*GROI,100*ROI,
+            
+            duration = (pd.to_datetime(Journal[DT2].iloc[-1], format='%Y.%m.%d %H:%M:%S')-
+                          pd.to_datetime(Journal[DT1].iloc[eInit], format='%Y.%m.%d %H:%M:%S')).total_seconds()/60
+            this_list = [Journal['Asset'].iloc[e-1], Journal[DT1].iloc[eInit][:10],
+                                 Journal[DT1].iloc[eInit][11:], Journal[DT2].iloc[-1][:10],
+                                 Journal[DT2].iloc[-1][11:],duration,100*GROI,100*ROI,
                                  100*thisSpread,100*e_spread,this_pos_extended,direction,
                                  Bi,Bo,Ai,Ao]
-                for l in range(len(this_list)):
-                    list_pos[l].append(this_list[l])
+            for l in range(len(this_list)):
+                list_pos[l].append(this_list[l])
     
     if get_positions:
         dict_pos = {columns_positions[i]:list_pos[i] for i in range(len(columns_positions))}
@@ -2095,7 +2112,7 @@ def get_extended_results(Journal, n_classes, n_days, get_log=False,
                         print("WARNING! PermissionError. Close programs using "+
                               pos_dirname+pos_filename+'.csv')
                         time.sleep(1)
-                    
+       
     gross_succ_per = gross_succ_counter/n_pos_opned
     net_succ_per = net_succ_counter/n_pos_opned
     net_fail_counter = n_pos_opned-net_succ_counter
@@ -2183,7 +2200,7 @@ def print_real_ROI(Journal, n_days, fixed_spread=0, mc_thr=.5, md_thr=.5, spread
     
     return None
 
-def get_summary_journal(mc_thr, md_thr, spread_thr, dir_file, print_table=False, fixed_spread=0):
+def get_summary_network(mc_thr, md_thr, spread_thr, dir_file, print_table=False, fixed_spread=0):
     """
     
     """
@@ -2218,6 +2235,10 @@ def get_summary_journal(mc_thr, md_thr, spread_thr, dir_file, print_table=False,
     print_real_ROI(J, 8, fixed_spread=fixed_spread, mc_thr=mc_thr, md_thr=md_thr,spread_thr=spread_thr)
     
     return None
+
+def get_positions_summary(PT, name):
+    """ Get summary of executed Positions """
+    pass
 
 def print_GRE(dir_origin, IDr, epoch):
     """ Print lower and upper bound GRE matrices """
