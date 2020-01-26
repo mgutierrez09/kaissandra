@@ -3539,11 +3539,11 @@ def launch(synchroned_run=False, test=False):
     print("All RNNs launched")
     
 
-verbose_RNN = False
-verbose_trader = False
-test = True
+verbose_RNN = True
+verbose_trader = True
+test = False
 synchroned_run = False
-run_back_test = True
+run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
@@ -3556,7 +3556,7 @@ if not test:
 else:
     n_samps_buffer = 5
 
-config_names = ['TN01010FS2NYREDOK2K52145314SRv3']
+config_names = ['TN01010FS2NYREDOK2K52145314SRv5']
 
 if __name__=='__main__':
     import sys
@@ -3612,7 +3612,7 @@ if not test:
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv3')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+        list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv5')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
 # override list configs if test is True
 else:
     list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
