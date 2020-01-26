@@ -1369,7 +1369,7 @@ class Trader:
                         else: # position is opened
                             curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             out = new_entry[entry_time_column]+" "+thisAsset+\
-                                           " deadline in "+self.get_remain_samps(ass_id)+\
+                                           " deadline in "+str(self.get_remain_samps(ass_id))+\
                                             " current GROI = {0:.2f}%".format(100*curr_GROI)+\
                                             " current ROI = {0:.2f}%".format(100*curr_ROI)
 #                                            +str(self.list_deadlines[
@@ -2757,7 +2757,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             lists = flush_asset(lists, ass_idx, bid)
         # Enquire parameters from Server
         elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
-            #print("\n\nENQUIRE PARAMETERS\n\n")
+            print("\n\nENQUIRE PARAMETERS\n\n")
             api.parameters_enquiry(asynch=True)
             os.remove(io_ass_dir+'PARAM')
             
@@ -3389,7 +3389,7 @@ def run(config_traders_list, running_assets, start_time, test):
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir='D:/SDC/py/Data_aws_200110/')
+                                   end_list_index, root_dir='E:/SDC/py/Data_aws_200110/')
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
@@ -3539,11 +3539,11 @@ def launch(synchroned_run=False, test=False):
     print("All RNNs launched")
     
 
-verbose_RNN = True
-verbose_trader = True
+verbose_RNN = False
+verbose_trader = False
 test = True
 synchroned_run = False
-run_back_test = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
@@ -3625,7 +3625,7 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets=[7,10,12]
+running_assets=[7]
 
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')

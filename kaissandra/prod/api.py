@@ -280,7 +280,7 @@ class API():
     
     def open_position(self, params, asynch=False):
         """ POST request to open a position """
-        if 1:
+        try:
             # check if close position waiting to be retrieved
             if asynch and params['asset'] in self.list_asset_positions:
                 id_list_futures = self.list_asset_positions.index(params['asset'])
@@ -306,9 +306,9 @@ class API():
             self.list_asset_positions.append(params['asset'])
             self.list_lastevent_positions.append('open')
             return True
-#        except:
-#            print("WARNING! Error when requesting opening position. Skiiped")
-#            return False
+        except:
+            print("WARNING! Error when requesting opening position. Skiiped")
+            return False
     
     def retrieve_response_open_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
@@ -336,7 +336,7 @@ class API():
     def extend_position(self, assetname, params, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        if 1:
+        try:
             if asynch:
                 id_list_futures = self.list_asset_positions.index(assetname)
                 if self.list_lastevent_positions[id_list_futures] == 'open':
@@ -368,9 +368,9 @@ class API():
             self.list_asset_positions.append(assetname)
             self.list_lastevent_positions.append('extend')
             return True
-#        except:
-#            print("WARNING! Error when requesting extending position. Skipped")
-#            return False
+        except:
+            print("WARNING! Error when requesting extending position. Skipped")
+            return False
     
     def retrieve_response_extend_position(self, assetname, id_list_futures):
         """ Retrieve position request response from futures """
@@ -401,7 +401,7 @@ class API():
     def close_postition(self, assetname, params, dirfilename, asynch=False):
         """ PUT request to extend a position """
         # retrieve previous event if asynch
-        if 1:
+        try:
             if asynch:
                 id_list_futures = self.list_asset_positions.index(assetname)
                 if self.list_lastevent_positions[id_list_futures] == 'open':
@@ -409,7 +409,7 @@ class API():
                 elif self.list_lastevent_positions[id_list_futures] == 'extend':
                     self.retrieve_response_extend_position(assetname, id_list_futures)
             # prepare file for upload
-            #files = {'file':open(dirfilename, 'rb'), 'data':('json',json.dumps(params))}
+#            files = {'file':open(dirfilename, 'rb'), 'data':('json',json.dumps(params))}
             files={'file': open(dirfilename,'rb')}
             id = [pos['id'] for pos in self.positions_json_list if \
                   pos['asset']==assetname and not pos['closed']][0]
@@ -445,9 +445,9 @@ class API():
             self.list_asset_positions.append(assetname)
             self.list_lastevent_positions.append('close')
             return True
-#        except:
-#            print("WARNING! Error when requesting closing position. Skiiped")
-#            return False
+        except:
+            print("WARNING! Error when requesting closing position. Skiiped")
+            return False
             
     
     def retrieve_response_close_position(self, assetname, id_list_futures):
@@ -508,7 +508,7 @@ class API():
     def parameters_enquiry(self, asynch=False):
         """ Enquire strategy parameters in case of external manipulation """
         # retrieve previous event if asynch
-        if 1:
+        try:
             # check if parameters enquiry waiting to be retrieved
             if asynch and 'PARAMS' in self.list_asset_positions:
                 id_list_futures = self.list_asset_positions.index('PARAMS')
@@ -534,17 +534,17 @@ class API():
             self.list_asset_positions.append('PARAMS')
             self.list_lastevent_positions.append('null')
             return True
-#        except:
-#            print("WARNING! Error when enquiring parameters. Skiiped")
-#            return False
+        except:
+            print("WARNING! Error when enquiring parameters. Skiiped")
+            return False
         
     def retrieve_response_parameters_enquiry(self, id_list_futures):
         """ Retrieve response parameters enquiry """
-        #try:
-        response = self.list_futures[id_list_futures].result()
-#        except :
-#            print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
-#            return False
+        try:
+            response = self.list_futures[id_list_futures].result()
+        except :
+            print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
+            return False
         # print result
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
