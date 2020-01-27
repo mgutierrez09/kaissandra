@@ -3528,18 +3528,25 @@ def run(config_traders_list, running_assets, start_time, test):
 
 def launch(synchroned_run=False, test=False):
     
-        #a=p
+    
     if synchroned_run:
         run(list_config_traders, running_assets, start_time, test)
+        return None
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
+        queues = []
         for ass_idx in range(len(running_assets)):
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test])
+            pqueue = Queue()
+            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, pqueue])
             disp.start()
+            queues.append(pqueue)
             time.sleep(2)
         #time.sleep(30)
-    print("All RNNs launched")
+        print("All RNNs launched")
+        return queues
+    
+    
     
 
 verbose_RNN = True
@@ -3605,7 +3612,7 @@ from kaissandra.config import Config as C
 
     
 # runLive in multiple processes
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from kaissandra.config import retrieve_config
 if not test:
     if len(config_names)>0:
@@ -3647,11 +3654,11 @@ if __name__=='__main__':
         api.intit_all(list_config_traders[0], running_assets, sessiontype)
         print("api.trader_json:")
         print(api.trader_json)
-    launch(synchroned_run=synchroned_run, test=test)#
+    queues = launch(synchroned_run=synchroned_run, test=test)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
         from kaissandra.prod.control import control
-        #control(running_assets)
+        control(running_assets)
 elif send_info_api and not synchroned_run:
     api.intit_all(list_config_traders[0], running_assets, sessiontype)
     print("api.trader_json:")
