@@ -518,13 +518,14 @@ class API():
             url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/get_params'
             if not asynch:
                 response = requests.get(CC.URL+url_ext, headers=self.build_token_header(), verify=self.verify_url)
-                print("Status code: "+str(response.status_code))
+                #print("Status code: "+str(response.status_code))
                 if response.status_code == 200:
-                    print(response.json())
+                    #print(response.json())
                     #self.positions_json_list.append(response.json()['params'])#[0]
                     return True
                 else:
-                    print(response.text)
+                    pass
+                    #print(response.text)
                 return False
             # asynch
             self.list_futures.append(self.futureSession.get(CC.URL+url_ext, 
@@ -546,7 +547,7 @@ class API():
             print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
             return False
         # print result
-        print("Status code: "+str(response.status_code))
+        #print("Status code: "+str(response.status_code))
         if response.status_code == 200:
             print(response.json())
             params = response.json()['params']#[0]

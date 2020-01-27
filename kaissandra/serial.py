@@ -2447,7 +2447,10 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
                     #print("\n\nENQUIRE PARAMETERS\n\n")
                     api.parameters_enquiry(asynch=True)
-                    os.remove(io_ass_dir+'PARAM')
+                    try:
+                        os.remove(io_ass_dir+'PARAM')
+                    except:
+                        pass
                 time.sleep(.01)
             # update file extension
             if success:
@@ -3648,7 +3651,7 @@ if __name__=='__main__':
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
         from kaissandra.prod.control import control
-        control(running_assets)
+        #control(running_assets)
     
 elif send_info_api and not synchroned_run:
     api.intit_all(list_config_traders[0], running_assets, sessiontype)
