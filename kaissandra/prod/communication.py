@@ -7,6 +7,7 @@ Created on Mon Apr 29 11:20:05 2019
 import sys
 import os
 import re
+import requests
 
 def send_command(directory_MT5_ass, command, msg=''):
     """
@@ -126,9 +127,41 @@ def reset_networks():
         if os.path.exists(directory_io_ass):
             #print("Sent command to "+directory_MT5_ass)
             send_command(directory_io_ass, command)
+            
+def send_trader_log(tradername, message, token_header):
+    """ Send trader log to server """
+    url_ext = 'logs/traders'
+    try:
+        response = requests.post(CC.URL+url_ext, json={'Message':message,'Name':CC.TRADERNAME},
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+        
+def send_network_log(message, token_header):
+        """ Send network log to server """
+        url_ext = 'logs/networks'
+#        self.futureSession.post(CC.URL+url_ext, json={'Message':message},
+#                                headers=self.build_token_header(), verify=False, timeout=10)
+        try:
+            response = requests.post(CC.URL+url_ext, json={'Message':message},
+                                    headers=token_header, verify=True, timeout=10)
+            print(response.json())
+        except:
+            print("WARNING! Error in send_network_log die to timeout.")
+            
+def get_token():
+    """  """
+    response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+    if response.status_code == 200:
+        token = response.json()['token']
+        return token
+    else:
+        return None
 
 from kaissandra.config import Config
 from kaissandra.local_config import local_vars
+from kaissandra.prod.config import Config as CC
     
 if __name__=='__main__':
     # add kaissandra to path

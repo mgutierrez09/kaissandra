@@ -39,18 +39,25 @@ def control(running_assets, timeout=15):
                                                       reset_command, directory_MT5, 
                                                       list_last_file, timeouts, 
                                                       reset)
-        ct.check_params()
-        
+        # loop over assets
+#        for ass_idx, ass_id in enumerate(running_assets):
+#            # check for new log info to send
+#            thisAsset = AllAssets[str(ass_id)]
+#            directory_io_ass = directory_io+thisAsset+"/"
+#            if os.path.exists(directory_io_ass+"TRADERLOG"):
+#                pass
+#            elif os.path.exists(directory_io_ass+"NETWORKLOG"):
+#                pass
+            
         time.sleep(5)
         watchdog_counter += 1
         if watchdog_counter==24:
-            # waik up server
+            ct.check_params()
+            token = ct.get_token()
+            print(token)
+            # wake up server
             watchdog_counter = 0
-            response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
-            if response.status_code == 200:
-                print('\n'+response.json()['token'])
-            else:
-                print(response.text)
+            
     
 def control_connection(AllAssets, running_assets, timeout, directory_io,
                            reset_command, directory_MT5, list_last_file, timeouts, reset):
@@ -115,4 +122,4 @@ from kaissandra.prod.config import Config as CC
 
 if __name__=='__main__':
     # launch control
-    control([1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], timeout=timeout)
+    control([1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], timeout=timeout)

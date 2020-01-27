@@ -3652,7 +3652,6 @@ if __name__=='__main__':
         # Controlling and message passing to releave traders of these tasks
         from kaissandra.prod.control import control
         #control(running_assets)
-    
 elif send_info_api and not synchroned_run:
     api.intit_all(list_config_traders[0], running_assets, sessiontype)
     print("api.trader_json:")
