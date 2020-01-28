@@ -72,9 +72,10 @@ def listen_trader_connection(queue, send_info_api=False, token_header=None):
         if 1:
             info = queue.get()         # Read from the queue
             print("From queue: ")
-            print(info['MSG'])
+            
             # send log to server
             if send_info_api and info['FUNC'] == 'LOG':
+                print(info['MSG'])
                 if info['ORIGIN'] == 'NET':
                     ct.send_network_log(info['MSG'], token_header)
                 elif info['ORIGIN'] == 'TRADE':
@@ -85,14 +86,17 @@ def listen_trader_connection(queue, send_info_api=False, token_header=None):
             elif send_info_api and info['FUNC'] == 'POS':
                 params = info['PARAMS']
                 if info["EVENT"] == "OPEN":
-                    position_json = ct.send_open_position(params, info["SESS_ID"], token_header)
+                    position_json = ct.send_open_position(params, info["SESS_ID"], 
+                                                          token_header)
                     assets_opened[position_json['asset']] = position_json['id']
                 elif info["EVENT"] == "EXTEND":
                     pos_id = assets_opened[info["ASSET"]]
                     ct.send_extend_position(params, pos_id, token_header)
                 elif info["EVENT"] == "CLOSE":
                     pos_id = assets_opened[info["ASSET"]]
-                    ct.send_close_position(params, pos_id, token_header)
+                    dirfilename = info["DIRFILENAME"]
+                    ct.send_close_position(params, pos_id, dirfilename, 
+                                           token_header)
                 else:
                     print(info["EVENT"])
                     raise ValueError("EVENT unknow")

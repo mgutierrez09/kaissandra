@@ -178,11 +178,11 @@ def send_extend_position(params, pos_id, token_header):
         print(response.text)
         return False
     
-def send_close_position(params, pos_id, token_header):
+def send_close_position(params, pos_id, dirfilename, token_header):
     """ Send close position command to server api """
     url_ext = 'traders/positions/'+str(pos_id)+'/close'
     url_file = 'traders/positions/'+str(pos_id)+'/upload'
-    files={'file': open(params["dirfilename"],'rb')}
+    files={'file': open(dirfilename,'rb')}
     response = requests.put(CC.URL+url_ext, json=params, 
                             headers=token_header, verify=True)
     response_file = requests.post(CC.URL+url_file, files=files, 

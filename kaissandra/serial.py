@@ -1081,7 +1081,7 @@ class Trader:
                   'returns':returns,
                   'filename':filename
                 }
-        self.queue.put({"FUNC":"POS","EVENT":"CLOSE","ASSET":thisAsset,"PARAMS":params})
+        self.queue.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params})
         #api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 

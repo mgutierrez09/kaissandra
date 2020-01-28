@@ -7,3 +7,4 @@ notebooks/.ipynb_checkpoints
 /kaissandra/prod/__pycache__
 .ipynb_checkpoints/
 local_config.py
+tests/__pycache__/
