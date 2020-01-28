@@ -79,6 +79,8 @@ def check_params():
             pass
             #print("Asset not running")
     print("Params checked")
+    
+
 
 def resume():
     """  """
@@ -128,8 +130,8 @@ def reset_networks():
             #print("Sent command to "+directory_MT5_ass)
             send_command(directory_io_ass, command)
             
-def send_trader_log(tradername, message, token_header):
-    """ Send trader log to server """
+def send_trader_log(message, token_header):
+    """ Send trader log to server api """
     url_ext = 'logs/traders'
     try:
         response = requests.post(CC.URL+url_ext, json={'Message':message,'Name':CC.TRADERNAME},
@@ -139,7 +141,7 @@ def send_trader_log(tradername, message, token_header):
         print("WARNING! Error in send_network_log die to timeout.")
         
 def send_network_log(message, token_header):
-        """ Send network log to server """
+        """ Send network log to server api """
         url_ext = 'logs/networks'
 #        self.futureSession.post(CC.URL+url_ext, json={'Message':message},
 #                                headers=self.build_token_header(), verify=False, timeout=10)
@@ -149,7 +151,50 @@ def send_network_log(message, token_header):
             print(response.json())
         except:
             print("WARNING! Error in send_network_log die to timeout.")
-            
+
+def send_open_position(params, session_id, token_header):
+    """ Send open position to server api"""
+    url_ext = 'traders/sessions/'+str(session_id)+'/positions/open'
+    response = requests.post(CC.URL+url_ext, json=params, headers=
+                                             token_header, verify=True)
+    print("Status code: "+str(response.status_code))
+    if response.status_code == 200:
+        print(response.json())
+        return response.json()['Position'][0]
+    else:
+        print(response.text)
+        return {}
+    
+def send_extend_position(params, pos_id, token_header):
+    """ Send extend position commnad to server api"""
+    url_ext = 'traders/positions/'+str(pos_id)+'/extend'
+    response = requests.post(CC.URL+url_ext, json=params, headers=
+                             token_header, verify=True)
+    print("Status code: "+str(response.status_code))
+    if response.status_code == 200:
+        print(response.json())
+        return True
+    else:
+        print(response.text)
+        return False
+    
+def send_close_position(params, pos_id, token_header):
+    """ Send close position command to server api """
+    url_ext = 'traders/positions/'+str(pos_id)+'/close'
+    url_file = 'traders/positions/'+str(pos_id)+'/upload'
+    files={'file': open(params["dirfilename"],'rb')}
+    response = requests.put(CC.URL+url_ext, json=params, 
+                            headers=token_header, verify=True)
+    response_file = requests.post(CC.URL+url_file, files=files, 
+                                  headers=token_header, verify=True)
+    print("Status code: "+str(response.status_code))
+    if response.status_code == 200:
+        print(response.json())
+        if response_file.status_code != 200:
+            print("WARNING! File not saved in DB")
+        else:
+            print(response.text)
+
 def get_token():
     """  """
     response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)

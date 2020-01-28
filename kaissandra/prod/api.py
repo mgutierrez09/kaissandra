@@ -44,7 +44,7 @@ class API():
             self.verify_url = True
         print("self.verify_url")
         print(self.verify_url)
-        self.post_token()
+        #self.post_token()
         
     def init_trader(self, trader):
         """ Init session trader """
@@ -145,6 +145,7 @@ class API():
             return 0.0, 0.0, 0.0, 0.0
         return balance, leverage, equity, profits
     
+    # TODO: Build method as static
     def build_token_header(self):
         """ Build header for token """
         return {'Authorization': 'Bearer '+self.token}

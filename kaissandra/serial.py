@@ -352,7 +352,7 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  AllAssets, log_file, results_dir="", 
-                 start_time='', config_name='',net2strategy=[]):
+                 start_time='', config_name='',net2strategy=[], queue=None):
         
         self.list_opened_positions = []
         self.AllAssets = AllAssets
@@ -464,6 +464,7 @@ class Trader:
         self.approached = 0
         self.swap_pending = 0
         #self.api = api
+        self.queue = queue
     
     def get_account_status(self):
         """ Get account status from broker """
@@ -790,11 +791,13 @@ class Trader:
             asset = self.list_opened_positions[self.\
                                                map_ass_idx2pos_idx[ass_id]].asset
             self.stoplosses += 1
-            out = (asset+" Exit position due to stop loss @event idx "+
-                   str(event_idx)+" bid="+str(bid)+" sl="+
-                   str(self.list_stop_losses[self.map_ass_idx2pos_idx[ass_id]]))
-            print("\r"+out)
-            self.write_log(out)
+            if verbose_trader:
+                out = (asset+" Exit position due to stop loss @event idx "+
+                       str(event_idx)+" bid="+str(bid)+" sl="+
+                       str(self.list_stop_losses[self.map_ass_idx2pos_idx[ass_id]]))
+                print("\r"+out)
+                self.write_log(out)
+                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
             stoploss_flag = True
             self.ban_currencies(lists, asset, datetime, results, direction)
         else:
@@ -808,10 +811,12 @@ class Trader:
             # exit position due to stop loss
             exit_pos = 1
             takeprofits += 1
-            out = "Exit position due to take profit @event idx "+str(event_idx)+\
-                ". tp="+str(take_profit)
-            print("\r"+out)
-            self.write_log(out)
+            if verbose_trader:
+                out = "Exit position due to take profit @event idx "+str(event_idx)+\
+                    ". tp="+str(take_profit)
+                print("\r"+out)
+                self.write_log(out)
+                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
         else:
             exit_pos = 0
         return exit_pos, takeprofits
@@ -962,17 +967,21 @@ class Trader:
                       100*self.tROI_live,100*self.tGROI_live)+
                       " Earnings {0:.2f}".format(earnings)+
                       ". Remeining open "+str(len(self.list_opened_positions)))
-        self.write_log(out)
-        print("\r"+out)
+        if verbose_trader:
+            self.write_log(out)
+            print("\r"+out)
+            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
         # compare budget with real one
         if not run_back_test:
             balance, leverage, equity, profits = self.get_account_status()
-            out = date_time+" "+ass+" equity "+str(equity)+" Balance "+str(balance)+\
-            " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
-            self.write_log(out)
-            print("\r"+out)
+            if verbose_trader:
+                out = date_time+" "+ass+" equity "+str(equity)+" Balance "+str(balance)+\
+                    " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
+                self.write_log(out)
+                print("\r"+out)
+                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
             self.budget = balance
-        if send_info_api:
+        if send_info_api and verbose_trader:
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
                                     100*GROI_live, 100*ROI_live, nett_win, 
                                     pos_filename, dirfilename)
@@ -1021,10 +1030,11 @@ class Trader:
             out += out+' prof '+str(self.next_candidate.profitability)
         if verbose_trader:
             print("\r"+out)
-        self.write_log(out)
+            self.write_log(out)
+            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
         
         # Send open position command to api
-        if send_info_api:
+        if send_info_api and verbose_trader:
             self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
         
         return None
@@ -1041,7 +1051,8 @@ class Trader:
                   'strategyname':self.list_opened_positions[-1].strategy.name,
                   'p_mc':self.list_opened_positions[-1].p_mc,
                   'p_md':self.list_opened_positions[-1].p_md}
-        api.open_position(params, asynch=True)
+        self.queue.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":api.session_json['id'],"PARAMS":params})
+        #api.open_position(params, asynch=True)
         
     def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                             direction, strategy, roi, ticks):
@@ -1055,7 +1066,8 @@ class Trader:
                   'direction':direction,
                   'strategyname':strategy,
                   'roi':roi}
-        api.extend_position(thisAsset, params, asynch=True)
+        self.queue.put({"FUNC":"POS","EVENT":"EXTEND","ASSET":thisAsset,"PARAMS":params})
+        #api.extend_position(thisAsset, params, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
                            roisoll, returns, filename, dirfilename):
@@ -1069,7 +1081,8 @@ class Trader:
                   'returns':returns,
                   'filename':filename
                 }
-        api.close_postition(thisAsset, params, dirfilename, asynch=True)
+        self.queue.put({"FUNC":"POS","EVENT":"CLOSE","ASSET":thisAsset,"PARAMS":params})
+        #api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1321,6 +1334,7 @@ class Trader:
                     if verbose_trader:
                         print("\r"+out)
                         self.write_log(out)
+                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                     position = Position(new_entry, self.strategies[new_entry['strategy_index']])
                     
                     self.add_new_candidate(position)
@@ -1346,9 +1360,11 @@ class Trader:
                                                        self.next_candidate.entry_ask, 
                                                        self.next_candidate.deadline)
                                 else: # no opening due to budget lack
-                                    out = "Not enough budget"
-                                    print("\r"+out)
-                                    self.write_log(out)
+                                    if verbose_trader:
+                                        out = "Not enough budget"
+                                        print("\r"+out)
+                                        self.write_log(out)
+                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                                     # check swap of resources
                                     if self.next_candidate.strategy.entry_strategy=='gre':
             #                             and self.check_resources_swap()
@@ -1365,7 +1381,8 @@ class Trader:
                                           thisAsset+" due to "+reason
                                 if verbose_trader:
                                     print("\r"+out)
-                                self.write_log(out)
+                                    self.write_log(out)
+                                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                         else: # position is opened
                             curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             out = new_entry[entry_time_column]+" "+thisAsset+\
@@ -1376,7 +1393,8 @@ class Trader:
 #                                               self.map_ass_idx2pos_idx[ass_id]])
                             if verbose_trader:
                                 print("\r"+out)
-                            self.write_log(out)
+                                self.write_log(out)
+                                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                             # check for extension
                             if self.check_primary_condition_for_extention(ass_id):
                                 
@@ -1403,23 +1421,28 @@ class Trader:
                                        " spread={0:.3f}".format(new_entry['E_spread'])+
                                        " strategy "+strategy_name)
                                     # send position extended command to api
-                                    if send_info_api:
-                                        self.send_extend_pos_api(new_entry[entry_time_column], 
-                                                                 thisAsset, 100*curr_GROI, 
-                                                                 new_entry['P_mc'], new_entry['P_md'], 
-                                                                 int(new_entry['Bet']), strategy_name,
-                                                                 100*curr_ROI, 
-                                                                 self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
-                                    #out = new_entry[entry_time_column]+" Extended "+thisAsset
                                     if verbose_trader:
+                                        if send_info_api:
+                                            self.send_extend_pos_api(new_entry[entry_time_column], 
+                                                                     thisAsset, 100*curr_GROI, 
+                                                                     new_entry['P_mc'], new_entry['P_md'], 
+                                                                     int(new_entry['Bet']), strategy_name,
+                                                                     100*curr_ROI, 
+                                                                     self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
+                                    #out = new_entry[entry_time_column]+" Extended "+thisAsset
+#                                    if verbose_trader:
                                         print("\r"+out)
-                                    self.write_log(out)
+                                        self.write_log(out)
+                                        self.queue.put({"FUNC":"LOG","FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                                 else: # if candidate for extension does not meet requirements
                                     out = new_entry[entry_time_column]+" not extended "+\
                                           thisAsset+" due to "+reason
                                     if verbose_trader:
                                         print("\r"+out)
-                                    self.write_log(out)
+                                        self.write_log(out)
+                                        if send_info_api:
+#                                            api.send_trader_log(out)
+                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                             else: # if direction is different
                                 this_strategy = self.next_candidate.strategy
                                 close_pos = False
@@ -1446,7 +1469,7 @@ class Trader:
                                     +" closing due to direction change!"
                                     if verbose_trader:
                                         print("\r"+out)
-                                    self.write_log(out)
+                                        self.write_log(out)
                                     if run_back_test:
                                         self.close_position(new_entry[entry_time_column], 
                                                             thisAsset, ass_id, results)
@@ -1472,8 +1495,8 @@ class Trader:
             file = open(self.log_file_trader,"a")
             file.write(log+"\n")
             file.close()
-        if send_info_api:
-            api.send_trader_log(log)
+#        if send_info_api:
+#            api.send_trader_log(log)
         return None
     
     def send_open_command(self, directory_MT5_ass, ass_idx):
@@ -1690,9 +1713,10 @@ class Trader:
                 +str(self.list_dict_banned_assets[ass_idx]['counter'])
         if verbose_trader:
             print("\r"+out)
-        self.write_log(out)
-        if send_info_api:
-            api.send_network_log(out)
+            self.write_log(out)
+            if send_info_api:
+#                api.send_network_log(out)
+                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
         
     def track_banned_asset(self, entry, ass_idx):
         """ """
@@ -1705,9 +1729,10 @@ class Trader:
                 +str(self.list_dict_banned_assets[ass_idx]['counter'])
             if verbose_trader:
                 print("\r"+out)
-            self.write_log(out)
-            if send_info_api:
-                api.send_network_log(out)
+                self.write_log(out)
+                if send_info_api:
+#                    api.send_network_log(out)
+                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
             if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
                 self.lift_ban_asset(ass_idx)
                 out = "Ban lifted"
@@ -1715,7 +1740,8 @@ class Trader:
                     print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-                    api.send_network_log(out)
+#                    api.send_network_log(out)
+                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
         else:
             out = entry[entry_time_column]+" "+entry['Asset']+\
                 " ban counter already reduced for this DT"
@@ -1723,7 +1749,8 @@ class Trader:
                 print("\r"+out)
             self.write_log(out)
             if send_info_api:
-                api.send_network_log(out)
+#                api.send_network_log(out)
+                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
     
     def lift_ban_asset(self, ass_idx):
         """  """
@@ -1743,7 +1770,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                   stds_out,AD, thisAsset, netName,listCountPos,list_weights_matrix,
                   list_time_to_entry,list_list_soft_tildes, list_Ylive,list_Pmc_live,
                   list_Pmd_live,list_Pmg_live,EOF,countOuts,t_indexes, c, results_network, 
-                  results_file, model, config, log_file, nonVarIdx, list_inv_out):
+                  results_file, model, config, log_file, nonVarIdx, list_inv_out, queue):
     """
     <DocString>
     """
@@ -1785,6 +1812,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             str(c)+"F"+str(file)
         print("\r"+out)
         write_log(out, log_file)
+        if send_info_api:
+            queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                 
     # launch features extraction
     if init[sc]==False:
@@ -1793,6 +1822,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 " Features inited"
             print("\r"+out)
             write_log(out, log_file)
+            if send_info_api:
+                queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = \
             initFeaturesLive_v2(config, tradeInfoLive)
         init[sc] = True
@@ -1836,6 +1867,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     " t "+str(listCountPos[sc])+" of "+str(seq_len-1)
                 print("\r"+out)
                 write_log(out, log_file)
+                if send_info_api:
+                    queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                 
             if listCountPos[sc]>=seq_len-1:
                 if verbose_RNN:
@@ -1844,6 +1877,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         " done. Waiting for output..."
                     print("\r"+out)
                     write_log(out, log_file)
+                    if send_info_api:
+                        queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                 listFillingX[sc] = False
         else:
 ########################################### Predict ###########################            
@@ -1917,6 +1952,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         " P_md "+str(np.max(soft_tilde_t[0,1:3]))
                     print("\r"+out)
                     write_log(out, log_file)
+                    if send_info_api:
+                        queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                     #print("Prediction in market change")
                     # Snd prediction to trading robot
                 if len(list_time_to_entry[sc][t_index])>0 and \
@@ -1941,6 +1978,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                                                   [sc][t_index][0][1:3]))
                         print(out)
                         write_log(out, log_file)
+                        if send_info_api:
+                            queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                     
                     list_time_to_entry[sc][t_index] = list_time_to_entry[sc]\
                         [t_index][1:]
@@ -2077,7 +2116,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             print("\r"+out)
                             write_log(out, log_file)
                             if send_info_api:
-                                api.send_network_log(out)
+                                queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
+                                #api.send_network_log(out)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -2146,7 +2186,7 @@ def flush_asset(lists, ass_idx, bid):
     print("Flushed")
     return lists
 
-def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
+def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, queue):
     #AllAssets, assets, running_assets, nCxAxN, buffSizes, simulation, delays, PA, verbose
     '''
     inputs: AllAssets
@@ -2209,7 +2249,8 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file):
                                        lists['list_unique_configs'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn])
+                                       lists['list_inv_out'][nn],
+                                       queue)
                 if len(output)>0:
                     outputs.append([output,nn])
                     new_outputs = 1
@@ -2381,7 +2422,7 @@ def send_close_command(asset):
                 print("Error writing LC")
     
 def fetch(lists, trader, directory_MT5, AllAssets, 
-          running_assets, log_file, results):
+          running_assets, log_file, results, queue):
     """ Fetch info coming from MT5 """
     print("Fetcher lauched")
     #nAssets = len(running_assets)
@@ -2429,6 +2470,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     out = "new max number files in dir "+thisAsset+": "+str(nMaxFilesInDir)
                     print(out)
                     write_log(out, log_file)
+                    queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                     
             except (FileNotFoundError,PermissionError,OSError):
                 io_ass_dir = LC.io_live_dir+thisAsset+"/"
@@ -2446,9 +2488,9 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     lists = flush_asset(lists, ass_idx, 0.0)
                 elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
                     #print("\n\nENQUIRE PARAMETERS\n\n")
-                    api.parameters_enquiry(asynch=True)
                     try:
                         os.remove(io_ass_dir+'PARAM')
+                        api.parameters_enquiry(asynch=True)
                     except:
                         pass
                 time.sleep(.01)
@@ -2468,7 +2510,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # dispatch
                 outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
-                                                log_file)
+                                                log_file, queue)
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
                     #print(outputs)
@@ -2542,6 +2584,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 out = thisAsset+" flag ban from found: "+message[:-1]
                 print(out)
                 trader.write_log(out)
+                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 # for now, ban only if asset is opened AND they go in same direction
                 if trader.is_opened(ass_id):
                     thisDirection = trader.list_opened_positions\
@@ -2553,14 +2596,17 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                         print(out)
                         trader.write_log(out)
                         send_close_command(thisAsset)
+                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                     else:
                         out = thisAsset+" NOT flushed due to different directions"
                         print(out)
                         trader.write_log(out)
+                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 else:
                     out = thisAsset+" NOT flushed due to not opened"
                     print(out)
                     trader.write_log(out)
+                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
                 
                 
@@ -2602,6 +2648,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                        str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]]))
                 print("\r"+out)
                 write_log(out, trader.log_file)
+                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
@@ -2623,7 +2670,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               traders, list_results, running_assets, ass2index_mapping, lists,
-              AllAssets, log_file):
+              AllAssets, log_file, queue):
     """
     <DocString>
     """
@@ -2678,6 +2725,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                 out = thisAsset+" flag ban from found: "+message[:-1]
                 print(out)
                 trader.write_log(out)
+                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 # for now, ban only if asset is opened AND they go in same direction
                 if trader.is_opened(ass_id):
                     thisDirection = trader.list_opened_positions\
@@ -2689,6 +2737,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                         print(out)
                         trader.write_log(out)
                         trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
+                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                     else:
                         out = thisAsset+" NOT flushed due to different directions"
                         print(out)
@@ -2697,12 +2746,13 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                     out = thisAsset+" NOT flushed due to not opened"
                     print(out)
                     trader.write_log(out)
+                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
 
         if sampsBuffersCounter[ass_idx]==0:
             outputs, new_outputs = dispatch(lists, buffers[ass_idx], AllAssets, 
                                             ass_id, ass_idx, 
-                                            log_file)
+                                            log_file, queue)
 
             ####### Update counters and buffers ##########
             fileIDs[ass_idx] = (fileIDs[ass_idx]+1)%n_files
@@ -2914,14 +2964,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time, test):
+def run_carefully(config_trader, running_assets, start_time, test, queue):
     """  """
     try:
-        run(config_trader, running_assets, start_time, test)
+        run(config_trader, running_assets, start_time, test, queue)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time, test):
+def run(config_traders_list, running_assets, start_time, test, queue):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
@@ -2929,6 +2979,10 @@ def run(config_traders_list, running_assets, start_time, test):
     
     # init futures session of API
     if send_info_api:
+        api.post_token()
+        api.intit_all(list_config_traders[0], running_assets, sessiontype)
+        print("api.trader_json:")
+        print(api.trader_json)
         api.init_future_session()
     # directories
     if run_back_test:
@@ -3374,7 +3428,7 @@ def run(config_traders_list, running_assets, start_time, test):
                                     ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                     log_file, results_dir=dir_results, 
                                     start_time=start_time, config_name=config_trader['config_name'],
-                                    net2strategy=list_net2strategy[idx_tr])#, api=api
+                                    net2strategy=list_net2strategy[idx_tr], queue=queue)#, api=api
                     # pass trader to api
                     if send_info_api:
                         api.init_trader(trader)
@@ -3389,15 +3443,16 @@ def run(config_traders_list, running_assets, start_time, test):
                 print(out)
                 #if not os.path.exists(trader.log_file):
                 trader.write_log(out)
+                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir='E:/SDC/py/Data_aws_200110/')
+                                   end_list_index, root_dir='D:/SDC/py/Data_aws_200110/')
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
                                         ass2index_mapping, lists, AllAssets, 
-                                        log_file)
+                                        log_file, queue)
         else:
             
             buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
@@ -3472,7 +3527,7 @@ def run(config_traders_list, running_assets, start_time, test):
                                 ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
                                 start_time=start_time, config_name=config_trader['config_name'],
-                                net2strategy=list_net2strategy[idx_tr])
+                                net2strategy=list_net2strategy[idx_tr], queue=queue)
                     
 #                if not os.path.exists(trader.log_file):
 #                    write_log(out, trader.log_file)
@@ -3487,7 +3542,7 @@ def run(config_traders_list, running_assets, start_time, test):
 #                                start_time=start_time)
             # launch fetcher
             fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
-                  running_assets, log_file, results)
+                  running_assets, log_file, results, queue)
         
         for idx, trader in enumerate(traders):
             # gather results
@@ -3528,19 +3583,19 @@ def run(config_traders_list, running_assets, start_time, test):
 
 def launch(synchroned_run=False, test=False):
     
-    
+    #print("\n\n\nLaunching\n\n\n")
     if synchroned_run:
         run(list_config_traders, running_assets, start_time, test)
-        return None
+        return []
 #        disp = Process(target=run, args=[running_assets,start_time])
 #        disp.start()
     else:
         queues = []
         for ass_idx in range(len(running_assets)):
-            pqueue = Queue()
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, pqueue])
+            queue = Queue()
+            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, queue])
             disp.start()
-            queues.append(pqueue)
+            queues.append(queue)
             time.sleep(2)
         #time.sleep(30)
         print("All RNNs launched")
@@ -3551,9 +3606,9 @@ def launch(synchroned_run=False, test=False):
 
 verbose_RNN = True
 verbose_trader = True
-test = False
+test = True
 synchroned_run = False
-run_back_test = False
+run_back_test = True
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
@@ -3605,8 +3660,8 @@ from kaissandra.preprocessing import (load_stats_manual_v2,
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
-if send_info_api:
-    from kaissandra.prod.api import API
+#if send_info_api:
+from kaissandra.prod.api import API
 from kaissandra.config import Config as C
 
 
@@ -3635,19 +3690,20 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+running_assets= [1]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
-if send_info_api:
-    api = API()
-else:
-     api = None
-     print("send_info_api")
-     print(send_info_api)
+#if send_info_api:
+api = API()
+#else:
+#     api = None
+#     print("send_info_api")
+#     print(send_info_api)
 
 if __name__=='__main__':
     # lauch
+    api.post_token()
     api.reset_activate_sessions()
     renew_directories(C.AllAssets, running_assets)
     if synchroned_run:
@@ -3657,12 +3713,12 @@ if __name__=='__main__':
     queues = launch(synchroned_run=synchroned_run, test=test)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
+        
         from kaissandra.prod.control import control
-        control(running_assets)
-elif send_info_api and not synchroned_run:
-    api.intit_all(list_config_traders[0], running_assets, sessiontype)
-    print("api.trader_json:")
-    print(api.trader_json)
+        control(running_assets, queues=queues, send_info_api=send_info_api, token_header=api.build_token_header())
+        
+#elif send_info_api and not synchroned_run:
+    
 #
 #GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
 #Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%

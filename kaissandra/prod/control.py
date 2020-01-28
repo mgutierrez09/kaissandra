@@ -11,15 +11,15 @@ import os
 import time
 import datetime as dt
 import sys
-import requests
+from multiprocessing import Process
 
-def control(running_assets, timeout=15):
+def control(running_assets, timeout=15, queues=[], send_info_api=False, token_header=None):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
         - running_assets (list): list of assets being tracked by trader 
         - timeout (int): max timeout in minutes before reseting networks """
-    import kaissandra.prod.communication as ct
+    
     
     directory_MT5 = local_vars.directory_MT5_IO
     directory_io = local_vars.io_live_dir
@@ -31,10 +31,16 @@ def control(running_assets, timeout=15):
     list_last_file = [sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/"))[-1] \
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
                       else '' for ass_id in running_assets]
+    # launch queue listeners as independent processes
+    kwargs = {'send_info_api':send_info_api, 'token_header':token_header}
+    for queue in queues:
+        disp = Process(target=listen_trader_connection, args=[queue], kwargs=kwargs)
+        disp.start()
+        
     watchdog_counter = 0
     while 1:
         # control connection
-        list_last_file, timeouts, reset = control_connection(AllAssets, running_assets, 
+        list_last_file, timeouts, reset = control_broker_connection(AllAssets, running_assets, 
                                                       timeout, directory_io,
                                                       reset_command, directory_MT5, 
                                                       list_last_file, timeouts, 
@@ -58,8 +64,43 @@ def control(running_assets, timeout=15):
             # wake up server
             watchdog_counter = 0
             
+def listen_trader_connection(queue, send_info_api=False, token_header=None):
+    """ Local connection with trader through a queue """
+    print("Reading queue")
+    assets_opened = {}
+    while 1:
+        if 1:
+            info = queue.get()         # Read from the queue
+            print("From queue: ")
+            print(info['MSG'])
+            # send log to server
+            if send_info_api and info['FUNC'] == 'LOG':
+                if info['ORIGIN'] == 'NET':
+                    ct.send_network_log(info['MSG'], token_header)
+                elif info['ORIGIN'] == 'TRADE':
+                    ct.send_trader_log(info['MSG'], token_header)
+                else:
+                    print(info["ORIGIN"])
+                    raise ValueError("ORIGIN unknow")
+            elif send_info_api and info['FUNC'] == 'POS':
+                params = info['PARAMS']
+                if info["EVENT"] == "OPEN":
+                    position_json = ct.send_open_position(params, info["SESS_ID"], token_header)
+                    assets_opened[position_json['asset']] = position_json['id']
+                elif info["EVENT"] == "EXTEND":
+                    pos_id = assets_opened[info["ASSET"]]
+                    ct.send_extend_position(params, pos_id, token_header)
+                elif info["EVENT"] == "CLOSE":
+                    pos_id = assets_opened[info["ASSET"]]
+                    ct.send_close_position(params, pos_id, token_header)
+                else:
+                    print(info["EVENT"])
+                    raise ValueError("EVENT unknow")
+#        except Exception as e:
+#            print("WARNING! Error in when reading queue in listen_trader_connection of control.py: "+str(e))
+        
     
-def control_connection(AllAssets, running_assets, timeout, directory_io,
+def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                            reset_command, directory_MT5, list_last_file, timeouts, reset):
     """ Controls the connection and arrival of new info from trader and 
     sends reset command in case connection is lost """
@@ -89,7 +130,7 @@ def control_connection(AllAssets, running_assets, timeout, directory_io,
     if min_to>timeout*60 and not reset:
         # Reset networks
         reset = True
-        send_command(directory_io_ass, reset_command)
+        ct.send_command(directory_io_ass, reset_command)
     return list_last_file, timeouts, reset
             
 if __name__=='__main__':
@@ -114,12 +155,12 @@ if __name__=='__main__':
 
                 
     print("Timeout={0} mins".format(timeout))
+    
 
 from kaissandra.config import Config
 from kaissandra.local_config import local_vars
-from kaissandra.prod.communication import send_command
-from kaissandra.prod.config import Config as CC
+import kaissandra.prod.communication as ct
+#from kaissandra.prod.config import Config as CC
 
 if __name__=='__main__':
-    # launch control
-    control([1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], timeout=timeout)
+    control([1,2], timeout=timeout)#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
