@@ -7,7 +7,7 @@ any financial asset. It currently operates in the Forex markets and relies on th
 
 Example to change trading parameters:
 
-`$ http PUT http://localhost:5000/api/traders/sessions/change_params lots=0.1`
+`$ http PUT https://kaissandra-webapp.herokuapp.com/api/traders/sessions/change_params stoploss=<value> lots=<value> "Authorization:Bearer <token>"`
 
 Start a session:
 
