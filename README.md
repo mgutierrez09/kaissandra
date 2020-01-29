@@ -1,6 +1,6 @@
 # Kaissandra
-[![Build Status](aa)
-[![Documentation Status](bb)
+[![Build Status](link here)
+[![Documentation Status](link here)
 
 * This is the readme.
 
@@ -8,7 +8,7 @@
 
 ** Requests from Server:
 
-$ http PUT http://localhost:5000/api/traders/sessions/change_params lots=0.1
+`$ http PUT http://localhost:5000/api/traders/sessions/change_params lots=0.1`
 
 Some useful commands in python:
 
