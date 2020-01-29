@@ -1,6 +1,6 @@
 # Kaissandra
 
-Kaissandra is an Autonomous Trading Platfrom based on artificial intelligence (AI) that tracks, perdicts, and execute positions on potentially 
+Kaissandra is an Autonomous Trading Platfrom based on artificial intelligence (AI) that tracks, perdicts, and executes positions on potentially 
 any financial asset. It currently operates in the Forex markets and relies on the MetaTrader 5 (MT5) software as broker platform for executing orders.
 
 ## API
