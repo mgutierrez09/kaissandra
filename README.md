@@ -13,17 +13,18 @@
 Some useful commands in python:
 
 `import os`
+
 `import sys`
 
-> this_path = os.getcwd()
+`this_path = os.getcwd()`
 
-> path = '/'.join(this_path.split('/')[:-1])+'/'
+`path = '/'.join(this_path.split('/')[:-1])+'/'`
 
-> sys.path.insert(0, path)
+`sys.path.insert(0, path)`
 
-> from automate import *
+`from automate import *`
 
-> from config import *
+`from config import *`
 
  
 ## Author
