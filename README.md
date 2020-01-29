@@ -12,9 +12,8 @@
 
 Some useful commands in python:
 
-> import os
-
-> import sys
+`import os`
+`import sys`
 
 > this_path = os.getcwd()
 
