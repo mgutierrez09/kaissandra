@@ -1652,7 +1652,7 @@ class Trader:
                             print(out)
                             self.write_log(out)
                             
-                            list_idx = self.map_ass_idx2pos_idx[ass_id]
+#                            list_idx = self.map_ass_idx2pos_idx[ass_id]
                             self.close_position(DateTime, asset, ass_id, results, from_sl=1)
 #                            if run_back_test:
 #                                pass
@@ -1825,10 +1825,10 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             if send_info_api:
                 queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = \
-            initFeaturesLive_v2(config, tradeInfoLive)
+            init_features_live(config, tradeInfoLive)
         init[sc] = True
 
-    listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = extractFeaturesLive_v2\
+    listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = get_features_live\
         (config,tradeInfoLive,listFeaturesLive[sc],listParSarStruct[sc],listEM[sc])
     # check if variations can be calculated or have to wait
     #allFeats = np.append(allFeats,features,axis=1)
@@ -3244,8 +3244,9 @@ def run(config_traders_list, running_assets, start_time, test, queue):
     
     if not test:
         if modular:
+            raise NotImplementedError("Stats from modular features not implemented yet in online session")
             # TODO: get directory from LC
-            separators_directory = 'D:/SDC/py/Data/separators/'
+#            separators_directory = 'D:/SDC/py/Data/separators/'
             
 #            list_separators = [load_separators(AllAssets[str(running_assets[ass])], 
 #                                         separators_directory, 
@@ -3264,19 +3265,19 @@ def run(config_traders_list, running_assets, start_time, test, queue):
 #            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
 #            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
         else:
-            list_stats_feats = [[load_stats_manual_v2(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
+            list_stats_feats = [[load_stats_input_live(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
                             None, 
                             from_stats_file=True, hdf5_directory=LC.stats_live_dir,tag=list_tags[nn]) 
                             for nn in range(nNets)] for ass in range(nAssets)]
-            list_stats_rets = [[load_stats_output_v2(list_unique_configs[nn], LC.stats_live_dir, AllAssets[str(running_assets[ass])], 
+            list_stats_rets = [[load_stats_output_live(list_unique_configs[nn], LC.stats_live_dir, AllAssets[str(running_assets[ass])], 
                             tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
     else:
-        list_stats_feats = [[load_stats_manual_v2({}, AllAssets[str(running_assets[ass])], 
+        list_stats_feats = [[load_stats_input_live({}, AllAssets[str(running_assets[ass])], 
                         None, 
                         from_stats_file=True, hdf5_directory=LC.stats_live_dir) 
                         for nn in range(nNets)] for ass in range(nAssets)]
-        list_stats_rets = [[load_stats_output_v2({}, LC.stats_live_dir, 
+        list_stats_rets = [[load_stats_output_live({}, LC.stats_live_dir, 
                             AllAssets[str(running_assets[ass])]) 
                         for nn in range(nNets)] for ass in range(nAssets)]
         gain = .000000001
@@ -3652,11 +3653,10 @@ if __name__=='__main__':
 #        raise ValueError("test cannot be False if config_names is TTEST")
     #
 from kaissandra.simulateTrader import load_in_memory
-from kaissandra.inputs import (initFeaturesLive_v2,
-                               extractFeaturesLive_v2,
-                               load_separators)
-from kaissandra.preprocessing import (load_stats_manual_v2,
-                                      load_stats_output_v2)
+from kaissandra.prod.preprocessing import load_stats_input_live, \
+                                          load_stats_output_live, \
+                                          init_features_live,\
+                                          get_features_live
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
@@ -3716,37 +3716,3 @@ if __name__=='__main__':
         
         from kaissandra.prod.control import control
         control(running_assets, queues=queues, send_info_api=send_info_api, token_header=api.build_token_header())
-        
-#elif send_info_api and not synchroned_run:
-    
-#
-#GROI = -0.668% ROI = -1.028% Sum GROI = -0.668% Sum ROI = -1.028% Final budget 9897.22E Earnings -102.78E per earnings -1.028% ROI per position -0.029%
-#Number entries 36 per entries 0.00% per net success 36.111% per gross success 44.444% av loss 0.071% per sl 0.000%
-#DONE. Time: 98.29 mins
-
-# .6/.6 real spread<.04 approx 03.09-06.09
-#GROI = -0.315% ROI = -1.155% Sum GROI = -0.315% Sum ROI = -1.155% Final budget 9884.52E Earnings -115.48E per earnings -1.155% ROI per position -0.030%
-#Number entries 39 per entries 0.00% per net success 33.333% per gross success 51.282% av loss 0.069% per sl 0.000%
-#DONE. Time: 14.07 mins
-
-# .6/.6 real spread<.04 exact 03.09-06.09
-#GROI = -0.673% ROI = -1.472% Sum GROI = -0.673% Sum ROI = -1.472% Final budget 9852.80E Earnings -147.20E per earnings -1.472% ROI per position -0.041%
-#Number entries 36 per entries 0.00% per net success 25.000% per gross success 41.667% av loss 0.066% per sl 0.000%
-#DONE. Time: 106.78 mins
-        
-# GRE real spread<.04 approx 03.09-06.09
-#GROI = 0.272% ROI = 0.112% Sum GROI = 0.272% Sum ROI = 0.112% Final budget 10011.18E Earnings 11.18E per earnings 0.112% ROI per position 0.012%
-#Number entries 9 per entries 0.00% per net success 77.778% per gross success 77.778% av loss 0.126% per sl 0.000%
-#DONE. Time: 7.07 mins
-
-# .6/.7 real spread<.04 approx 03.09-06.09
-#GROI = 0.209% ROI = -0.199% Sum GROI = 0.209% Sum ROI = -0.199% Final budget 9980.06E Earnings -19.94E per earnings -0.199% ROI per position -0.012%
-#Number entries 17 per entries 0.00% per net success 52.941% per gross success 64.706% av loss 0.081% per sl 0.000%
-#DONE. Time: 7.13 mins
-
-# .6/.7 real spread<.04 approx 27.11.17-10.08.18
-#Total GROI = 7.220% Total ROI = 3.457% Sum GROI = 7.220% Sum ROI = 3.457% Accumulated earnings 345.70E
-
-# GRE exact 03.09.18-10.09.18
-#DONE. Time: 175.96 mins
-#Total GROI = 0.235% Total ROI = -0.051% Sum GROI = 0.235% Sum ROI = -0.051% Accumulated earnings -5.14E

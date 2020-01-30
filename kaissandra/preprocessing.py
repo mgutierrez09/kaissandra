@@ -11,18 +11,28 @@ import pandas as pd
 import h5py
 import datetime as dt
 import pickle
-import scipy.io as sio
+#import scipy.io as sio
 import os
-from kaissandra.inputs import (Data, 
-                               load_separators,
-                               load_stats_manual,
-                               load_stats_tsf,
-                               load_stats_output,
-                               load_returns,
-                               load_manual_features,
-                               load_tsf_features)
 from kaissandra.config import retrieve_config, write_log, Config as C
 from kaissandra.local_config import local_vars
+
+def load_separators(thisAsset, separators_directory, from_txt=1):
+    """
+    Function that loads and segments separators according to beginning and end dates.
+    
+    """
+    if from_txt:
+        # separators file name
+        separators_filename = thisAsset+'_separators.txt'
+        # load separators
+        if os.path.exists(separators_directory+separators_filename):
+            separators = pd.read_csv(separators_directory+separators_filename, index_col='Pointer')
+        else:
+            separators = []
+    else:
+        print("Depricated load separators from DB. Use text instead")
+        raise ValueError
+    return separators
 
 def convert_to_one_hot(Y, c):
     Y = np.eye(c)[Y.reshape(-1)].T
@@ -787,7 +797,7 @@ def get_edges_datasets(K, config, dataset_dirfilename='', first_day=dt.date(2016
         #last_day=dt.date(2018, 11, 9)
         max_days = (last_day-first_day).days+1
         A = np.zeros((len(assets), max_days))
-        AllAssets = Data().AllAssets
+        AllAssets = C.AllAssets
         for a, ass in enumerate(assets):
             thisAsset = AllAssets[str(ass)]
             #print(thisAsset)
@@ -1091,7 +1101,6 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
         assets = config['assets']
     else:
         assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-    seq_len = config['seq_len']
     # init columns
     columns = ["DT1","DT2","B1","B2","A1","A2","Asset"]
     # init DTA
@@ -1342,7 +1351,7 @@ def build_datasets(folds=3, fold_idx=0, config={}, log='', data_dir=local_vars.d
         write_log(IO_results_name)
     # index asset
     ass_idx = 0
-    AllAssets = Data().AllAssets
+    AllAssets = C.AllAssets
     # array containing bids means
     #bid_means = pickle.load( open( "../HDF5/bid_means.p", "rb" ))
     # loop over all assets
@@ -1561,7 +1570,7 @@ def get_edges_datasets_modular(K, config, separators_directory, data_dir, symbol
         last_day = dt.date(int(last_day_str[:4]), int(last_day_str[5:7]), int(last_day_str[8:]))
         max_days = (last_day-first_day).days+1
         A = np.zeros((len(assets), max_days))
-        AllAssets = Data().AllAssets
+        AllAssets = C.AllAssets
         for a, ass in enumerate(assets):
             thisAsset = AllAssets[str(ass)]
             print(thisAsset)

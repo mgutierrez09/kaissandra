@@ -9,13 +9,13 @@ import re
 import os
 import pandas as pd
 import datetime as dt
-from inputs import Data
+
+from kaissandra.config import Config as C
 
 #
 destiny = 'D:/SDC/py/Data_test/'
 origin = 'D:/SDC/py/Data_aws_20/'#'C:/Users/mgutierrez/AppData/Roaming/MetaQuotes/Terminal/D0E8209F77C8CF37AD8BF550E51FF075/MQL5/Files/Data/'
 
-data = Data()
 
 if os.path.isdir(destiny)==False:
     os.mkdir(destiny)
@@ -24,9 +24,10 @@ copyFrom = '2019.08.05 00:00:00'
 copyUntil = '2020.09.01 23:59:59'
 copyFromDT = dt.datetime.strptime(copyFrom,'%Y.%m.%d %H:%M:%S')
 copyUntilDT = dt.datetime.strptime(copyUntil,'%Y.%m.%d %H:%M:%S')
+assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
-for i in data.assets:
-    thisAsset = data.AllAssets[str(i)]
+for i in assets:
+    thisAsset = C.AllAssets[str(i)]
     print(thisAsset)
     directOrigin = origin+thisAsset+'/'
     directDestiny = destiny+thisAsset+'/'

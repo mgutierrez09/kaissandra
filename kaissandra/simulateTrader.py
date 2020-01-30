@@ -15,8 +15,8 @@ import time
 import pandas as pd
 import datetime as dt
 import numpy as np
-from kaissandra.inputs import Data
 from kaissandra.local_config import local_vars
+from kaissandra.config import Config as C
 import pickle
 
 #from TradingManager_v10 import write_log
@@ -310,7 +310,7 @@ class Trader:
                  positions_dir='',positions_file='', allow_candidates=False):
         """  """
         self.list_opened_positions = []
-        self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(data.AllAssets))])
+        self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
         self.list_count_events = []
         self.list_stop_losses = []
         self.list_lim_groi = []
@@ -782,10 +782,10 @@ class Trader:
             raise ValueError("roi_ratio NaN")
         
         direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
-        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
-        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
+#        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
+#        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
+#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
         p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
         p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
 #        
@@ -1218,16 +1218,28 @@ if __name__ == '__main__':
     #dateTest = ['2018.11.15','2018.11.16']
     load_from_live = False
     # data structure
-    data=Data(movingWindow=100,nEventsPerStat=1000,
-     dateTest = dateTest)
-
+#    data=Data(movingWindow=100,nEventsPerStat=1000,
+#     dateTest = dateTest)
+    assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    
+    first_day = '2018.11.12'
+    last_day = '2020.01.10'#'2019.08.22'
+    init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
+    end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
+    delta_dates = end_day-init_day
+    dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+    dateTest = []
+    for d in dateTestDt:
+        if d.weekday()<5:
+            dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+                    
     tic = time.time()
     # init positions vector
     # build asset to index mapping
     ass2index_mapping = {}
     ass_index = 0
-    for ass in data.assets:
-        ass2index_mapping[data.AllAssets[str(ass)]] = ass_index
+    for ass in assets:
+        ass2index_mapping[C.AllAssets[str(ass)]] = ass_index
         ass_index += 1
 
     #list_thr_sl = [1000 for i in range(numberNetwors)]
@@ -1395,26 +1407,26 @@ if __name__ == '__main__':
     rewinded = 0
     week_counter = 0
     print(root_dir)
-    while day_index<len(data.dateTest):
+    while day_index<len(dateTest):
         counter_back = 0
         init_list_index = day_index#data.dateTest[day_index]
-        pd_init_index = journal_all_days[journal_all_days[entry_time_column].str.find(data.dateTest[day_index])>-1]
-        while day_index<len(data.dateTest)-1 and pd_init_index.shape[0]==0:
+        pd_init_index = journal_all_days[journal_all_days[entry_time_column].str.find(dateTest[day_index])>-1]
+        while day_index<len(dateTest)-1 and pd_init_index.shape[0]==0:
             day_index += 1
-            pd_init_index = journal_all_days[journal_all_days[entry_time_column].str.find(data.dateTest[day_index])>-1]
+            pd_init_index = journal_all_days[journal_all_days[entry_time_column].str.find(dateTest[day_index])>-1]
         try:
             init_index = pd_init_index.index[0]
         except:
             pass
             #break    
         # find sequence of consecutive days in test days
-        while day_index<len(data.dateTest)-1 and dt.datetime.strptime(data.dateTest[day_index],'%Y.%m.%d')+dt.timedelta(1)==dt.datetime.strptime(data.dateTest[day_index+1],'%Y.%m.%d'):
+        while day_index<len(dateTest)-1 and dt.datetime.strptime(dateTest[day_index],'%Y.%m.%d')+dt.timedelta(1)==dt.datetime.strptime(dateTest[day_index+1],'%Y.%m.%d'):
             day_index += 1
-        pd_end_index = journal_all_days[journal_all_days[exit_time_column].str.find(data.dateTest[day_index])>-1]
+        pd_end_index = journal_all_days[journal_all_days[exit_time_column].str.find(dateTest[day_index])>-1]
         while day_index>init_list_index and pd_end_index.shape[0]==0:
             day_index -= 1
             counter_back += 1
-            pd_end_index = journal_all_days[journal_all_days[exit_time_column].str.find(data.dateTest[day_index])>-1]
+            pd_end_index = journal_all_days[journal_all_days[exit_time_column].str.find(dateTest[day_index])>-1]
         # only one entry in the week and out is next week
         if pd_end_index.shape[0]==0:
             end_index = pd_init_index.index[-1]
@@ -1431,8 +1443,8 @@ if __name__ == '__main__':
                                  summary_file=summary_file,positions_dir=positions_dir,
                                  positions_file=positions_file,allow_candidates=False)
         
-        out = ("Week counter "+str(week_counter)+". From "+data.dateTest[init_list_index]+
-               " to "+data.dateTest[end_list_index]+
+        out = ("Week counter "+str(week_counter)+". From "+dateTest[init_list_index]+
+               " to "+dateTest[end_list_index]+
                " Number journal entries "+str(journal_entries))
         week_counter += 1
         print(out)
@@ -1441,9 +1453,9 @@ if __name__ == '__main__':
         
         load_in_RAM = True
         
-        DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(data.assets, 
-                                                                            data.AllAssets,
-                                                                            data.dateTest, 
+        DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(assets, 
+                                                                            C.AllAssets,
+                                                                            dateTest, 
                                                                             init_list_index, 
                                                                             end_list_index,
                                                                             root_dir=root_dir)
