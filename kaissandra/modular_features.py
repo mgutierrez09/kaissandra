@@ -1627,8 +1627,10 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[],
         test_flag = ''
     if not from_py:
         py_flag = ''
+        data_dir = local_vars.data_dir
     else:
         py_flag = '_py'
+        data_dir = local_vars.data_dir_py
     if 'asset_relation' in config:
         asset_relation = config['asset_relation']
     else:
@@ -1644,9 +1646,9 @@ def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[],
         symbol = 'ask'
     outrdirname = hdf5_directory+'mW'+str(movingWindow)+'_nE'+str(nEventsPerStat)+'/'+asset_relation+'/out/'
     
-    filename_raw = local_vars.data_dir+'tradeinfo'+py_flag+test_flag+'.hdf5'
+    filename_raw = data_dir+'tradeinfo'+py_flag+test_flag+'.hdf5'
     print(filename_raw)
-    separators_directory = local_vars.data_dir+'separators'+py_flag+test_flag+'/'
+    separators_directory = data_dir+'separators'+py_flag+test_flag+'/'
     
     #assert(not (build_test_db and save_stats))
     # init hdf5 files
