@@ -15,7 +15,10 @@ Start a session:
 import os
 import sys
 this_path = os.getcwd()
+# in linux
 path = '/'.join(this_path.split('/')[:-1])+'/'
+# in windows
+path = '\\'.join(this_path.split('\\')[:-1])+'\\'
 sys.path.insert(0, path)
 from kaissandra.automate import *
 from kaissandra.config import *
