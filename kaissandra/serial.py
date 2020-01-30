@@ -3613,7 +3613,7 @@ run_back_test = False
 spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
-send_info_api = True
+send_info_api = False
 modular = False
 
 # TODO: add it in parameters
@@ -3703,10 +3703,11 @@ api = API()
 
 if __name__=='__main__':
     # lauch
-    api.post_token()
-    api.reset_activate_sessions()
+    if send_info_api:
+        api.post_token()
+        api.reset_activate_sessions()
     renew_directories(C.AllAssets, running_assets)
-    if synchroned_run:
+    if synchroned_run and send_info_api:
         api.intit_all(list_config_traders[0], running_assets, sessiontype)
         print("api.trader_json:")
         print(api.trader_json)
