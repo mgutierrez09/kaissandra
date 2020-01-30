@@ -10,13 +10,13 @@ Word of mouth
 """
 
 import os
-import re
 import time
 import pandas as pd
 import datetime as dt
 import numpy as np
 from kaissandra.local_config import local_vars
 from kaissandra.config import Config as C
+from kaissandra.updateRaw import load_in_memory
 import pickle
 
 #from TradingManager_v10 import write_log
@@ -1083,67 +1083,6 @@ class Trader:
     def lift_ban_asset(self, ass_idx):
         """  """
         self.list_is_asset_banned[ass_idx] = False
-
-
-def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,root_dir='D:/SDC/py/Data/'):
-    print("Loading info from original files...")
-    files_list = []
-    DateTimes = np.chararray((0,),itemsize=19)
-    Assets = np.chararray((0,),itemsize=19)
-    SymbolBids = np.array([])
-    SymbolAsks = np.array([])
-    alloc = 10000000
-    DateTimes = np.chararray((alloc,),itemsize=19)
-    Assets = np.chararray((alloc,),itemsize=19)
-    
-    SymbolBids = np.zeros((alloc,))
-    SymbolAsks = np.zeros((alloc,))
-    idx_counter = 0
-    # read trade info from raw files
-    for ass in assets:
-        thisAsset = AllAssets[str(ass)]
-        #print(thisAsset)
-        directory_origin = root_dir+thisAsset+'/'#'../Data/'+thisAsset+'/'
-        # get files list, and beginning and end current dates
-        if os.path.isdir(directory_origin):
-            files_list_all = sorted(os.listdir(directory_origin))
-            for file in files_list_all:
-                m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
-                if m!=None:
-                    last_date_s = re.search('\d+',m.group()).group()
-                    day = dt.datetime.strftime(dt.datetime.strptime(last_date_s, 
-                                                                    '%Y%m%d%H%M%S'), 
-                                                                    '%Y.%m.%d')
-                    if day in dateTest[init_list_index:end_list_index+1]:
-                        #print(file)
-                        files_list.append(file)
-                        pd_file = pd.read_csv(directory_origin+file)
-                        n_new_samps = pd_file.shape[0]
-                        if n_new_samps+idx_counter>DateTimes.shape[0]:
-                            #print("Extending size")
-                            DateTimes = np.append(DateTimes,np.chararray((alloc,),
-                                                                itemsize=19))
-                            Assets = np.append(Assets,np.chararray((alloc,),
-                                                                itemsize=19))
-                            SymbolBids = np.append(SymbolBids,np.zeros((alloc,)))
-                            SymbolAsks = np.append(SymbolAsks,np.zeros((alloc,)))
-                            
-                        DateTimes[idx_counter:idx_counter+n_new_samps] = pd_file['DateTime']
-                        
-                        Ass = np.chararray((pd_file.shape[0],),itemsize=6)
-                        Ass[:] = thisAsset
-                        Assets[idx_counter:idx_counter+n_new_samps] = Ass
-                        SymbolBids[idx_counter:idx_counter+n_new_samps] = pd_file['SymbolBid']
-                        SymbolAsks[idx_counter:idx_counter+n_new_samps] = pd_file['SymbolAsk']
-                        idx_counter += n_new_samps
-    sorted_idx = np.argsort(DateTimes[:idx_counter],kind='mergesort')
-    DateTimes = DateTimes[sorted_idx].astype('S19')
-    SymbolBids = SymbolBids[sorted_idx]
-    SymbolAsks = SymbolAsks[sorted_idx]
-    Assets = Assets[sorted_idx]
-    nEvents = DateTimes.shape[0]
-    print("DONE")
-    return DateTimes, SymbolBids, SymbolAsks, Assets, nEvents
 
 def round_num(number, prec):
     return round(prec*number)/prec

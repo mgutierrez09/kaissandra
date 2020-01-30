@@ -3652,7 +3652,7 @@ if __name__=='__main__':
 #    if ('TTEST10' not in config_names or len(config_names)>1) and test:
 #        raise ValueError("test cannot be False if config_names is TTEST")
     #
-from kaissandra.simulateTrader import load_in_memory
+from kaissandra.updateRaw import load_in_memory
 from kaissandra.prod.preprocessing import load_stats_input_live, \
                                           load_stats_output_live, \
                                           init_features_live,\

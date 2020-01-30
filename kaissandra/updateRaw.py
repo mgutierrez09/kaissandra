@@ -12,8 +12,139 @@ import h5py
 import numpy as np
 import pandas as pd
 import datetime as dt
-from kaissandra.inputs import Data, extractSeparators
+from kaissandra.config import Config as C
 from kaissandra.local_config import local_vars
+
+def extractSeparators(tradeInfo,minThresDay,minThresNight,bidThresDay,bidThresNight,dateTest, tOt="tr", inter_day_thres=20):
+    """
+    <DocString>
+    """
+    belong2tOt = pd.Series(tradeInfo.DateTime.str.contains('%&§&&§')) # initialize to all false
+    for d in dateTest:
+        belong2tOt = belong2tOt | tradeInfo.DateTime.str.contains('^'+d)
+    
+    if tOt=="te":
+        belong2tOt = ~belong2tOt
+    
+    separators = pd.DataFrame(data=[],columns=['DateTime','SymbolBid','SymbolAsk'])
+    #separators.index.name = "real_index"
+    # append first and last entry already if not all zeros
+    if belong2tOt.min()==0:
+        separators = separators.append(tradeInfo.loc[(~belong2tOt).idxmax()]).append(tradeInfo.loc[(~belong2tOt)[::-1].idxmax()])
+    
+    dTs = pd.to_datetime(tradeInfo["DateTime"],format='%Y.%m.%d %H:%M:%S').to_frame()
+    dTs1 = dTs[:-1]
+    dTs2 = dTs[1:].set_index(dTs1.index)
+    dayIndex = (dTs1.DateTime.dt.hour<22) & (dTs1.DateTime.dt.hour>5)
+
+    tID1 = belong2tOt[:-1]
+    tID2 = belong2tOt[1:]
+    tID2.index = tID1.index
+    #print(belong2tOt)
+    #print(np)
+    tOtTransition = pd.Series(np.logical_xor(np.array(belong2tOt.iloc[:-1]),np.array(belong2tOt.iloc[1:])))
+    #print(tOtTransition.index[tOtTransition])
+    
+    indexesTrans = np.union1d(tOtTransition.index[tOtTransition],tOtTransition.index[tOtTransition]+1)
+    #print(indexesTrans)
+    tOtTransition.loc[indexesTrans] = True
+    tOtTransition = tOtTransition & (~belong2tOt).iloc[:-1]
+    #print(tradeInfo.loc[tID1[tOtTransition].index])
+    separators = separators.append(tradeInfo.loc[tID1[tOtTransition].index])
+    separators = separators[~separators.index.duplicated(keep='first')]
+
+    bids1 = tradeInfo.SymbolBid[:-1]
+    bids2 = tradeInfo.SymbolBid[1:]
+    bidsIndex = bids1.index
+    bids2.index = bidsIndex
+
+    deltaBids = ((bids1-bids2).abs())*np.mean(bids1)
+    warningsBid = (((deltaBids>=bidThresDay) & (~tID1)) & dayIndex) | (((deltaBids>=bidThresNight) & (~tID1)) & ~dayIndex)
+    deltasInsSecs = (dTs2-dTs1).astype('timedelta64[s]')
+    # Find days transition indexes
+    dayChange = (dTs1.DateTime.dt.day!=dTs2.DateTime.dt.day)
+    deltasInsSecs.DateTime = deltasInsSecs.DateTime-60*inter_day_thres*dayChange
+
+    # Find weekend transition indexes
+    weekChange = (dTs1.DateTime.dt.dayofweek==4) & (dTs2.DateTime.dt.dayofweek==0)
+
+    # Update seconds difference
+    deltasInsSecs.DateTime = deltasInsSecs.DateTime-(2*24*60*60)*weekChange
+
+    # Find deltas of more than 5 minutes
+    warningTime = ((deltasInsSecs.DateTime>60*minThresDay) & (~tID1) & dayIndex) | ((deltasInsSecs.DateTime>60*minThresNight) & (~tID1) & ~dayIndex)
+    allWarnings = warningTime & warningsBid & (~tOtTransition)
+    endChunckIndex = deltaBids[allWarnings].index
+    beginningChunckIndex = []
+    for i in range(endChunckIndex.shape[0]):
+        beginningChunckIndex.append(tradeInfo.index.get_loc(endChunckIndex[i])+1)
+
+    separators = separators.append(tradeInfo.loc[endChunckIndex]).append(tradeInfo.iloc[beginningChunckIndex]).sort_index()
+
+    #delete all those that have same index as beginning and end, i.g., chunk length is zero
+    separators = separators[~separators.index.duplicated(False)]
+
+    return separators
+
+def load_in_memory(assets, AllAssets, dateTest, init_list_index, end_list_index,root_dir='D:/SDC/py/Data/'):
+    print("Loading info from original files...")
+    files_list = []
+    DateTimes = np.chararray((0,),itemsize=19)
+    Assets = np.chararray((0,),itemsize=19)
+    SymbolBids = np.array([])
+    SymbolAsks = np.array([])
+    alloc = 10000000
+    DateTimes = np.chararray((alloc,),itemsize=19)
+    Assets = np.chararray((alloc,),itemsize=19)
+    
+    SymbolBids = np.zeros((alloc,))
+    SymbolAsks = np.zeros((alloc,))
+    idx_counter = 0
+    # read trade info from raw files
+    for ass in assets:
+        thisAsset = AllAssets[str(ass)]
+        #print(thisAsset)
+        directory_origin = root_dir+thisAsset+'/'#'../Data/'+thisAsset+'/'
+        # get files list, and beginning and end current dates
+        if os.path.isdir(directory_origin):
+            files_list_all = sorted(os.listdir(directory_origin))
+            for file in files_list_all:
+                m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
+                if m!=None:
+                    last_date_s = re.search('\d+',m.group()).group()
+                    day = dt.datetime.strftime(dt.datetime.strptime(last_date_s, 
+                                                                    '%Y%m%d%H%M%S'), 
+                                                                    '%Y.%m.%d')
+                    if day in dateTest[init_list_index:end_list_index+1]:
+                        #print(file)
+                        files_list.append(file)
+                        pd_file = pd.read_csv(directory_origin+file)
+                        n_new_samps = pd_file.shape[0]
+                        if n_new_samps+idx_counter>DateTimes.shape[0]:
+                            #print("Extending size")
+                            DateTimes = np.append(DateTimes,np.chararray((alloc,),
+                                                                itemsize=19))
+                            Assets = np.append(Assets,np.chararray((alloc,),
+                                                                itemsize=19))
+                            SymbolBids = np.append(SymbolBids,np.zeros((alloc,)))
+                            SymbolAsks = np.append(SymbolAsks,np.zeros((alloc,)))
+                            
+                        DateTimes[idx_counter:idx_counter+n_new_samps] = pd_file['DateTime']
+                        
+                        Ass = np.chararray((pd_file.shape[0],),itemsize=6)
+                        Ass[:] = thisAsset
+                        Assets[idx_counter:idx_counter+n_new_samps] = Ass
+                        SymbolBids[idx_counter:idx_counter+n_new_samps] = pd_file['SymbolBid']
+                        SymbolAsks[idx_counter:idx_counter+n_new_samps] = pd_file['SymbolAsk']
+                        idx_counter += n_new_samps
+    sorted_idx = np.argsort(DateTimes[:idx_counter],kind='mergesort')
+    DateTimes = DateTimes[sorted_idx].astype('S19')
+    SymbolBids = SymbolBids[sorted_idx]
+    SymbolAsks = SymbolAsks[sorted_idx]
+    Assets = Assets[sorted_idx]
+    nEvents = DateTimes.shape[0]
+    print("DONE")
+    return DateTimes, SymbolBids, SymbolAsks, Assets, nEvents
 
 def check_consecutive_trading_days(directory,prev_day, post_day):
     """
@@ -84,21 +215,21 @@ def check_consecutive_trading_days_from_list(list_bussines_days, prev_day, post_
     
     return consecutive
 
-def transition_train_test(data, prev_day, post_day):
+def transition_train_test(prev_day, post_day):
     """
     Funciton that checks if two consecutive days belong to different sets of
     test or train
     """
     transition = False
     # check if one of the days belongs to test days and the other does not
-    if (((prev_day in data.dateTest) and (post_day not in data.dateTest)) or
-        ((post_day in data.dateTest) and (prev_day not in data.dateTest))):
+    if (((prev_day in dateTest) and (post_day not in dateTest)) or
+        ((post_day in dateTest) and (prev_day not in dateTest))):
         # activate transition
         transition = True
     
     return transition
 
-def merge_separators_list(list_bussines_days, data, separators_list, thrs):
+def merge_separators_list(list_bussines_days, separators_list, thrs):
     """
     Function that merges a list with separators per file in one 
     single dataFrame structure.
@@ -138,7 +269,7 @@ def merge_separators_list(list_bussines_days, data, separators_list, thrs):
             # check if time difference is grater than minutes difference threshold or
             # if there is a transition between training and testing dates
             if (time_difference.total_seconds()/60-24*60*time_difference.days>thrs or 
-                transition_train_test(data, prev_day, post_day)):
+                transition_train_test(prev_day, post_day)):
 #                print(time_difference.days)
 #                print(prev_day)
 #                print(post_day)
@@ -187,7 +318,7 @@ def find_bussines_days(data, directory_destination):
                 
                 m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
                 if m!=None:
-                    date_dt = dt.datetime.strptime(re.search('\d+',m.group()).group(), '%Y%m%d%H%M%S')
+#                    date_dt = dt.datetime.strptime(re.search('\d+',m.group()).group(), '%Y%m%d%H%M%S')
                     # check date is within init and end dates
                     ########################################
                     # WARNING!! To be tested
@@ -195,8 +326,8 @@ def find_bussines_days(data, directory_destination):
                             
                         # save date of first file to later check if new info is older
                         if first_file:
-                            first_date_s = re.search('\d+',m.group()).group()
-                            first_day_dt = dt.datetime.strptime(first_date_s, '%Y%m%d%H%M%S')
+#                            first_date_s = re.search('\d+',m.group()).group()
+#                            first_day_dt = dt.datetime.strptime(first_date_s, '%Y%m%d%H%M%S')
                             first_file = 0
                             # save date of first file to later check if new info is older
                         files_list.append(file)
@@ -258,145 +389,106 @@ def get_fileidxs(files_asset, init_date, end_date, isgold=False):
     assert(len(end_idx)==1)
     return init_idx[0], end_idx[0]
 
-# limit the build of the HDF5 to data comprised in these dates
-build_partial_raw = False
-build_test_db = True
-init_date = '20181112'#'180928'
-end_date = '20191212'#'181109'
-init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
-end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
-
-directory_destination = local_vars.data_test_dir#'D:/SDC/py/HDF5/'
-if build_partial_raw and not build_test_db:
-    hdf5_file_name = 'tradeinfo_F'+init_date+'T'+end_date+'.hdf5'
-    directory_root = 'D:/SDC/py/Data/'
-    separators_directory_name = 'separators_F'+init_date+'T'+end_date+'/'
-elif build_test_db and not build_partial_raw:
-    hdf5_file_name = 'tradeinfo_test.hdf5'
-    directory_root = local_vars.data_test_dir
-    separators_directory_name = 'separators_test/'
-    dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.12.12')
-elif not build_test_db and not build_partial_raw:
-    hdf5_file_name = 'tradeinfo_py.hdf5'
-    separators_directory_name = 'separators_py/'
-    directory_root = 'E:/SDC/py/Data_PY/'
-    dateTest = get_dateTest(init_date='2014.01.02', end_date='2018.11.09')
-else:
-    raise ValueError("Not supported")
-trusted_source = False
-data = Data(dateTest = dateTest)
-# create directory if not exists
-if not os.path.exists(directory_destination+separators_directory_name):
-    os.mkdir(directory_destination+separators_directory_name)
-# thresholds for separators
-bidThresDay = 0.0
-bidThresNight = 0.0
-minThresDay = 20
-minThresNight = 20
-
-# reset file
-reset_file = False
-if reset_file:
-    fw = h5py.File(directory_destination+hdf5_file_name,'w')
-    fw.close()
+if __name__=='__main__':
+    # limit the build of the HDF5 to data comprised in these dates
+    build_partial_raw = False
+    build_test_db = True
+    init_date = '20181112'#'180928'
+    end_date = '20191212'#'181109'
+    init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
+    end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
     
-# open file for read and write
-f = h5py.File(directory_destination+hdf5_file_name,'a')
-
-# get gussines days
-#list_bussines_days = find_bussines_days(data, directory_destination)
-first_day = dt.datetime.strptime(dateTest[0], '%Y.%m.%d').date()
-last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
-list_bussines_days = find_bussines_days_v2(first_day=first_day, 
-                                           last_day=last_day)
-assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-# loop over all assets
-for ass in assets:
-    thisAsset = data.AllAssets[str(ass)]
-    print(thisAsset)
-    directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
-    # extend the threshold margin for GOLD since it always starts at 01:00 am
-    if thisAsset == 'GOLD':
-        inter_day_thres = 120
+    directory_destination = local_vars.data_test_dir#'D:/SDC/py/HDF5/'
+    if build_partial_raw and not build_test_db:
+        hdf5_file_name = 'tradeinfo_F'+init_date+'T'+end_date+'.hdf5'
+        directory_root = 'D:/SDC/py/Data/'
+        separators_directory_name = 'separators_F'+init_date+'T'+end_date+'/'
+    elif build_test_db and not build_partial_raw:
+        hdf5_file_name = 'tradeinfo_test.hdf5'
+        directory_root = local_vars.data_test_dir
+        separators_directory_name = 'separators_test/'
+        dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.12.12')
+    elif not build_test_db and not build_partial_raw:
+        hdf5_file_name = 'tradeinfo_py.hdf5'
+        separators_directory_name = 'separators_py/'
+        directory_root = 'E:/SDC/py/Data_PY/'
+        dateTest = get_dateTest(init_date='2014.01.02', end_date='2018.11.09')
     else:
-        inter_day_thres = 120
+        raise ValueError("Not supported")
+    trusted_source = False
+    #data = Data(dateTest = dateTest)
+    # create directory if not exists
+    if not os.path.exists(directory_destination+separators_directory_name):
+        os.mkdir(directory_destination+separators_directory_name)
+    # thresholds for separators
+    bidThresDay = 0.0
+    bidThresNight = 0.0
+    minThresDay = 20
+    minThresNight = 20
+    
+    # reset file
+    reset_file = False
+    if reset_file:
+        fw = h5py.File(directory_destination+hdf5_file_name,'w')
+        fw.close()
         
-    files_list = []
-    # get files list, and beginning and end current dates
-    if os.path.isdir(directory_origin):
-        lastM = None
-        files_list_all = sorted(os.listdir(directory_origin))
-        
-        first_file = 1
-        for file in files_list_all:
+    # open file for read and write
+    f = h5py.File(directory_destination+hdf5_file_name,'a')
+    
+    # get gussines days
+    #list_bussines_days = find_bussines_days(data, directory_destination)
+    first_day = dt.datetime.strptime(dateTest[0], '%Y.%m.%d').date()
+    last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
+    list_bussines_days = find_bussines_days_v2(first_day=first_day, 
+                                               last_day=last_day)
+    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    # loop over all assets
+    for ass in assets:
+        thisAsset = C.AllAssets[str(ass)]
+        print(thisAsset)
+        directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
+        # extend the threshold margin for GOLD since it always starts at 01:00 am
+        if thisAsset == 'GOLD':
+            inter_day_thres = 120
+        else:
+            inter_day_thres = 120
             
-            m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
-            if m!=None:
-                date_dt = dt.datetime.strptime(re.search('\d+',m.group()).group(), '%Y%m%d%H%M%S')
-                # check date is within init and end dates
-                ########################################
-                # WARNING!! To be tested
-                if not build_partial_raw or (date_dt>=init_date_dt and
-                    date_dt<end_date_dt+dt.timedelta(1)):
-                        
-                    # save date of first file to later check if new info is older
-                    if first_file:
-                        first_date_s = re.search('\d+',m.group()).group()
-                        first_day_dt = dt.datetime.strptime(first_date_s, '%Y%m%d%H%M%S')
-                        first_file = 0
-                        # save date of first file to later check if new info is older
-                    files_list.append(file)
-                    last_date_s = re.search('\d+',m.group()).group()
-                    last_date_dt = dt.datetime.strptime(last_date_s, '%Y%m%d%H%M%S')
-    
-#    if thisAsset=='EURCAD':
-#        del f[thisAsset]
-        ##### TODO remove separators as well! #### 
-    
-    if thisAsset not in f:
-        # create group, its attributes and its datasets
-        group = f.create_group(thisAsset)
-        
-        group.create_dataset("DateTime", (0,), maxshape=(None,),dtype='S19')
-        group.create_dataset("SymbolBid", (0,), maxshape=(None,),dtype=float)
-        group.create_dataset("SymbolAsk", (0,), maxshape=(None,),dtype=float)
-        
-        group.attrs.create("dateStart", "", shape=(1,), dtype='S14')
-        group.attrs.create("dateEnd", "", shape=(1,), dtype='S14')
-        
-        new_files_newer = files_list
-        new_files_older = []
-        
-    else:
-        # get current init and end dates
-        group = f[thisAsset]
-        curr_start_date_s = group.attrs.get("dateStart")
-        curr_end_date_s = group.attrs.get("dateEnd")
-        try:
-            curr_start_date_dt = dt.datetime.strptime(curr_start_date_s[0].decode("utf-8") , '%Y%m%d%H%M%S')
-            curr_end_date_dt = dt.datetime.strptime(curr_end_date_s[0].decode("utf-8") , '%Y%m%d%H%M%S')
-            # init file lists
-            new_files_older = []
-            new_files_newer = []
-            for file in files_list:
+        files_list = []
+        # get files list, and beginning and end current dates
+        if os.path.isdir(directory_origin):
+            lastM = None
+            files_list_all = sorted(os.listdir(directory_origin))
+            
+            first_file = 1
+            for file in files_list_all:
+                
                 m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
-                this_date_dt = dt.datetime.strptime(re.search('\d+',m.group()).group(), '%Y%m%d%H%M%S')
-                # check if 
-                if this_date_dt<curr_start_date_dt:
-                    # there is new older info
-                    new_files_older.append(file)
-                elif this_date_dt>curr_end_date_dt:
-                    # there is new newer info
-                    new_files_newer.append(file)
-                else:
-                    # this info is already included
-                    pass
-        except ValueError:
-            # if dates are wrong, start with all files
-            print("ERROR in attributes. Reseting group.")
-            del f[thisAsset]
-            group = f.create_group(thisAsset)
+                if m!=None:
+                    date_dt = dt.datetime.strptime(re.search('\d+',m.group()).group(), '%Y%m%d%H%M%S')
+                    # check date is within init and end dates
+                    ########################################
+                    # WARNING!! To be tested
+                    if not build_partial_raw or (date_dt>=init_date_dt and
+                        date_dt<end_date_dt+dt.timedelta(1)):
+                            
+                        # save date of first file to later check if new info is older
+                        if first_file:
+                            first_date_s = re.search('\d+',m.group()).group()
+                            first_day_dt = dt.datetime.strptime(first_date_s, '%Y%m%d%H%M%S')
+                            first_file = 0
+                            # save date of first file to later check if new info is older
+                        files_list.append(file)
+                        last_date_s = re.search('\d+',m.group()).group()
+                        last_date_dt = dt.datetime.strptime(last_date_s, '%Y%m%d%H%M%S')
         
+    #    if thisAsset=='EURCAD':
+    #        del f[thisAsset]
+            ##### TODO remove separators as well! #### 
+        
+        if thisAsset not in f:
+            # create group, its attributes and its datasets
+            group = f.create_group(thisAsset)
+            
             group.create_dataset("DateTime", (0,), maxshape=(None,),dtype='S19')
             group.create_dataset("SymbolBid", (0,), maxshape=(None,),dtype=float)
             group.create_dataset("SymbolAsk", (0,), maxshape=(None,),dtype=float)
@@ -407,253 +499,293 @@ for ass in assets:
             new_files_newer = files_list
             new_files_older = []
             
-    # get data sets in this asset group
-    DateTime = group["DateTime"]
-    SymbolBid = group["SymbolBid"]
-    SymbolAsk = group["SymbolAsk"]
-    
-    init_idx, end_idx = get_fileidxs(new_files_newer, init_date, end_date, isgold=False)
-    
-    # init separators
-    separators_filename = separators_directory_name+thisAsset+'_separators.txt'
-    if reset_file:
-        old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
-        old_separators.index.name = 'Pointer'
-    else:
-        # load old separators
-        if os.path.exists(directory_destination+separators_filename):
-            old_separators = pd.read_csv(directory_destination+separators_filename, index_col='Pointer')
-            
         else:
-            old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
-            old_separators.index.name = 'Pointer'
-
-    # init pandas data frame where files are added to
-    tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
-    # init separators list
-    list_separators_older = []
-    # init temp hdf5 file
-    # create temporal file, its group and its datasets
-    if len(new_files_older)>0:
-        ft = h5py.File(directory_destination+'temp.hdf5','w')
-        group_temp = ft.create_group(thisAsset)
-        
-        group_temp.create_dataset("DateTime", (0,), maxshape=(None,),dtype='S19')
-        group_temp.create_dataset("SymbolBid", (0,), maxshape=(None,),dtype=float)
-        group_temp.create_dataset("SymbolAsk", (0,), maxshape=(None,),dtype=float)
-        
-        DateTime_temp = group_temp["DateTime"]
-        SymbolBid_temp = group_temp["SymbolBid"]
-        SymbolAsk_temp = group_temp["SymbolAsk"]
-        
-        # init separator pointer to file to zero
-        pointer_sep = 0
-        
-    # add new files that are older
-    for file in new_files_older:
-        print("Copying "+file+" in HDF5 file")
-        # read file and save it in a pandas data frame
-        tradeInfo = tradeInfo.append(pd.read_csv(directory_origin+file), ignore_index=True)
-        
-        if tradeInfo.shape[0]>0:
-            if not trusted_source:
-                # extract separators
-                this_separators = extractSeparators(tradeInfo,minThresDay,minThresNight,
-                                                       bidThresDay,bidThresNight,[])
+            # get current init and end dates
+            group = f[thisAsset]
+            curr_start_date_s = group.attrs.get("dateStart")
+            curr_end_date_s = group.attrs.get("dateEnd")
+            try:
+                curr_start_date_dt = dt.datetime.strptime(curr_start_date_s[0].decode("utf-8") , '%Y%m%d%H%M%S')
+                curr_end_date_dt = dt.datetime.strptime(curr_end_date_s[0].decode("utf-8") , '%Y%m%d%H%M%S')
+                # init file lists
+                new_files_older = []
+                new_files_newer = []
+                for file in files_list:
+                    m = re.search('^'+thisAsset+'_\d+'+'.txt$',file)
+                    this_date_dt = dt.datetime.strptime(re.search('\d+',m.group()).group(), '%Y%m%d%H%M%S')
+                    # check if 
+                    if this_date_dt<curr_start_date_dt:
+                        # there is new older info
+                        new_files_older.append(file)
+                    elif this_date_dt>curr_end_date_dt:
+                        # there is new newer info
+                        new_files_newer.append(file)
+                    else:
+                        # this info is already included
+                        pass
+            except ValueError:
+                # if dates are wrong, start with all files
+                print("ERROR in attributes. Reseting group.")
+                del f[thisAsset]
+                group = f.create_group(thisAsset)
+            
+                group.create_dataset("DateTime", (0,), maxshape=(None,),dtype='S19')
+                group.create_dataset("SymbolBid", (0,), maxshape=(None,),dtype=float)
+                group.create_dataset("SymbolAsk", (0,), maxshape=(None,),dtype=float)
                 
-                # reference index according to general pointer
-                this_separators.index = this_separators.index+pointer_sep
-                list_separators_older.append(this_separators)
-            # save data in a temp file
-            # resize data sets
-            size_dataset = DateTime_temp.shape[0]
-            # resize DateTime
-            DateTime_temp.resize((size_dataset+tradeInfo.shape[0],))
-            # build numpy helper vector
-            charar = np.chararray((tradeInfo.shape[0],),itemsize=19)
-            charar[:] = tradeInfo.DateTime.iloc[:]
-            # add new newer info at the end of the data set
-            DateTime_temp[size_dataset:] = charar
-            # resize Symbolbid dataset
-            SymbolBid_temp.resize((size_dataset+tradeInfo.shape[0],))
-            # add new newer info at the end of the data set
-            SymbolBid_temp[size_dataset:] = tradeInfo.SymbolBid.iloc[:]
-            # resize SymbolAsk dataset
-            SymbolAsk_temp.resize((size_dataset+tradeInfo.shape[0],))
-            # add new newer info at the end of the data set
-            SymbolAsk_temp[size_dataset:] = tradeInfo.SymbolAsk.iloc[:]
-            # update pointer to file
-            pointer_sep += tradeInfo.shape[0]
-        else:
-            print("WARNING: Empty file. Skipped.")
-        # reset tradeInfo
-        tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
-    # end of for file in new_files_older:
-    # Add temporal information to the hdf5 group and datasets
-    if len(new_files_older)>0:
-        # new sizes
-        size_dataset = DateTime.shape[0]
-        size_increase = DateTime_temp.shape[0]
-        # resize DateTime dataset
-        DateTime.resize((size_dataset+size_increase,))
-        # shift info to the end of the file
-        DateTime[-size_dataset:] = DateTime[:size_dataset]
-        # add new old info at the beginning of the data set
-        DateTime[:size_increase] = DateTime_temp
-        # resize SymbolBid dataset
-        SymbolBid.resize((size_dataset+size_increase,))
-        # shift info to the end of the file
-        SymbolBid[-size_dataset:] = SymbolBid[:size_dataset]
-        # add new old info at the beginning of the data set
-        SymbolBid[:size_increase] = SymbolBid_temp
-        # resize SymbolAsk dataset
-        SymbolAsk.resize((size_dataset+size_increase,))
-        # shift info to the end of the file
-        SymbolAsk[-size_dataset:] = SymbolAsk[:size_dataset]
-        # add new old info at the beginning of the data set
-        SymbolAsk[:size_increase] = SymbolAsk_temp
-        # close temporal file
-        ft.close()
-        # build new separators if source is trustworthy
-        # update starting date attribute
-        if trusted_source:
-            new_separators_older = pd.DataFrame()
-            # read fist new file
-            tradeInfo = pd.read_csv(directory_origin+new_files_older[0])
-            # add first entry as lit
-            new_separators_older = new_separators_older.append(tradeInfo.iloc[0])
-            # read last new file
-            tradeInfo = pd.read_csv(directory_origin+new_files_older[-1])
-            # add last entry as bottom
-            new_separators_older = new_separators_older.append(tradeInfo.iloc[-1])
-            # update separators list
-            list_separators_older.append(new_separators_older)
-        # add old separators' bottom and update indexes
-        if old_separators.shape[0]>0:
-            # update indexes
-            old_separators.index = old_separators.index+pointer_sep
-            # add old separators' bottom
-            list_separators_older.append(old_separators.iloc[:1].append(old_separators.iloc[-1:]))
-        # merge separators
-        new_older_separators = merge_separators_list(list_bussines_days, data, list_separators_older, minThresDay)
-        # save new separators
-        if old_separators.shape[0]>0:
-            # if separators exist, remove new older bottom sep and old newer lit sep
-            separators = new_older_separators.iloc[:-1].append(old_separators.iloc[1:])
-        else:
-            separators = new_older_separators
-        # save saparators to file
-        separators.to_csv(directory_destination+separators_filename, index=True, index_label='Pointer')
+                group.attrs.create("dateStart", "", shape=(1,), dtype='S14')
+                group.attrs.create("dateEnd", "", shape=(1,), dtype='S14')
+                
+                new_files_newer = files_list
+                new_files_older = []
+                
+        # get data sets in this asset group
+        DateTime = group["DateTime"]
+        SymbolBid = group["SymbolBid"]
+        SymbolAsk = group["SymbolAsk"]
         
-    # add new date start to attributes
-    group.attrs.modify("dateStart", first_date_s.encode('utf-8'))
-
-    ### newer new trade info ###
-    # init separators
-    if reset_file:
-        old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
-        old_separators.index.name = 'Pointer'
-    else:
-        # load old separators
-        if os.path.exists(directory_destination+separators_filename):
-            old_separators = pd.read_csv(directory_destination+separators_filename, index_col='Pointer')
-            
-        else:
+        init_idx, end_idx = get_fileidxs(new_files_newer, init_date, end_date, isgold=False)
+        
+        # init separators
+        separators_filename = separators_directory_name+thisAsset+'_separators.txt'
+        if reset_file:
             old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
             old_separators.index.name = 'Pointer'
-    
-    # init separators and add old separators' bottom
-    if old_separators.shape[0]>0:
-        list_separators_newer = [old_separators.iloc[:1].append(old_separators.iloc[-1:])]
-        # init separator pointer to file to last pointer plus one
-        pointer_sep = old_separators.index[-1]+1
-    else:
-        list_separators_newer = []
-        # init separator pointer to file to zero
-        pointer_sep = 0
-    # save init pointer separator for later saving
-    init_pointer_sep = pointer_sep
-    # init file index
-    file_newer_index = 0
-    # add new files that are newer
-    for file in new_files_newer[init_idx:end_idx+1]:
-        print("Copying "+file+" in HDF5 file")
-        # read file and save it in a pandas data frame
-        tradeInfo = tradeInfo.append(pd.read_csv(directory_origin+file), ignore_index=True)
-        if tradeInfo.shape[0]>0:
-            
-            # get separators if the source is not trusted
-            if not trusted_source:
-                # update index
-                file_newer_index += 1
-                # get eparators from latest info
-                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
-                                                       bidThresDay,bidThresNight,[])
-#                print(this_separators)
-                # reference index according to general pointer
-                this_separators.index = this_separators.index+pointer_sep
-                # update list
-                list_separators_newer.append(this_separators)
-            # resize data sets
-            size_dataset = DateTime.shape[0]
-            # resize DateTime
-            DateTime.resize((size_dataset+tradeInfo.shape[0],))
-            # build numpy helper vector
-            charar = np.chararray((tradeInfo.shape[0],),itemsize=19)
-            charar[:] = tradeInfo.DateTime.iloc[:]
-            # add new newer info at the end of the data set
-            DateTime[size_dataset:] = charar
-            # resize Symbolbid dataset
-            SymbolBid.resize((size_dataset+tradeInfo.shape[0],))
-            # add new newer info at the end of the data set
-            SymbolBid[size_dataset:] = tradeInfo.SymbolBid.iloc[:]
-            # resize SymbolAsk dataset
-            SymbolAsk.resize((size_dataset+tradeInfo.shape[0],))
-            # add new newer info at the end of the data set
-            SymbolAsk[size_dataset:] = tradeInfo.SymbolAsk.iloc[:]
-            # update pointer to file
-            pointer_sep += tradeInfo.shape[0]
-            
         else:
-            print("WARNING: Empty file. Skipped.")
-        # reset tradeInfo
+            # load old separators
+            if os.path.exists(directory_destination+separators_filename):
+                old_separators = pd.read_csv(directory_destination+separators_filename, index_col='Pointer')
+                
+            else:
+                old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
+                old_separators.index.name = 'Pointer'
+    
+        # init pandas data frame where files are added to
         tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
-    
-    # end of file in new_files_newer:
-    if len(new_files_newer[init_idx:end_idx+1])>0:
-        # build new separators if source is trustworthy
-        if trusted_source:
+        # init separators list
+        list_separators_older = []
+        # init temp hdf5 file
+        # create temporal file, its group and its datasets
+        if len(new_files_older)>0:
+            ft = h5py.File(directory_destination+'temp.hdf5','w')
+            group_temp = ft.create_group(thisAsset)
+            
+            group_temp.create_dataset("DateTime", (0,), maxshape=(None,),dtype='S19')
+            group_temp.create_dataset("SymbolBid", (0,), maxshape=(None,),dtype=float)
+            group_temp.create_dataset("SymbolAsk", (0,), maxshape=(None,),dtype=float)
+            
+            DateTime_temp = group_temp["DateTime"]
+            SymbolBid_temp = group_temp["SymbolBid"]
+            SymbolAsk_temp = group_temp["SymbolAsk"]
+            
+            # init separator pointer to file to zero
+            pointer_sep = 0
+            
+        # add new files that are older
+        for file in new_files_older:
+            print("Copying "+file+" in HDF5 file")
+            # read file and save it in a pandas data frame
+            tradeInfo = tradeInfo.append(pd.read_csv(directory_origin+file), ignore_index=True)
+            
+            if tradeInfo.shape[0]>0:
+                if not trusted_source:
+                    # extract separators
+                    this_separators = extractSeparators(tradeInfo,minThresDay,minThresNight,
+                                                           bidThresDay,bidThresNight,[])
+                    
+                    # reference index according to general pointer
+                    this_separators.index = this_separators.index+pointer_sep
+                    list_separators_older.append(this_separators)
+                # save data in a temp file
+                # resize data sets
+                size_dataset = DateTime_temp.shape[0]
+                # resize DateTime
+                DateTime_temp.resize((size_dataset+tradeInfo.shape[0],))
+                # build numpy helper vector
+                charar = np.chararray((tradeInfo.shape[0],),itemsize=19)
+                charar[:] = tradeInfo.DateTime.iloc[:]
+                # add new newer info at the end of the data set
+                DateTime_temp[size_dataset:] = charar
+                # resize Symbolbid dataset
+                SymbolBid_temp.resize((size_dataset+tradeInfo.shape[0],))
+                # add new newer info at the end of the data set
+                SymbolBid_temp[size_dataset:] = tradeInfo.SymbolBid.iloc[:]
+                # resize SymbolAsk dataset
+                SymbolAsk_temp.resize((size_dataset+tradeInfo.shape[0],))
+                # add new newer info at the end of the data set
+                SymbolAsk_temp[size_dataset:] = tradeInfo.SymbolAsk.iloc[:]
+                # update pointer to file
+                pointer_sep += tradeInfo.shape[0]
+            else:
+                print("WARNING: Empty file. Skipped.")
+            # reset tradeInfo
+            tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
+        # end of for file in new_files_older:
+        # Add temporal information to the hdf5 group and datasets
+        if len(new_files_older)>0:
+            # new sizes
+            size_dataset = DateTime.shape[0]
+            size_increase = DateTime_temp.shape[0]
+            # resize DateTime dataset
+            DateTime.resize((size_dataset+size_increase,))
+            # shift info to the end of the file
+            DateTime[-size_dataset:] = DateTime[:size_dataset]
+            # add new old info at the beginning of the data set
+            DateTime[:size_increase] = DateTime_temp
+            # resize SymbolBid dataset
+            SymbolBid.resize((size_dataset+size_increase,))
+            # shift info to the end of the file
+            SymbolBid[-size_dataset:] = SymbolBid[:size_dataset]
+            # add new old info at the beginning of the data set
+            SymbolBid[:size_increase] = SymbolBid_temp
+            # resize SymbolAsk dataset
+            SymbolAsk.resize((size_dataset+size_increase,))
+            # shift info to the end of the file
+            SymbolAsk[-size_dataset:] = SymbolAsk[:size_dataset]
+            # add new old info at the beginning of the data set
+            SymbolAsk[:size_increase] = SymbolAsk_temp
+            # close temporal file
+            ft.close()
+            # build new separators if source is trustworthy
             # update starting date attribute
-            new_separators_newer = pd.DataFrame()
-            # read fist new file
-            tradeInfo = pd.read_csv(directory_origin+new_files_newer[init_idx])
-            # add first entry as lit
-            new_separators_newer = new_separators_newer.append(tradeInfo.iloc[0])
-            # read last new file
-            tradeInfo = pd.read_csv(directory_origin+new_files_newer[end_idx])
-            # add last entry as bottom
-            new_separators_newer = new_separators_newer.append(tradeInfo.iloc[-1])
-            # update the index pointer
-            new_separators_newer.index = [init_pointer_sep,pointer_sep]
-            # build separators list
-            list_separators_newer.append(new_separators_newer)
-        # merge separators
-        new_newer_separators = merge_separators_list(list_bussines_days, data, list_separators_newer, minThresDay)
-        # save new separators
-        if old_separators.shape[0]>0:
-            separators = old_separators.iloc[:-1].append(new_newer_separators.iloc[1:])
+            if trusted_source:
+                new_separators_older = pd.DataFrame()
+                # read fist new file
+                tradeInfo = pd.read_csv(directory_origin+new_files_older[0])
+                # add first entry as lit
+                new_separators_older = new_separators_older.append(tradeInfo.iloc[0])
+                # read last new file
+                tradeInfo = pd.read_csv(directory_origin+new_files_older[-1])
+                # add last entry as bottom
+                new_separators_older = new_separators_older.append(tradeInfo.iloc[-1])
+                # update separators list
+                list_separators_older.append(new_separators_older)
+            # add old separators' bottom and update indexes
+            if old_separators.shape[0]>0:
+                # update indexes
+                old_separators.index = old_separators.index+pointer_sep
+                # add old separators' bottom
+                list_separators_older.append(old_separators.iloc[:1].append(old_separators.iloc[-1:]))
+            # merge separators
+            new_older_separators = merge_separators_list(list_bussines_days, list_separators_older, minThresDay)
+            # save new separators
+            if old_separators.shape[0]>0:
+                # if separators exist, remove new older bottom sep and old newer lit sep
+                separators = new_older_separators.iloc[:-1].append(old_separators.iloc[1:])
+            else:
+                separators = new_older_separators
+            # save saparators to file
+            separators.to_csv(directory_destination+separators_filename, index=True, index_label='Pointer')
+            
+        # add new date start to attributes
+        group.attrs.modify("dateStart", first_date_s.encode('utf-8'))
+    
+        ### newer new trade info ###
+        # init separators
+        if reset_file:
+            old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
+            old_separators.index.name = 'Pointer'
         else:
-            separators = new_newer_separators
-        # save saparators to file
-        separators.to_csv(directory_destination+separators_filename, index=True, index_label='Pointer')
-    # update ending date attribute
-    group.attrs.modify("dateEnd", last_date_s.encode('utf-8'))
-    # flush info to disk
-    f.flush()
-# remove and close
-if os.path.exists(directory_destination+'temp.hdf5'):
-    os.remove(directory_destination+'temp.hdf5')
-f.close()
-if build_partial_raw:
-    os.remove(directory_destination+hdf5_file_name)
-    print("Raw file "+directory_destination+hdf5_file_name+" deleted")
+            # load old separators
+            if os.path.exists(directory_destination+separators_filename):
+                old_separators = pd.read_csv(directory_destination+separators_filename, index_col='Pointer')
+                
+            else:
+                old_separators = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
+                old_separators.index.name = 'Pointer'
+        
+        # init separators and add old separators' bottom
+        if old_separators.shape[0]>0:
+            list_separators_newer = [old_separators.iloc[:1].append(old_separators.iloc[-1:])]
+            # init separator pointer to file to last pointer plus one
+            pointer_sep = old_separators.index[-1]+1
+        else:
+            list_separators_newer = []
+            # init separator pointer to file to zero
+            pointer_sep = 0
+        # save init pointer separator for later saving
+        init_pointer_sep = pointer_sep
+        # init file index
+        file_newer_index = 0
+        # add new files that are newer
+        for file in new_files_newer[init_idx:end_idx+1]:
+            print("Copying "+file+" in HDF5 file")
+            # read file and save it in a pandas data frame
+            tradeInfo = tradeInfo.append(pd.read_csv(directory_origin+file), ignore_index=True)
+            if tradeInfo.shape[0]>0:
+                
+                # get separators if the source is not trusted
+                if not trusted_source:
+                    # update index
+                    file_newer_index += 1
+                    # get eparators from latest info
+                    this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
+                                                           bidThresDay,bidThresNight,[])
+    #                print(this_separators)
+                    # reference index according to general pointer
+                    this_separators.index = this_separators.index+pointer_sep
+                    # update list
+                    list_separators_newer.append(this_separators)
+                # resize data sets
+                size_dataset = DateTime.shape[0]
+                # resize DateTime
+                DateTime.resize((size_dataset+tradeInfo.shape[0],))
+                # build numpy helper vector
+                charar = np.chararray((tradeInfo.shape[0],),itemsize=19)
+                charar[:] = tradeInfo.DateTime.iloc[:]
+                # add new newer info at the end of the data set
+                DateTime[size_dataset:] = charar
+                # resize Symbolbid dataset
+                SymbolBid.resize((size_dataset+tradeInfo.shape[0],))
+                # add new newer info at the end of the data set
+                SymbolBid[size_dataset:] = tradeInfo.SymbolBid.iloc[:]
+                # resize SymbolAsk dataset
+                SymbolAsk.resize((size_dataset+tradeInfo.shape[0],))
+                # add new newer info at the end of the data set
+                SymbolAsk[size_dataset:] = tradeInfo.SymbolAsk.iloc[:]
+                # update pointer to file
+                pointer_sep += tradeInfo.shape[0]
+                
+            else:
+                print("WARNING: Empty file. Skipped.")
+            # reset tradeInfo
+            tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
+        
+        # end of file in new_files_newer:
+        if len(new_files_newer[init_idx:end_idx+1])>0:
+            # build new separators if source is trustworthy
+            if trusted_source:
+                # update starting date attribute
+                new_separators_newer = pd.DataFrame()
+                # read fist new file
+                tradeInfo = pd.read_csv(directory_origin+new_files_newer[init_idx])
+                # add first entry as lit
+                new_separators_newer = new_separators_newer.append(tradeInfo.iloc[0])
+                # read last new file
+                tradeInfo = pd.read_csv(directory_origin+new_files_newer[end_idx])
+                # add last entry as bottom
+                new_separators_newer = new_separators_newer.append(tradeInfo.iloc[-1])
+                # update the index pointer
+                new_separators_newer.index = [init_pointer_sep,pointer_sep]
+                # build separators list
+                list_separators_newer.append(new_separators_newer)
+            # merge separators
+            new_newer_separators = merge_separators_list(list_bussines_days, list_separators_newer, minThresDay)
+            # save new separators
+            if old_separators.shape[0]>0:
+                separators = old_separators.iloc[:-1].append(new_newer_separators.iloc[1:])
+            else:
+                separators = new_newer_separators
+            # save saparators to file
+            separators.to_csv(directory_destination+separators_filename, index=True, index_label='Pointer')
+        # update ending date attribute
+        group.attrs.modify("dateEnd", last_date_s.encode('utf-8'))
+        # flush info to disk
+        f.flush()
+    # remove and close
+    if os.path.exists(directory_destination+'temp.hdf5'):
+        os.remove(directory_destination+'temp.hdf5')
+    f.close()
+    if build_partial_raw:
+        os.remove(directory_destination+hdf5_file_name)
+        print("Raw file "+directory_destination+hdf5_file_name+" deleted")
