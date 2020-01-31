@@ -3689,7 +3689,7 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets= [7]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+running_assets= [1,2,3,7]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
@@ -3701,7 +3701,6 @@ api = API()
 #     print(send_info_api)
 
 if __name__=='__main__':
-    logger = None
     # lauch
     if send_info_api:
         api.post_token()
@@ -3716,4 +3715,4 @@ if __name__=='__main__':
         # Controlling and message passing to releave traders of these tasks
         
         from kaissandra.prod.control import control
-        control(running_assets, queues=queues, send_info_api=send_info_api, token_header=api.build_token_header(), logger=logger)
+        control(running_assets, queues=queues, send_info_api=send_info_api, token_header=api.build_token_header())

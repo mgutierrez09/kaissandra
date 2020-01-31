@@ -11,9 +11,29 @@ import os
 import time
 import datetime as dt
 import sys
-from multiprocessing import Process
+import logging
+import logging.handlers
+from multiprocessing import Process, Queue
+from kaissandra.log import config_logger_online, worker_configurer_online
+from kaissandra.config import Config
+from kaissandra.local_config import local_vars
+import kaissandra.prod.communication as ct
 
-def control(running_assets, timeout=15, queues=[], send_info_api=False, token_header=None, logger=None):
+def listener_process(queue, configurer):
+    configurer()
+    while True:
+        try:
+            record = queue.get()
+            if record is None:  # We send this as a sentinel to tell the listener to quit.
+                break
+            logger = logging.getLogger(record.name)
+            logger.handle(record)  # No level or filter logic applied - just do it!
+        except Exception:
+            import sys, traceback
+            print('Whoops! Problem:', file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
+def control(running_assets, timeout=15, queues=[], send_info_api=False, token_header=None):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
@@ -31,12 +51,19 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
     list_last_file = [sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/"))[-1] \
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
                       else '' for ass_id in running_assets]
+    
+    # crate log queue and lauch it in a separate process
+    log_queue = Queue(-1)
+    listener = Process(target=listener_process, args=(log_queue, config_logger_online))
+    listener.start()
+    
     # launch queue listeners as independent processes
-    kwargs = {'send_info_api':send_info_api, 'token_header':token_header, 'logger':logger}
-    for queue in queues:
-        disp = Process(target=listen_trader_connection, args=[queue], kwargs=kwargs)
+    kwargs = {'send_info_api':send_info_api, 'token_header':token_header}
+    for q, queue in enumerate(queues):
+        disp = Process(target=listen_trader_connection, args=[queue, log_queue, worker_configurer_online, running_assets[q]], kwargs=kwargs)
         disp.start()
-        
+    
+    # monitor connections
     watchdog_counter = 0
     while 1:
         # control connection
@@ -64,8 +91,11 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
             # wake up server
             watchdog_counter = 0
             
-def listen_trader_connection(queue, send_info_api=False, token_header=None, logger=None):
+def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api=False, token_header=None):
     """ Local connection with trader through a queue """
+    
+    configurer(log_queue)
+    name = Config.AllAssets[str(ass_id)]
     print("Reading queue")
     assets_opened = {}
     while 1:
@@ -75,19 +105,18 @@ def listen_trader_connection(queue, send_info_api=False, token_header=None, logg
             
             # send log to server
             if send_info_api and info['FUNC'] == 'LOG':
-                if not logger:
-                    print(info['MSG'])
-                else:
-                    logger.logger.info(info['MSG'])
+                
+                print(info['MSG'])
+                logger = logging.getLogger(name)
+                #level = logging.INFO
+                message = info['MSG']
+                logger.info(message)
                 if info['ORIGIN'] == 'NET':
                     ct.send_network_log(info['MSG'], token_header)
                 elif info['ORIGIN'] == 'TRADE':
                     ct.send_trader_log(info['MSG'], token_header)
                 else:
-                    if not logger:
-                        print(info["ORIGIN"])
-                    else:
-                        logger.logger.info(info['ORIGIN'])
+                    print(info["ORIGIN"])
                     raise ValueError("ORIGIN unknow")
             elif send_info_api and info['FUNC'] == 'POS':
                 params = info['PARAMS']
@@ -166,11 +195,6 @@ if __name__=='__main__':
                 
     print("Timeout={0} mins".format(timeout))
     
-
-from kaissandra.config import Config
-from kaissandra.local_config import local_vars
-import kaissandra.prod.communication as ct
-#from kaissandra.prod.config import Config as CC
 
 if __name__=='__main__':
     control([1,2], timeout=timeout)#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]

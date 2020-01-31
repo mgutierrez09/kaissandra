@@ -10,38 +10,22 @@ import logging
 import logging.handlers
 from kaissandra.local_config import local_vars as LV
 
-class Logger():
+def config_logger_online(directory=LV.log_directory, filename='live.log', mode='a', 
+                         maxBytes=1000000, backupCount=10, level=logging.INFO):
+    root = logging.getLogger()
+    root.setLevel(level)
+    h = logging.handlers.RotatingFileHandler(directory+filename, mode, 
+                                             maxBytes=maxBytes, backupCount=backupCount)
+    # '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    #'%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s' 
+    f = logging.Formatter('%(asctime)s %(processName)-10s %(name)s %(levelname)-8s %(message)s' )
+    h.setFormatter(f)
+    root.addHandler(h)
+    root.info("\n\nNew online session launched")
     
-    def __init__(self, name='logger', filename='kaissandra.log', directory=LV.log_directory):
-        """  """
-        # create directory if does not exist
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        # create loggers
-        logger = logging.getLogger(name)
-        
-        # create console handler and set level to debug
-        fl = logging.handlers.RotatingFileHandler(directory+filename, maxBytes=10240,
-                                              backupCount=10)
-        fl.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        
-        # create formatter
-        formatter = logging.Formatter('%(asctime)s %(name)s: %(levelname)s - %(message)s')#'%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-        
-        
-        # add formatter to ch
-        fl.setFormatter(formatter)
-        ch.setFormatter(formatter)
-        
-        # add ch to logger
-        logger.addHandler(fl)
-        logger.addHandler(ch)
-        
-        self.logger = logger
-
-if __name__=='__main__':
-        
-    logger = Logger()
-    logger.logger.info('this is some info')
+def worker_configurer_online(queue):
+    h = logging.handlers.QueueHandler(queue)  # Just the one handler needed
+    root = logging.getLogger()
+    root.addHandler(h)
+    # send all messages, for demo; no other level or filter logic applied.
+    root.setLevel(logging.INFO)
