@@ -8,8 +8,11 @@ if __name__=='__main__':
         sys.path.insert(0, path)
         #sys.path.append(path)
         print(path+" added to python path")
+        
     else:
         print(path+" already added to python path")
+        
+    
     
     if 'build' in sys.argv:
         import datetime as dt
@@ -83,6 +86,8 @@ if __name__=='__main__':
             print(local_config_filepath+" created")
         else:
             print(local_config_filepath+" already exists")
+            
+    
 #setup(
 #    name="kaissandra",
 #    version="0.0",

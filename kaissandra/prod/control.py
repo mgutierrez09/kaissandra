@@ -13,7 +13,7 @@ import datetime as dt
 import sys
 from multiprocessing import Process
 
-def control(running_assets, timeout=15, queues=[], send_info_api=False, token_header=None):
+def control(running_assets, timeout=15, queues=[], send_info_api=False, token_header=None, logger=None):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
@@ -32,7 +32,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
                       else '' for ass_id in running_assets]
     # launch queue listeners as independent processes
-    kwargs = {'send_info_api':send_info_api, 'token_header':token_header}
+    kwargs = {'send_info_api':send_info_api, 'token_header':token_header, 'logger':logger}
     for queue in queues:
         disp = Process(target=listen_trader_connection, args=[queue], kwargs=kwargs)
         disp.start()
@@ -64,7 +64,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
             # wake up server
             watchdog_counter = 0
             
-def listen_trader_connection(queue, send_info_api=False, token_header=None):
+def listen_trader_connection(queue, send_info_api=False, token_header=None, logger=None):
     """ Local connection with trader through a queue """
     print("Reading queue")
     assets_opened = {}
@@ -75,13 +75,19 @@ def listen_trader_connection(queue, send_info_api=False, token_header=None):
             
             # send log to server
             if send_info_api and info['FUNC'] == 'LOG':
-                print(info['MSG'])
+                if not logger:
+                    print(info['MSG'])
+                else:
+                    logger.logger.info(info['MSG'])
                 if info['ORIGIN'] == 'NET':
                     ct.send_network_log(info['MSG'], token_header)
                 elif info['ORIGIN'] == 'TRADE':
                     ct.send_trader_log(info['MSG'], token_header)
                 else:
-                    print(info["ORIGIN"])
+                    if not logger:
+                        print(info["ORIGIN"])
+                    else:
+                        logger.logger.info(info['ORIGIN'])
                     raise ValueError("ORIGIN unknow")
             elif send_info_api and info['FUNC'] == 'POS':
                 params = info['PARAMS']
