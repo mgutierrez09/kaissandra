@@ -322,8 +322,8 @@ class Trader:
         self.list_last_ask = []
         self.list_sl_thr_vector = []
         self.list_EM = []
-        self.list_banned_counter = np.zeros((len(data.assets)))-1
-        self.list_is_asset_banned = [False for _ in data.assets]
+        self.list_banned_counter = np.zeros((len(assets)))-1
+        self.list_is_asset_banned = [False for _ in assets]
         
         self.next_candidate = next_candidate
         self.journal_idx = 0

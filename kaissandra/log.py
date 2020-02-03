@@ -11,7 +11,7 @@ import logging.handlers
 from kaissandra.local_config import local_vars as LV
 
 def config_logger_online(directory=LV.log_directory, filename='live.log', mode='a', 
-                         maxBytes=1000000, backupCount=10, level=logging.INFO):
+                         maxBytes=100000, backupCount=10, level=logging.INFO):
     root = logging.getLogger()
     root.setLevel(level)
     h = logging.handlers.RotatingFileHandler(directory+filename, mode, 
