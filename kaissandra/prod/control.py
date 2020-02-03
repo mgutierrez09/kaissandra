@@ -52,6 +52,8 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
                       else '' for ass_id in running_assets]
     
+    list_num_files = [{'max':0,'curr':0} for i in running_assets]
+    
     # crate log queue and lauch it in a separate process
     log_queue = Queue(-1)
     listener = Process(target=listener_process, args=(log_queue, config_logger_online))
@@ -67,11 +69,11 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
     watchdog_counter = 0
     while 1:
         # control connection
-        list_last_file, timeouts, reset = control_broker_connection(AllAssets, running_assets, 
+        list_last_file, list_num_files = timeouts, reset = control_broker_connection(AllAssets, running_assets, 
                                                       timeout, directory_io,
                                                       reset_command, directory_MT5, 
-                                                      list_last_file, timeouts, 
-                                                      reset)
+                                                      list_last_file, list_num_files, timeouts, 
+                                                      reset, log_queue)
         # loop over assets
 #        for ass_idx, ass_id in enumerate(running_assets):
 #            # check for new log info to send
@@ -140,7 +142,8 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
         
     
 def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
-                           reset_command, directory_MT5, list_last_file, timeouts, reset):
+                           reset_command, directory_MT5, list_last_file, list_num_files, 
+                           timeouts, reset, log_queue):
     """ Controls the connection and arrival of new info from trader and 
     sends reset command in case connection is lost """
     for ass_idx, ass_id in enumerate(running_assets):
@@ -148,6 +151,9 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
         directory_MT5_IO_ass = directory_MT5+thisAsset+"/"
         directory_io_ass = directory_io+thisAsset+"/"
         listAllFiles = sorted(os.listdir(directory_MT5_IO_ass))
+        # track max delay in ticks processing
+        max_num = max(list_num_files[ass_idx]['max'], len(listAllFiles))
+        list_num_files[ass_idx] = {'max':max_num,'curr':len(listAllFiles)}
         # avoid error in case listAllFiles is empty and replace with empty
         # string if so
         if len(listAllFiles)>0:
@@ -170,7 +176,7 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
         # Reset networks
         reset = True
         ct.send_command(directory_io_ass, reset_command)
-    return list_last_file, timeouts, reset
+    return list_last_file, list_num_files, timeouts, reset
             
 if __name__=='__main__':
     # add kaissandra to path
