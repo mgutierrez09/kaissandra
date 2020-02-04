@@ -1241,7 +1241,7 @@ if __name__ == '__main__':
             entry_ask_column = 'A1'
             exit_ask_column = 'A2'
             exit_bid_column = 'B2'
-            root_dir = local_vars.data_dir##'D:/SDC/py/Data/'
+            root_dir = local_vars.data_dir_py##'D:/SDC/py/Data/'
             
             list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                                  list_journal_name[i], 
@@ -1288,7 +1288,7 @@ if __name__ == '__main__':
         entry_ask_column = 'Ai'
         exit_ask_column = 'Ao'
         exit_bid_column = 'Bo'
-        root_dir = 'D:/SDC/py/Data_DL3/'#'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data_DL3/'
+        root_dir = 'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data_DL3/'
         list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
                                              list_journal_name[i], 
                                              sep='\t').sort_values(by=[
@@ -1385,8 +1385,6 @@ if __name__ == '__main__':
         print(out)
         trader.write_log(out)
         trader.write_summary(out)
-        
-        load_in_RAM = True
         
         DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = load_in_memory(assets, 
                                                                             C.AllAssets,
