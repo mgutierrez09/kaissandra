@@ -8,7 +8,7 @@ import os
 
 class Config(object):
     """ Configuration object providing necessary fields to connect with server """
-    URL = os.environ.get('URL') or 'https://kaissandra-webapp.herokuapp.com/api/'##'https://localhost:5000/api/'#or #os.environ.get('URL') 
+    URL = os.environ.get('URL') or 'https://kaissandra-webapp.herokuapp.com/api/'##'http://localhost:5000/api/'#or #os.environ.get('URL') 
     USERNAME = os.environ.get('USER') or 'kaissandra'
     PASSWORD = os.environ.get('PASSWORD') or "kaissandra"
     TRADERNAME = os.environ.get('TRADERNAME') or 'farnamstreet'
