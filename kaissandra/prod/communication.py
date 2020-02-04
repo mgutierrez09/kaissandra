@@ -79,7 +79,23 @@ def check_params():
             pass
             #print("Asset not running")
     print("Params checked")
-    
+    # retrieve previous event if asynch
+#    try:
+#        
+#        url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/get_params'
+#        
+#        response = requests.get(CC.URL+url_ext, headers=token, verify=True)
+#        #print("Status code: "+str(response.status_code))
+#        if response.status_code == 200:
+#            #print(response.json())
+#            #self.positions_json_list.append(response.json()['params'])#[0]
+#            return True
+#        else:
+#            return False
+#    
+#    except:
+#        print("WARNING! Error when enquiring parameters. Skiiped")
+#        return False
 
 
 def resume():
