@@ -1061,7 +1061,7 @@ def wilder_smoothing_2(prev, curr, period):
 #        print("\tAll features already calculated. Skipped.")
 #    return feature_keys, Symbol
 
-def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shift):
+def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shift, thisAsset):
     """
     Function that calculates features from raw data in per batches
     Args:
@@ -1219,6 +1219,84 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                     if n_parsars>0:
                         parSARhigh = np.zeros((m_i, n_parsars))
                         parSARlow = np.zeros((m_i, n_parsars))
+                    boolMean = C.FI['mean'] in feature_keys
+                    if boolMean:
+                        mean = np.zeros((m_i))
+                    boolMedian = C.FI['median'] in feature_keys
+                    if boolMedian:
+                        median = np.zeros((m_i))
+                    boolEUR = C.FI['EUR'] in feature_keys
+                    if boolEUR:
+                        m=re.search('EUR',thisAsset)
+                        if m and m.span()==(0,3):
+                            EUR = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            EUR = -1+np.zeros((m_i))
+                        else:
+                            EUR = np.zeros((m_i))
+                    boolGBP = C.FI['GBP'] in feature_keys
+                    if boolGBP:
+                        m=re.search('GBP',thisAsset)
+                        if m and m.span()==(0,3):
+                            GBP = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            GBP = -1+np.zeros((m_i))
+                        else:
+                            GBP = np.zeros((m_i))
+                    boolUSD = C.FI['USD'] in feature_keys
+                    if boolUSD:
+                        m=re.search('USD',thisAsset)
+                        if m and m.span()==(0,3):
+                            USD = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            USD = -1+np.zeros((m_i))
+                        else:
+                            USD = np.zeros((m_i))
+                    boolCHF = C.FI['CHF'] in feature_keys
+                    if boolCHF:
+                        m=re.search('CHF',thisAsset)
+                        if m and m.span()==(0,3):
+                            CHF = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            CHF = -1+np.zeros((m_i))
+                        else:
+                            CHF = np.zeros((m_i))
+                    boolJPY = C.FI['JPY'] in feature_keys
+                    if boolJPY:
+                        m=re.search('JPY',thisAsset)
+                        if m and m.span()==(0,3):
+                            JPY = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            JPY = -1+np.zeros((m_i))
+                        else:
+                            JPY = np.zeros((m_i))
+                    boolAUD = C.FI['AUD'] in feature_keys
+                    if boolAUD:
+                        m=re.search('AUD',thisAsset)
+                        if m and m.span()==(0,3):
+                            AUD = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            AUD = -1+np.zeros((m_i))
+                        else:
+                            AUD = np.zeros((m_i))
+                    boolCAD = C.FI['CAD'] in feature_keys
+                    if boolCAD:
+                        m=re.search('CAD',thisAsset)
+                        if m and m.span()==(0,3):
+                            CAD = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            CAD = -1+np.zeros((m_i))
+                        else:
+                            CAD = np.zeros((m_i))
+                    boolNZD = C.FI['NZD'] in feature_keys
+                    if boolNZD:
+                        m=re.search('NZD',thisAsset)
+                        if m and m.span()==(0,3):
+                            NZD = 1+np.zeros((m_i))
+                        elif m and m.span()==(3,6):
+                            NZD = -1+np.zeros((m_i))
+                        else:
+                            NZD = np.zeros((m_i))
                     if n_stos>0:
                         STO = np.zeros((m_i, n_stos))
                     if n_rsis>0:
@@ -1288,6 +1366,12 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                             parSARlow[mm,:] = outsar[1]
                             sar = outsar[2]
                             
+                        if boolMean:
+                            mean[mm] = np.mean(thisPeriodBids)
+                        if boolMedian:
+                            median[mm] = np.median(thisPeriodBids)
+                        
+                            
                         for st in range(n_stos):
                             sto_struct_list[st] = update_sto(sto_struct_list[st], 
                                            Symbol[thisPeriod[-1]], np.max(thisPeriodBids), 
@@ -1337,7 +1421,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                     l_index = startIndex+mW
                     #print(l_index)
                     toc = time.time()
-                    print("\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
+                    print("\r\t\tmm="+str(b*batch_size+mm+1)+" of "+str(m)+". Total time: "+str(np.floor(toc-tic))+"s")
                     # update features vector
                     init_idx = b*batch_size
                     end_idx = b*batch_size+m_i
@@ -1364,6 +1448,38 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                     if boolVolume:
                         nF = feature_keys.index(C.FI['volume'])
                         features[nF][init_idx:end_idx, 0] = volume
+                    if boolMean:
+                        nF = feature_keys.index(C.FI['mean'])
+                        features[nF][init_idx:end_idx, 0] = mean
+                    if boolMedian:
+                        nF = feature_keys.index(C.FI['median'])
+                        features[nF][init_idx:end_idx, 0] = median
+                        
+                    if boolEUR:
+                        nF = feature_keys.index(C.FI['EUR'])
+                        features[nF][init_idx:end_idx, 0] = EUR
+                    if boolGBP:
+                        nF = feature_keys.index(C.FI['GBP'])
+                        features[nF][init_idx:end_idx, 0] = GBP
+                    if boolUSD:
+                        nF = feature_keys.index(C.FI['USD'])
+                        features[nF][init_idx:end_idx, 0] = USD
+                    if boolJPY:
+                        nF = feature_keys.index(C.FI['JPY'])
+                        features[nF][init_idx:end_idx, 0] = JPY
+                    if boolCHF:
+                        nF = feature_keys.index(C.FI['CHF'])
+                        features[nF][init_idx:end_idx, 0] = CHF
+                    if boolAUD:
+                        nF = feature_keys.index(C.FI['AUD'])
+                        features[nF][init_idx:end_idx, 0] = AUD
+                    if boolCAD:
+                        nF = feature_keys.index(C.FI['CAD'])
+                        features[nF][init_idx:end_idx, 0] = CAD
+                    if boolNZD:
+                        nF = feature_keys.index(C.FI['NZD'])
+                        features[nF][init_idx:end_idx, 0] = NZD
+                        
                     
                     for e in range(n_parsars):
                         if C.FI['parSARhigh'+C.sar_ext[idxSars[e]]] in feature_keys:
@@ -1417,6 +1533,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
                         if C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]] in feature_keys:
                             nF = feature_keys.index(C.FI['difSymbolOema'+C.emas_ext[idxEmas[e]]])
                             features[nF][init_idx:end_idx, 0] = symbol/EMA[:,e]
+                    
                     
                     for idx, feat in enumerate(feature_key_tsfresh):
                         feat_name = C.PF[feat][0]
@@ -1567,7 +1684,8 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
                 # get structures and save them in a hdf5 file
                 feature_keys_to_calc, Symbol = get_features_modular_parallel(config, groupdirname,
                                          DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
-                                         Symbols[separators.index[s]+shift:separators.index[s+1]+1], m_in, shift)#
+                                         Symbols[separators.index[s]+shift:separators.index[s+1]+1], 
+                                         m_in, shift, thisAsset)#
                 get_returns_modular(config, groupoutdirname, separators.index[s],
                                         DateTime[separators.index[s]+shift:separators.index[s+1]+1], 
                                         SymbolBid[separators.index[s]+shift:separators.index[s+1]+1],
@@ -1584,7 +1702,7 @@ def wrapper_get_features_modular(config, thisAsset, separators, assdirname, outa
 def wrapper_wrapper_get_features_modular(config_entry, assets=[], seps_input=[], get_feats=True, from_py=False):
     """  """
     import time
-    from kaissandra.inputs import load_separators
+    from kaissandra.preprocessing import load_separators
     
     
     ticTotal = time.time()
@@ -2612,7 +2730,7 @@ if __name__=='__main__':
     nEventsPerStat = 10000
     build_test_db = False
     save_stats = True
-    feature_keys = [i for i in range(37)]+[i for i in range(2000,2019)]#
+    feature_keys = [i for i in range(37)]#+[i for i in range(2000,2019)]#
     config_name = 'CFEATS1000MAN2014'
     entries = {'config_name':config_name,
                'feats_from_bids':feats_from_bids,'movingWindow':movingWindow,
@@ -2622,13 +2740,13 @@ if __name__=='__main__':
     config=configuration(entries)
 
     assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-    list_feats_from_bids = [True]
+    list_feats_from_bids = [False, True]
     list_asset_relation = ['direct','inverse']
     for feats_from_bids in list_feats_from_bids:
         config['feats_from_bids'] = feats_from_bids
         for asset_relation in list_asset_relation:
             config['asset_relation'] = asset_relation
-            wrapper_wrapper_get_features_modular(config, from_py=True, assets=assets)
+            wrapper_wrapper_get_features_modular(config, from_py=False, assets=assets)
 #    feats_from_bids = False
 #    movingWindow = 500
 #    nEventsPerStat = 5000

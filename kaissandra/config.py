@@ -137,7 +137,17 @@ class Config():
           "difSymbolOema50":35,
           "difSymbolOema100":36,
           "volume":37,
-          'assetIdx':38,
+          "mean":38,
+          "median":39,
+          # canonical inputs
+          "EUR":40,
+          "GBP":41,
+          "USD":42,
+          "JPY":43,
+          "CHF":44,
+          "AUD":45,
+          "CAD":46,
+          "NZD":47,
           # TSFRESH
           "quantile0.3":137,
           "quantile0.4":138,
@@ -151,11 +161,11 @@ class Config():
           "fft_coefficient0real":146,
           #"fft_coefficient0abs":47,
           "sum_values":147,
-          "median":148,
+          "median_":148,
           "c3_3":149,
           "c3_2":150,
           "c3_1":151,
-          "mean":152,
+          "mean_":152,
           "abs_energy":153,
           "linear_trend":154,
           "agg_min50inter":155,
@@ -227,7 +237,17 @@ class Config():
           FI["difSymbolOema50"]:["difSymbolOema50"],
           FI["difSymbolOema100"]:["difSymbolOema100"],
           FI["volume"]:["volume"],
-          
+          FI["mean"]:["mean"],
+          FI["median"]:["median"],
+          # Canonical features
+          FI["EUR"]:["EUR"],
+          FI["GBP"]:["GBP"],
+          FI["USD"]:["USD"],
+          FI["JPY"]:["JPY"],
+          FI["CHF"]:["CHF"],
+          FI["AUD"]:["AUD"],
+          FI["NZD"]:["NZD"],
+          # automate features
           FI["quantile0.3"]:["quantile0.3","quantile",0.3],
           FI["quantile0.4"]:["quantile0.4","quantile",0.4],
           FI["quantile0.2"]:["quantile0.2","quantile",0.2],
@@ -294,8 +314,6 @@ class Config():
     
     std_var = 0.1
     std_time = 0.1
-    
-    num_assets_normalizer = 100
     
     non_var_features = [8,9,12,17,18,21,23,24,25,26,27,28,29]
 
