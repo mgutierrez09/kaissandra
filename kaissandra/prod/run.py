@@ -872,7 +872,7 @@ class Trader:
     
     def close_position(self, date_time, ass, idx, results,
                        lot_ratio=None, partial_close=False, from_sl=0, 
-                       DTi_real=''):
+                       DTi_real='', groiist=None, roiist=None):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -976,15 +976,18 @@ class Trader:
             balance, leverage, equity, profits = self.get_account_status()
             if verbose_trader:
                 out = date_time+" "+ass+" equity "+str(equity)+" Balance "+str(balance)+\
-                    " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
+                    " Budget "+str(self.budget)+" budget difference: "+str(equity-self.budget)
                 self.write_log(out)
                 print("\r"+out)
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
             self.budget = balance
-        if send_info_api and verbose_trader:
+        if send_info_api:
+            if not groiist:
+                groiist = 100*GROI_live
+                roiist = 100*ROI_live
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
                                     100*GROI_live, 100*ROI_live, nett_win, 
-                                    pos_filename, dirfilename)
+                                    pos_filename, dirfilename, groiist, roiist)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
@@ -1070,7 +1073,7 @@ class Trader:
         #api.extend_position(thisAsset, params, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
-                           roisoll, returns, filename, dirfilename):
+                           roisoll, returns, filename, dirfilename, groiist, roiist):
         """ Send command to API for position closing """
         params = {'dtosoll':DateTime,
                   'bo':bid,
@@ -1078,6 +1081,8 @@ class Trader:
                   'spread':spread,
                   'groisoll':groisoll,
                   'roisoll':roisoll,
+                  'groiist':groiist,
+                  'roiist':roiist,
                   'returns':returns,
                   'filename':filename
                 }
@@ -2610,7 +2615,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
                 
                 
-            # i stoploss
+            # close position
             if flag_cl:
                 # update postiions vector
                 info_split = info_close.split(",")
@@ -2621,7 +2626,9 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
                     
-                trader.close_position(info_split[2], thisAsset, ass_id, results, DTi_real=info_split[1])
+                trader.close_position(info_split[2], thisAsset, ass_id, results, 
+                                      DTi_real=info_split[1], groiist=info_split[9], 
+                                      roiist=info_split[11])
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
@@ -3448,7 +3455,7 @@ def run(config_traders_list, running_assets, start_time, test, queue):
                 write_log(out, trader.log_summary)
                 DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                     load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir='D:/SDC/py/Data_aws_200110/')
+                                   end_list_index, root_dir=LC.data_test_dir)
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
@@ -3651,7 +3658,7 @@ test = LC.TEST
 synchroned_run = LC.SYNCHED
 run_back_test = LC.BACK_TEST
 send_info_api = LC.API
-running_assets= LC.ASSETS#[1,2,3,4,7]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+running_assets= LC.ASSETS#
 config_names = [LC.CONFIG_FILE]
 
 # depricated
