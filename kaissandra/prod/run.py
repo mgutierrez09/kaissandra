@@ -3601,28 +3601,6 @@ def launch(synchroned_run=False, test=False):
         #time.sleep(30)
         print("All RNNs launched")
         return queues
-    
-    
-    
-
-verbose_RNN = True
-verbose_trader = True
-test = True
-synchroned_run = False
-run_back_test = True
-spread_ban = False
-ban_only_if_open = False # not in use
-force_no_extesion = False
-send_info_api = True
-modular = False
-
-# TODO: add it in parameters
-if not test:
-    n_samps_buffer = 250
-else:
-    n_samps_buffer = 5
-
-config_names = ['TN01010FS2NYREDOK2K52145314SRv5']
 
 if __name__=='__main__':
     import sys
@@ -3663,11 +3641,34 @@ from kaissandra.local_config import local_vars as LC
 #if send_info_api:
 from kaissandra.prod.api import API
 from kaissandra.config import Config as C
-
-    
 # runLive in multiple processes
 from multiprocessing import Process, Queue
 from kaissandra.config import retrieve_config
+
+verbose_RNN = LC.VERBOSE
+verbose_trader = LC.VERBOSE
+test = LC.TEST
+synchroned_run = LC.SYNCHED
+run_back_test = LC.BACK_TEST
+send_info_api = LC.API
+running_assets= LC.ASSETS#[1,2,3,4,7]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+config_names = [LC.CONFIG_FILE]
+
+# depricated
+spread_ban = False
+ban_only_if_open = False # not in use
+force_no_extesion = False
+
+modular = False
+
+
+
+# TODO: add it in parameters
+if not test:
+    n_samps_buffer = 250
+else:
+    n_samps_buffer = 5
+
 if not test:
     if len(config_names)>0:
         list_config_traders = [retrieve_config(config_name) for config_name in config_names]
@@ -3676,7 +3677,7 @@ if not test:
     #            #config_trader = retrieve_config(ins[0])
     #            list_config_traders.append(retrieve_config(config_name))
     else:
-        list_config_traders = [retrieve_config('TN01010FS2NYREDOK2K52145314SRv5')]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+        list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
 # override list configs if test is True
 else:
     list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
@@ -3689,7 +3690,7 @@ if run_back_test:
 else:
     sessiontype = 'live'
 
-running_assets= [1,2,3,7]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 

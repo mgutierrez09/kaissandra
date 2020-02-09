@@ -2034,7 +2034,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True,
                 print("stats_dir")
                 print(stats_dir)
                 list_stats_in[ind], list_stats_out[ind] = load_stats_modular(config, thisAsset, first_date, last_date, 'ask', ass_rel, stats_dir)#'ask'
-                ### WARNING! Stats extracted from ask regardless of symbol!
+                
             print("WARNING! Stats extracted from ask regardless of symbol!")
     #        stats_output = load_output_stats_modular(config, hdf5_directory+'stats/', 
     #                                            thisAsset, tag=tag_stats)

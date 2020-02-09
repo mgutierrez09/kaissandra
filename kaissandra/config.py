@@ -137,6 +137,7 @@ class Config():
           "difSymbolOema50":35,
           "difSymbolOema100":36,
           "volume":37,
+          'assetIdx':38,
           # TSFRESH
           "quantile0.3":137,
           "quantile0.4":138,
@@ -293,6 +294,8 @@ class Config():
     
     std_var = 0.1
     std_time = 0.1
+    
+    num_assets_normalizer = 100
     
     non_var_features = [8,9,12,17,18,21,23,24,25,26,27,28,29]
 
