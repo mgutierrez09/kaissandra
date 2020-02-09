@@ -246,6 +246,7 @@ class Config():
           FI["JPY"]:["JPY"],
           FI["CHF"]:["CHF"],
           FI["AUD"]:["AUD"],
+          FI["CAD"]:["CAD"],
           FI["NZD"]:["NZD"],
           # automate features
           FI["quantile0.3"]:["quantile0.3","quantile",0.3],
