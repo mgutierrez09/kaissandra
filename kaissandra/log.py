@@ -3,14 +3,15 @@
 Created on Fri Jan 31 13:52:56 2020
 
 @author: mgutierrez
+
+Kaissandra's module containing all functions and classes related to logging.
 """
 
-import os
 import logging
 import logging.handlers
 from kaissandra.local_config import local_vars as LV
 
-def config_logger_online(directory=LV.log_directory, filename='live.log', mode='a', 
+def config_logger_online(directory=LV.log_directory, filename='online.log', mode='a', 
                          maxBytes=1000000, backupCount=10, level=logging.INFO):
     root = logging.getLogger()
     root.setLevel(level)
