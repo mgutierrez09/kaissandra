@@ -872,7 +872,7 @@ class Trader:
     
     def close_position(self, date_time, ass, idx, results,
                        lot_ratio=None, partial_close=False, from_sl=0, 
-                       DTi_real=''):
+                       DTi_real='', groiist=None, roiist=None):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -981,10 +981,15 @@ class Trader:
                 print("\r"+out)
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
             self.budget = balance
-        if send_info_api and verbose_trader:
+        if send_info_api:
+            if not groiist:
+                groiist = 100*GROI_live
+                roiist = 100*ROI_live
+            if DTi_real=='':
+                DTi_real = date_time
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
                                     100*GROI_live, 100*ROI_live, nett_win, 
-                                    pos_filename, dirfilename)
+                                    pos_filename, dirfilename, DTi_real, groiist, roiist)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
@@ -1070,14 +1075,17 @@ class Trader:
         #api.extend_position(thisAsset, params, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
-                           roisoll, returns, filename, dirfilename):
+                           roisoll, returns, filename, dirfilename, dtiist, groiist, roiist):
         """ Send command to API for position closing """
         params = {'dtosoll':DateTime,
+                  'dtiist':dtiist,
                   'bo':bid,
                   'ao':ask,
                   'spread':spread,
                   'groisoll':groisoll,
                   'roisoll':roisoll,
+                  'groiist':groiist,
+                  'roiist':roiist,
                   'returns':returns,
                   'filename':filename
                 }
@@ -1616,7 +1624,7 @@ class Trader:
 #                           'EmBid':self.list_EM[list_idx]})
 #        df.to_csv(direct+filename, index=False)
     
-    def ban_currencies(self, lists, thisAsset, DateTime, results, direction):
+    def ban_currencies(self, lists, thisAsset, DateTime, results, direction, dtiist=''):
         """ Ban currency pairs related to ass_idx asset. WARNING! Assets 
         involving GOLD are not supported """
         # WARNING! Ban of only the asset closing stoploss. Change and for or
@@ -1653,7 +1661,7 @@ class Trader:
                             self.write_log(out)
                             
 #                            list_idx = self.map_ass_idx2pos_idx[ass_id]
-                            self.close_position(DateTime, asset, ass_id, results, from_sl=1)
+                            self.close_position(DateTime, asset, ass_id, results, from_sl=1, DTi_real=dtiist)
 #                            if run_back_test:
 #                                pass
 ##                                bid = self.list_last_bid[list_idx][-1]
@@ -2462,7 +2470,9 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 nFilesDir = len(os.listdir(directory_MT5_ass))
                 #start_timer(ass_idx)
                 if not first_info_fetched:
-                    print(thisAsset+" First info fetched")
+                    out = thisAsset+" First info fetched"
+                    print(out)
+                    queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                     #print(buffer)
                     first_info_fetched = True
                 elif nMaxFilesInDir<nFilesDir:
@@ -2476,7 +2486,9 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 io_ass_dir = LC.io_live_dir+thisAsset+"/"
                 # check shut down command
                 if os.path.exists(io_ass_dir+'SD'):
-                    print(thisAsset+" Shutting down")
+                    out = thisAsset+" Shutting down"
+                    print(out)
+                    queue.put({"FUNC":"LOG","ORIGIN":"NET","MSG":out})
                     os.remove(io_ass_dir+'SD')
                     send_close_command(thisAsset)
                     delayed_stop_run = True
@@ -2640,7 +2652,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 direction = int(info_split[3])
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
-                    
+                
                 #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
                 trader.stoplosses += 1
@@ -2654,7 +2666,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 write_log(info_close, trader.log_positions_ist)
                 # ban asset
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, 
-                                              results, direction)
+                                              results, direction, dtiist=info_split[1])
         # Communicate with server to update structures
         # TODO: Only enter once a sec (or every 10 secs)
 #        if send_info_api:
@@ -2736,7 +2748,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                         out = thisAsset+" flushed"
                         print(out)
                         trader.write_log(out)
-                        trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
+                        trader.close_position(DateTime, thisAsset, ass_id, list_results[idx], DTi_real=DateTime)
                         queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                     else:
                         out = thisAsset+" NOT flushed due to different directions"

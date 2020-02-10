@@ -180,16 +180,16 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
             # update last file list
             list_last_file[ass_idx] = newLastFile
             # reset reset flag
-            reset = False
+        reset = False
 #        else:
 #            print(thisAsset+" timeout NOT reset")
     min_to = min([time.time()-to for to in timeouts])
     print("\r"+dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
           " Min TO = {0:.2f} mins".format(min_to/60), sep=' ', end='', flush=True)
-    if min_to>timeout*60 and not reset:
-        # Reset networks
-        reset = True
-        ct.send_command(directory_io_ass, reset_command)
+#    if min_to>timeout*60 and not reset:
+#        # Reset networks
+#        reset = True
+#        ct.send_command(directory_io_ass, reset_command)
     return list_last_file, list_num_files, timeouts, reset
             
 if __name__=='__main__':
