@@ -919,6 +919,11 @@ class Trader:
         self.tGROI_live += GROI_live
         
         e_spread = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].e_spread
+        # check if stoploss for server info
+        if from_sl == 0:
+            slfalg = False
+        else:
+            slfalg = True
         # check if close comes from external ban
         if not from_sl and self.list_count_events[self.map_ass_idx2pos_idx[idx]]!=\
             self.list_deadlines[self.map_ass_idx2pos_idx[idx]]:
@@ -987,9 +992,10 @@ class Trader:
                 roiist = 100*ROI_live
             if DTi_real=='':
                 DTi_real = date_time
+            
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
                                     100*GROI_live, 100*ROI_live, nett_win, 
-                                    pos_filename, dirfilename, DTi_real, groiist, roiist)
+                                    pos_filename, dirfilename, DTi_real, groiist, roiist, slfalg)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
@@ -1075,7 +1081,7 @@ class Trader:
         #api.extend_position(thisAsset, params, asynch=True)
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
-                           roisoll, returns, filename, dirfilename, dtiist, groiist, roiist):
+                           roisoll, returns, filename, dirfilename, dtiist, groiist, roiist, slfalg):
         """ Send command to API for position closing """
         params = {'dtosoll':DateTime,
                   'dtiist':dtiist,
@@ -1087,7 +1093,8 @@ class Trader:
                   'groiist':groiist,
                   'roiist':roiist,
                   'returns':returns,
-                  'filename':filename
+                  'filename':filename,
+                  'slfalg':slfalg
                 }
         self.queue.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params})
         #api.close_postition(thisAsset, params, dirfilename, asynch=True)
@@ -1624,7 +1631,8 @@ class Trader:
 #                           'EmBid':self.list_EM[list_idx]})
 #        df.to_csv(direct+filename, index=False)
     
-    def ban_currencies(self, lists, thisAsset, DateTime, results, direction, dtiist=''):
+    def ban_currencies(self, lists, thisAsset, DateTime, results, direction, 
+                       dtiist='', groiist=None, roiist=None):
         """ Ban currency pairs related to ass_idx asset. WARNING! Assets 
         involving GOLD are not supported """
         # WARNING! Ban of only the asset closing stoploss. Change and for or
@@ -1661,7 +1669,9 @@ class Trader:
                             self.write_log(out)
                             
 #                            list_idx = self.map_ass_idx2pos_idx[ass_id]
-                            self.close_position(DateTime, asset, ass_id, results, from_sl=1, DTi_real=dtiist)
+                            self.close_position(DateTime, asset, ass_id, results, from_sl=1, 
+                                                DTi_real=dtiist, groiist=groiist, 
+                                                roiist=roiist)
 #                            if run_back_test:
 #                                pass
 ##                                bid = self.list_last_bid[list_idx][-1]
@@ -2633,7 +2643,9 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
                     
-                trader.close_position(info_split[2], thisAsset, ass_id, results, DTi_real=info_split[1])
+                trader.close_position(info_split[2], thisAsset, ass_id, results, 
+                                      DTi_real=info_split[1], groiist=float(info_split[9]), 
+                                      roiist=float(info_split[11]))
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
@@ -2666,7 +2678,10 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 write_log(info_close, trader.log_positions_ist)
                 # ban asset
                 lists = trader.ban_currencies(lists, thisAsset, DateTime, 
-                                              results, direction, dtiist=info_split[1])
+                                              results, direction, 
+                                              dtiist=info_split[1], 
+                                              groiist=float(info_split[9]), 
+                                              roiist=float(info_split[11]))
         # Communicate with server to update structures
         # TODO: Only enter once a sec (or every 10 secs)
 #        if send_info_api:

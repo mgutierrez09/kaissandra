@@ -74,7 +74,7 @@ double B_sl;
 double A_sl;
 double sl_thr = 1;//0.0001; //in ratio (1 pip=0.0001)
 double slThrPips = 100;
-double slProThrPips = 10;
+double slProThrPips = 20;
 double const PIP = 0.0001;
 //double bid;
 //double ask;
@@ -134,7 +134,7 @@ void openPosition(string origin, int thisPos){
          //string message = StringFormat();
          message = StringFormat("WARNING! Sell -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
          Print(message);
-         //writeLog(message);
+        // writeLog(message);
          //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
       message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
@@ -328,13 +328,13 @@ void controlPositionFlow(){
          if (position==1){
             GROI = 100*(ask-Ai)/Ai;
             ROI = 100*(bid-Ai)/Ai;
-            sl_protect = updateSL(ask, position, slThrPips);
-            tp_protect = updateTP(ask, position, slThrPips);
+            sl_protect = updateSL(ask, position, slProThrPips);
+            tp_protect = updateTP(ask, position, slProThrPips);
          }else{if(position==-1){
             GROI = 100*(Bi-bid)/ask;
             ROI = 100*(Bi-ask)/ask;
-            sl_protect = updateSL(bid, position, slThrPips);
-            tp_protect = updateTP(bid, position, slThrPips);
+            sl_protect = updateSL(bid, position, slProThrPips);
+            tp_protect = updateTP(bid, position, slProThrPips);
          }}
          //Print("",nEventsPerStat-dif_ticks-deadline,"",GROI," ",ROI,"%");
          message = StringFormat("Deadline in  %d GROI %.4f ROI %.4f",nEventsPerStat-dif_ticks-deadline,GROI,ROI);
@@ -687,6 +687,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          
          saveAccountInfo();
          real_profit = deal_profit;
+         // calulate real GROI and ROI
+         //profit = ROI*lot*lot_in_eur/100;
+         ROI = 100*real_profit/(lot*lot_in_eur);
+         GROI = ROI+spread;
+         
          double equity = AccountInfoDouble(ACCOUNT_EQUITY);
          //PrintFormat("Real profit: %.2f",real_profit);
          string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f",
@@ -709,11 +714,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          if(deal_reason==DEAL_REASON_SL){
             //ExtLot*=2.0;
             Print("DEAL_REASON_SL");
-            //writeLog("DEAL_REASON_SL");}
+            writeLog("DEAL_REASON_SL");}
          else if(deal_reason==DEAL_REASON_TP){
             //ExtLot=m_symbol.LotsMin();
             Print("DEAL_REASON_TP");
-            //writeLog("DEAL_REASON_TP");}
+            writeLog("DEAL_REASON_TP");}
       }
       
    }
