@@ -3694,12 +3694,8 @@ running_assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
-#if send_info_api:
+# Init API
 api = API()
-#else:
-#     api = None
-#     print("send_info_api")
-#     print(send_info_api)
 
 if __name__=='__main__':
     # lauch
@@ -3714,6 +3710,5 @@ if __name__=='__main__':
     queues = launch(synchroned_run=synchroned_run, test=test)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
-        
         from kaissandra.prod.control import control
         control(running_assets, queues=queues, send_info_api=send_info_api, token_header=api.build_token_header())
