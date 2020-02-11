@@ -85,7 +85,7 @@ from kaissandra.results2 import merge_results
 def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=False,
                  sufix='',k_init=0, k_end=-1, log='', seps=[],
                  modular=False, sufix_io='', basename_IO='',sufix_re='', oneNet=False, extW='',
-                 first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
+                 first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9), from_py=False):
     """  """
     if 'feats_from_bids' in entries:
         feats_from_bids = entries['feats_from_bids']
@@ -202,7 +202,8 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular(folds=K, \
                                                                      fold_idx=fold_idx, \
                                                                      config=config, 
-                                                                     log=log, seps=seps)
+                                                                     log=log, seps=seps, 
+                                                                     from_py=from_py)
         elif oneNet:
             dirfilename_tr, dirfilename_te, IO_results_name = build_datasets_modular_oneNet(folds=K, \
                                                                      fold_idx=fold_idx, \
@@ -218,11 +219,12 @@ def wrapper_bild_datasets_Kfold(rootname_config, entries={}, K=5, build_IDrs=Fal
 def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_IDrs=False,
                  its=15, sufix='', IDr_merged='',k_init=0, k_end=-1, log='', just_build=False,
                  if_merge_results=False, modular=False, sufix_io='', basename_IO='', sufix_re='', 
-                 oneNet=False, extW='', only_misclassified=False, misclass_name='', seps=[]):
+                 oneNet=False, extW='', only_misclassified=False, misclass_name='', seps=[], 
+                 from_py=False):
     """  """
 
     configs, dirfilename_trs, dirfilename_tes, IO_results_names = wrapper_bild_datasets_Kfold\
-        (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log, seps=seps,
+        (rootname_config, entries=entries, K=K, sufix=sufix, k_init=k_init, k_end=k_end, log=log, seps=seps, from_py=from_py, 
          modular=modular, sufix_io=sufix_io, basename_IO=basename_IO, sufix_re=sufix_re, oneNet=oneNet, extW=extW)
     if 'startFrom' in entries:
         startFrom = entries['startFrom']

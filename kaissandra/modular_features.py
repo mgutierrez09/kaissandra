@@ -292,7 +292,11 @@ def get_stats_modular(config, groupdirname, groupoutdirname):
                         #nonZeros = variations[:,0,r]!=999
                         #print(np.sum(nonZeros))
                         means_in[r,0] = np.mean(variations[nChannels:,r],axis=0,keepdims=1)
-                        stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
+                        # manually define std for canonical features
+                        if f not in C.canonical_features:
+                            stds_in[r,0] = np.std(variations[nChannels:,r],axis=0,keepdims=1)
+                        else:
+                            stds_in[r,0] = 1
                     # save input stats
                     stats_in[C.PF[f][0]] = {'mean':means_in, 'std':stds_in}
                     pickle.dump( stats_in[C.PF[f][0]], 

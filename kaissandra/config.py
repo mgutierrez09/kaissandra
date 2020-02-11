@@ -8,7 +8,6 @@ Created on Sun Oct 21 17:03:11 2018
 import pickle
 import os
 import numpy as np
-import datetime as dt
 
 from kaissandra.local_config import local_vars
 
@@ -316,7 +315,8 @@ class Config():
     std_var = 0.1
     std_time = 0.1
     
-    non_var_features = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+    non_var_features = [8,9,12,17,18,21,23,24,25,26,27,28,29,37]+[i for i in range(40,48)]+[i for i in range(2000,2019)]
+    canonical_features = [i for i in range(40,48)]
 
 def write_log(log_message, log_file):
         """
@@ -416,10 +416,10 @@ def configuration(entries, save=True):
             force_calulation_output = entries['force_calulation_output']
         else:
             force_calulation_output = False
-        if 'noVarFeatsManual' in entries:
-            noVarFeatsManual = entries['noVarFeatsManual']
-        else:
-            noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]+[i for i in range(2000,2019)]
+#        if 'noVarFeatsManual' in entries:
+#            noVarFeatsManual = entries['noVarFeatsManual']
+#        else:
+#            noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]+[i for i in range(2000,2019)]
         if 'feature_keys_tsfresh' in entries:
             feature_keys_tsfresh = entries['feature_keys_tsfresh']
         else:
@@ -629,7 +629,7 @@ def configuration(entries, save=True):
                   'feature_keys':feature_keys,
                   'force_calculation_features':force_calculation_features,
                   'force_calulation_output':force_calulation_output,
-                  'noVarFeatsManual':noVarFeatsManual,
+#                  'noVarFeatsManual':noVarFeatsManual,
                   'feature_keys_tsfresh':feature_keys_tsfresh,
                   'var_feat_keys':var_feat_keys,
                   'lookAheadIndex':lookAheadIndex,

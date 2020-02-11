@@ -200,10 +200,10 @@ def build_variations(config, file_temp, features, stats, modular=False):
     else:
         feature_keys_manual = config['feature_keys']
     max_var = config['max_var']
-    if 'noVarFeatsManual' in config:
-        noVarFeatsManual = config['noVarFeatsManual']
-    else:
-        noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+#    if 'noVarFeatsManual' in config:
+#        noVarFeatsManual = config['noVarFeatsManual']
+#    else:
+#        noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
     # total number of possible channels
     nChannels = int(nEventsPerStat/movingWindow)
     # extract means and stats
@@ -225,7 +225,7 @@ def build_variations(config, file_temp, features, stats, modular=False):
     # init variations and normalized variations to 999 (impossible value)
     variations[:] = variations[:]+999
     variations_normed[:] = variations[:]
-    nonVarFeats = np.intersect1d(noVarFeatsManual, feature_keys_manual)
+    nonVarFeats = np.intersect1d(C.non_var_features, feature_keys_manual)
     #non-variation idx for variations normed
     nonVarIdx = np.zeros((len(nonVarFeats))).astype(int)
     nv = 0
@@ -267,10 +267,10 @@ def build_variations_modular(config, file_temp, features, stats):
     channels = config['channels']
     feature_keys = config['feature_keys']
     max_var = config['max_var']
-    if 'noVarFeatsManual' in config:
-        noVarFeatsManual = config['noVarFeatsManual']
-    else:
-        noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
+#    if 'noVarFeatsManual' in config:
+#        noVarFeatsManual = config['noVarFeatsManual']
+#    else:
+#        noVarFeatsManual = [8,9,12,17,18,21,23,24,25,26,27,28,29]
     # total number of possible channels
     nChannels = int(nEventsPerStat/movingWindow)
     # extract means and stats
@@ -296,7 +296,7 @@ def build_variations_modular(config, file_temp, features, stats):
     # init variations and normalized variations to 999 (impossible value)
     variations[:] = variations[:]+999
     variations_normed[:] = variations[:]
-    nonVarFeats = np.intersect1d(noVarFeatsManual, feature_keys)
+    nonVarFeats = np.intersect1d(C.non_var_features, feature_keys)
     #non-variation idx for variations normed
     nonVarIdx = np.zeros((len(nonVarFeats))).astype(int)
     VarIdx = np.zeros((nF-len(nonVarFeats))).astype(int)
@@ -716,6 +716,26 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     
     return IO
 
+def get_fileidxs(files_asset, init_date, end_date):
+    """ get file idxs in files_asset list within init_date and end_date """
+    init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
+    end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
+    init_idx = []
+    while len(init_idx)<1 and init_date_dt<end_date_dt:
+        init_idx = [f for f,file in enumerate(files_asset) if init_date in file[7:15]]
+        init_date_dt = init_date_dt+dt.timedelta(days=1)
+        init_date = dt.datetime.strftime(init_date_dt,'%Y%m%d')
+    end_idx = []
+    while len(end_idx)<1 and init_date_dt<end_date_dt:
+        end_idx = [f for f,file in enumerate(files_asset) if end_date in file[7:15]]
+        end_date_dt = end_date_dt-dt.timedelta(days=1)
+        end_date = dt.datetime.strftime(end_date_dt,'%Y%m%d')
+    #print(init_idx)
+    #print(end_idx)
+    assert(len(init_idx)==1)
+    assert(len(end_idx)==1)
+    return init_idx[0], end_idx[0]
+
 def get_list_unique_days(data_dir, thisAsset):
     """  """
     import re
@@ -731,16 +751,24 @@ def get_list_unique_days(data_dir, thisAsset):
         list_unique_days = pickle.load( open( local_vars.hdf5_directory+"list_unique_days_"+thisAsset+".p", "rb" ))
     return list_unique_days
 
-def get_day_indicator(list_unique_days, first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
+def get_day_indicator(list_unique_days, dir_ass, first_day=dt.date(2016, 1, 1), last_day=dt.date(2018, 11, 9)):
     """  """
     max_days = (last_day-first_day).days+1
     x = np.zeros((max_days))
-    print(first_day)
-    print(last_day)
+    
     ### TODO: WARNING! It only works if first and last days are in list_unique_days[0]
-    init_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days==0][0]
-    end_idx = [d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-last_day).days==0][0]
+    init_idx = 0#[d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days==0][0]
+    end_idx = len(list_unique_days)#[d for d,day in enumerate(list_unique_days) if (dt.datetime.strptime(day,'%Y%m%d').date()-last_day).days==0][0]
+    
+#    files_asset = sorted(os.listdir(dir_ass))
+#    init_idx, end_idx = get_fileidxs(files_asset, list_unique_days[0], list_unique_days[-1])
+#    end_idx = end_idx
     days_idx = [(dt.datetime.strptime(day,'%Y%m%d').date()-first_day).days for day in list_unique_days[init_idx:end_idx]]
+#    print(list_unique_days[init_idx])
+#    print(end_idx)
+    print(list_unique_days[init_idx])
+    print(list_unique_days[end_idx-1])
+    print("WARNING! Shortcut search of init and end indexes")
     #print(days_idx)
     x[days_idx] = 1
     return x
@@ -1587,7 +1615,8 @@ def get_edges_datasets_modular(K, config, separators_directory, data_dir, symbol
                                      first_date+last_date+'.p', "rb"))['m']
             list_unique_days = get_list_unique_days(data_dir, thisAsset)
             n_days_ass[a] = len(list_unique_days)
-            A[a,:] = get_day_indicator(list_unique_days, first_day=first_day, last_day=last_day)
+            
+            A[a,:] = get_day_indicator(list_unique_days,  data_dir+thisAsset, first_day=first_day, last_day=last_day)
         weights_ass[:,0] = n_days_ass/samps_ass
         weights_ass[:,0] = weights_ass[:,0]/sum(weights_ass)
         weights_day = np.sum(A*weights_ass,0)
@@ -1808,7 +1837,7 @@ def sort_input(array, sorted_idx, prevPointerCv, char=False):
 #    IO['Bcv'][prevPointerCv:,:,:] = temp
     return temp
 
-def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=True, 
+def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=False, 
                            seps = []):
     """  """
     ticTotal = time.time()
