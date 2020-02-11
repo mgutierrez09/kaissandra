@@ -990,18 +990,12 @@ class Trader:
             if not groiist:
                 groiist = 100*GROI_live
                 roiist = 100*ROI_live
-<<<<<<< HEAD
             if DTi_real=='':
                 DTi_real = date_time
             
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
                                     100*GROI_live, 100*ROI_live, nett_win, 
                                     pos_filename, dirfilename, DTi_real, groiist, roiist, slfalg)
-=======
-            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
-                                    100*GROI_live, 100*ROI_live, nett_win, 
-                                    pos_filename, dirfilename, groiist, roiist)
->>>>>>> 8660991b33827695cdbfa32bd85a7eed04a86e63
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
