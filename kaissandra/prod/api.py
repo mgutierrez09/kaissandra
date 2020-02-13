@@ -80,6 +80,7 @@ class API():
             params_strategy = {'strategyname':config_trader['list_name'][s],
                                      'phaseshift':config_trader['phase_shifts'][s],
                                      'poslots':config_trader['list_max_lots_per_pos'][s],
+                                     'slthr':config_trader['list_thr_sl'][s],
                                      'nexs':config_trader['nExSs'][s],
                                      'oraclename':config_trader['netNames'][s],
                                      'symbol':symbols[0],
