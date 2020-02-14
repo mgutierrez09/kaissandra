@@ -90,7 +90,8 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
         time.sleep(5)
         
         watchdog_counter += 1
-        if watchdog_counter==24:
+        # check parameters every minute
+        if watchdog_counter==12:
             ct.check_params()
             token = ct.get_token()
             print(token)

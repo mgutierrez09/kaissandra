@@ -36,7 +36,7 @@ from kaissandra.automate import *
 from kaissandra.config import *
 ```
 
-Shut down live session 
+Shut down live session:
 ```python
 import kaissandra.prod.communication as ct
 ct.shutdown()

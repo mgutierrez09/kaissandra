@@ -219,6 +219,15 @@ def get_token():
         return token
     else:
         return None
+    
+#def parameters_enquiry(session_id, token_header):
+#    """  """
+#    url_ext = 'traders/sessions/'+str(session_id)+'/get_params'
+#    response = requests.get(CC.URL+url_ext, headers=token_header, verify=True)
+#    if response.status_code == 200:
+#        return True
+#    else:
+#        return False
 
 from kaissandra.config import Config
 from kaissandra.local_config import local_vars
