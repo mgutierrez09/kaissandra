@@ -1724,7 +1724,7 @@ class Trader:
             self.list_dict_banned_assets = [None for _ in self.list_is_asset_banned]
             
         tracing_dict = {'lastDateTime':DateTime,
-                        'counter':4}
+                        'counter':20}
         self.list_dict_banned_assets[ass_idx] = tracing_dict
         out = DateTime+" "+thisAsset+\
                 " ban counter set to "\
@@ -3688,9 +3688,6 @@ force_no_extesion = False
 
 modular = False
 
-
-
-# TODO: add it in parameters
 if not test:
     n_samps_buffer = 250
 else:
