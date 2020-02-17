@@ -2503,6 +2503,9 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     send_close_command(thisAsset)
                     delayed_stop_run = True
                     run = False
+                    # close session
+                    if send_info_api:
+                        api.close_session()
                     time.sleep(5*np.random.rand(1)+1)
                 elif os.path.exists(io_ass_dir+'RESET'):
                     print("RESET command found.")

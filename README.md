@@ -15,12 +15,6 @@ of orders. Back testing of strategies is also implemented in the online package.
 
 ### Online methods and functions:
 
-## API
-
-Example to change trading parameters:
-
-`$ http PUT https://kaissandra-webapp.herokuapp.com/api/traders/sessions/change_params stoploss=<value> lots=<value> "Authorization:Bearer <token>"`
-
 Start a session:
 
 ```python
