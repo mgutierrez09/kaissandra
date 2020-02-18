@@ -2503,6 +2503,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     send_close_command(thisAsset)
                     delayed_stop_run = True
                     run = False
+                    queue.put({"FUNC":"SD"})
                     # close session
                     if send_info_api:
                         api.close_session()
@@ -2823,6 +2824,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             for idx, trader in enumerate(traders):
                 if trader.is_opened(ass_id):
                     trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
+            queue.put({"FUNC":"SD"})
             break
         elif os.path.exists(io_ass_dir+'PA'):
             
@@ -2850,7 +2852,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     for idx, trader in enumerate(traders):
         # get intermediate results
         get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
-    
+    if send_info_api:
+        api.close_session()
     return shutdown
 
 def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
@@ -3010,7 +3013,7 @@ def run(config_traders_list, running_assets, start_time, test, queue):
     # init futures session of API
     if send_info_api:
         api.post_token()
-        api.intit_all(list_config_traders[0], running_assets, sessiontype)
+        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
         print("api.trader_json:")
         print(api.trader_json)
         api.init_future_session()
@@ -3735,7 +3738,7 @@ if __name__=='__main__':
         api.reset_activate_sessions()
     renew_directories(C.AllAssets, running_assets)
     if synchroned_run and send_info_api:
-        api.intit_all(list_config_traders[0], running_assets, sessiontype)
+        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
         print("api.trader_json:")
         print(api.trader_json)
     queues = launch(synchroned_run=synchroned_run, test=test)#

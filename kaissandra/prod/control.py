@@ -69,7 +69,8 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
     # monitor connections
     watchdog_counter = 0
     ass_idx = 0
-    while 1:
+    run = True
+    while run:
         # control connection
         list_last_file, list_num_files, timeouts, reset = control_broker_connection(AllAssets, running_assets, 
                                                       timeout, directory_io,
@@ -92,16 +93,22 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
         watchdog_counter += 1
         # check parameters every minute
         if watchdog_counter==12:
-            ct.check_params()
-            token = ct.get_token()
-            print(token)
-            # wake up server
-            watchdog_counter = 0
-            # send number of files in Broker communication directory of one asset
-            MSG = AllAssets[str(running_assets[ass_idx])]+" Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
-                ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
-            ct.send_trader_log(MSG, token_header)
+            try:
+                ct.check_params()
+                token = ct.get_token()
+                print(token)
+                # wake up server
+                watchdog_counter = 0
+                # send number of files in Broker communication directory of one asset
+                MSG = AllAssets[str(running_assets[ass_idx])]+" Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
+                    ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
+                ct.send_trader_log(MSG, token_header)
+            except ConnectionError:
+                run = False
+            
+            
             ass_idx = np.mod(ass_idx+1,len(running_assets))
+    print("EXIT control")
             
 def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api=False, token_header=None):
     """ Local connection with trader through a queue """
@@ -110,7 +117,8 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     name = C.AllAssets[str(ass_id)]
     print("Reading queue")
     assets_opened = {}
-    while 1:
+    run = True
+    while run:
         if 1:
             info = queue.get()         # Read from the queue
             print("From queue: ")
@@ -147,8 +155,11 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 else:
                     print(info["EVENT"])
                     raise ValueError("EVENT unknow")
+            elif info['FUNC'] == 'SD':
+                run = False
 #        except Exception as e:
 #            print("WARNING! Error in when reading queue in listen_trader_connection of control.py: "+str(e))
+    print("EXIT queue")
         
     
 def control_broker_connection(AllAssets, running_assets, timeout, directory_io,

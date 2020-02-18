@@ -54,7 +54,7 @@ class API():
         """  """
         self.futureSession = FuturesSession()
     
-    def intit_all(self, config_trader, ass_idx, sessiontype):
+    def intit_all(self, config_trader, ass_idx, sessiontype, sessiontest=False):
         """ Init trader, strategy, networks, session and assets """
         
         balance, leverage, equity, profits = self.read_budget()
@@ -68,7 +68,8 @@ class API():
         sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')+\
                       '_'+config_trader['config_name']
         params_session = {'sessionname':sessionname,
-                          'sessiontype':sessiontype}
+                          'sessiontype':sessiontype,
+                          'sessiontest':sessiontest}
         if not self.open_session(params_session):
             print("WARNING! Request open session failed")
         
@@ -162,7 +163,7 @@ class API():
             print(response.text)
         return False
     
-    def set_trader(self, params, req_type="POST"):
+    def set_trader(self, params, req_type="PUT"):
         """ POST/PUT request to create new trader or change parameters of 
         existing one """
         if not self.token:

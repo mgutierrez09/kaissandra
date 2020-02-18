@@ -213,7 +213,10 @@ def send_close_position(params, pos_id, dirfilename, token_header):
 
 def get_token():
     """  """
-    response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+    try:
+        response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+    except ConnectionError:
+        raise ConnectionError
     if response.status_code == 200:
         token = response.json()['token']
         return token
