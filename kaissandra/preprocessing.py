@@ -2040,7 +2040,8 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=False,
                 sep_for_stats = separators
             else:
                 #'E:/SDC/py/Data_PY/'+'separators'+py_flag+'/'
-                dir_seps_stats = local_vars.data_dir_py+'separators_py/'
+                #dir_seps_stats = local_vars.data_dir_py+'separators_py/'
+                dir_seps_stats = data_dir+'separators'+py_flag+'/'
                 sep_for_stats = load_separators(thisAsset, dir_seps_stats,
                                          from_txt=1)
                 print("directory for sep_for_stats:")
