@@ -1091,7 +1091,7 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01050PS5ORNYCMF181112T191212ALk12K5K2E141452','R01050PS5ORNYCMF181112T191212BSk12K5K2E141453']
+    list_IDresults = ['R01050PS5ORNYCMF181112T191212BLk12K5K2E141452','R01050PS5ORNYCMF181112T191212BSk12K5K2E141453']
     list_name = ['01050PS5ORNYk12K5k12K2E1452ALSRNSP60','01050PS5ORNYk12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
@@ -1357,10 +1357,13 @@ if __name__ == '__main__':
             counter_back += 1
             pd_end_index = journal_all_days[journal_all_days[exit_time_column].str.find(dateTest[day_index])>-1]
         # only one entry in the week and out is next week
-        if pd_end_index.shape[0]==0:
-            end_index = pd_init_index.index[-1]
-        else:
-            end_index = pd_end_index.index[-1]
+        try:
+            if pd_end_index.shape[0]==0:
+                end_index = pd_init_index.index[-1]
+            else:
+                end_index = pd_end_index.index[-1]
+        except:
+            break
         end_list_index = day_index+counter_back
         journal = journal_all_days.loc[init_index:end_index+1]
         journal_entries = journal.shape[0]
