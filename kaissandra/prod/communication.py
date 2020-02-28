@@ -64,7 +64,7 @@ def pause():
             #print("Asset not running")
             pass
 
-def check_params():
+def check_params(config_name=''):
     """  """
     io_dir = local_vars.io_live_dir
     AllAssets = Config.AllAssets
@@ -73,6 +73,9 @@ def check_params():
         
         try:
             fh = open(io_dir+asset+'/PARAM',"w")
+            # if parameters come locally
+            if config_name!='':
+                fh.write(config_name)
             fh.close()
             #print(asset)
         except FileNotFoundError:

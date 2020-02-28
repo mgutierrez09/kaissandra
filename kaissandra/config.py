@@ -788,7 +788,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN01010FS2NYREDOK2K52145314SRv4'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
+    config_name = 'TESTPARAMUPDATE3'#'TN01010FS2NYREDOK2K52145314SRv4'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -850,13 +850,13 @@ def configuration_trader(*ins):
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
         list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
-        phase_shifts = [1 for i in range(numberNetworks)]
+        phase_shifts = [2 for i in range(numberNetworks)]
         
         
         list_lim_groi_ext = [-10 for i in range(numberNetworks)]
-        list_thr_sl = [50 for i in range(numberNetworks)]#50
+        list_thr_sl = [10 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
-        list_max_lots_per_pos = [.04 for i in range(numberNetworks)]
+        list_max_lots_per_pos = [.01 for i in range(numberNetworks)]
         list_invest_strategy = [{'name':'scale',
                                  'steps':[.02, .04, .08, .16, .32, .5, .6, .7, .8, .9, 1.0],
                                  'thrs':[2020, 2060, 2140, 4300, 8620, 11260, 12260, 14000, 16030, 18030, 20100]} for i in range(numberNetworks)]

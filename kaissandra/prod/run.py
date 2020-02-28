@@ -776,7 +776,7 @@ class Trader:
         
         return condition_extension, reason
 
-    def update_stoploss(self, idx, bid):
+    def update_stoploss_open_pos(self, idx, bid):
         # update stoploss
         this_strategy = self.next_candidate.strategy
         if self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction == 1:
@@ -1409,11 +1409,11 @@ class Trader:
                                     self.write_log(out)
                                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                         else: # position is opened
-                            direction = self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]
+                            direction = self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].bet
                             curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             out = new_entry[entry_time_column]+" "+thisAsset+\
                                            " deadline in "+str(self.get_remain_samps(ass_id))+\
-                                           "Dir {0:d} ".format(direction)+\
+                                           " Dir {0:d} ".format(direction)+\
                                             " current GROI = {0:.2f}%".format(100*curr_GROI)+\
                                             " current ROI = {0:.2f}%".format(100*curr_ROI)
 #                                            +str(self.list_deadlines[
@@ -1785,6 +1785,38 @@ class Trader:
     def lift_ban_asset(self, ass_idx):
         """  """
         self.list_is_asset_banned[ass_idx] = False
+        
+    def update_parameters(self, config_file):
+        """ Update parameters from local config file """
+        try:
+            config = retrieve_config(config_file)
+            if 'list_max_lots_per_pos' in config:
+                # update lots
+                self.update_lots(config['list_max_lots_per_pos'])
+            if 'list_thr_sl' in config:
+                # update stoplosses
+                self.update_stoploss(config['list_thr_sl'])
+            if 'max_opened_positions' in config:
+                # update max_opened_positions
+                self.max_opened_positions = config['max_opened_positions']
+                print("max_opened_positions updated:")
+                print(config['max_opened_positions'])
+        except:
+            print("WARNING!! config file does not exist. Skipped")
+        
+    def update_lots(self, list_max_lots_per_pos):
+        """ Update lots per position """
+        for s in range(len(self.strategies)):
+            self.strategies[s].max_lots_per_pos = list_max_lots_per_pos[s]
+        print("list_max_lots_per_pos updated:")
+        print(list_max_lots_per_pos)
+            
+    def update_stoploss(self, list_thr_sl):
+        """ Update stoploss threshold """
+        for s in range(len(self.strategies)):
+            self.strategies[s].thr_sl = list_thr_sl[s]
+        print("list_thr_sl updated:")
+        print(list_thr_sl)
 
 def write_log(log_message, log_file):
         """
@@ -2520,17 +2552,38 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     if send_info_api:
                         api.close_session()
                     time.sleep(5*np.random.rand(1)+1)
+                elif os.path.exists(io_ass_dir+'PA'):
+                    print(thisAsset+" PAUSED. Waiting for RE command...")
+                    os.remove(io_ass_dir+'PA')
+                    while not os.path.exists(io_ass_dir+'RE'):
+                        time.sleep(np.random.randint(6)+5)
+                    os.remove(io_ass_dir+'RE')
+                elif os.path.exists(io_ass_dir+'RE'):
+                    print("WARNING! RESUME command found. Send first PAUSE command")
+                    os.remove(io_ass_dir+'RE')
                 elif os.path.exists(io_ass_dir+'RESET'):
                     print("RESET command found.")
                     os.remove(io_ass_dir+'RESET')
                     lists = flush_asset(lists, ass_idx, 0.0)
                 elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
-                    #print("\n\nENQUIRE PARAMETERS\n\n")
+                    # check first for local info
+                    with open(io_ass_dir+'PARAM', 'r') as f:
+                        config_name = f.read()
+                        f.close()
                     try:
                         os.remove(io_ass_dir+'PARAM')
-                        api.parameters_enquiry(asynch=True)
                     except:
                         pass
+                    if config_name=='':
+                        # read from remote
+                        try:
+                            os.remove(io_ass_dir+'PARAM')
+                            api.parameters_enquiry(asynch=True)
+                        except:
+                            pass
+                    else:
+                        # update from local
+                        trader.update_parameters(config_name)
                 time.sleep(.01)
             # update file extension
             if success:
@@ -3120,7 +3173,7 @@ def run(config_traders_list, running_assets, start_time, test, queue):
             max_opened_positions = config_trader['max_opened_positions']
         else:
             # an infinite value
-            max_opened_positions = 1000
+            max_opened_positions = 99999
         # add unique networks
         for nn in range(numberNetworks):
             # TODO! Take unique networks!
