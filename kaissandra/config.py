@@ -831,6 +831,7 @@ def configuration_trader(*ins):
         
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
         stacked = [4, 4]
+        max_opened_positions = 4
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
                          'results_from':list_spread_ranges[i]['dir'],
@@ -896,6 +897,7 @@ def configuration_trader(*ins):
                   'list_entry_strategy':list_entry_strategy,
                   'list_spread_ranges':list_spread_ranges,
                   'list_priorities':list_priorities,
+                  'max_opened_positions':max_opened_positions,
                   #'list_feats_from':list_feats_from,
                   'phase_shifts':phase_shifts,
                   'list_thr_sl':list_thr_sl,

@@ -351,7 +351,7 @@ class Strategy():
 class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
-                 AllAssets, log_file, results_dir="", 
+                 AllAssets, log_file, results_dir="", max_opened_positions=None, 
                  start_time='', config_name='',net2strategy=[], queue=None):
         
         self.list_opened_positions = []
@@ -372,6 +372,7 @@ class Trader:
         self.positions_tracker = []
         self.list_symbols_tracking = []
         self.list_is_asset_banned = [False for _ in running_assets]
+        self.max_opened_positions = max_opened_positions
         
         self.journal_idx = 0
         self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
@@ -675,18 +676,27 @@ class Trader:
             cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][tactic]
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    self.next_candidate.strategy.info_spread_ranges['dir'])
-            condition_open= cond_pmc and\
+            
+            n_open_pos = len(self.list_opened_positions)
+            if self.max_opened_positions!= None and n_open_pos >= self.max_opened_positions:
+                cond_pos_can_be_allocated = False
+            else:
+                cond_pos_can_be_allocated = True
+            # get string explanation for condition not opened
+            condition_open = cond_pmc and\
                 cond_pmd and\
                 cond_spread and\
                 cond_bet
             if not cond_pmc:
-                reason += 'pmc'
+                reason += 'pmc_'
             if not cond_pmd:
-                reason += 'pmd'
+                reason += 'pmd_'
             if not cond_spread:
-                reason += 'spread'
+                reason += 'spread_'
             if not cond_bet:
-                reason += 'bet'
+                reason += 'wrongdir_'
+            if not cond_pos_can_be_allocated:
+                reason+='maxpos_'
         else:
             #print("ERROR: fix_spread cannot be fixed if GRE is in use")
             raise ValueError("fix_spread cannot be fixed if GRE is in use")
@@ -1399,9 +1409,11 @@ class Trader:
                                     self.write_log(out)
                                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","MSG":out})
                         else: # position is opened
+                            direction = self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]]
                             curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             out = new_entry[entry_time_column]+" "+thisAsset+\
                                            " deadline in "+str(self.get_remain_samps(ass_id))+\
+                                           "Dir {0:d} ".format(direction)+\
                                             " current GROI = {0:.2f}%".format(100*curr_GROI)+\
                                             " current ROI = {0:.2f}%".format(100*curr_ROI)
 #                                            +str(self.list_deadlines[
@@ -3104,8 +3116,11 @@ def run(config_traders_list, running_assets, start_time, test, queue):
         list_flexible_lot_ratio = config_trader['list_flexible_lot_ratio']#[False for i in range(numberNetworks)]
         list_if_dir_change_close = config_trader['list_if_dir_change_close']#[False for i in range(numberNetworks)]
         list_if_dir_change_extend = config_trader['list_if_dir_change_extend']#[False for i in range(numberNetworks)]
-#        list_data = [Data(movingWindow=mWs[i],nEventsPerStat=nExSs[i],lB=lBs[i],
-#                          dateTest = dateTest,feature_keys_tsfresh=[]) for i in range(numberNetworks)]        
+        if 'max_opened_positions' in config_trader:
+            max_opened_positions = config_trader['max_opened_positions']
+        else:
+            # an infinite value
+            max_opened_positions = 1000
         # add unique networks
         for nn in range(numberNetworks):
             # TODO! Take unique networks!
@@ -3462,7 +3477,8 @@ def run(config_traders_list, running_assets, start_time, test, queue):
                                     ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                     log_file, results_dir=dir_results, 
                                     start_time=start_time, config_name=config_trader['config_name'],
-                                    net2strategy=list_net2strategy[idx_tr], queue=queue)#, api=api
+                                    net2strategy=list_net2strategy[idx_tr], queue=queue, 
+                                    max_opened_positions=max_opened_positions)#, api=api
                     # pass trader to api
                     if send_info_api:
                         api.init_trader(trader)
@@ -3561,7 +3577,8 @@ def run(config_traders_list, running_assets, start_time, test, queue):
                                 ass2index_mapping, list_strategies[idx_tr], AllAssets, 
                                 log_file, results_dir=dir_results, 
                                 start_time=start_time, config_name=config_trader['config_name'],
-                                net2strategy=list_net2strategy[idx_tr], queue=queue)
+                                net2strategy=list_net2strategy[idx_tr], queue=queue, 
+                                max_opened_positions=max_opened_positions)
                     
 #                if not os.path.exists(trader.log_file):
 #                    write_log(out, trader.log_file)
