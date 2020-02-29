@@ -1338,6 +1338,17 @@ if __name__ == '__main__':
     rewinded = 0
     week_counter = 0
     print(root_dir)
+    
+    # tack volume
+    volume = []
+    volume_dt = []
+    volume_ass = []
+    max_vol_per_pos_ass = {}
+    dt_max_vol_per_pos_ass = {}
+    mW = 500
+    track_last_dts = [[0 for i in assets] for _ in range(mW)]
+    track_idx = [0 for i in assets]
+    # loop over days 
     while day_index<len(dateTest):
         counter_back = 0
         init_list_index = day_index#data.dateTest[day_index]
@@ -1423,6 +1434,13 @@ if __name__ == '__main__':
             e_spread = (ask-bid)/ask
             thisAsset = Assets[event_idx].decode("utf-8")
             ass_idx = ass2index_mapping[thisAsset]
+            # track timestamp for the last mW samps of each asset to 
+            # calculate volume
+            ass_id = assets.index(ass_idx)
+            track_last_dts[ass_id][track_idx[ass_id]] = time_stamp
+            prev_track_idx = track_idx[ass_id]
+            track_idx[ass_id] = (track_idx[ass_id]+1) % mW
+            
             list_idx = trader.map_ass_idx2pos_idx[ass_idx]
             # update bid and ask lists if exist
             if list_idx>-1:
@@ -1443,11 +1461,10 @@ if __name__ == '__main__':
                               sec_cond and not ban_condition)
             
             if condition_open:
-#                profitability = strategys[name2str_map[trader.next_candidate.strategy
-#                                                       ]].get_profitability(
-#                                                       trader.next_candidate.p_mc, 
-#                                                        trader.next_candidate.p_md, 
-#                                                        int(np.abs(trader.next_candidate.bet)-1))
+                # init volume
+                max_vol_per_pos_ass[thisAsset] = (track_last_dts[ass_id][track_idx[ass_id]]-track_last_dts[ass_id][prev_track_idx]).seconds
+                dt_max_vol_per_pos_ass[thisAsset] = time_stamp
+                
                 this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
                 out = (DateTime+" "+
                        thisAsset+
@@ -1499,6 +1516,12 @@ if __name__ == '__main__':
                 trader.write_log(out)
             # check if a position is already opened
             if trader.is_opened(ass_idx):
+                # update volume if is grater than max
+                vol = (track_last_dts[ass_id][track_idx[ass_id]]-track_last_dts[ass_id][prev_track_idx]).seconds
+                if vol>max_vol_per_pos_ass[thisAsset]:
+                    max_vol_per_pos_ass[thisAsset] = vol
+                    dt_max_vol_per_pos_ass[thisAsset] = time_stamp
+                    
                 trader.count_one_event(ass_idx)
         #        stop_loss = update_stoploss(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]], stop_loss)
                 exit_pos, stoplosses = trader.is_stoploss_reached(ass_idx, stoplosses)
@@ -1511,6 +1534,10 @@ if __name__ == '__main__':
                     trader.close_position(DateTime, 
                                           thisAsset, 
                                           ass_idx)
+                    # update volume values
+                    volume.append(max_vol_per_pos_ass[thisAsset])
+                    volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
+                    volume_ass.appen(thisAsset)
                     # reset approched
                     if len(trader.list_opened_positions)==0:
                         approached = 0
@@ -1595,6 +1622,10 @@ if __name__ == '__main__':
                                     trader.close_position(DateTime, 
                                                   thisAsset, 
                                                   ass_idx)
+                                    # update volume values
+                                    volume.append(max_vol_per_pos_ass[thisAsset])
+                                    volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
+                                    volume_ass.appen(thisAsset)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0
@@ -1626,6 +1657,10 @@ if __name__ == '__main__':
                         trader.close_position(DateTime, 
                                               thisAsset, 
                                               ass_idx)
+                        # update volume values
+                        volume.append(max_vol_per_pos_ass[thisAsset])
+                        volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
+                        volume_ass.appen(thisAsset)
                         # reset approched
                         if len(trader.list_opened_positions)==0:
                             approached = 0
@@ -1693,7 +1728,8 @@ if __name__ == '__main__':
 #                error()
         #    # update time stamp
         #    else:
-            if approached:
+################ WARNING! NO skipping o samps to track volume #############################
+            if 1:
                 if not rewind:
                     event_idx += 1
                 else:
