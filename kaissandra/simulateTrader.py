@@ -1346,7 +1346,7 @@ if __name__ == '__main__':
     max_vol_per_pos_ass = {}
     dt_max_vol_per_pos_ass = {}
     mW = 500
-    track_last_dts = [[0 for i in assets] for _ in range(mW)]
+    track_last_dts = [[0 for _ in range(mW)] for i in assets]
     track_idx = [0 for i in assets]
     # loop over days 
     while day_index<len(dateTest):
@@ -1436,7 +1436,7 @@ if __name__ == '__main__':
             ass_idx = ass2index_mapping[thisAsset]
             # track timestamp for the last mW samps of each asset to 
             # calculate volume
-            ass_id = assets.index(ass_idx)
+            ass_id = ass_idx#assets.index(ass_idx)
             track_last_dts[ass_id][track_idx[ass_id]] = time_stamp
             prev_track_idx = track_idx[ass_id]
             track_idx[ass_id] = (track_idx[ass_id]+1) % mW
