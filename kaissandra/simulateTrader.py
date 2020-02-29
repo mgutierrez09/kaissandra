@@ -1660,7 +1660,7 @@ if __name__ == '__main__':
                         # update volume values
                         volume.append(max_vol_per_pos_ass[thisAsset])
                         volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
-                        volume_ass.appen(thisAsset)
+                        volume_ass.append(thisAsset)
                         # reset approched
                         if len(trader.list_opened_positions)==0:
                             approached = 0
