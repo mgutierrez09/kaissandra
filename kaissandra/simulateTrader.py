@@ -555,7 +555,8 @@ class Trader:
                 this_strategy.info_spread_ranges['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
                 this_strategy.info_spread_ranges['mar'][t][1] and\
-                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
+                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t] and\
+                len(self.list_opened_positions)<max_opened_positions
                 if second_condition_open:
                     sp = this_strategy.info_spread_ranges['sp'][t]
                     return second_condition_open, sp
@@ -1102,14 +1103,14 @@ if __name__ == '__main__':
                                  (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                  (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                  (0.75, 0.61), (0.75, 0.61)],
-                           'mar':[(0,0.01) for _ in range(46)]},
+                           'mar':[(0,0.02) for _ in range(46)]},
                           {'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                            'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                  (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                  (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                  (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                  (0.75, 0.58), (0.75, 0.58)],
-                           'mar':[(0,0.01) for _ in range(46)]}]
+                           'mar':[(0,0.02) for _ in range(46)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5, .51]
     list_lb_md_ext = [.58,.57]
@@ -1119,6 +1120,7 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
+    max_opened_positions = 4
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]
