@@ -1916,3 +1916,9 @@ if __name__ == '__main__':
                           "AVL{0:.2f}".format(average_loss)+\
                           "AVW{0:.2f}".format(average_win)+\
                           "RR{0:.2f}".format(RR)
+    # save volumme structs
+    pickle.dump( {
+            'volume':volume,
+            'volume_dt':volume_dt,
+            'volume_ass':volume_ass
+            }, open( directory+start_time+"_volume.p", "wb" ))
