@@ -18,6 +18,7 @@ from kaissandra.local_config import local_vars
 from kaissandra.config import Config as C
 from kaissandra.updateRaw import load_in_memory
 import pickle
+import math
 
 #from TradingManager_v10 import write_log
 
@@ -1120,7 +1121,7 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
-    max_opened_positions = 4
+    max_opened_positions = 20
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1429,8 +1430,12 @@ if __name__ == '__main__':
             DateTime = DateTimes[event_idx].decode("utf-8")
             time_stamp = dt.datetime.strptime(DateTime,
                                               '%Y.%m.%d %H:%M:%S')
-            bid = int(np.round(SymbolBids[event_idx]*100000))/100000
-            ask = int(np.round(SymbolAsks[event_idx]*100000))/100000
+            if not math.isnan(SymbolBids[event_idx]) and not math.isnan(SymbolAsks[event_idx]):
+                bid = int(np.round(SymbolBids[event_idx]*100000))/100000
+                ask = int(np.round(SymbolAsks[event_idx]*100000))/100000
+            else:
+                # TODO: find previous entry and substitude
+                print("WARNING! NaN found. Skipping")
             e_spread = (ask-bid)/ask
             thisAsset = Assets[event_idx].decode("utf-8")
             ass_idx = ass2index_mapping[thisAsset]
@@ -1462,7 +1467,7 @@ if __name__ == '__main__':
             
             if condition_open:
                 # init volume
-                max_vol_per_pos_ass[thisAsset] = (track_last_dts[ass_id][track_idx[ass_id]]-track_last_dts[ass_id][prev_track_idx]).seconds
+                max_vol_per_pos_ass[thisAsset] = (track_last_dts[ass_id][prev_track_idx]-track_last_dts[ass_id][track_idx[ass_id]]).seconds
                 dt_max_vol_per_pos_ass[thisAsset] = time_stamp
                 
                 this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
@@ -1517,8 +1522,8 @@ if __name__ == '__main__':
             # check if a position is already opened
             if trader.is_opened(ass_idx):
                 # update volume if is grater than max
-                vol = (track_last_dts[ass_id][track_idx[ass_id]]-track_last_dts[ass_id][prev_track_idx]).seconds
-                if vol>max_vol_per_pos_ass[thisAsset]:
+                vol = (track_last_dts[ass_id][prev_track_idx]-track_last_dts[ass_id][track_idx[ass_id]]).seconds
+                if vol<=max_vol_per_pos_ass[thisAsset]:
                     max_vol_per_pos_ass[thisAsset] = vol
                     dt_max_vol_per_pos_ass[thisAsset] = time_stamp
                     
