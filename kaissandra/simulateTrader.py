@@ -18,6 +18,7 @@ from kaissandra.local_config import local_vars
 from kaissandra.config import Config as C
 from kaissandra.updateRaw import load_in_memory
 import pickle
+import math
 
 #from TradingManager_v10 import write_log
 
@@ -334,7 +335,7 @@ class Trader:
         self.LOT = 100000.0
         
         self.pip = 0.0001
-        self.leverage = 30
+        self.leverage = 100
         #self.budget_in_lots = self.leverage*self.budget/self.LOT
         self.available_budget = self.budget*self.leverage
         self.available_bugdet_in_lots = self.available_budget/self.LOT
@@ -555,7 +556,8 @@ class Trader:
                 this_strategy.info_spread_ranges['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
                 this_strategy.info_spread_ranges['mar'][t][1] and\
-                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t]
+                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t] and\
+                len(self.list_opened_positions)<max_opened_positions
                 if second_condition_open:
                     sp = this_strategy.info_spread_ranges['sp'][t]
                     return second_condition_open, sp
@@ -1091,34 +1093,35 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    list_IDresults = ['R01050PS5ORNYCMF181112T191212BLk12K5K2E141452','R01050PS5ORNYCMF181112T191212BSk12K5K2E141453']
-    list_name = ['01050PS5ORNYk12K5k12K2E1452ALSRNSP60','01050PS5ORNYk12K5k12K2E1453BSSRNSP60']
+    list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452','R01050NYORPS2CMF181112T191212BSk12K5K2E141453']
+    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60','01050NYORPS2ORNYk12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     
     list_spread_ranges = [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                           'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
-                                 (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
-                                 (0.665, 0.61), (0.685, 0.625), (0.685, 0.625), (0.705, 0.62), (0.705, 0.62), (0.705, 0.62), (0.71, 0.62), (0.71, 0.62), (0.7, 0.63), (0.7, 0.63), 
-                                 (0.71, 0.635), (0.71, 0.635), (0.71, 0.635), (0.715, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.725, 0.635), (0.71, 0.645), (0.725, 0.64), 
-                                 (0.725, 0.64), (0.725, 0.64), (0.75, 0.635), (0.75, 0.635), (0.76, 0.635), (0.76, 0.635)],
-                           'mar':[(0,0) for _ in range(46)]},
+                           'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+                                 (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+                                 (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
+                                 (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
+                                 (0.75, 0.61), (0.75, 0.61)],
+                           'mar':[(0,0.02) for _ in range(46)]},
                           {'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                           'th':[(0.515, 0.58), (0.515, 0.585), (0.515, 0.59), (0.55, 0.59), (0.555, 0.59), (0.56, 0.59), (0.605, 0.585), (0.65, 0.58), (0.66, 0.58), (0.66, 0.58), (0.64, 0.59), 
-                                 (0.64, 0.59), (0.64, 0.59), (0.645, 0.59), (0.64, 0.595), (0.645, 0.595), (0.645, 0.595), (0.645, 0.6), (0.645, 0.6), (0.645, 0.6), (0.655, 0.6), (0.655, 0.6), 
-                                 (0.66, 0.6), (0.68, 0.595), (0.685, 0.595), (0.695, 0.595), (0.695, 0.595), (0.72, 0.595), (0.72, 0.595), (0.71, 0.6), (0.71, 0.6), (0.71, 0.6), (0.735, 0.595), 
-                                 (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.715, 0.6), (0.72, 0.6), (0.73, 0.6), (0.73, 0.6), (0.75, 0.595), (0.775, 0.57), (0.775, 0.57), (0.775, 0.57), 
-                                 (0.775, 0.57), (0.775, 0.57)],
-                           'mar':[(0,0) for _ in range(46)]}]
+                           'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                                 (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                 (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                 (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
+                                 (0.75, 0.58), (0.75, 0.58)],
+                           'mar':[(0,0.02) for _ in range(46)]}]
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.51, .515]
-    list_lb_md_ext = [.59,.57]
+    list_lb_mc_ext = [.5, .51]
+    list_lb_md_ext = [.58,.57]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
+    max_opened_positions = 20
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1311,7 +1314,7 @@ if __name__ == '__main__':
 #    journal_all_days = journal_purged
     
     total_journal_entries = journal_all_days.shape[0]
-    init_budget = 20000
+    init_budget = 10000
     results = Results()
     
     directory = local_vars.live_results_dict+"simulate/trader/"
@@ -1336,6 +1339,17 @@ if __name__ == '__main__':
     rewinded = 0
     week_counter = 0
     print(root_dir)
+    
+    # tack volume
+    volume = []
+    volume_dt = []
+    volume_ass = []
+    max_vol_per_pos_ass = {}
+    dt_max_vol_per_pos_ass = {}
+    mW = 500
+    track_last_dts = [[0 for _ in range(mW)] for i in assets]
+    track_idx = [0 for i in assets]
+    # loop over days 
     while day_index<len(dateTest):
         counter_back = 0
         init_list_index = day_index#data.dateTest[day_index]
@@ -1416,11 +1430,22 @@ if __name__ == '__main__':
             DateTime = DateTimes[event_idx].decode("utf-8")
             time_stamp = dt.datetime.strptime(DateTime,
                                               '%Y.%m.%d %H:%M:%S')
-            bid = int(np.round(SymbolBids[event_idx]*100000))/100000
-            ask = int(np.round(SymbolAsks[event_idx]*100000))/100000
+            if not math.isnan(SymbolBids[event_idx]) and not math.isnan(SymbolAsks[event_idx]):
+                bid = int(np.round(SymbolBids[event_idx]*100000))/100000
+                ask = int(np.round(SymbolAsks[event_idx]*100000))/100000
+            else:
+                # TODO: find previous entry and substitude
+                print("WARNING! NaN found. Skipping")
             e_spread = (ask-bid)/ask
             thisAsset = Assets[event_idx].decode("utf-8")
             ass_idx = ass2index_mapping[thisAsset]
+            # track timestamp for the last mW samps of each asset to 
+            # calculate volume
+            ass_id = ass_idx#assets.index(ass_idx)
+            track_last_dts[ass_id][track_idx[ass_id]] = time_stamp
+            prev_track_idx = track_idx[ass_id]
+            track_idx[ass_id] = (track_idx[ass_id]+1) % mW
+            
             list_idx = trader.map_ass_idx2pos_idx[ass_idx]
             # update bid and ask lists if exist
             if list_idx>-1:
@@ -1441,11 +1466,10 @@ if __name__ == '__main__':
                               sec_cond and not ban_condition)
             
             if condition_open:
-#                profitability = strategys[name2str_map[trader.next_candidate.strategy
-#                                                       ]].get_profitability(
-#                                                       trader.next_candidate.p_mc, 
-#                                                        trader.next_candidate.p_md, 
-#                                                        int(np.abs(trader.next_candidate.bet)-1))
+                # init volume
+                max_vol_per_pos_ass[thisAsset] = (track_last_dts[ass_id][prev_track_idx]-track_last_dts[ass_id][track_idx[ass_id]]).seconds
+                dt_max_vol_per_pos_ass[thisAsset] = time_stamp
+                
                 this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
                 out = (DateTime+" "+
                        thisAsset+
@@ -1497,6 +1521,12 @@ if __name__ == '__main__':
                 trader.write_log(out)
             # check if a position is already opened
             if trader.is_opened(ass_idx):
+                # update volume if is grater than max
+                vol = (track_last_dts[ass_id][prev_track_idx]-track_last_dts[ass_id][track_idx[ass_id]]).seconds
+                if vol<=max_vol_per_pos_ass[thisAsset]:
+                    max_vol_per_pos_ass[thisAsset] = vol
+                    dt_max_vol_per_pos_ass[thisAsset] = time_stamp
+                    
                 trader.count_one_event(ass_idx)
         #        stop_loss = update_stoploss(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]], stop_loss)
                 exit_pos, stoplosses = trader.is_stoploss_reached(ass_idx, stoplosses)
@@ -1509,6 +1539,10 @@ if __name__ == '__main__':
                     trader.close_position(DateTime, 
                                           thisAsset, 
                                           ass_idx)
+                    # update volume values
+                    volume.append(max_vol_per_pos_ass[thisAsset])
+                    volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
+                    volume_ass.appen(thisAsset)
                     # reset approched
                     if len(trader.list_opened_positions)==0:
                         approached = 0
@@ -1593,6 +1627,10 @@ if __name__ == '__main__':
                                     trader.close_position(DateTime, 
                                                   thisAsset, 
                                                   ass_idx)
+                                    # update volume values
+                                    volume.append(max_vol_per_pos_ass[thisAsset])
+                                    volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
+                                    volume_ass.appen(thisAsset)
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0
@@ -1624,6 +1662,10 @@ if __name__ == '__main__':
                         trader.close_position(DateTime, 
                                               thisAsset, 
                                               ass_idx)
+                        # update volume values
+                        volume.append(max_vol_per_pos_ass[thisAsset])
+                        volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
+                        volume_ass.append(thisAsset)
                         # reset approched
                         if len(trader.list_opened_positions)==0:
                             approached = 0
@@ -1691,7 +1733,8 @@ if __name__ == '__main__':
 #                error()
         #    # update time stamp
         #    else:
-            if approached:
+################ WARNING! NO skipping o samps to track volume #############################
+            if 1:
                 if not rewind:
                     event_idx += 1
                 else:
@@ -1873,3 +1916,9 @@ if __name__ == '__main__':
                           "AVL{0:.2f}".format(average_loss)+\
                           "AVW{0:.2f}".format(average_win)+\
                           "RR{0:.2f}".format(RR)
+    # save volumme structs
+    pickle.dump( {
+            'volume':volume,
+            'volume_dt':volume_dt,
+            'volume_ass':volume_ass
+            }, open( directory+start_time+"_volume.p", "wb" ))
