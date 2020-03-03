@@ -1344,10 +1344,15 @@ if __name__ == '__main__':
     volume = []
     volume_dt = []
     volume_ass = []
+    difference = []
+    diff_dt = []
     max_vol_per_pos_ass = {}
     dt_max_vol_per_pos_ass = {}
+    max_diff_per_pos_ass = {}
+    dt_max_diff_per_pos_ass = {}
     mW = 500
     track_last_dts = [[0 for _ in range(mW)] for i in assets]
+    track_last_asks = [[0 for _ in range(mW)] for i in assets]
     track_idx = [0 for i in assets]
     # loop over days 
     while day_index<len(dateTest):
@@ -1443,7 +1448,9 @@ if __name__ == '__main__':
             # calculate volume
             ass_id = ass_idx#assets.index(ass_idx)
             track_last_dts[ass_id][track_idx[ass_id]] = time_stamp
+            track_last_asks[ass_id][track_idx[ass_id]] = ask
             prev_track_idx = track_idx[ass_id]
+            
             track_idx[ass_id] = (track_idx[ass_id]+1) % mW
             
             list_idx = trader.map_ass_idx2pos_idx[ass_idx]
@@ -1468,7 +1475,11 @@ if __name__ == '__main__':
             if condition_open:
                 # init volume
                 max_vol_per_pos_ass[thisAsset] = (track_last_dts[ass_id][prev_track_idx]-track_last_dts[ass_id][track_idx[ass_id]]).seconds
+                max_diff_per_pos_ass[thisAsset] = np.abs(track_last_asks[ass_id][prev_track_idx]-track_last_asks[ass_id][track_idx[ass_id]])\
+                                                    /np.max([track_last_asks[ass_id][prev_track_idx], track_last_asks[ass_id][track_idx[ass_id]]])
                 dt_max_vol_per_pos_ass[thisAsset] = time_stamp
+                dt_max_diff_per_pos_ass[thisAsset] = time_stamp
+                
                 
                 this_strategy = strategys[name2str_map[trader.next_candidate.strategy]]
                 out = (DateTime+" "+
@@ -1526,6 +1537,13 @@ if __name__ == '__main__':
                 if vol<=max_vol_per_pos_ass[thisAsset]:
                     max_vol_per_pos_ass[thisAsset] = vol
                     dt_max_vol_per_pos_ass[thisAsset] = time_stamp
+                # update difference
+                diff = np.abs(track_last_asks[ass_id][prev_track_idx]-track_last_asks[ass_id][track_idx[ass_id]])\
+                            /np.max([track_last_asks[ass_id][prev_track_idx], track_last_asks[ass_id][track_idx[ass_id]]])
+                if diff >= max_diff_per_pos_ass[thisAsset]:
+                    # update diff
+                    max_diff_per_pos_ass[thisAsset] = diff
+                    dt_max_diff_per_pos_ass[thisAsset] = time_stamp
                     
                 trader.count_one_event(ass_idx)
         #        stop_loss = update_stoploss(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]], stop_loss)
@@ -1543,6 +1561,9 @@ if __name__ == '__main__':
                     volume.append(max_vol_per_pos_ass[thisAsset])
                     volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
                     volume_ass.appen(thisAsset)
+                    # update diff values
+                    difference.append(max_diff_per_pos_ass[thisAsset])
+                    diff_dt.append(dt_max_diff_per_pos_ass[thisAsset])
                     # reset approched
                     if len(trader.list_opened_positions)==0:
                         approached = 0
@@ -1631,6 +1652,9 @@ if __name__ == '__main__':
                                     volume.append(max_vol_per_pos_ass[thisAsset])
                                     volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
                                     volume_ass.appen(thisAsset)
+                                    # update diff values
+                                    difference.append(max_diff_per_pos_ass[thisAsset])
+                                    diff_dt.append(dt_max_diff_per_pos_ass[thisAsset])
                             # reset approched
                             if len(trader.list_opened_positions)==0:
                                 approached = 0
@@ -1666,6 +1690,9 @@ if __name__ == '__main__':
                         volume.append(max_vol_per_pos_ass[thisAsset])
                         volume_dt.append(dt_max_vol_per_pos_ass[thisAsset])
                         volume_ass.append(thisAsset)
+                        # update diff values
+                        difference.append(max_diff_per_pos_ass[thisAsset])
+                        diff_dt.append(dt_max_diff_per_pos_ass[thisAsset])
                         # reset approched
                         if len(trader.list_opened_positions)==0:
                             approached = 0
@@ -1872,6 +1899,15 @@ if __name__ == '__main__':
         print(out)
         trader.write_log(out)
         trader.write_summary(out)
+        
+        # save volumme structs
+        pickle.dump( {
+                'volume':volume,
+                'volume_dt':volume_dt,
+                'volume_ass':volume_ass,
+                'diff':difference,
+                'diff_dt':diff_dt
+                }, open( directory+start_time+"_volume.p", "wb" ))
     # end of weeks
     out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+
            "Total ROI = {0:.3f}% ".format(results.total_ROI)+
@@ -1916,9 +1952,4 @@ if __name__ == '__main__':
                           "AVL{0:.2f}".format(average_loss)+\
                           "AVW{0:.2f}".format(average_win)+\
                           "RR{0:.2f}".format(RR)
-    # save volumme structs
-    pickle.dump( {
-            'volume':volume,
-            'volume_dt':volume_dt,
-            'volume_ass':volume_ass
-            }, open( directory+start_time+"_volume.p", "wb" ))
+    
