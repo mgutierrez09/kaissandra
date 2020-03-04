@@ -149,23 +149,39 @@ def reset_networks():
             #print("Sent command to "+directory_MT5_ass)
             send_command(directory_io_ass, command)
             
-def send_trader_log(message, token_header):
+def send_trader_log(message, asset, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/traders'
     try:
-        response = requests.post(CC.URL+url_ext, json={'Message':message,'Name':CC.TRADERNAME},
+        response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                       'Asset':asset,
+                                                       'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
         print("WARNING! Error in send_network_log die to timeout.")
         
-def send_network_log(message, token_header):
+def send_monitoring_log(message, asset, token_header):
+    """ Send trader log to server api """
+    url_ext = 'logs/monitor'
+    try:
+        response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                       'Asset':asset,
+                                                       'Name':CC.TRADERNAME},
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+        
+def send_network_log(message, asset, token_header):
         """ Send network log to server api """
         url_ext = 'logs/networks'
 #        self.futureSession.post(CC.URL+url_ext, json={'Message':message},
 #                                headers=self.build_token_header(), verify=False, timeout=10)
         try:
-            response = requests.post(CC.URL+url_ext, json={'Message':message},
+            response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                           'Asset':asset
+                                                           },
                                     headers=token_header, verify=True, timeout=10)
             print(response.json())
         except:
@@ -218,13 +234,15 @@ def get_token():
     """  """
     try:
         response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
-    except ConnectionError:
-        raise ConnectionError
-    if response.status_code == 200:
-        token = response.json()['token']
-        return token
-    else:
+        if response.status_code == 200:
+            token = response.json()['token']
+            return token
+        else:
+            return None
+    except:
+        print("WARNING! Error in get_token of communication.py")
         return None
+    
     
 #def parameters_enquiry(session_id, token_header):
 #    """  """
