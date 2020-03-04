@@ -1350,7 +1350,7 @@ if __name__ == '__main__':
     dt_max_vol_per_pos_ass = {}
     max_diff_per_pos_ass = {}
     dt_max_diff_per_pos_ass = {}
-    mW = 500
+    mW = 5000
     track_last_dts = [[0 for _ in range(mW)] for i in assets]
     track_last_asks = [[0 for _ in range(mW)] for i in assets]
     track_idx = [0 for i in assets]
