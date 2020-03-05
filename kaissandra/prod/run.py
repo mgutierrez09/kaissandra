@@ -2363,7 +2363,9 @@ def renew_mt5_dir(AllAssets, running_assets):
         for ass_idx, ass_id in enumerate(running_assets):
             if ass_id in nonsynched_assets:
                 thisAsset = AllAssets[str(ass_id)]
-                print(thisAsset+" Synching buffer with broker")
+                logMsg = " Synching buffer with broker"
+                print(thisAsset+logMsg)
+#                queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                 # this asset directory
                 directory_MT5_IO_ass = directory_MT5_IO+thisAsset+"/"
                 directory_MT5_log_ass = directory_MT5_log+thisAsset+"/"
