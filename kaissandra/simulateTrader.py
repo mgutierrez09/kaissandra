@@ -14,11 +14,12 @@ import time
 import pandas as pd
 import datetime as dt
 import numpy as np
+import pickle
+import math
 from kaissandra.local_config import local_vars
 from kaissandra.config import Config as C
 from kaissandra.updateRaw import load_in_memory
-import pickle
-import math
+from kaissandra.results2 import load_spread_ranges
 
 #from TradingManager_v10 import write_log
 
@@ -168,10 +169,8 @@ class Strategy():
     
     def __init__(self, direct='', thr_sl=1000, lim_groi_ext=-.1, thr_tp=1000, fix_spread=False, 
                  fixed_spread_pips=2, max_lots_per_pos=.1, flexible_lot_ratio=False, 
-                 lb_mc_op=0.6, lb_md_op=0.6, lb_mc_ext=0.6, lb_md_ext=0.6, 
-                 ub_mc_op=1, ub_md_op=1, ub_mc_ext=1, ub_md_ext=1,
                  if_dir_change_close=False, if_dir_change_extend=False, 
-                 name='',t_index=3,IDr=None,IDgre=None,epoch='11',p_md_margin=0.02,
+                 name='',t_index=3,IDgre=None,epoch='11',p_md_margin=0.02,
                  weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr',
                  extend_for_any_thr=True):
         
@@ -189,14 +188,14 @@ class Strategy():
         self.max_lots_per_pos = max_lots_per_pos#np.inf
         self.flexible_lot_ratio = flexible_lot_ratio
         
-        self.lb_mc_op = lb_mc_op
-        self.lb_md_op = lb_md_op
-        self.lb_mc_ext = lb_mc_ext
-        self.lb_md_ext = lb_md_ext
-        self.ub_mc_op = ub_mc_op
-        self.ub_md_op = ub_md_op
-        self.ub_mc_ext = ub_mc_ext
-        self.ub_md_ext = ub_md_ext
+#        self.lb_mc_op = lb_mc_op
+#        self.lb_md_op = lb_md_op
+#        self.lb_mc_ext = lb_mc_ext
+#        self.lb_md_ext = lb_md_ext
+#        self.ub_mc_op = ub_mc_op
+#        self.ub_md_op = ub_md_op
+#        self.ub_mc_ext = ub_mc_ext
+#        self.ub_md_ext = ub_md_ext
         self.extend_for_any_thr = extend_for_any_thr
         
         self.if_dir_change_close = if_dir_change_close
@@ -204,16 +203,15 @@ class Strategy():
         # strategies
         self.entry_strategy = entry_strategy
         # load GRE
-        self.IDr = IDr
         self.IDgre = IDgre
         self.epoch = epoch
         self.t_index = t_index
         self.weights = weights
         self._load_GRE()
         # spread range strategy
-        
-        if 'mar' not in info_spread_ranges:
-            info_spread_ranges['mar'] = [(0.0,0.0) for _ in range(len(info_spread_ranges['th']))]
+        # depricated
+#        if 'mar' not in info_spread_ranges[0]:
+#            info_spread_ranges['mar'] = [(0.0,0.0) for _ in range(len(info_spread_ranges['th']))]
         self.info_spread_ranges = info_spread_ranges
         self.p_md_margin = p_md_margin
         
@@ -521,45 +519,49 @@ class Trader:
                                 ask==self.next_candidate.entry_ask)
         return first_condition_open
     
-    def check_secondary_contition_for_opening(self):
+    def check_secondary_contition_for_opening(self, idx):
         
-        margin = 0.5
+#        margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
         if this_strategy.entry_strategy=='fixed_thr':
-            second_condition_open = (self.next_candidate!= None and 
-                                     self.next_candidate.p_mc>=this_strategy.lb_mc_op and 
-                                    self.next_candidate.p_md>=this_strategy.lb_md_op and
-                                     self.next_candidate.p_mc<this_strategy.ub_mc_op and 
-                                    self.next_candidate.p_md<this_strategy.ub_md_op)
+            raise ValueError("Depricated!")
+#            second_condition_open = (self.next_candidate!= None and 
+#                                     self.next_candidate.p_mc>=this_strategy.lb_mc_op and 
+#                                    self.next_candidate.p_md>=this_strategy.lb_md_op and
+#                                     self.next_candidate.p_mc<this_strategy.ub_mc_op and 
+#                                    self.next_candidate.p_md<this_strategy.ub_md_op)
             
         elif this_strategy.entry_strategy=='gre':
-            second_condition_open = (self.next_candidate!= None and 
-                                     this_strategy.get_profitability(
-                                             self.next_candidate.p_mc, 
-                                    self.next_candidate.p_md, 
-                                    int(np.abs(self.next_candidate.bet
-                                    )-1))>e_spread/self.pip+margin)
+            raise ValueError("Depricated!")
+#            second_condition_open = (self.next_candidate!= None and 
+#                                     this_strategy.get_profitability(
+#                                             self.next_candidate.p_mc, 
+#                                    self.next_candidate.p_md, 
+#                                    int(np.abs(self.next_candidate.bet
+#                                    )-1))>e_spread/self.pip+margin)
         elif this_strategy.entry_strategy=='gre_v2':
-            second_condition_open = (self.next_candidate!= None and 
-                                     this_strategy.get_profitability(
-                                             self.next_candidate.p_mc, 
-                                    self.next_candidate.p_md, 
-                                    int(np.abs(self.next_candidate.bet
-                                    )-1))>self.margin_open*e_spread/self.pip)
+            raise ValueError("Depricated!")
+#            second_condition_open = (self.next_candidate!= None and 
+#                                     this_strategy.get_profitability(
+#                                             self.next_candidate.p_mc, 
+#                                    self.next_candidate.p_md, 
+#                                    int(np.abs(self.next_candidate.bet
+#                                    )-1))>self.margin_open*e_spread/self.pip)
         elif this_strategy.entry_strategy=='spread_ranges':
 #            print("\n\n\n")
 #            print(e_spread/self.pip)
 #            print("\n\n\n")
-            for t in range(len(this_strategy.info_spread_ranges['th'])):
+            ass_loc = idx#assets.index(idx)
+            for t in range(len(this_strategy.info_spread_ranges[ass_loc]['th'])):
                 second_condition_open = self.next_candidate.p_mc>=\
-                this_strategy.info_spread_ranges['th'][t][0]+\
-                this_strategy.info_spread_ranges['mar'][t][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
-                this_strategy.info_spread_ranges['mar'][t][1] and\
-                e_spread/self.pip<=this_strategy.info_spread_ranges['sp'][t] and\
+                this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1] and\
+                e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
                 len(self.list_opened_positions)<max_opened_positions
                 if second_condition_open:
-                    sp = this_strategy.info_spread_ranges['sp'][t]
+                    sp = this_strategy.info_spread_ranges[ass_loc]['sp'][t]
                     return second_condition_open, sp
                     
         else:
@@ -588,7 +590,7 @@ class Trader:
         """
             
         """
-        margin = 0.5
+#        margin = 0.5
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
         
         dir_condition = self.list_opened_positions[
@@ -596,50 +598,39 @@ class Trader:
                         ].direction==self.next_candidate.direction
         # if not use GRE matrix
         if this_strategy.entry_strategy=='fixed_thr':
-            condition =  (self.list_opened_positions[
-                        self.map_ass_idx2pos_idx[idx]
-                        ].direction==self.next_candidate.direction and 
-                        self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
-                        self.next_candidate.p_md>=this_strategy.lb_md_ext and
-                        self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
-                        self.next_candidate.p_md<this_strategy.ub_md_ext)
-            prods_condition = condition
+            raise ValueError("Depricated!")
+#            condition =  (self.list_opened_positions[
+#                        self.map_ass_idx2pos_idx[idx]
+#                        ].direction==self.next_candidate.direction and 
+#                        self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
+#                        self.next_candidate.p_md>=this_strategy.lb_md_ext and
+#                        self.next_candidate.p_mc<this_strategy.ub_mc_ext and 
+#                        self.next_candidate.p_md<this_strategy.ub_md_ext)
+#            prods_condition = condition
         elif this_strategy.entry_strategy=='gre' or this_strategy.entry_strategy=='gre_v2':
-#            previous_p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
-#            previous_p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
-#            sum_previous_p = previous_p_mc+previous_p_md
-            #print("sum_previous_p: "+str(sum_previous_p))
-            #self.next_candidate.p_mc+self.next_candidate.p_md>=sum_previous_p
-#            if self.next_candidate!= None:
-#                print("sum_p: "+str(self.next_candidate.p_mc+self.next_candidate.p_md))
+            raise ValueError("Depricated!")
             
-            condition = (self.next_candidate!= None and 
-                         this_strategy.get_profitability(
-                         self.next_candidate.p_mc, self.next_candidate.p_md, 
-                         int(np.abs(self.next_candidate.bet)-1))>margin and 
-                         100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
-            prods_condition = condition
-            #out = "lim GROI: "+str(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
-            #print(out)
-            #self.write_log(out)
-#             and
-#                              self.next_candidate.p_mc>=previous_p_mc-.05 and 
-#                              self.next_candidate.p_md>=previous_p_md-.05
+#            condition = (self.next_candidate!= None and 
+#                         this_strategy.get_profitability(
+#                         self.next_candidate.p_mc, self.next_candidate.p_md, 
+#                         int(np.abs(self.next_candidate.bet)-1))>margin and 
+#                         100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
+#            prods_condition = condition
         elif this_strategy.entry_strategy=='spread_ranges':
-            
+            ass_loc = idx#assets.index(idx)
             if this_strategy.extend_for_any_thr:
                 t = 0
             else:
                 sp = self.list_sps[self.map_ass_idx2pos_idx[idx]]
-                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges['sp']) if x>=sp), 
-                         len(this_strategy.info_spread_ranges['sp'])-1)
+                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges[ass_loc]['sp']) if x>=sp), 
+                         len(this_strategy.info_spread_ranges[ass_loc]['sp'])-1)
 #            print(t)
 #            print(this_strategy.info_spread_ranges)
             prods_condition = self.next_candidate.p_mc>=\
-                this_strategy.info_spread_ranges['th'][t][0]+\
-                this_strategy.info_spread_ranges['mar'][t][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
-                this_strategy.info_spread_ranges['mar'][t][1]
+                this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
+                self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
         return condition, dir_condition, prods_condition
@@ -649,12 +640,12 @@ class Trader:
 #        this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
 #        if this_strategy.entry_strategy=='spread_ranges':
 #            if self.next_candidate.p_mc>=\
-#                this_strategy.info_spread_ranges['th'][0][0]+\
+#                this_strategy.info_spread_ranges[ass_idx]['th'][0][0]+\
 #                this_strategy.info_spread_ranges['mar'][0][0] and\
-#                self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+\
-#                this_strategy.info_spread_ranges['mar'][0][1]:
+#                self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_idx]['th'][0][1]+\
+#                this_strategy.info_spread_ranges[ass_idx]['mar'][0][1]:
 #                    return True
-        return False
+#        return False
 
     def update_stoploss(self, idx):
         # update stoploss
@@ -1089,29 +1080,64 @@ class Trader:
 def round_num(number, prec):
     return round(prec*number)/prec
 
+def build_spread_ranges_per_asset(baseName, extentionName, assets, thr_NSP):
+    """ Build spread range per asset """
+    spread_ranges = []
+    IDresults = []
+    min_p_mcs = []
+    min_p_mds = []
+    for ass_idx in assets:
+        thisAsset = C.AllAssets[str(ass_idx)]
+        IDresult = baseName+thisAsset+extentionName
+        spreads_range, mim_pmc, mim_pmd = load_spread_ranges(local_vars.results_directory, IDresult, value=thr_NSP)
+        spread_ranges.append(spreads_range)
+        IDresults.append(IDresult)
+        min_p_mcs.append(mim_pmc)
+        min_p_mds.append(mim_pmd)
+            
+    return spread_ranges, IDresults, min_p_mcs, min_p_mds
+
 if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    numberNetwors = 2
-    list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452','R01050NYORPS2CMF181112T191212BSk12K5K2E141453']
-    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60','01050NYORPS2ORNYk12K5k12K2E1453BSSRNSP60']
+    numberNetwors = 1
+    extentionNames = ['CMF160101T181109ALk12K2K5E141452']#'CMF160101T181109BSk12K2K5E141453'
+    baseNames = ['R01050NYORPS2']
+    list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452']
+    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     
-    list_spread_ranges = [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+    assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
+    list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                            'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
                                  (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
                                  (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                  (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                  (0.75, 0.61), (0.75, 0.61)],
-                           'mar':[(0,0.02) for _ in range(46)]},
-                          {'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                           'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
+                          [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                            'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                  (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                  (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                  (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                  (0.75, 0.58), (0.75, 0.58)],
-                           'mar':[(0,0.02) for _ in range(46)]}]
+                           'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
+    one_spread_list = False
+    if not one_spread_list:
+        list_spread_ranges = []
+        list_IDresults = []
+        list_min_p_mcs = []
+        list_min_p_mds = []
+        for net in range(numberNetwors):
+            spread_ranges, IDresults, min_p_mcs, min_p_mds = build_spread_ranges_per_asset(baseNames[net], extentionNames[net], assets, 60)
+            list_spread_ranges.append(spread_ranges)
+            list_IDresults.append(IDresults)
+            list_min_p_mcs.append(min_p_mcs)
+            list_min_p_mds.append(min_p_mds)
+            
+    
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_lb_mc_ext = [.5, .51]
     list_lb_md_ext = [.58,.57]
@@ -1152,7 +1178,6 @@ if __name__ == '__main__':
     # data structure
 #    data=Data(movingWindow=100,nEventsPerStat=1000,
 #     dateTest = dateTest)
-    assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     
     first_day = '2018.11.12'
     last_day = '2020.01.10'#'2019.08.22'
@@ -1198,14 +1223,10 @@ if __name__ == '__main__':
                           fixed_spread_pips=list_fixed_spread_pips[i], 
                           max_lots_per_pos=list_max_lots_per_pos[i],
                           flexible_lot_ratio=list_flexible_lot_ratio[i], 
-                          lb_mc_op=list_lb_mc_op[i], lb_md_op=list_lb_md_op[i], 
-                          lb_mc_ext=list_lb_mc_ext[i], lb_md_ext=list_lb_md_ext[i], 
-                          ub_mc_op=list_ub_mc_op[i], ub_md_op=list_ub_md_op[i], 
-                          ub_mc_ext=list_ub_mc_ext[i], ub_md_ext=list_ub_md_ext[i],
                           if_dir_change_close=list_if_dir_change_close[i], 
                           if_dir_change_extend=list_if_dir_change_extend[i], 
                           name=list_name[i],
-                          t_index=list_t_index[i],IDr=list_IDresults[i],
+                          t_index=list_t_index[i],
                           IDgre=list_IDgre[i],
                           epoch=str(list_epoch_gre[i]),weights=list_weights[i],
                           info_spread_ranges=list_spread_ranges[i],
@@ -1222,16 +1243,6 @@ if __name__ == '__main__':
         new_results = True
         resultsDir = local_vars.results_directory#"../RNN/results/"
         if not new_results:
-            list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+
-                                str(list_t_index[i])+"/"+list_IDresults[i]+"t"+
-                                str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
-                                "/"+list_IDresults[i]+"t"+str(list_t_index[i])+
-                                "mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                                "/" for i in range(len(list_t_index))]
-            list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
-                                 str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
-                                 "e"+str(list_epoch_journal[i])+".csv" 
-                                 for i in range(len(list_t_index))]
             entry_time_column = 'DT1'#'Entry Time
             exit_time_column = 'DT2'#'Exit Time
             entry_bid_column = 'B1'
@@ -1240,59 +1251,95 @@ if __name__ == '__main__':
             exit_bid_column = 'B2'
             root_dir = local_vars.data_dir_py##'D:/SDC/py/Data/'
             
-            list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
-                                                 list_journal_name[i], 
-                                                 sep='\t').sort_values(
-                                                by=[entry_time_column]).reset_index(
-                                                        ).drop(labels='level_0',
-                                                        axis=1).assign(
-                                                        strategy=list_name[i]) 
-                                                for i in range(len(list_t_index))]# .drop(labels='level_0',axis=1)
-        else:
-            list_journal_dir = [resultsDir+list_IDresults[i]+"/journal/"
-                                 for i in range(len(list_t_index))]
-            list_journal_name = ["J_E"+
-                                str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
-                                +"MC"+str(list_lb_mc_ext[i])+"MD"+str(list_lb_md_ext[i])+".csv"
-                                for i in range(len(list_t_index))]
-            entry_time_column = 'DTi'#'Entry Time
-            exit_time_column = 'DTo'#'Exit Time
-            entry_bid_column = 'Bi'
-            entry_ask_column = 'Ai'
-            exit_ask_column = 'Ao'
-            exit_bid_column = 'Bo'
-            
-            list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
-                                                 list_journal_name[i], 
-                                                 sep='\t').sort_values(
-                                                by=[entry_time_column]).reset_index(
-                                                        ).drop(labels='level_0',
-                                                        axis=1).assign(
-                                                        strategy=list_name[i]) 
-                                                for i in range(len(list_t_index))]
-    else:
-        
-        resultsDir = "../../RNN/resultsLive/back_test/"
-        IDresults = ["100287Nov09"]
-        list_journal_dir = [resultsDir+IDresults[0]+'T'+
-                            str(list_t_index[0])+
-                            'E'+str(list_epoch_journal[0])+'/']
-        list_journal_name = [IDresults[0]+'T'+str(list_t_index[0])+
-                             'E'+str(list_epoch_journal[0])+'_DL3.txt']
-        entry_time_column = 'Entry Time'#'Entry Time
-        exit_time_column = 'Exit Time'#'Exit Time
-        entry_bid_column = 'Bi'
-        entry_ask_column = 'Ai'
-        exit_ask_column = 'Ao'
-        exit_bid_column = 'Bo'
-        root_dir = 'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data_DL3/'
-        list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
-                                             list_journal_name[i], 
-                                             sep='\t').sort_values(by=[
-                                                     entry_time_column]
-                                             ).reset_index().assign(
-                                                     strategy=list_name[i]) 
-                                            for i in range(len(list_t_index))]
+            if one_spread_list:
+                list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+
+                                    str(list_t_index[i])+"/"+list_IDresults[i]+"t"+
+                                    str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
+                                    "/"+list_IDresults[i]+"t"+str(list_t_index[i])+
+                                    "mc"+str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
+                                    "/" for i in range(len(list_t_index))]
+                list_journal_name = ["J"+list_IDresults[i]+"t"+str(list_t_index[i])+"mc"+
+                                     str(list_lb_mc_ext[i])+"md"+str(list_lb_md_ext[i])+
+                                     "e"+str(list_epoch_journal[i])+".csv" 
+                                     for i in range(numberNetwors)]
+                
+                
+                list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
+                                                     list_journal_name[i], 
+                                                     sep='\t').sort_values(
+                                                    by=[entry_time_column]).reset_index(
+                                                            ).drop(labels='level_0',
+                                                            axis=1).assign(
+                                                            strategy=list_name[i]) 
+                                                    for i in range(len(list_t_index))]# .drop(labels='level_0',axis=1)
+            else:
+                list_journal_dir = [[resultsDir+list_IDresults[i][a]+"/t"+
+                                    str(list_t_index[i])+"/"+list_IDresults[i][a]+"t"+
+                                    str(list_t_index[i])+"mc"+str(list_min_p_mcs[i][a])+
+                                    "/"+list_IDresults[i][a]+"t"+str(list_t_index[i])+
+                                    "mc"+str(list_min_p_mcs[i][a])+"md"+str(list_min_p_mds[i][a])+
+                                    "/" for i in range(len(list_t_index))] for a in range(len(assets))]
+                list_journal_name = [["J"+list_IDresults[i][a]+"t"+str(list_t_index[i])+"mc"+
+                                     str(list_min_p_mcs[i][a])+"md"+str(list_min_p_mds[i][a])+
+                                     "e"+str(list_epoch_journal[i])+".csv" 
+                                     for i in range(numberNetwors)] for a in range(len(assets))]
+                
+                
+                list_journal_all_days = [pd.read_csv(list_journal_dir[i][a]+
+                                                     list_journal_name[i][a], 
+                                                     sep='\t').sort_values(
+                                                    by=[entry_time_column]).reset_index(
+                                                            ).drop(labels='level_0',
+                                                            axis=1).assign(
+                                                            strategy=list_name[i]) 
+                                                    for i in range(len(list_t_index)) for a in range(len(assets))]
+#        else:
+#            list_journal_dir = [resultsDir+list_IDresults[i]+"/journal/"
+#                                 for i in range(len(list_t_index))]
+#            list_journal_name = ["J_E"+
+#                                str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
+#                                +"MC"+str(list_lb_mc_ext[i])+"MD"+str(list_lb_md_ext[i])+".csv"
+#                                for i in range(len(list_t_index))]
+#            entry_time_column = 'DTi'#'Entry Time
+#            exit_time_column = 'DTo'#'Exit Time
+#            entry_bid_column = 'Bi'
+#            entry_ask_column = 'Ai'
+#            exit_ask_column = 'Ao'
+#            exit_bid_column = 'Bo'
+#            
+#            list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
+#                                                 list_journal_name[i], 
+#                                                 sep='\t').sort_values(
+#                                                by=[entry_time_column]).reset_index(
+#                                                        ).drop(labels='level_0',
+#                                                        axis=1).assign(
+#                                                        strategy=list_name[i]) 
+#                                                for i in range(len(list_t_index))]
+    
+    
+#    else:
+#        
+#        resultsDir = "../../RNN/resultsLive/back_test/"
+#        IDresults = ["100287Nov09"]
+#        list_journal_dir = [resultsDir+IDresults[0]+'T'+
+#                            str(list_t_index[0])+
+#                            'E'+str(list_epoch_journal[0])+'/']
+#        list_journal_name = [IDresults[0]+'T'+str(list_t_index[0])+
+#                             'E'+str(list_epoch_journal[0])+'_DL3.txt']
+#        entry_time_column = 'Entry Time'#'Entry Time
+#        exit_time_column = 'Exit Time'#'Exit Time
+#        entry_bid_column = 'Bi'
+#        entry_ask_column = 'Ai'
+#        exit_ask_column = 'Ao'
+#        exit_bid_column = 'Bo'
+#        root_dir = 'D:/SDC/py/Data_aws_3/'#'D:/SDC/py/Data_DL3/'
+#        list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
+#                                             list_journal_name[i], 
+#                                             sep='\t').sort_values(by=[
+#                                                     entry_time_column]
+#                                             ).reset_index().assign(
+#                                                     strategy=list_name[i]) 
+#                                            for i in range(len(list_t_index))]
     
     AD_resume = None
     eROIpb = None
@@ -1464,7 +1511,7 @@ if __name__ == '__main__':
             
             ban_condition = trader.list_is_asset_banned[ass_idx]#trader.check_asset_not_banned()
             if not EXIT:
-                sec_cond, sp = trader.check_secondary_contition_for_opening()
+                sec_cond, sp = trader.check_secondary_contition_for_opening(ass_idx)
             else:
                 sec_cond = False
                 
@@ -1616,14 +1663,15 @@ if __name__ == '__main__':
                                 this_strategy = strategys[name2str_map[
                                         trader.next_candidate.strategy]]
                                 # check if the new level is as certain as the opening one
-                                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges['sp']) if x>=sp), 
-                                         len(this_strategy.info_spread_ranges['sp'])-1)
+                                ass_loc = ass_idx#assets.index(ass_idx)
+                                t = next((i for i,x in enumerate(this_strategy.info_spread_ranges[ass_loc]['sp']) if x>=sp), 
+                                         len(this_strategy.info_spread_ranges[ass_loc]['sp'])-1)
                                 
                                 prods_condition = trader.next_candidate.p_mc>=\
-                                    this_strategy.info_spread_ranges['th'][t][0]+\
-                                    this_strategy.info_spread_ranges['mar'][t][0] and\
-                                    trader.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][t][1]+\
-                                    this_strategy.info_spread_ranges['mar'][t][1]
+                                    this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
+                                    this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
+                                    trader.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
+                                    this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]
                                 # close due to change direction
 #                                close_dueto_dirchange += 1
                                 if prods_condition:
@@ -1726,7 +1774,7 @@ if __name__ == '__main__':
 #                print(ban_condition)
             if (trader.chech_ground_condition_for_opening() and 
                 trader.check_primary_condition_for_opening() and (not 
-                trader.check_secondary_contition_for_opening()[0] or not ban_condition)):
+                trader.check_secondary_contition_for_opening(ass_idx)[0] or not ban_condition)):
                 not_entered_secondary += 1
                 #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Secondary condition failed "+Assets[event_idx].decode("utf-8"))
                 EXIT, rewind = trader.update_candidates()
