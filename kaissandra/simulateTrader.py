@@ -1293,28 +1293,54 @@ if __name__ == '__main__':
                                                             axis=1).assign(
                                                             strategy=list_name[i]) 
                                                     for i in range(len(list_t_index)) for a in range(len(assets))]
-#        else:
-#            list_journal_dir = [resultsDir+list_IDresults[i]+"/journal/"
-#                                 for i in range(len(list_t_index))]
-#            list_journal_name = ["J_E"+
-#                                str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
-#                                +"MC"+str(list_lb_mc_ext[i])+"MD"+str(list_lb_md_ext[i])+".csv"
-#                                for i in range(len(list_t_index))]
-#            entry_time_column = 'DTi'#'Entry Time
-#            exit_time_column = 'DTo'#'Exit Time
-#            entry_bid_column = 'Bi'
-#            entry_ask_column = 'Ai'
-#            exit_ask_column = 'Ao'
-#            exit_bid_column = 'Bo'
-#            
-#            list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
-#                                                 list_journal_name[i], 
-#                                                 sep='\t').sort_values(
-#                                                by=[entry_time_column]).reset_index(
-#                                                        ).drop(labels='level_0',
-#                                                        axis=1).assign(
-#                                                        strategy=list_name[i]) 
-#                                                for i in range(len(list_t_index))]
+        else:
+            if one_spread_list: 
+                list_journal_dir = [resultsDir+list_IDresults[i]+"/journal/"
+                                     for i in range(len(list_t_index))]
+                list_journal_name = ["J_E"+
+                                    str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
+                                    +"MC"+str(list_lb_mc_ext[i])+"MD"+str(list_lb_md_ext[i])+".csv"
+                                    for i in range(len(list_t_index))]
+                entry_time_column = 'DTi'#'Entry Time
+                exit_time_column = 'DTo'#'Exit Time
+                entry_bid_column = 'Bi'
+                entry_ask_column = 'Ai'
+                exit_ask_column = 'Ao'
+                exit_bid_column = 'Bo'
+                
+                list_journal_all_days = [pd.read_csv(list_journal_dir[i]+
+                                                     list_journal_name[i], 
+                                                     sep='\t').sort_values(
+                                                    by=[entry_time_column]).reset_index(
+                                                            ).drop(labels='level_0',
+                                                            axis=1).assign(
+                                                            strategy=list_name[i]) 
+                                                    for i in range(len(list_t_index))]
+            else:
+                list_journal_dir = [resultsDir+list_IDresults[i][a]+"/journal/"
+                                     for i in range(len(list_t_index))  for a in range(len(assets))]
+                list_journal_name = ["J_E"+
+                                    str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
+                                    +"MC"+str(list_min_p_mcs[i][a])+"MD"+str(list_min_p_mds[i][a])+".csv"
+                                    for i in range(len(list_t_index)) for a in range(len(assets))]
+                entry_time_column = 'DTi'#'Entry Time
+                exit_time_column = 'DTo'#'Exit Time
+                entry_bid_column = 'Bi'
+                entry_ask_column = 'Ai'
+                exit_ask_column = 'Ao'
+                exit_bid_column = 'Bo'
+                
+                list_journal_all_days = [pd.read_csv(list_journal_dir[i][a]+
+                                                     list_journal_name[i][a], 
+                                                     sep='\t').sort_values(
+                                                    by=[entry_time_column]).reset_index(
+                                                            ).drop(labels='level_0',
+                                                            axis=1).assign(
+                                                            strategy=list_name[i]) 
+                                                    for i in range(len(list_t_index))
+                                                    for a in range(len(assets))]
+                a=p
+            
     
     
 #    else:
