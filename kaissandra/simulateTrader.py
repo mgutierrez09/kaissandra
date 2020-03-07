@@ -1139,8 +1139,8 @@ if __name__ == '__main__':
             
     
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5, .51]
-    list_lb_md_ext = [.58,.57]
+    list_lb_mc_ext = [.5]#[.5, .51]
+    list_lb_md_ext = [.58]#[.58,.57]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
