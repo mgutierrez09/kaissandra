@@ -1080,7 +1080,7 @@ class Trader:
 def round_num(number, prec):
     return round(prec*number)/prec
 
-def build_spread_ranges_per_asset(baseName, extentionName, assets, thr_NSP):
+def build_spread_ranges_per_asset(baseName, extentionNameResults, extentionNameSpreads, assets, thr_NSP):
     """ Build spread range per asset """
     spread_ranges = []
     IDresults = []
@@ -1088,8 +1088,9 @@ def build_spread_ranges_per_asset(baseName, extentionName, assets, thr_NSP):
     min_p_mds = []
     for ass_idx in assets:
         thisAsset = C.AllAssets[str(ass_idx)]
-        IDresult = baseName+thisAsset+extentionName
-        spreads_range, mim_pmc, mim_pmd = load_spread_ranges(local_vars.results_directory, IDresult, value=thr_NSP)
+        IDspreads = baseName+thisAsset+extentionNameSpreads
+        IDresult = baseName+thisAsset+extentionNameResults
+        spreads_range, mim_pmc, mim_pmd = load_spread_ranges(local_vars.results_directory, IDspreads, value=thr_NSP)
         spread_ranges.append(spreads_range)
         IDresults.append(IDresult)
         min_p_mcs.append(mim_pmc)
@@ -1100,11 +1101,12 @@ def build_spread_ranges_per_asset(baseName, extentionName, assets, thr_NSP):
 if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    numberNetwors = 1
-    extentionNames = ['CMF160101T181109ALk12K2K5E141452']#'CMF160101T181109BSk12K2K5E141453'
-    baseNames = ['R01050NYORPS2']
-    list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452']
-    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60']
+    numberNetwors = 2
+    extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
+    extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']
+    baseNames = ['R01050NYORPS2', 'R01050NYORPS2']
+    list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452', 'R01050NYORPS2CMF181112T191212BSk12K5K2E141453']
+    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     
@@ -1131,16 +1133,16 @@ if __name__ == '__main__':
         list_min_p_mcs = []
         list_min_p_mds = []
         for net in range(numberNetwors):
-            spread_ranges, IDresults, min_p_mcs, min_p_mds = build_spread_ranges_per_asset(baseNames[net], extentionNames[net], assets, 60)
+            spread_ranges, IDresults, min_p_mcs, min_p_mds = build_spread_ranges_per_asset(baseNames[net], 
+                                                        extentionNamesResults[net], extentionNamesSpreads[net], assets, 60)
             list_spread_ranges.append(spread_ranges)
             list_IDresults.append(IDresults)
             list_min_p_mcs.append(min_p_mcs)
             list_min_p_mds.append(min_p_mds)
-            
     
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5]#[.5, .51]
-    list_lb_md_ext = [.58]#[.58,.57]
+    list_lb_mc_ext = [.5, .51]
+    list_lb_md_ext = [.58,.57]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1317,12 +1319,12 @@ if __name__ == '__main__':
                                                             strategy=list_name[i]) 
                                                     for i in range(len(list_t_index))]
             else:
-                list_journal_dir = [resultsDir+list_IDresults[i][a]+"/journal/"
-                                     for i in range(len(list_t_index))  for a in range(len(assets))]
-                list_journal_name = ["J_E"+
+                list_journal_dir = [[resultsDir+list_IDresults[i][a]+"/journal/"
+                                     for a in range(len(assets))] for i in range(len(list_t_index))]
+                list_journal_name = [["J_E"+
                                     str(list_epoch_journal[i])+"TI"+str(list_t_index[i])
                                     +"MC"+str(list_min_p_mcs[i][a])+"MD"+str(list_min_p_mds[i][a])+".csv"
-                                    for i in range(len(list_t_index)) for a in range(len(assets))]
+                                    for a in range(len(assets))] for i in range(len(list_t_index))]
                 entry_time_column = 'DTi'#'Entry Time
                 exit_time_column = 'DTo'#'Exit Time
                 entry_bid_column = 'Bi'
@@ -1339,9 +1341,6 @@ if __name__ == '__main__':
                                                             strategy=list_name[i]) 
                                                     for i in range(len(list_t_index))
                                                     for a in range(len(assets))]
-                a=p
-            
-    
     
 #    else:
 #        
