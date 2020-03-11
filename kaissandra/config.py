@@ -387,7 +387,7 @@ def configuration(entries, save=True):
         if 'lbd' in entries:
             lbd = entries['lbd']
         else:
-            lbd = 1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))
+            lbd = (1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))).tolist()
         if 'assets' in entries:
             assets = entries['assets']
         else:
@@ -700,7 +700,7 @@ def configuration(entries, save=True):
 def retrieve_config(config_name):
     """  """
     config_dir_filename = local_vars.config_directory+config_name+'.config'#
-        
+    
     if os.path.exists(config_dir_filename):
         config = pickle.load( open( config_dir_filename, "rb" ))
         print("Config file "+config_dir_filename+" loaded from disk")
@@ -831,8 +831,7 @@ def configuration_trader(*ins):
                          'feats_from_bids':list_feats_from_bids[i],
                        'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
                        'outputGain':outputGains[i],'movingWindow':mWs[i],
-                       'nEventsPerStat':nExSs[i],
-                       'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
+                       'nEventsPerStat':nExSs[i]}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
         IDepoch = [[5,2,14,14], [5,3,14,14]]
         netNames = ['R01010PS2NYREDOALk12K5k12K2E145', 'R01010PS2NYREDOBSk12K5k12K2E1453']
@@ -850,9 +849,9 @@ def configuration_trader(*ins):
         list_thr_sl = [10 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.01 for i in range(numberNetworks)]
-        list_invest_strategy = [{'name':'scale',
-                                 'steps':[.02, .04, .08, .16, .32, .5, .6, .7, .8, .9, 1.0],
-                                 'thrs':[2020, 2060, 2140, 4300, 8620, 11260, 12260, 14000, 16030, 18030, 20100]} for i in range(numberNetworks)]
+#        list_invest_strategy = [{'name':'scale',
+#                                 'steps':[.02, .04, .08, .16, .32, .5, .6, .7, .8, .9, 1.0],
+#                                 'thrs':[2020, 2060, 2140, 4300, 8620, 11260, 12260, 14000, 16030, 18030, 20100]} for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
         list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
@@ -871,10 +870,10 @@ def configuration_trader(*ins):
         list_if_dir_change_close = [False for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
         
-        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
-                      'L':[3 for i in range(numberNetworks)],
-                      'size_output_layer':[5 for i in range(numberNetworks)],
-                      'outputGain':[1 for i in range(numberNetworks)]}
+#        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
+#                      'L':[3 for i in range(numberNetworks)],
+#                      'size_output_layer':[5 for i in range(numberNetworks)],
+#                      'outputGain':[1 for i in range(numberNetworks)]}
         
         config = {'config_name':config_name,
                   'config_list':config_list,
@@ -901,7 +900,7 @@ def configuration_trader(*ins):
                   #'lBs':lBs,
                   'list_lim_groi_ext':list_lim_groi_ext,
                   'list_w_str':list_w_str,
-                  'model_dict':model_dict,
+#                  'model_dict':model_dict,
                   'list_weights':list_weights,
                   'list_lb_mc_op':list_lb_mc_op,
                   'list_lb_md_op':list_lb_md_op,
@@ -914,7 +913,7 @@ def configuration_trader(*ins):
                   'list_fix_spread':list_fix_spread,
                   'list_fixed_spread_pips':list_fixed_spread_pips,
                   'list_max_lots_per_pos':list_max_lots_per_pos,
-                  'list_invest_strategy':list_invest_strategy,
+#                  'list_invest_strategy':list_invest_strategy,
                   'list_flexible_lot_ratio':list_flexible_lot_ratio,
                   'list_if_dir_change_close':list_if_dir_change_close,
                   'list_if_dir_change_extend':list_if_dir_change_extend

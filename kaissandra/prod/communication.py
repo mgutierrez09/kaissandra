@@ -186,6 +186,27 @@ def send_network_log(message, asset, token_header):
             print(response.json())
         except:
             print("WARNING! Error in send_network_log die to timeout.")
+            
+def set_config_session(config, asset, token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/sessions/set_session_config'
+    #try:
+    if 1:
+        response = requests.put(CC.URL+url_ext, json=config,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+#    except:
+#        print("WARNING! Error in send_network_log die to timeout.")
+        
+def get_config_session(token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/sessions/get_session_config'
+    try:
+        response = requests.get(CC.URL+url_ext, 
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
 
 def send_open_position(params, session_id, token_header):
     """ Send open position to server api"""

@@ -204,7 +204,7 @@ class Strategy():
                  lb_mc_ext=0.6, lb_md_ext=0.6, ub_mc_op=1, ub_md_op=1, 
                  ub_mc_ext=1, ub_md_ext=1,if_dir_change_close=False, 
                  if_dir_change_extend=False, name='',t_indexs=[3],entry_strategy='spread_ranges',
-                 IDr='',epoch='11',weights=np.array([0,1]),info_spread_ranges={},
+                 IDr='',epoch='11',weights=[0,1],info_spread_ranges={},
                  priorities=[0],lim_groi_ext=-.02):
         
         self.name = name
@@ -1809,6 +1809,9 @@ class Trader:
                 self.max_opened_positions = config['max_opened_positions']
                 print("max_opened_positions updated:")
                 print(config['max_opened_positions'])
+            if 'list_spread_ranges' in config:
+                # update spread ranges
+                self.update_spread_ranges(config['list_spread_ranges'])
         except:
             print("WARNING!! config file does not exist. Skipped")
         
@@ -1825,6 +1828,12 @@ class Trader:
             self.strategies[s].thr_sl = list_thr_sl[s]
         print("list_thr_sl updated:")
         print(list_thr_sl)
+        
+    def update_spread_ranges(self, list_spread_ranges):
+        """ Update spread ranges for all strategies in trader """
+        for s in range(len(self.strategies)):
+            self.strategies[s].info_spread_ranges = list_spread_ranges[s]
+            print(list_spread_ranges[s])
 
 def write_log(log_message, log_file):
         """
@@ -3391,7 +3400,7 @@ def run(config_traders_list, running_assets, start_time, test, queue):
 #            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
 #            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
         else:
-            list_stats_feats = [[load_stats_input_live(list_unique_configs[nn], AllAssets[str(running_assets[ass])], 
+            list_stats_feats = [[load_stats_input_live(feature_keys_manual, mWs[nn], nExSs[nn], AllAssets[str(running_assets[ass])], 
                             None, 
                             from_stats_file=True, hdf5_directory=LC.stats_live_dir,tag=list_tags[nn]) 
                             for nn in range(nNets)] for ass in range(nAssets)]
@@ -3399,7 +3408,7 @@ def run(config_traders_list, running_assets, start_time, test, queue):
                             tag=tag_stats) for nn in range(nNets)] for ass in range(nAssets)]
         gain = 1
     else:
-        list_stats_feats = [[load_stats_input_live({}, AllAssets[str(running_assets[ass])], 
+        list_stats_feats = [[load_stats_input_live(feature_keys_manual, 500, 5000, AllAssets[str(running_assets[ass])], 
                         None, 
                         from_stats_file=True, hdf5_directory=LC.stats_live_dir) 
                         for nn in range(nNets)] for ass in range(nAssets)]

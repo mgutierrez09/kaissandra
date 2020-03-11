@@ -1576,13 +1576,13 @@ if __name__ == '__main__':
                     # add vol 
                     max_vols[ass_id] = vol
                 # update max volatility
-                if volat>max_vols[ass_id]:
-                    max_vols[ass_id] = volat
+                if volat>max_volats[ass_id]:
+                    max_volats[ass_id] = volat
                 # update new hour
                 if this_hour != time_stamp.hour:
                     this_hour = time_stamp.hour
                     av_vol_per_hour.append(np.mean(np.array(max_vols)[np.array(max_vols)!=99999999]))
-                    av_volat_per_hour.append(np.mean(np.array(max_vols)[np.array(max_vols)!=-1]))
+                    av_volat_per_hour.append(np.mean(np.array(max_volats)[np.array(max_volats)!=-1]))
                     time_per_hour.append(time_stamp)
                     max_vols = [99999999 for _ in assets]
                     max_volats = [-1 for _ in assets]
