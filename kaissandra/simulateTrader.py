@@ -1080,17 +1080,31 @@ class Trader:
 def round_num(number, prec):
     return round(prec*number)/prec
 
-def build_spread_ranges_per_asset(baseName, extentionNameResults, extentionNameSpreads, assets, thr_NSP):
+def build_spread_ranges_per_asset(baseName, extentionNameResults, extentionNameSpreads, 
+                                  assets, thr_NSP, mar=(0.0,0.0), anchor=[]):
     """ Build spread range per asset """
     spread_ranges = []
     IDresults = []
     min_p_mcs = []
     min_p_mds = []
-    for ass_idx in assets:
+    for ass_id, ass_idx in enumerate(assets):
         thisAsset = C.AllAssets[str(ass_idx)]
+#        print(thisAsset)
         IDspreads = baseName+thisAsset+extentionNameSpreads
         IDresult = baseName+thisAsset+extentionNameResults
         spreads_range, mim_pmc, mim_pmd = load_spread_ranges(local_vars.results_directory, IDspreads, value=thr_NSP)
+        
+        # add margin
+        for idx in range(len(spreads_range['mar'])):
+            spreads_range['mar'][idx] = mar
+            # average with anchor spreads i given
+            if len(anchor)>0:
+#                print(idx)
+#                print(spreads_range['th'][idx])
+#                print(anchor[ass_id]['th'][idx])
+                spreads_range['th'][idx] = (round_num((spreads_range['th'][idx][0]+anchor[ass_id]['th'][idx][0])/2, 1000), 
+                                            round_num((spreads_range['th'][idx][1]+anchor[ass_id]['th'][idx][1])/2, 1000))
+#                print(spreads_range['th'][idx])
         spread_ranges.append(spreads_range)
         IDresults.append(IDresult)
         min_p_mcs.append(mim_pmc)
@@ -1102,47 +1116,65 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
-    extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']
-    baseNames = ['R01050NYORPS2', 'R01050NYORPS2']
-    list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452', 'R01050NYORPS2CMF181112T191212BSk12K5K2E141453']
+    init_day_str = '20181112'#'20200113'#'20200106'#'20190701'#
+    end_day_str = '20200306'#'20191212'
     list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
-    
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-    # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
-    list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                           'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
-                                 (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
-                                 (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
-                                 (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
-                                 (0.75, 0.61), (0.75, 0.61)],
-                           'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
-                          [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                           'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
-                                 (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                 (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                 (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
-                                 (0.75, 0.58), (0.75, 0.58)],
-                           'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
-    one_spread_list = False
-    if not one_spread_list:
+    spreads_per_asset = False
+    if not spreads_per_asset:
+        list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452', 'R01050NYORPS2CMF181112T191212BSk12K5K2E141453']
+        # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
+        list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
+                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
+                                     (0.75, 0.61), (0.75, 0.61)],
+                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
+                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
+                                     (0.75, 0.58), (0.75, 0.58)],
+                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
+        list_lb_mc_ext = [.5, .51]
+        list_lb_md_ext = [.58,.57]
+    else:
+        extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
+        extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']
+        baseNames = ['R01050NYORPS2', 'R01050NYORPS2']
+        list_anchor_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
+                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
+                                     (0.75, 0.61), (0.75, 0.61)],
+                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
+                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
+                                     (0.75, 0.58), (0.75, 0.58)],
+                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
+        mar = (0.0, 0.02)
         list_spread_ranges = []
         list_IDresults = []
         list_min_p_mcs = []
         list_min_p_mds = []
         for net in range(numberNetwors):
             spread_ranges, IDresults, min_p_mcs, min_p_mds = build_spread_ranges_per_asset(baseNames[net], 
-                                                        extentionNamesResults[net], extentionNamesSpreads[net], assets, 60)
+                                                        extentionNamesResults[net], extentionNamesSpreads[net], assets, 60, 
+                                                        mar=mar, anchor=list_anchor_spread_ranges[net])
             list_spread_ranges.append(spread_ranges)
             list_IDresults.append(IDresults)
             list_min_p_mcs.append(min_p_mcs)
             list_min_p_mds.append(min_p_mds)
     
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
-    list_lb_mc_ext = [.5, .51]
-    list_lb_md_ext = [.58,.57]
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
     list_entry_strategy = ['spread_ranges' for i in range(numberNetwors)]#'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1159,8 +1191,6 @@ if __name__ == '__main__':
     #root_dir = local_vars.data_dir
     root_dir = local_vars.data_test_dir
     
-    init_day_str = '20181112'#'20200106'#'20190701'#
-    end_day_str = '20191129'#'20191212'
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     
@@ -1181,10 +1211,10 @@ if __name__ == '__main__':
 #    data=Data(movingWindow=100,nEventsPerStat=1000,
 #     dateTest = dateTest)
     
-    first_day = '2018.11.12'
-    last_day = '2020.01.10'#'2019.08.22'
-    init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
-    end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
+#    first_day = '2018.11.12'
+#    last_day = '2020.01.10'#'2019.08.22'
+#    init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
+#    end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
     delta_dates = end_day-init_day
     dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
     dateTest = []
@@ -1253,7 +1283,7 @@ if __name__ == '__main__':
             exit_bid_column = 'B2'
             root_dir = local_vars.data_dir_py##'D:/SDC/py/Data/'
             
-            if one_spread_list:
+            if not spreads_per_asset:
                 list_journal_dir = [resultsDir+list_IDresults[i]+"/t"+
                                     str(list_t_index[i])+"/"+list_IDresults[i]+"t"+
                                     str(list_t_index[i])+"mc"+str(list_lb_mc_ext[i])+
@@ -1296,7 +1326,7 @@ if __name__ == '__main__':
                                                             strategy=list_name[i]) 
                                                     for i in range(len(list_t_index)) for a in range(len(assets))]
         else:
-            if one_spread_list: 
+            if not spreads_per_asset: 
                 list_journal_dir = [resultsDir+list_IDresults[i]+"/journal/"
                                      for i in range(len(list_t_index))]
                 list_journal_name = ["J_E"+
@@ -1418,12 +1448,17 @@ if __name__ == '__main__':
     volume_ass = []
     difference = []
     diff_dt = []
+    av_vol_per_hour = []
+    av_volat_per_hour = []
+    time_per_hour = []
+    
     max_vol_per_pos_ass = {}
     dt_max_vol_per_pos_ass = {}
     max_diff_per_pos_ass = {}
     dt_max_diff_per_pos_ass = {}
-    mW = 5000
-    track_last_dts = [[0 for _ in range(mW)] for i in assets]
+    max_vol_per_hour = {}
+    mW = 500
+    track_last_dts = [[dt.datetime.strptime(init_day_str,'%Y%m%d') for _ in range(mW)] for i in assets]
     track_last_asks = [[0 for _ in range(mW)] for i in assets]
     track_idx = [0 for i in assets]
     # loop over days 
@@ -1498,7 +1533,11 @@ if __name__ == '__main__':
         not_entered_secondary = 0
         close_dueto_dirchange = 0
         w = 1-1/20
-        
+        max_vols = [99999999 for _ in assets]# inf
+        max_volats = [-1 for _ in assets]
+        events_per_ass_counter = [-1 for _ in assets]
+#        last_dt_per_ass = [False for _ in assets]
+        this_hour = False
         # get to 
         while event_idx<nEvents:
             rewind = 0
@@ -1524,6 +1563,29 @@ if __name__ == '__main__':
             prev_track_idx = track_idx[ass_id]
             
             track_idx[ass_id] = (track_idx[ass_id]+1) % mW
+            events_per_ass_counter[ass_id] += 1
+            # init last dt of asset
+            if not this_hour:
+                this_hour = time_stamp.hour
+            if events_per_ass_counter[ass_id]>mW:
+                vol = (track_last_dts[ass_id][prev_track_idx]-track_last_dts[ass_id][track_idx[ass_id]]).seconds
+                window_asks = np.array(track_last_asks[ass_id])
+                window_asks = window_asks[window_asks>0]
+                volat = (np.max(window_asks)-np.min(window_asks))/np.mean(window_asks)
+                if vol<=max_vols[ass_id]:
+                    # add vol 
+                    max_vols[ass_id] = vol
+                # update max volatility
+                if volat>max_vols[ass_id]:
+                    max_vols[ass_id] = volat
+                # update new hour
+                if this_hour != time_stamp.hour:
+                    this_hour = time_stamp.hour
+                    av_vol_per_hour.append(np.mean(np.array(max_vols)[np.array(max_vols)!=99999999]))
+                    av_volat_per_hour.append(np.mean(np.array(max_vols)[np.array(max_vols)!=-1]))
+                    time_per_hour.append(time_stamp)
+                    max_vols = [99999999 for _ in assets]
+                    max_volats = [-1 for _ in assets]
             
             list_idx = trader.map_ass_idx2pos_idx[ass_idx]
             # update bid and ask lists if exist
@@ -1979,7 +2041,10 @@ if __name__ == '__main__':
                 'volume_dt':volume_dt,
                 'volume_ass':volume_ass,
                 'diff':difference,
-                'diff_dt':diff_dt
+                'diff_dt':diff_dt,
+                'av_vol_per_hour':av_vol_per_hour,
+                'av_volat_per_hour':av_volat_per_hour,
+                'time_per_hour':time_per_hour
                 }, open( directory+start_time+"_volume.p", "wb" ))
     # end of weeks
     out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+

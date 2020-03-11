@@ -797,14 +797,7 @@ def configuration_trader(*ins):
         IDresults = ['R01010PS2NYREDOALk12K5k12K2E1452','R01010PS2NYREDOBSk12K5k12K2E1453']
         IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A'],['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A']]
         list_name = ['R01010PS2NYREDOALk12K5k12K2E1452SRNSP60','R01010PS2NYREDOBSk12K5k12K2E1453SRNSP60']
-#        list_spread_ranges = [{'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
-#                           'th':[(0.0, 0.5) for i in np.linspace(.5,5,num=46)],
-#                           'mar':[(0,0) for i in np.linspace(.5,5,num=46)],
-#                           'dir':'ASKS'},
-#                          {'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
-#                           'th':[(0.0, 0.5) for i in np.linspace(.5,5,num=46)],
-#                           'mar':[(0,0) for i in np.linspace(.5,5,num=46)],
-#                           'dir':'BIDS'}]
+        
         list_spread_ranges = [{'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
                            'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
                                  (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
@@ -937,6 +930,12 @@ def configuration_trader(*ins):
             print("WARNING! Arguments not taken into consideration")
         print("Config file "+config_filename+" exists. Loaded from disk")
     return config
+
+def change_spread_ranges(config):
+    for c in range(len(config['list_spread_ranges'])):
+        for m in range(len(config['list_spread_ranges'][c]['mar'])):
+            config['list_spread_ranges'][c]['mar'][m]=(0.0,0.06)
+    modify_config(config['config_name'],'list_spread_ranges',config['list_spread_ranges'])
         
 if __name__=='__main__':
     #configuration()
