@@ -1116,7 +1116,7 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20181112'#'20200113'#'20200106'#'20190701'#
+    init_day_str = '20191202'#'20181112'
     end_day_str = '20200306'#'20191212'
     list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
@@ -1124,7 +1124,7 @@ if __name__ == '__main__':
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     spreads_per_asset = False
     if not spreads_per_asset:
-        list_IDresults = ['R01050NYORPS2CMF181112T191212ALk12K5K2E141452', 'R01050NYORPS2CMF181112T191212BSk12K5K2E141453']
+        list_IDresults = ['R01050NYORPS2CMF181112T200306ALk12K5K2E141452', 'R01050NYORPS2CMF181112T200306BSk12K5K2E141452']
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
         list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
