@@ -788,7 +788,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TESTPARAMUPDATE3'#'TN01010FS2NYREDOK2K52145314SRv4'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
+    config_name = 'TESTPARAMUPDATE5'#'TN01010FS2NYREDOK2K52145314SRv4'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -854,7 +854,7 @@ def configuration_trader(*ins):
 #                                 'thrs':[2020, 2060, 2140, 4300, 8620, 11260, 12260, 14000, 16030, 18030, 20100]} for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
-        list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
+        list_weights = [[.5,.5] for i in range(numberNetworks)]
         list_lb_mc_op = [.5 for i in range(numberNetworks)]
         list_lb_md_op = [.8 for i in range(numberNetworks)]
         list_lb_mc_ext = [.5 for i in range(numberNetworks)]

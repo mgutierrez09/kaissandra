@@ -187,7 +187,7 @@ def send_network_log(message, asset, token_header):
         except:
             print("WARNING! Error in send_network_log die to timeout.")
             
-def set_config_session(config, asset, token_header):
+def set_config_session(config, token_header):
     """ Send trader log to server api """
     url_ext = 'traders/sessions/set_session_config'
     #try:
@@ -205,8 +205,18 @@ def get_config_session(token_header):
         response = requests.get(CC.URL+url_ext, 
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
+        return response.json()
     except:
         print("WARNING! Error in send_network_log die to timeout.")
+        return None
+    
+def build_and_set_config(config_name='TESTPARAMUPDATE5'):
+    """  """
+    config=retrieve_config(config_name)
+    token = get_token()
+    token_header = {'Authorization': 'Bearer '+token}
+    set_config_session(config, token_header)
+    
 
 def send_open_position(params, session_id, token_header):
     """ Send open position to server api"""
@@ -274,7 +284,7 @@ def get_token():
 #    else:
 #        return False
 
-from kaissandra.config import Config
+from kaissandra.config import retrieve_config, Config
 from kaissandra.local_config import local_vars
 from kaissandra.prod.config import Config as CC
     
