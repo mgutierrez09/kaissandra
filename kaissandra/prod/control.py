@@ -87,7 +87,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
 #                pass
 #            elif os.path.exists(directory_io_ass+"NETWORKLOG"):
 #                pass
-            
+        ct.send_account_status(token_header)
         time.sleep(5)
         
         watchdog_counter += 1
@@ -149,14 +149,17 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 elif info["EVENT"] == "EXTEND":
                     pos_id = assets_opened[info["ASSET"]]
                     ct.send_extend_position(params, pos_id, token_header)
+#                elif info["EVENT"] == "NOTEXTEND":
+#                    pos_id = assets_opened[info["ASSET"]]
+#                    ct.send_extend_position(params, pos_id, token_header)
                 elif info["EVENT"] == "CLOSE":
                     pos_id = assets_opened[info["ASSET"]]
                     dirfilename = info["DIRFILENAME"]
                     ct.send_close_position(params, pos_id, dirfilename, 
                                            token_header)
                 else:
-                    print(info["EVENT"])
-                    raise ValueError("EVENT unknow")
+                    print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
+                    
             elif info['FUNC'] == 'SD':
                 run = False
 #        except Exception as e:

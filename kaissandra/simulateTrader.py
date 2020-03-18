@@ -557,7 +557,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1] and\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin and\
                 e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
                 len(self.list_opened_positions)<max_opened_positions
                 if second_condition_open:
@@ -630,7 +630,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
         return condition, dir_condition, prods_condition
@@ -952,9 +952,9 @@ class Trader:
                     self.list_opened_positions)+1),
                     strategys[name2str_map[
                             self.next_candidate.strategy]].max_lots_per_pos)
-            margin = 0.0001
+            margin_lots = 0.0001
             # check if necessary lots for opening are available
-            if open_lots>self.available_bugdet_in_lots+margin:
+            if open_lots>self.available_bugdet_in_lots+margin_lots:
                 close_lots = (open_lots-self.available_bugdet_in_lots)/len(
                         self.list_opened_positions)
                 out = "close_lots "+str(close_lots)
@@ -1132,14 +1132,14 @@ if __name__ == '__main__':
                                      (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                      (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                      (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
+                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
                               [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                      (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                      (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
+                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
         list_lb_mc_ext = [.5, .51]
         list_lb_md_ext = [.58,.57]
     else:
@@ -1152,14 +1152,14 @@ if __name__ == '__main__':
                                      (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                      (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                      (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
+                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
                               [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                      (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                      (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
+                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
         mar = (0.0, 0.02)
         list_spread_ranges = []
         list_IDresults = []
@@ -1440,6 +1440,11 @@ if __name__ == '__main__':
     change_dir = 0
     rewinded = 0
     week_counter = 0
+    
+    mean_volat_db = -31.031596804415166
+    var_volat_db = 2.776629833274796
+    mean_vol_db = 25.131909769520508
+    var_vol_db = 5.52461170016939
     print(root_dir)
     
     # tack volume
@@ -1536,6 +1541,7 @@ if __name__ == '__main__':
         max_vols = [99999999 for _ in assets]# inf
         max_volats = [-1 for _ in assets]
         events_per_ass_counter = [-1 for _ in assets]
+        margin = 0.0
 #        last_dt_per_ass = [False for _ in assets]
         this_hour = False
         # get to 
@@ -1578,11 +1584,22 @@ if __name__ == '__main__':
                 # update max volatility
                 if volat>max_volats[ass_id]:
                     max_volats[ass_id] = volat
+                    
+                array_volat = np.array(max_volats)[np.array(max_volats)!=-1]
+                mean_vol = np.mean(np.array(max_vols)[np.array(max_vols)!=99999999])
+                mean_volat = np.mean(array_volat)
+                
+                volatility_idx = (10*np.log10(mean_volat)-mean_volat_db)/var_volat_db
+                volume_idx = (10*np.log10(mean_vol)-mean_vol_db)/var_vol_db
+                
+                margin = max(volatility_idx-volume_idx, 0)/5
+#                print(margin)
+                
                 # update new hour
                 if this_hour != time_stamp.hour:
                     this_hour = time_stamp.hour
-                    av_vol_per_hour.append(np.mean(np.array(max_vols)[np.array(max_vols)!=99999999]))
-                    av_volat_per_hour.append(np.mean(np.array(max_volats)[np.array(max_volats)!=-1]))
+                    av_vol_per_hour.append(mean_vol)
+                    av_volat_per_hour.append(mean_volat)
                     time_per_hour.append(time_stamp)
                     max_vols = [99999999 for _ in assets]
                     max_volats = [-1 for _ in assets]
@@ -1620,10 +1637,11 @@ if __name__ == '__main__':
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+                       " margin {0:.2f}".format(margin)+
                       #" pofitability {0:.3f}".format(profitability)+
-                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+                      " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(int(trader.next_candidate.bet))+
-                      " Open Condition met "+" SP = "+str(sp))
+                      " Open met "+" SP = "+str(sp))
                 print(out)
                 trader.write_log(out)
                 
@@ -1658,8 +1676,9 @@ if __name__ == '__main__':
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+                       " margin {0:.2f}".format(margin)+
                       #" pofitability {0:.3f}".format(profitability)+
-                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
+                      " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(trader.next_candidate.bet)+
                       " Open condition not met")
                 print(out)
@@ -1731,11 +1750,12 @@ if __name__ == '__main__':
                                        thisAsset+
                                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
+                                       " margin {0:.2f}".format(margin)+
                                       #" pofitability {0:.3f}".format(profitability)+
-                                      " E_spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
-                                      str(trader.next_candidate.bet)+
+                                      " Spread {0:.3f}".format(e_spread/trader.pip)+
+                                      " Bet "+str(trader.next_candidate.bet)+
                                       " cGROI {0:.2f} ".format(100*curr_GROI)+
-                                      " Extend condition not met")
+                                      " Extend met")
                                 
                                 print(out)
                                 trader.write_log(out)
@@ -1758,7 +1778,7 @@ if __name__ == '__main__':
                                     this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                                     this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                                     trader.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                                    this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]
+                                    this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin
                                 # close due to change direction
 #                                close_dueto_dirchange += 1
                                 if prods_condition:

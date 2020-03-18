@@ -1098,6 +1098,20 @@ class Trader:
         self.queue.put({"FUNC":"POS","EVENT":"EXTEND","ASSET":thisAsset,"PARAMS":params})
         #api.extend_position(thisAsset, params, asynch=True)
         
+    def send_not_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
+                                direction, strategy, roi, ticks):
+        """ Send command to API for position extension """
+        # TODO: add datetime of extension to API
+        params = {'groi':groi,
+                  'dt':DateTime,
+                  'p_mc':p_mc,
+                  'p_md':p_md,
+                  'tickscounter':ticks,
+                  'direction':direction,
+                  'strategyname':strategy,
+                  'roi':roi}
+        self.queue.put({"FUNC":"POS","EVENT":"NOTEXTEND","ASSET":thisAsset,"PARAMS":params})
+        
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
                            roisoll, returns, filename, dirfilename, dtiist, groiist, roiist, slfalg):
         """ Send command to API for position closing """
@@ -1480,6 +1494,12 @@ class Trader:
                                         print("\r"+out)
                                         self.write_log(out)
                                     if send_info_api:
+                                        self.send_not_extend_pos_api(new_entry[entry_time_column], 
+                                                                     thisAsset, 100*curr_GROI, 
+                                                                     new_entry['P_mc'], new_entry['P_md'], 
+                                                                     int(new_entry['Bet']), strategy_name,
+                                                                     100*curr_ROI, 
+                                                                     self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
                                         self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                             else: # if direction is different
                                 this_strategy = self.next_candidate.strategy
