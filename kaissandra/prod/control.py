@@ -88,6 +88,12 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
 #            elif os.path.exists(directory_io_ass+"NETWORKLOG"):
 #                pass
         ct.send_account_status(token_header)
+        asset = AllAssets[str(running_assets[ass_idx])]
+        MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
+            ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
+        ct.send_trader_log(MSG, asset, token_header)
+        ass_idx = np.mod(ass_idx+1,len(running_assets))
+        
         time.sleep(5)
         
         watchdog_counter += 1
@@ -100,15 +106,12 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
                 # wake up server
                 watchdog_counter = 0
                 # send number of files in Broker communication directory of one asset
-                asset = AllAssets[str(running_assets[ass_idx])]
-                MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
-                    ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
-                ct.send_trader_log(MSG, asset, token_header)
+                
             except ConnectionError:
-                run = False
+                print("WARNING! Connection Error in control() of control.py.")
             
             
-            ass_idx = np.mod(ass_idx+1,len(running_assets))
+        
     print("EXIT control")
             
 def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api=False, token_header=None):
