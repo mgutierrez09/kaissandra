@@ -149,9 +149,9 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 elif info["EVENT"] == "EXTEND":
                     pos_id = assets_opened[info["ASSET"]]
                     ct.send_extend_position(params, pos_id, token_header)
-#                elif info["EVENT"] == "NOTEXTEND":
-#                    pos_id = assets_opened[info["ASSET"]]
-#                    ct.send_extend_position(params, pos_id, token_header)
+                elif info["EVENT"] == "NOTEXTEND":
+                    pos_id = assets_opened[info["ASSET"]]
+                    ct.send_not_extend_position(params, pos_id, token_header)
                 elif info["EVENT"] == "CLOSE":
                     pos_id = assets_opened[info["ASSET"]]
                     dirfilename = info["DIRFILENAME"]

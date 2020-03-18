@@ -254,6 +254,19 @@ def send_extend_position(params, pos_id, token_header):
         print(response.text)
         return False
     
+def send_not_extend_position(params, pos_id, token_header):
+    """ Send extend position commnad to server api"""
+    url_ext = 'traders/positions/'+str(pos_id)+'/notextend'
+    response = requests.post(CC.URL+url_ext, json=params, headers=
+                             token_header, verify=True)
+    print("Status code: "+str(response.status_code))
+    if response.status_code == 200:
+        print(response.json())
+        return True
+    else:
+        print(response.text)
+        return False
+    
 def send_close_position(params, pos_id, dirfilename, token_header):
     """ Send close position command to server api """
     url_ext = 'traders/positions/'+str(pos_id)+'/close'
