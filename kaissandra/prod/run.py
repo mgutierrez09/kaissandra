@@ -774,7 +774,7 @@ class Trader:
         else:
             raise ValueError("Wrong entry strategy")            
         
-        return condition_extension, reason
+        return condition_extension, reason, cond_bet
 
     def update_stoploss_open_pos(self, idx, bid):
         # update stoploss
@@ -1317,10 +1317,17 @@ class Trader:
                     max_bit_md = int(np.argmax(soft_tilde[1:3]))
                     if not max_bit_md:
                         #Y_tilde = -1
-                        Y_tilde = np.argmax(soft_tilde[3:5])-2
+                        # Revert direction if crisis mode
+                        if not crisis_mode:
+                            Y_tilde = np.argmax(soft_tilde[3:5])-2
+                        else:
+                            Y_tilde = np.argmax(soft_tilde[6:])+1
                     else:
                         #Y_tilde = 1
-                        Y_tilde = np.argmax(soft_tilde[6:])+1
+                        if not crisis_mode:
+                            Y_tilde = np.argmax(soft_tilde[6:])+1
+                        else:
+                            Y_tilde = np.argmax(soft_tilde[3:5])-2
                         
                     p_mc = soft_tilde[0]
                     p_md = np.max([soft_tilde[1],soft_tilde[2]])
@@ -1452,7 +1459,7 @@ class Trader:
                             # check for extension
                             if self.check_primary_condition_for_extention(ass_id):
                                 
-                                extention, reason = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
+                                extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
                                 if extention:    
                                     # include third condition for thresholds
                                     # extend deadline
@@ -1486,7 +1493,7 @@ class Trader:
                                                                      100*curr_ROI, 
                                                                      self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
                                         
-                                else: # if candidate for extension does not meet requirements
+                                elif not crisis_mode or not cond_bet: #  # if candidate for extension does not meet requirements
                                     logMsg = " "+new_entry[entry_time_column]+" not extended "+\
                                           " due to "+reason
                                     if verbose_trader:
@@ -1501,6 +1508,22 @@ class Trader:
                                                                      100*curr_ROI, 
                                                                      self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
                                         self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                else:
+                                    # crisis and no extention. Close Pos!
+                                    logMsg = new_entry[entry_time_column]+" "\
+                                            " CLOSING DUE TO CRISIS MODE!"
+                                    out = thisAsset+" "+logMsg
+                                    if verbose_trader:
+                                        print("\r"+out)
+                                        self.write_log(out)
+                                    if run_back_test:
+                                        self.close_position(new_entry[entry_time_column], 
+                                                            thisAsset, ass_id, results)
+                                    else:
+                                        send_close_command(thisAsset)
+                                    if send_info_api:
+                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                
                             else: # if direction is different
                                 this_strategy = self.next_candidate.strategy
                                 close_pos = False
@@ -3856,6 +3879,11 @@ run_back_test = LC.BACK_TEST
 send_info_api = LC.API
 running_assets= LC.ASSETS#
 config_names = [LC.CONFIG_FILE]
+if hasattr(LC,'CRISIS_MODE'):
+    crisis_mode = LC.CRISIS_MODE
+else:
+    print("\n\nWARNING! Crisis mode not in LC\n\n")
+    crisis_mode = False
 
 # depricated
 spread_ban = False
@@ -3880,7 +3908,7 @@ if not test:
         list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
 # override list configs if test is True
 else:
-    list_config_traders = [retrieve_config('TTESTv3')]#'TTEST10'#'TPRODN01010N01011'
+    list_config_traders = [retrieve_config('TTESTv3')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
     print("WARNING! TEST ON")
 print("synchroned_run: "+str(synchroned_run))
 #print("Test "+str(test))
