@@ -387,7 +387,7 @@ def configuration(entries, save=True):
         if 'lbd' in entries:
             lbd = entries['lbd']
         else:
-            lbd = 1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))
+            lbd = (1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))).tolist()
         if 'assets' in entries:
             assets = entries['assets']
         else:
@@ -700,7 +700,7 @@ def configuration(entries, save=True):
 def retrieve_config(config_name):
     """  """
     config_dir_filename = local_vars.config_directory+config_name+'.config'#
-        
+    
     if os.path.exists(config_dir_filename):
         config = pickle.load( open( config_dir_filename, "rb" ))
         print("Config file "+config_dir_filename+" loaded from disk")
@@ -788,7 +788,7 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TESTPARAMUPDATE3'#'TN01010FS2NYREDOK2K52145314SRv4'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
+    config_name = 'TESTPARAMUPDATE5'#'TN01010FS2NYREDOK2K52145314SRv4'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
@@ -797,14 +797,7 @@ def configuration_trader(*ins):
         IDresults = ['R01010PS2NYREDOALk12K5k12K2E1452','R01010PS2NYREDOBSk12K5k12K2E1453']
         IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A'],['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A']]
         list_name = ['R01010PS2NYREDOALk12K5k12K2E1452SRNSP60','R01010PS2NYREDOBSk12K5k12K2E1453SRNSP60']
-#        list_spread_ranges = [{'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
-#                           'th':[(0.0, 0.5) for i in np.linspace(.5,5,num=46)],
-#                           'mar':[(0,0) for i in np.linspace(.5,5,num=46)],
-#                           'dir':'ASKS'},
-#                          {'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
-#                           'th':[(0.0, 0.5) for i in np.linspace(.5,5,num=46)],
-#                           'mar':[(0,0) for i in np.linspace(.5,5,num=46)],
-#                           'dir':'BIDS'}]
+        
         list_spread_ranges = [{'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
                            'th':[(0.535, 0.595), (0.535, 0.6), (0.51, 0.61), (0.515, 0.61), (0.54, 0.61), (0.56, 0.61), (0.57, 0.61), (0.535, 0.62), (0.525, 0.625), (0.6, 0.61), 
                                  (0.605, 0.61), (0.56, 0.63), (0.56, 0.63), (0.645, 0.61), (0.645, 0.61), (0.65, 0.61), (0.66, 0.61), (0.66, 0.61), (0.66, 0.61), (0.665, 0.61), 
@@ -838,8 +831,7 @@ def configuration_trader(*ins):
                          'feats_from_bids':list_feats_from_bids[i],
                        'size_output_layer':8,'n_bits_outputs':[1,2,5],'combine_ts':combine_ts,
                        'outputGain':outputGains[i],'movingWindow':mWs[i],
-                       'nEventsPerStat':nExSs[i],
-                       'combine_ts':combine_ts}  for st in range(stacked[i])] for i in range(numberNetworks)]
+                       'nEventsPerStat':nExSs[i]}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
         IDepoch = [[5,2,14,14], [5,3,14,14]]
         netNames = ['R01010PS2NYREDOALk12K5k12K2E145', 'R01010PS2NYREDOBSk12K5k12K2E1453']
@@ -857,12 +849,12 @@ def configuration_trader(*ins):
         list_thr_sl = [10 for i in range(numberNetworks)]#50
         list_thr_tp = [1000 for i in range(numberNetworks)]
         list_max_lots_per_pos = [.01 for i in range(numberNetworks)]
-        list_invest_strategy = [{'name':'scale',
-                                 'steps':[.02, .04, .08, .16, .32, .5, .6, .7, .8, .9, 1.0],
-                                 'thrs':[2020, 2060, 2140, 4300, 8620, 11260, 12260, 14000, 16030, 18030, 20100]} for i in range(numberNetworks)]
+#        list_invest_strategy = [{'name':'scale',
+#                                 'steps':[.02, .04, .08, .16, .32, .5, .6, .7, .8, .9, 1.0],
+#                                 'thrs':[2020, 2060, 2140, 4300, 8620, 11260, 12260, 14000, 16030, 18030, 20100]} for i in range(numberNetworks)]
         delays = [0 for i in range(numberNetworks)]
         list_w_str = ['55' for i in range(numberNetworks)]
-        list_weights = [np.array([.5,.5]) for i in range(numberNetworks)]
+        list_weights = [[.5,.5] for i in range(numberNetworks)]
         list_lb_mc_op = [.5 for i in range(numberNetworks)]
         list_lb_md_op = [.8 for i in range(numberNetworks)]
         list_lb_mc_ext = [.5 for i in range(numberNetworks)]
@@ -878,10 +870,10 @@ def configuration_trader(*ins):
         list_if_dir_change_close = [False for i in range(numberNetworks)]
         list_if_dir_change_extend = [False for i in range(numberNetworks)]
         
-        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
-                      'L':[3 for i in range(numberNetworks)],
-                      'size_output_layer':[5 for i in range(numberNetworks)],
-                      'outputGain':[1 for i in range(numberNetworks)]}
+#        model_dict = {'size_hidden_layer':[100 for i in range(numberNetworks)],
+#                      'L':[3 for i in range(numberNetworks)],
+#                      'size_output_layer':[5 for i in range(numberNetworks)],
+#                      'outputGain':[1 for i in range(numberNetworks)]}
         
         config = {'config_name':config_name,
                   'config_list':config_list,
@@ -908,7 +900,7 @@ def configuration_trader(*ins):
                   #'lBs':lBs,
                   'list_lim_groi_ext':list_lim_groi_ext,
                   'list_w_str':list_w_str,
-                  'model_dict':model_dict,
+#                  'model_dict':model_dict,
                   'list_weights':list_weights,
                   'list_lb_mc_op':list_lb_mc_op,
                   'list_lb_md_op':list_lb_md_op,
@@ -921,7 +913,7 @@ def configuration_trader(*ins):
                   'list_fix_spread':list_fix_spread,
                   'list_fixed_spread_pips':list_fixed_spread_pips,
                   'list_max_lots_per_pos':list_max_lots_per_pos,
-                  'list_invest_strategy':list_invest_strategy,
+#                  'list_invest_strategy':list_invest_strategy,
                   'list_flexible_lot_ratio':list_flexible_lot_ratio,
                   'list_if_dir_change_close':list_if_dir_change_close,
                   'list_if_dir_change_extend':list_if_dir_change_extend
@@ -937,6 +929,12 @@ def configuration_trader(*ins):
             print("WARNING! Arguments not taken into consideration")
         print("Config file "+config_filename+" exists. Loaded from disk")
     return config
+
+def change_spread_ranges(config):
+    for c in range(len(config['list_spread_ranges'])):
+        for m in range(len(config['list_spread_ranges'][c]['mar'])):
+            config['list_spread_ranges'][c]['mar'][m]=(0.0,0.06)
+    modify_config(config['config_name'],'list_spread_ranges',config['list_spread_ranges'])
         
 if __name__=='__main__':
     #configuration()
