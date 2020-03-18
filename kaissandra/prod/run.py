@@ -752,8 +752,12 @@ class Trader:
             if not cond_groi:
                 reason += 'groi'
         elif this_strategy.entry_strategy=='spread_ranges':
-            cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]
+            if not crisis_mode:
+                cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0]
+                cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]
+            else:
+                cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]
+                cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]
             cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    this_strategy.info_spread_ranges['dir'])
