@@ -149,27 +149,84 @@ def reset_networks():
             #print("Sent command to "+directory_MT5_ass)
             send_command(directory_io_ass, command)
             
-def send_trader_log(message, token_header):
+def send_trader_log(message, asset, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/traders'
     try:
-        response = requests.post(CC.URL+url_ext, json={'Message':message,'Name':CC.TRADERNAME},
+        response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                       'Asset':asset,
+                                                       'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
         print("WARNING! Error in send_network_log die to timeout.")
         
-def send_network_log(message, token_header):
-        """ Send network log to server api """
-        url_ext = 'logs/networks'
+def send_monitoring_log(message, asset, token_header):
+    """ Send trader log to server api """
+    url_ext = 'logs/monitor'
+    try:
+        response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                       'Asset':asset,
+                                                       'Name':CC.TRADERNAME},
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+        
+def send_global_log(message, token_header):
+    """ Send trader log to server api """
+    url_ext = 'logs/global'
+    try:
+        response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                       'Name':CC.TRADERNAME},
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+        
+def send_network_log(message, asset, token_header):
+    """ Send network log to server api """
+    url_ext = 'logs/networks'
 #        self.futureSession.post(CC.URL+url_ext, json={'Message':message},
 #                                headers=self.build_token_header(), verify=False, timeout=10)
-        try:
-            response = requests.post(CC.URL+url_ext, json={'Message':message},
-                                    headers=token_header, verify=True, timeout=10)
-            print(response.json())
-        except:
-            print("WARNING! Error in send_network_log die to timeout.")
+    try:
+        response = requests.post(CC.URL+url_ext, json={'Message':message,
+                                                       'Asset':asset
+                                                       },
+        headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+            
+def set_config_session(config, token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/sessions/set_session_config'
+    try:
+        response = requests.put(CC.URL+url_ext, json=config,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+        
+def get_config_session(token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/sessions/get_session_config'
+    try:
+        response = requests.get(CC.URL+url_ext, 
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+        return response.json()
+    except:
+        print("WARNING! Error in send_network_log die to timeout.")
+        return None
+    
+def build_and_set_config(config_name='TESTPARAMUPDATE5'):
+    """  """
+    config=retrieve_config(config_name)
+    token = get_token()
+    token_header = {'Authorization': 'Bearer '+token}
+    set_config_session(config, token_header)
+    
 
 def send_open_position(params, session_id, token_header):
     """ Send open position to server api"""
@@ -187,6 +244,19 @@ def send_open_position(params, session_id, token_header):
 def send_extend_position(params, pos_id, token_header):
     """ Send extend position commnad to server api"""
     url_ext = 'traders/positions/'+str(pos_id)+'/extend'
+    response = requests.post(CC.URL+url_ext, json=params, headers=
+                             token_header, verify=True)
+    print("Status code: "+str(response.status_code))
+    if response.status_code == 200:
+        print(response.json())
+        return True
+    else:
+        print(response.text)
+        return False
+    
+def send_not_extend_position(params, pos_id, token_header):
+    """ Send extend position commnad to server api"""
+    url_ext = 'traders/positions/'+str(pos_id)+'/notextend'
     response = requests.post(CC.URL+url_ext, json=params, headers=
                              token_header, verify=True)
     print("Status code: "+str(response.status_code))
@@ -218,14 +288,79 @@ def get_token():
     """  """
     try:
         response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
-    except ConnectionError:
-        raise ConnectionError
-    if response.status_code == 200:
-        token = response.json()['token']
-        return token
-    else:
+        if response.status_code == 200:
+            token = response.json()['token']
+            return token
+        else:
+            return None
+    except:
+        print("WARNING! Error in get_token of communication.py")
         return None
     
+def get_account_status():
+    """ Get account status from broker """
+    success = 0
+    ##### WARNING! #####
+    dirfilename = local_vars.directory_MT5_account+'Status.txt'
+    if os.path.exists(dirfilename):
+        # load network output
+        while not success:
+            try:
+                fh = open(dirfilename,"r")
+                info_close = fh.read()[:-1]
+                # close file
+                fh.close()
+                success = 1
+                #stop_timer(ass_idx)
+            except PermissionError:
+                print("Error writing TT")
+        info_str = info_close.split(',')
+        #print(info_close)
+        balance = float(info_str[0])
+        leverage = float(info_str[1])
+        equity = float(info_str[2])
+        profits = float(info_str[3])
+    else:
+        print("WARNING! Account Status file not found. Turning to default")        
+        balance = 500.0
+        leverage = 30
+        equity = balance
+        profits = 0.0
+#    print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
+#          .format(balance,leverage,equity,profits))
+    status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
+    return status
+    
+def send_account_status(token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/status'
+    status = get_account_status()
+    json = status
+    json['tradername'] = CC.TRADERNAME
+    try:
+        response = requests.put(CC.URL+url_ext, json=status,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_account_status of communication.py")
+        
+def send_close_command(asset):
+    """ Send command for closeing position to MT5 software """
+    directory_MT5_ass2close = local_vars.directory_MT5_IO+asset+"/"
+    # load network output
+    try:
+        fh = open(directory_MT5_ass2close+"LC","w")
+        fh.close()
+    except (PermissionError, FileNotFoundError):
+        print("Error writing LC")
+
+def send_close_commands_all():
+    """  """
+    AllAssets = Config.AllAssets
+    for asset_key in AllAssets:
+        thisAsset = AllAssets[asset_key]
+        print(thisAsset)
+        send_close_command(thisAsset)
 #def parameters_enquiry(session_id, token_header):
 #    """  """
 #    url_ext = 'traders/sessions/'+str(session_id)+'/get_params'
@@ -235,7 +370,7 @@ def get_token():
 #    else:
 #        return False
 
-from kaissandra.config import Config
+from kaissandra.config import retrieve_config, Config
 from kaissandra.local_config import local_vars
 from kaissandra.prod.config import Config as CC
     

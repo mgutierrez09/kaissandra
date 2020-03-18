@@ -740,7 +740,15 @@ def load_spread_ranges(resultsDir, IDresults, value=60):
     """ Load spread_ranges structure """
     best_dir = resultsDir+IDresults+'/best/'
     dirfilename = best_dir+'spread_ranges_'+str(value)+'.p'
-    return pickle.load( open( dirfilename, "rb" ))
+    spreads_range = pickle.load( open( dirfilename, "rb" ))
+    mim_pmc = 1
+    mim_pmd = 1
+    for a in range(len(spreads_range)):
+        if spreads_range['th'][a][0]<mim_pmc:
+            mim_pmc = spreads_range['th'][a][0]
+        if spreads_range['th'][a][1]<mim_pmd:
+            mim_pmd = spreads_range['th'][a][1]
+    return spreads_range, mim_pmc, mim_pmd
 
 def get_best_results(TR, results_filename, resultsDir, IDresults, save=0, from_mg=False):
     """  """

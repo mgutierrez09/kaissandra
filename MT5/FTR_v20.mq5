@@ -66,6 +66,7 @@ string close_type;
 //datetime currTime;
 
 double stoploss;
+double takeprofit;
 double sl_protect;
 double tp_protect;
 double sl_protect_prev;
@@ -74,7 +75,8 @@ double B_sl;
 double A_sl;
 double sl_thr = 1;//0.0001; //in ratio (1 pip=0.0001)
 double slThrPips = 100;
-double slProThrPips = 20;
+double tpThrPips = 100;
+double slProThrPips = 100;
 double const PIP = 0.0001;
 //double bid;
 //double ask;
@@ -127,6 +129,7 @@ void openPosition(string origin, int thisPos){
       //writeLog(message);
       //stoploss = -Ai*sl_thr+Bi;
       stoploss = updateSL(Ai, thisPos, slThrPips);
+      takeprofit = updateTP(Ai, thisPos, tpThrPips);
       thisPosString = "Long";
    }
    else{if(thisPos==-1){
@@ -143,6 +146,7 @@ void openPosition(string origin, int thisPos){
       //Print("Sell -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       //stoploss = Bi*sl_thr+Ai;
       stoploss = updateSL(Bi, thisPos, slThrPips);
+      takeprofit = updateTP(Bi, thisPos, tpThrPips);
       thisPosString = "Short";
    }
       else{
@@ -365,7 +369,15 @@ void controlPositionFlow(){
                close_type = "SL";
                closePosition();
             }
-            
+            // check if takeprofit reached
+            if((position==1 && ask>takeprofit) || (position==-1 && bid<takeprofit)){
+               message = "TP reached";
+               Print(message);
+               //writeLog(message);
+               // WARNING! Temporal close_type as SL. TP not implemented yet!!!
+               close_type = "SL";
+               closePosition();
+            }
          }
          
          //accountInfo();
@@ -532,7 +544,7 @@ void OnTick()
       // init file
       filehandle = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
       FileWrite(filehandle,"DateTime","SymbolBid","SymbolAsk");
-      
+      saveAccountInfo();
       //if(position==0 && first_pos==0){
        //  Print("Ticks counter ",ticks_counter);
       //}
@@ -630,13 +642,13 @@ void saveAccountInfo()
 //--- int value output
    //int spreads=(int)SymbolInfoInteger(_Symbol,SYMBOL_SPREAD);
    string message = StringFormat("Equity %.2f Balance %.2f Profits %.2f",equity,balance,profits);
-   Print(message);
+   //Print(message);
    //writeLog(message);
    int fh = FileOpen(directoryNameAccount+"Status.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
    if(fh>0){
       FileWrite(fh,balance,leverage,equity,profits);
       FileClose(fh);
-   }else Print("WARNING! Error when opeing Status.txt file. Status not updated");
+   }//else Print("WARNING! Error when opeing Status.txt file. Status not updated");
    //PrintFormat("%s: current spread in points = %d ",
    //            _Symbol,spreads);
 //--- double value output in the scientific (floating point) format with 17 meaningful digits after the decimal point

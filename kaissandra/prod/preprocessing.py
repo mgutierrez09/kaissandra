@@ -8,23 +8,24 @@ import pickle
 import numpy as np
 import pandas as pd
 
-def load_stats_input_live(config, thisAsset, ass_group, from_stats_file=False, 
+def load_stats_input_live(feature_keys_manual, movingWindow, nEventsPerStat, 
+                          thisAsset, ass_group, from_stats_file=False, 
                hdf5_directory='', save_pickle=False, tag='IOB'):
     """
     Function that loads stats
     """
-    if 'feature_keys_manual' in config:
-        feature_keys_manual = config['feature_keys_manual']
-    else:
-        feature_keys_manual = [i for i in range(37)]
-    if 'movingWindow' in config:
-        movingWindow = config['movingWindow']
-    else:
-        movingWindow = 50
-    if 'nEventsPerStat' in config:
-        nEventsPerStat = config['nEventsPerStat']
-    else:
-        nEventsPerStat = 500
+#    if 'feature_keys_manual' in config:
+#        feature_keys_manual = config['feature_keys_manual']
+#    else:
+#        feature_keys_manual = [i for i in range(37)]
+#    if 'movingWindow' in config:
+#        movingWindow = config['movingWindow']
+#    else:
+#        movingWindow = 50
+#    if 'nEventsPerStat' in config:
+#        nEventsPerStat = config['nEventsPerStat']
+#    else:
+#        nEventsPerStat = 500
     nF = len(feature_keys_manual)
     # init or load total stats
     stats = {}

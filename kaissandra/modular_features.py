@@ -2435,7 +2435,7 @@ if __name__=='__main__':
     config=configuration(entries)
 
     assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
-    list_feats_from_bids = [False, True]
+    list_feats_from_bids = [True]
     list_asset_relation = ['direct','inverse']
     for feats_from_bids in list_feats_from_bids:
         config['feats_from_bids'] = feats_from_bids

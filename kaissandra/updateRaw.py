@@ -393,12 +393,12 @@ if __name__=='__main__':
     # limit the build of the HDF5 to data comprised in these dates
     build_partial_raw = False
     build_test_db = True
-    init_date = '20181112'#'180928'
-    end_date = '20191212'#'181109'
+    init_date = '20191202'#'180928'
+    end_date = '20200306'#'181109'
     init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
     end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
     
-    directory_destination = local_vars.data_test_dir#'D:/SDC/py/HDF5/'
+    directory_destination = local_vars.data_dir#'D:/SDC/py/HDF5/'
     if build_partial_raw and not build_test_db:
         hdf5_file_name = 'tradeinfo_F'+init_date+'T'+end_date+'.hdf5'
         directory_root = 'D:/SDC/py/Data/'
@@ -407,7 +407,7 @@ if __name__=='__main__':
         hdf5_file_name = 'tradeinfo_test.hdf5'
         directory_root = local_vars.data_test_dir
         separators_directory_name = 'separators_test/'
-        dateTest = get_dateTest(init_date='2018.11.12', end_date='2019.12.12')
+        dateTest = get_dateTest(init_date='2018.11.12', end_date='2021.12.12')
     elif not build_test_db and not build_partial_raw:
         hdf5_file_name = 'tradeinfo_py.hdf5'
         separators_directory_name = 'separators_py/'
