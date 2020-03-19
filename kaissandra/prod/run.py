@@ -1793,7 +1793,7 @@ class Trader:
         if not crisis_mode:
             counter = 20
         else:
-            counter = 2
+            counter = 1
         tracing_dict = {'lastDateTime':DateTime,
                             'counter':counter}
         self.list_dict_banned_assets[ass_idx] = tracing_dict
