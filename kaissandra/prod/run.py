@@ -730,7 +730,10 @@ class Trader:
     
     def check_primary_condition_for_extention(self, ass_id):
         """  """
-        return self.check_same_direction(ass_id) and self.check_remain_samps(ass_id)
+        if not crisis_mode:
+            return self.check_same_direction(ass_id) and self.check_remain_samps(ass_id)
+        else:
+            return self.check_remain_samps(ass_id)
         
         
     def check_secondary_condition_for_extention(self, ass_id, ass_idx, curr_GROI, tactic):
@@ -1462,58 +1465,8 @@ class Trader:
                                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                             # check for extension
                             if self.check_primary_condition_for_extention(ass_id):
-                                
-                                extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
-                                if extention:    
-                                    # include third condition for thresholds
-                                    # extend deadline
-                                    if not run_back_test:
-                                        self.send_open_command(directory_MT5_ass, ass_idx)
-                                    self.update_position(ass_id)
-                                    self.n_pos_extended += 1
-                                    # track position
-                                    self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
-                                    # print out
-                                    logMsg = " "+new_entry[entry_time_column]+" "+\
-                                           " Extended "+str(self.list_deadlines[\
-                                               self.map_ass_idx2pos_idx[ass_id]])+" samps"+\
-                                           " bet "+str(new_entry['Bet'])+\
-                                           " p_mc={0:.2f}".format(new_entry['P_mc'])+\
-                                           " p_md={0:.2f}".format(new_entry['P_md'])+\
-                                           " spread={0:.3f}".format(new_entry['E_spread'])+\
-                                           " strategy "+strategy_name
-                                    
-                                    # send position extended command to api
-                                    if verbose_trader:
-                                        print("\r"+out)
-                                        self.write_log(out)
-                                        out = thisAsset+logMsg
-                                    if send_info_api:
-                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
-                                        self.send_extend_pos_api(new_entry[entry_time_column], 
-                                                                     thisAsset, 100*curr_GROI, 
-                                                                     new_entry['P_mc'], new_entry['P_md'], 
-                                                                     int(new_entry['Bet']), strategy_name,
-                                                                     100*curr_ROI, 
-                                                                     self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
-                                        
-                                elif not crisis_mode or not cond_bet: #  # if candidate for extension does not meet requirements
-                                    logMsg = " "+new_entry[entry_time_column]+" not extended "+\
-                                          " due to "+reason
-                                    if verbose_trader:
-                                        out = thisAsset+logMsg
-                                        print("\r"+out)
-                                        self.write_log(out)
-                                    if send_info_api:
-                                        self.send_not_extend_pos_api(new_entry[entry_time_column], 
-                                                                     thisAsset, 100*curr_GROI, 
-                                                                     new_entry['P_mc'], new_entry['P_md'], 
-                                                                     int(new_entry['Bet']), strategy_name,
-                                                                     100*curr_ROI, 
-                                                                     self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
-                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
-                                else:
-                                    # crisis and no extention. Close Pos!
+                                # TEMP! In crisi_mode and different directions -> close!
+                                if not self.check_same_direction(ass_id) and crisis_mode:
                                     logMsg = new_entry[entry_time_column]+" "\
                                             " CLOSING DUE TO CRISIS MODE!"
                                     out = thisAsset+" "+logMsg
@@ -1527,6 +1480,71 @@ class Trader:
                                         send_close_command(thisAsset)
                                     if send_info_api:
                                         self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                else:
+                                    extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
+                                    if extention:    
+                                        # include third condition for thresholds
+                                        # extend deadline
+                                        if not run_back_test:
+                                            self.send_open_command(directory_MT5_ass, ass_idx)
+                                        self.update_position(ass_id)
+                                        self.n_pos_extended += 1
+                                        # track position
+                                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
+                                        # print out
+                                        logMsg = " "+new_entry[entry_time_column]+" "+\
+                                               " Extended "+str(self.list_deadlines[\
+                                                   self.map_ass_idx2pos_idx[ass_id]])+" samps"+\
+                                               " bet "+str(new_entry['Bet'])+\
+                                               " p_mc={0:.2f}".format(new_entry['P_mc'])+\
+                                               " p_md={0:.2f}".format(new_entry['P_md'])+\
+                                               " spread={0:.3f}".format(new_entry['E_spread'])+\
+                                               " strategy "+strategy_name
+                                        
+                                        # send position extended command to api
+                                        if verbose_trader:
+                                            print("\r"+out)
+                                            self.write_log(out)
+                                            out = thisAsset+logMsg
+                                        if send_info_api:
+                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                            self.send_extend_pos_api(new_entry[entry_time_column], 
+                                                                         thisAsset, 100*curr_GROI, 
+                                                                         new_entry['P_mc'], new_entry['P_md'], 
+                                                                         int(new_entry['Bet']), strategy_name,
+                                                                         100*curr_ROI, 
+                                                                         self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
+                                            
+                                    elif not crisis_mode or not cond_bet: #  # if candidate for extension does not meet requirements
+                                        logMsg = " "+new_entry[entry_time_column]+" not extended "+\
+                                              " due to "+reason
+                                        if verbose_trader:
+                                            out = thisAsset+logMsg
+                                            print("\r"+out)
+                                            self.write_log(out)
+                                        if send_info_api:
+                                            self.send_not_extend_pos_api(new_entry[entry_time_column], 
+                                                                         thisAsset, 100*curr_GROI, 
+                                                                         new_entry['P_mc'], new_entry['P_md'], 
+                                                                         int(new_entry['Bet']), strategy_name,
+                                                                         100*curr_ROI, 
+                                                                         self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
+                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                    else:
+                                        # crisis and no extention. Close Pos!
+                                        logMsg = new_entry[entry_time_column]+" "\
+                                                " CLOSING DUE TO CRISIS MODE!"
+                                        out = thisAsset+" "+logMsg
+                                        if verbose_trader:
+                                            print("\r"+out)
+                                            self.write_log(out)
+                                        if run_back_test:
+                                            self.close_position(new_entry[entry_time_column], 
+                                                                thisAsset, ass_id, results)
+                                        else:
+                                            send_close_command(thisAsset)
+                                        if send_info_api:
+                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                 
                             else: # if direction is different
                                 this_strategy = self.next_candidate.strategy
