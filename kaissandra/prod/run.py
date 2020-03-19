@@ -1790,9 +1790,12 @@ class Trader:
         self.list_is_asset_banned[ass_idx] = True
         if not hasattr(self, 'list_dict_banned_assets'):
             self.list_dict_banned_assets = [None for _ in self.list_is_asset_banned]
-            
+        if not crisis_mode:
+            counter = 20
+        else:
+            counter = 2
         tracing_dict = {'lastDateTime':DateTime,
-                        'counter':20}
+                            'counter':counter}
         self.list_dict_banned_assets[ass_idx] = tracing_dict
         logMsg = " "+DateTime+" "+\
                 " ban counter set to "\
