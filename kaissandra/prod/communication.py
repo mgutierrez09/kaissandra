@@ -149,6 +149,21 @@ def reset_networks():
             #print("Sent command to "+directory_MT5_ass)
             send_command(directory_io_ass, command)
             
+def post_token():
+    """ POST request to create new token if expired or retrieve current one """
+    print(CC.URL+'tokens')
+    response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+    if response.status_code == 200:
+        token = response.json()['token']
+        return token
+    else:
+        print(response.text)
+    return None
+
+def build_token_header(token):
+    """ Build header for token """
+    return {'Authorization': 'Bearer '+token}
+            
 def send_trader_log(message, asset, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/traders'
@@ -339,6 +354,16 @@ def send_account_status(token_header):
     json['tradername'] = CC.TRADERNAME
     try:
         response = requests.put(CC.URL+url_ext, json=status,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_account_status of communication.py")
+        
+def send_reset_positions(token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/reset_positions'
+    try:
+        response = requests.post(CC.URL+url_ext,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
