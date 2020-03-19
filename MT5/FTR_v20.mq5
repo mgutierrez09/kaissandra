@@ -342,6 +342,7 @@ void controlPositionFlow(){
          }}
          //Print("",nEventsPerStat-dif_ticks-deadline,"",GROI," ",ROI,"%");
          message = StringFormat("Deadline in  %d GROI %.4f ROI %.4f",nEventsPerStat-dif_ticks-deadline,GROI,ROI);
+         //stoploss = updateSL(Bi, thisPos, slThrPips);
          //Print(message);
          //writeLog(message);
          if(sl_protect!=sl_protect_prev || tp_protect!=tp_protect_prev)
