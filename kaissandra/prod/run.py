@@ -2599,7 +2599,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 #print(thisAsset+" new buffer received")
                 os.remove(directory_MT5_ass+fileID)
                 success = 1
-                nFilesDir = len(os.listdir(directory_MT5_ass))
+                #nFilesDir = len(os.listdir(directory_MT5_ass))
                 #start_timer(ass_idx)
                 if not first_info_fetched:
                     logMsg = " First info fetched"
@@ -2608,13 +2608,13 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                     #print(buffer)
                     first_info_fetched = True
-                elif nMaxFilesInDir<nFilesDir:
-                    nMaxFilesInDir = nFilesDir
-                    logMsg = " new max number files in dir: "+str(nMaxFilesInDir)
-                    out = thisAsset+logMsg
-                    print(out)
-                    write_log(out, log_file)
-                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                elif nMaxFilesInDir<nFilesDir:
+#                    nMaxFilesInDir = nFilesDir
+#                    logMsg = " new max number files in dir: "+str(nMaxFilesInDir)
+#                    out = thisAsset+logMsg
+#                    print(out)
+#                    write_log(out, log_file)
+#                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                     
             except (FileNotFoundError,PermissionError,OSError):
                 io_ass_dir = LC.io_live_dir+thisAsset+"/"
