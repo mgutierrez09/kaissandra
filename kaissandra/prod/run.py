@@ -3900,7 +3900,10 @@ force_no_extesion = False
 modular = False
 
 if not test:
-    n_samps_buffer = 250
+    if not crisis_mode:
+        n_samps_buffer = 250
+    else:
+        n_samps_buffer = 100
 else:
     n_samps_buffer = 5
 
