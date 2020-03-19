@@ -29,7 +29,7 @@ def send_command(directory_MT5_ass, command, msg=''):
     
 def shutdown(id=None):
     """  """
-    io_dir = local_vars.io_live_dir
+    io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -51,7 +51,7 @@ def close_session(id):
     
 def pause():
     """  """
-    io_dir = local_vars.io_live_dir
+    io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -66,7 +66,7 @@ def pause():
 
 def check_params(config_name=''):
     """  """
-    io_dir = local_vars.io_live_dir
+    io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -87,7 +87,7 @@ def check_params(config_name=''):
 #        
 #        url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/get_params'
 #        
-#        response = requests.get(CC.URL+url_ext, headers=token, verify=True)
+#        response = requests.get(LC.URL+url_ext, headers=token, verify=True)
 #        #print("Status code: "+str(response.status_code))
 #        if response.status_code == 200:
 #            #print(response.json())
@@ -103,7 +103,7 @@ def check_params(config_name=''):
 
 def resume():
     """  """
-    io_dir = local_vars.io_live_dir
+    io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -118,7 +118,7 @@ def resume():
 
 def close_positions():
     """ Close all positions from py """
-    directory_MT5 = local_vars.directory_MT5_IO
+    directory_MT5 = LC.directory_MT5_IO
     command = "LC"
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
@@ -130,7 +130,7 @@ def close_positions():
             
 def close_position(thisAsset):
     """ Close all positions from py """
-    directory_MT5 = local_vars.directory_MT5_IO
+    directory_MT5 = LC.directory_MT5_IO
     command = "LC"
     directory_MT5_ass = directory_MT5+thisAsset+"/"
     if os.path.exists(directory_MT5_ass):
@@ -139,7 +139,7 @@ def close_position(thisAsset):
         
 def reset_networks():
     """  """
-    directory_io = local_vars.io_live_dir
+    directory_io = LC.io_live_dir
     command = "RESET"
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
@@ -151,8 +151,8 @@ def reset_networks():
             
 def post_token():
     """ POST request to create new token if expired or retrieve current one """
-    print(CC.URL+'tokens')
-    response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+    print(LC.URL+'tokens')
+    response = requests.post(LC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
     if response.status_code == 200:
         token = response.json()['token']
         return token
@@ -168,7 +168,7 @@ def send_trader_log(message, asset, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/traders'
     try:
-        response = requests.post(CC.URL+url_ext, json={'Message':message,
+        response = requests.post(LC.URL+url_ext, json={'Message':message,
                                                        'Asset':asset,
                                                        'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
@@ -180,7 +180,7 @@ def send_monitoring_log(message, asset, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/monitor'
     try:
-        response = requests.post(CC.URL+url_ext, json={'Message':message,
+        response = requests.post(LC.URL+url_ext, json={'Message':message,
                                                        'Asset':asset,
                                                        'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
@@ -192,7 +192,7 @@ def send_global_log(message, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/global'
     try:
-        response = requests.post(CC.URL+url_ext, json={'Message':message,
+        response = requests.post(LC.URL+url_ext, json={'Message':message,
                                                        'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
@@ -202,10 +202,10 @@ def send_global_log(message, token_header):
 def send_network_log(message, asset, token_header):
     """ Send network log to server api """
     url_ext = 'logs/networks'
-#        self.futureSession.post(CC.URL+url_ext, json={'Message':message},
+#        self.futureSession.post(LC.URL+url_ext, json={'Message':message},
 #                                headers=self.build_token_header(), verify=False, timeout=10)
     try:
-        response = requests.post(CC.URL+url_ext, json={'Message':message,
+        response = requests.post(LC.URL+url_ext, json={'Message':message,
                                                        'Asset':asset
                                                        },
         headers=token_header, verify=True, timeout=10)
@@ -217,7 +217,7 @@ def set_config_session(config, token_header):
     """ Send trader log to server api """
     url_ext = 'traders/sessions/set_session_config'
     try:
-        response = requests.put(CC.URL+url_ext, json=config,
+        response = requests.put(LC.URL+url_ext, json=config,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
@@ -227,7 +227,7 @@ def get_config_session(token_header):
     """ Send trader log to server api """
     url_ext = 'traders/sessions/get_session_config'
     try:
-        response = requests.get(CC.URL+url_ext, 
+        response = requests.get(LC.URL+url_ext, 
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
         return response.json()
@@ -246,7 +246,7 @@ def build_and_set_config(config_name='TESTPARAMUPDATE5'):
 def send_open_position(params, session_id, token_header):
     """ Send open position to server api"""
     url_ext = 'traders/sessions/'+str(session_id)+'/positions/open'
-    response = requests.post(CC.URL+url_ext, json=params, headers=
+    response = requests.post(LC.URL+url_ext, json=params, headers=
                                              token_header, verify=True)
     print("Status code: "+str(response.status_code))
     if response.status_code == 200:
@@ -259,7 +259,7 @@ def send_open_position(params, session_id, token_header):
 def send_extend_position(params, pos_id, token_header):
     """ Send extend position commnad to server api"""
     url_ext = 'traders/positions/'+str(pos_id)+'/extend'
-    response = requests.post(CC.URL+url_ext, json=params, headers=
+    response = requests.post(LC.URL+url_ext, json=params, headers=
                              token_header, verify=True)
     print("Status code: "+str(response.status_code))
     if response.status_code == 200:
@@ -272,7 +272,7 @@ def send_extend_position(params, pos_id, token_header):
 def send_not_extend_position(params, pos_id, token_header):
     """ Send extend position commnad to server api"""
     url_ext = 'traders/positions/'+str(pos_id)+'/notextend'
-    response = requests.post(CC.URL+url_ext, json=params, headers=
+    response = requests.post(LC.URL+url_ext, json=params, headers=
                              token_header, verify=True)
     print("Status code: "+str(response.status_code))
     if response.status_code == 200:
@@ -287,9 +287,9 @@ def send_close_position(params, pos_id, dirfilename, token_header):
     url_ext = 'traders/positions/'+str(pos_id)+'/close'
     url_file = 'traders/positions/'+str(pos_id)+'/upload'
     files={'file': open(dirfilename,'rb')}
-    response = requests.put(CC.URL+url_ext, json=params, 
+    response = requests.put(LC.URL+url_ext, json=params, 
                             headers=token_header, verify=True)
-    response_file = requests.post(CC.URL+url_file, files=files, 
+    response_file = requests.post(LC.URL+url_file, files=files, 
                                   headers=token_header, verify=True)
     print("Status code: "+str(response.status_code))
     if response.status_code == 200:
@@ -302,7 +302,7 @@ def send_close_position(params, pos_id, dirfilename, token_header):
 def get_token():
     """  """
     try:
-        response = requests.post(CC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
+        response = requests.post(LC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
         if response.status_code == 200:
             token = response.json()['token']
             return token
@@ -316,7 +316,7 @@ def get_account_status():
     """ Get account status from broker """
     success = 0
     ##### WARNING! #####
-    dirfilename = local_vars.directory_MT5_account+'Status.txt'
+    dirfilename = LC.directory_MT5_account+'Status.txt'
     if os.path.exists(dirfilename):
         # load network output
         while not success:
@@ -353,7 +353,7 @@ def send_account_status(token_header):
     json = status
     json['tradername'] = CC.TRADERNAME
     try:
-        response = requests.put(CC.URL+url_ext, json=status,
+        response = requests.put(LC.URL+url_ext, json=status,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
@@ -363,7 +363,7 @@ def send_reset_positions(token_header):
     """ Send trader log to server api """
     url_ext = 'traders/reset_positions'
     try:
-        response = requests.post(CC.URL+url_ext,
+        response = requests.post(LC.URL+url_ext,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
@@ -371,7 +371,7 @@ def send_reset_positions(token_header):
         
 def send_close_command(asset):
     """ Send command for closeing position to MT5 software """
-    directory_MT5_ass2close = local_vars.directory_MT5_IO+asset+"/"
+    directory_MT5_ass2close = LC.directory_MT5_IO+asset+"/"
     # load network output
     try:
         fh = open(directory_MT5_ass2close+"LC","w")
@@ -389,14 +389,14 @@ def send_close_commands_all():
 #def parameters_enquiry(session_id, token_header):
 #    """  """
 #    url_ext = 'traders/sessions/'+str(session_id)+'/get_params'
-#    response = requests.get(CC.URL+url_ext, headers=token_header, verify=True)
+#    response = requests.get(LC.URL+url_ext, headers=token_header, verify=True)
 #    if response.status_code == 200:
 #        return True
 #    else:
 #        return False
 
 from kaissandra.config import retrieve_config, Config
-from kaissandra.local_config import local_vars
+from kaissandra.local_config import local_vars as LC
 from kaissandra.prod.config import Config as CC
     
 if __name__=='__main__':
