@@ -8,7 +8,7 @@ import os
 
 class Config(object):
     """ Configuration object providing necessary fields to connect with server """
-    URL = os.environ.get('URL') or 'https://kaissandra-webapp.herokuapp.com/api/'#or #os.environ.get('URL') 
+    #URL = os.environ.get('URL') or 'http://localhost:5000/api/'#'https://kaissandra-webapp.herokuapp.com/api/'#or #os.environ.get('URL') 
     USERNAME = os.environ.get('USER') or 'kaissandra'
     PASSWORD = os.environ.get('PASSWORD') or "kaissandra"
     TRADERNAME = os.environ.get('TRADERNAME') or 'farnamstreet'
@@ -19,7 +19,7 @@ class Config(object):
     TEST = os.environ.get('TEST') or False
     RUN_BACK_TEST = os.environ.get('RUN_BACK_TEST') or True
     SEND_INFO_API = os.environ.get('SEND_INFO_API') or True
-    if URL == None:
-        raise ValueError("URL environment variable cannot be None.")
+#    if URL == None:
+#        raise ValueError("URL environment variable cannot be None.")
     if TRADERNAME == None:
         raise ValueError("TRADERNAME environment variable cannot be None.")
