@@ -369,6 +369,36 @@ def send_reset_positions(token_header):
     except:
         print("WARNING! Error in send_account_status of communication.py")
         
+def get_number_positions(token_header):
+    """ Send trader log to server api """
+    url_ext = 'traders/number_positions'
+    try:
+        response = requests.get(LC.URL+url_ext,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_account_status of communication.py")
+        
+def get_user_id(token_header, username):
+    """ get user id """
+    url_ext = 'users/id'
+    try:
+        response = requests.get(LC.URL+url_ext, json={'username':username},
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_account_status of communication.py")
+        
+def set_budget(token_header, id, budget):
+    """ get user id """
+    url_ext = 'users/'+str(id)+'/set_budget'
+    try:
+        response = requests.put(LC.URL+url_ext, json={'budget':budget},
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in send_account_status of communication.py")
+        
 def send_close_command(asset):
     """ Send command for closeing position to MT5 software """
     directory_MT5_ass2close = LC.directory_MT5_IO+asset+"/"
