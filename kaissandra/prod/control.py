@@ -70,6 +70,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
     watchdog_counter = 0
     ass_idx = 0
     run = True
+    print("Control running...")
     while run:
         # control connection
         list_last_file, list_num_files, timeouts, reset = control_broker_connection(AllAssets, running_assets, 
@@ -91,6 +92,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
         asset = AllAssets[str(running_assets[ass_idx])]
         MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
             ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
+        print(asset+MSG)
         ct.send_trader_log(MSG, asset, token_header)
         ass_idx = np.mod(ass_idx+1,len(running_assets))
         
@@ -98,7 +100,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
         
         watchdog_counter += 1
         # check parameters every minute
-        if watchdog_counter==12:
+        if watchdog_counter==1:
             try:
                 ct.check_params()
                 token = ct.get_token()
@@ -204,8 +206,10 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
 #        else:
 #            print(thisAsset+" timeout NOT reset")
     min_to = min([time.time()-to for to in timeouts])
-    print("\r"+dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
-          " Min TO = {0:.2f} mins".format(min_to/60), sep=' ', end='', flush=True)
+    print(dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
+          " Min TO = {0:.2f} mins".format(min_to/60))
+#    print("\r"+dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
+#          " Min TO = {0:.2f} mins".format(min_to/60), sep=' ', end='', flush=True)
 #    if min_to>timeout*60 and not reset:
 #        # Reset networks
 #        reset = True

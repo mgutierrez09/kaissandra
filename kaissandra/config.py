@@ -720,9 +720,12 @@ def get_config(config_name):
         print("Config name "+config_name+" does not exist")
         return None
 
-def save_config(config):
+def save_config(config, from_server=False):
     """  """
-    config_filename = local_vars.config_directory+config['config_name']+config_extension
+    if not from_server:
+        config_filename = local_vars.config_directory+config['config_name']+config_extension
+    else:
+        config_filename = local_vars.config_directory+config['config_name']+'remote'+config_extension
     if not os.path.exists(config_filename):
         pickle.dump( config, open( config_filename, "wb" ))
         print("Config file "+config_filename+" saved")

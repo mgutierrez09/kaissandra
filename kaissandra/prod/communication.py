@@ -68,20 +68,41 @@ def check_params(config_name=''):
     """  """
     io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
+    if config_name=='':
+        # get config from server and pass it to live session
+        json = get_config_session(build_token_header(post_token()))
+        config = json['config']
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
         
         try:
-            fh = open(io_dir+asset+'/PARAM',"w")
+            
             # if parameters come locally
-            if config_name!='':
+#            if config_name!='':
+#                # let live session load the file from disk
+#                fh = open(io_dir+asset+'/PARAM',"w")
+#                fh.write(config_name)
+#                fh.close()
+            if config_name=='' and config and len(config)>0:
+            
+                save_config(config, from_server=True)
+                fh = open(io_dir+asset+'/PARAM',"w")
+                fh.write(config['config_name']+'remote')
+                fh.close()
+                # reset server config json to empty
+                
+            elif config_name!='':
+                fh = open(io_dir+asset+'/PARAM',"w")
                 fh.write(config_name)
-            fh.close()
+                fh.close()
             #print(asset)
         except FileNotFoundError:
-            pass
+            print("WARNING! C:/Users/mgutierrez/root/Projects/SDC/py/RNN/IOlive2/"+asset+"/ not fount")
             #print("Asset not running")
+    if config_name=='' and config and len(config)>0:
+        set_config_session({}, build_token_header(post_token()))
     print("Params checked")
+    
     # retrieve previous event if asynch
 #    try:
 #        
@@ -151,7 +172,7 @@ def reset_networks():
             
 def post_token():
     """ POST request to create new token if expired or retrieve current one """
-    print(LC.URL+'tokens')
+    #print(LC.URL+'tokens')
     response = requests.post(LC.URL+'tokens',auth=(CC.USERNAME,CC.PASSWORD), verify=True)
     if response.status_code == 200:
         token = response.json()['token']
@@ -229,7 +250,7 @@ def get_config_session(token_header):
     try:
         response = requests.get(LC.URL+url_ext, 
                                 headers=token_header, verify=True, timeout=10)
-        print(response.json())
+        #print(response.json())
         return response.json()
     except:
         print("WARNING! Error in send_network_log die to timeout.")
@@ -425,7 +446,7 @@ def send_close_commands_all():
 #    else:
 #        return False
 
-from kaissandra.config import retrieve_config, Config
+from kaissandra.config import retrieve_config, Config, save_config
 from kaissandra.local_config import local_vars as LC
 from kaissandra.prod.config import Config as CC
     

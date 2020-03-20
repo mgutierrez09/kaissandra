@@ -2595,11 +2595,11 @@ def fetch(lists, trader, directory_MT5, AllAssets,
     nMaxFilesInDir = 0
     tic = time.time()
     delayed_stop_run = False
-    
+    count10s = [0 for _ in running_assets]
     while run:
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
-            
+            count10s[ass_idx] = np.mod(count10s[ass_idx]+1, 100)
             thisAsset = AllAssets[str(ass_id)]
             
             #test_multiprocessing(ass_idx)
@@ -2611,7 +2611,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
             # Fetching buffers
             fileID = thisAsset+deli+str(fileExt[ass_idx]).zfill(2)+extension
             success = 0
-            
+            io_ass_dir = LC.io_live_dir+thisAsset+"/"
             try:
                 buffer = pd.read_csv(directory_MT5_ass+fileID)#
                 #print(thisAsset+" new buffer received")
@@ -2635,7 +2635,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 #                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                     
             except (FileNotFoundError,PermissionError,OSError):
-                io_ass_dir = LC.io_live_dir+thisAsset+"/"
+                
                 # check shut down command
                 if os.path.exists(io_ass_dir+'SD'):
                     logMsg = " Shutting down"
@@ -2664,38 +2664,29 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     print("RESET command found.")
                     os.remove(io_ass_dir+'RESET')
                     lists = flush_asset(lists, ass_idx, 0.0)
-                elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
-                    # check first for local info
-                    with open(io_ass_dir+'PARAM', 'r') as f:
-                        config_name = f.read()
-                        f.close()
-                    try:
-                        os.remove(io_ass_dir+'PARAM')
-                    except:
-                        print("WARNING! Error while deleting PARAM. Continuing")
-                        
-                    if config_name=='':
-                        # read from remote
-                        try:
-        #                    api.parameters_enquiry(asynch=True)
-                            json = get_config_session(api.build_token_header())
-                            config = json['config']
-                            print(config)
-                            if config and len(config)>0:
-                                print("Updating config:")
-                                trader.update_parameters(config)
-                            else:
-                                print("No config. Skipped")
-                        except:
-                            print("WARNING! Error while updating config. Continuing")
-                    else:
-                        # update from local
-                        config = retrieve_config(config_name)
-                        trader.update_parameters(config)
-                
-                
-                
                 time.sleep(.01)
+            if count10s[ass_idx]==5 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
+                print("PARAM found")
+                # check first for local info
+                with open(io_ass_dir+'PARAM', 'r') as f:
+                    config_name = f.read()
+                    f.close()
+                try:
+                    os.remove(io_ass_dir+'PARAM')
+                except:
+                    print("WARNING! Error while deleting PARAM. Continuing")
+                    
+                if config_name=='':
+                    pass
+                else:
+                    # update from local
+                    config = retrieve_config(config_name)
+                    print(thisAsset)
+                    trader.update_parameters(config)
+                
+                
+                
+                
             # update file extension
             if success:
                 fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
@@ -3047,6 +3038,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                         trader.update_parameters(config)
                     else:
                         print("No config. Skipped")
+                    # check for commands
+                    
                 except:
                     print("WARNING! Error whil updating config. Skipped")
             else:
