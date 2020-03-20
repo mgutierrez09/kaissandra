@@ -759,8 +759,8 @@ class Trader:
                 cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0]
                 cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]
             else:
-                cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][0][0]+this_strategy.info_spread_ranges['mar'][0][0]
-                cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][0][1]+this_strategy.info_spread_ranges['mar'][0][1]
+                cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]+this_strategy.info_spread_ranges['mar'][tactic][0]
+                cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1]
             cond_groi = 100*curr_GROI>=this_strategy.lim_groi_ext
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    this_strategy.info_spread_ranges['dir'])
@@ -1447,8 +1447,8 @@ class Trader:
                                     out = thisAsset+logMsg
                                     print("\r"+out)
                                     self.write_log(out)
-                                if send_info_api:
-                                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                if send_info_api:
+#                                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                         else: # position is opened
                             direction = self.list_opened_positions[self.map_ass_idx2pos_idx[ass_id]].bet
                             curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
@@ -2108,8 +2108,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         out = thisAsset+logMsg
                         print("\r"+out)
                         write_log(out, log_file)
-                    if send_info_api:
-                        queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#                    if send_info_api:
+#                        queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                     #print("Prediction in market change")
                     # Snd prediction to trading robot
                 if len(list_time_to_entry[sc][t_index])>0 and \
@@ -2135,8 +2135,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         out = thisAsset+logMsg
                         print(out)
                         write_log(out, log_file)
-                    if send_info_api:
-                        queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#                    if send_info_api:
+#                        queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                     list_time_to_entry[sc][t_index] = list_time_to_entry[sc]\
                         [t_index][1:]
                     list_list_soft_tildes[sc][t_index] = list_list_soft_tildes\

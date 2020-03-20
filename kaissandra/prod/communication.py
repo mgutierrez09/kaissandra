@@ -216,12 +216,12 @@ def send_network_log(message, asset, token_header):
 def set_config_session(config, token_header):
     """ Send trader log to server api """
     url_ext = 'traders/sessions/set_session_config'
-    try:
+    if 1:
         response = requests.put(LC.URL+url_ext, json=config,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
-    except:
-        print("WARNING! Error in send_network_log die to timeout.")
+#    except:
+#        print("WARNING! Error in send_network_log die to timeout.")
         
 def get_config_session(token_header):
     """ Send trader log to server api """
@@ -328,7 +328,7 @@ def get_account_status():
                 success = 1
                 #stop_timer(ass_idx)
             except PermissionError:
-                print("Error writing TT")
+                print("Error writing Account status")
         info_str = info_close.split(',')
         #print(info_close)
         balance = float(info_str[0])

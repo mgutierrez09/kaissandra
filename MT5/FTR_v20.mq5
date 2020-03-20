@@ -178,15 +178,15 @@ void closePosition(){
    int executed = 0;
    //bool closed = false;
    string message;
-   while(!executed && position!=0){
-      if(m_Trade.PositionClose(thisSymbol))
-         executed = 1;
-      message = StringFormat("Close position executed: %d",executed);
-      Print(message);
+   //while(!executed && position!=0){
+   if(m_Trade.PositionClose(thisSymbol))
+      executed = 1;
+   message = StringFormat("Close position executed: %d",executed);
+   Print(message);
       //writeLog(message);
       //if(closed && m_Trade.ResultDeal()!=0)
       //   executed = true;
-   }// close position if deadline reached
+   //}// close position if deadline reached
    if(position!=0){
       message = StringFormat("Close -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       Print(message);
