@@ -385,16 +385,20 @@ def get_fileidxs(files_asset, init_date, end_date, isgold=False):
         end_date = dt.datetime.strftime(end_date_dt,'%Y%m%d')
     #print(init_idx)
     #print(end_idx)
-    assert(len(init_idx)==1)
-    assert(len(end_idx)==1)
-    return init_idx[0], end_idx[0]
+    if len(init_idx)>1:
+        print("WARNING! More than one file with the same starting day. Taking the first")
+    if len(end_idx)>1:
+        print("WARNING! More than one file with the same end day. Taking the last")
+#    assert(len(init_idx)==1)
+#    assert(len(end_idx)==1)
+    return init_idx[0], end_idx[-1]
 
 if __name__=='__main__':
     # limit the build of the HDF5 to data comprised in these dates
     build_partial_raw = False
     build_test_db = True
-    init_date = '20191202'#'180928'
-    end_date = '20200306'#'181109'
+    init_date = '20181112'#'20200309'#'20191202'#'180928'
+    end_date = '20200320'#'181109'
     init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
     end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
     
@@ -441,11 +445,11 @@ if __name__=='__main__':
     last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
     list_bussines_days = find_bussines_days_v2(first_day=first_day, 
                                                last_day=last_day)
-    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    assets = [16]#[31,32]#1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,
     # loop over all assets
     for ass in assets:
         thisAsset = C.AllAssets[str(ass)]
-        print(thisAsset)
+        print(str(ass)+". "+thisAsset)
         directory_origin = directory_root+thisAsset+'/'#'../Data/'+thisAsset+'/'
         # extend the threshold margin for GOLD since it always starts at 01:00 am
         if thisAsset == 'GOLD':
@@ -481,9 +485,10 @@ if __name__=='__main__':
                         last_date_s = re.search('\d+',m.group()).group()
                         last_date_dt = dt.datetime.strptime(last_date_s, '%Y%m%d%H%M%S')
         
-    #    if thisAsset=='EURCAD':
-    #        del f[thisAsset]
-            ##### TODO remove separators as well! #### 
+#        if thisAsset=='USDCAD':
+#            del f[thisAsset]
+#            if os.path.exists(directory_destination+separators_directory_name+thisAsset+'_separators.txt'):
+#                os.remove(directory_destination+separators_directory_name+thisAsset+'_separators.txt')
         
         if thisAsset not in f:
             # create group, its attributes and its datasets
@@ -721,7 +726,7 @@ if __name__=='__main__':
                     # get eparators from latest info
                     this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
                                                            bidThresDay,bidThresNight,[])
-    #                print(this_separators)
+#                    print(this_separators)
                     # reference index according to general pointer
                     this_separators.index = this_separators.index+pointer_sep
                     # update list

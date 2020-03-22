@@ -369,8 +369,10 @@ def find_edge_indexes(dts, edges_dt, group_name, fold_idx, sets_list,
                       last_day=dt.datetime(2018, 11, 9, 0 ,0)):
     """ Find entries matching the edges """
     # find starting/end dates of the chunck
-    
-    
+#    print("sets_list")
+#    print(sets_list)
+#    print("edges_dt")
+#    print(edges_dt)
 #    print(group_name)
     initenddates = group_name.split('/')[-1]
 #    ic_str = dts[0]
@@ -498,6 +500,7 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
     returns = returns_struct['returns']
     ret_idx = returns_struct['ret_idx']
     dts = returns_struct['DT']
+    print
     # add dateTimes, bids and asks if are included in file
     bids = returns_struct['B']
     asks = returns_struct['A']
@@ -532,6 +535,10 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
         #end_idx_rets = nChannels+batch+2*seq_len-1
         
         dt_support = dts[init_idx_rets:, [0, lookAheadIndex+1]]
+#        print("dt_support[0,0]")
+#        print(dt_support[0,0])
+#        print("dt_support[-1,1]")
+#        print(dt_support[-1,1])
         batch = dt_support.shape[0]
 #        print("dts.shape")
 #        print(dts.shape)
@@ -692,6 +699,7 @@ def build_XY(config, Vars, returns_struct, stats_output, IO, edges_dt,
                 B[pointerCv:pointerCv+samps_cv,:,:] = B_i[i_cv:e_cv,:,:]
                 A[pointerCv:pointerCv+samps_cv,:,:] = A_i[i_cv:e_cv,:,:]
                 pointerCv += samps_cv
+#            print(D[-1,:,:])
 #        print("pointerCv")
 #        print(pointerCv)
         #print(pointer)
@@ -1160,7 +1168,7 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
         if new_entries>0:
             DTA_i['DT1'] = DTA_i['DT1'].str.decode('utf-8')
             print(DTA_i['DT1'].iloc[0])
-            print(DTA_i['DT1'].iloc[-1])
+            
             # TODO: Check that DTA set belongs to cros-val set
 #            if DTA_i['DT1'].iloc[0][:10] not in data.dateTest:
 #                print("WARNING!!! DTA_i['DT1'].iloc[0][:10] not in data.dateTest")
@@ -1177,6 +1185,7 @@ def build_DTA_v3(config, AllAssets, D, B, A, ass_IO_ass, dirfilename):
             DTA_i['B2'] = B[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
             DTA_i['A2'] = A[last_ass_IO_ass:ass_IO_ass[ass_index],:,1].reshape((-1))
             DTA_i['Asset'] = thisAsset
+            print(DTA_i['DT2'].iloc[-1])
     #        print(DTA_i['DT1'].iloc[0])
     #        print(DTA_i['DT1'].iloc[-1])
             # append DTA this asset to all DTAs

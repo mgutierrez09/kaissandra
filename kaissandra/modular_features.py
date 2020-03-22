@@ -853,7 +853,6 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
     n_aros = sum(boolAROUPs)
     boolARODOWNs = [C.FI['ARODOWN'+i] in feature_keys for i in C.aro_ext]
     idxARODOWNs = [i for i in range(len(boolARODOWNs)) if boolARODOWNs[i]]
-    
     # loop over batched
     if len(features_files) > 0:
         with np.errstate(divide='raise'):

@@ -1116,30 +1116,30 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20181112'#'20191202'#
-    end_day_str = '20200306'#'20191212'
-    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
+    init_day_str = '20200224'#'20181112'#'20191202'#
+    end_day_str = '20200320'#'20191212'
+    list_name = ['5NYORPS2k12K5k12K2E1452ALSRNSP60M2', '5NYORPS2k12K5k12K2E1453BSSRNSP60M2']# margin 2
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     spreads_per_asset = False
     if not spreads_per_asset:
-        list_IDresults = ['R01050NYORPS2CMF181112T200306ALk12K5K2E141452', 'R01050NYORPS2CMF181112T200306BSk12K5K2E141452']
+        list_IDresults = ['R01050NYORPS2CMF181112T200320ALk12K5K2E141452', 'R01050NYORPS2CMF181112T200320BSk12K5K2E141453']
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
-        list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+        list_spread_ranges = [[{'sp':[0]+[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
                                      (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
                                      (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                      (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                      (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
-                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                               'mar':[(0,0)]+[(0,0.1) for _ in range(46)]} for _ in assets],
+                              [{'sp':[0]+[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.54, 0.57), (0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                      (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                      (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
+                               'mar':[(0,0)]+[(0,0.1) for _ in range(46)]} for _ in assets]]
         list_lb_mc_ext = [.5, .51]
         list_lb_md_ext = [.58,.57]
     else:
@@ -1456,6 +1456,8 @@ if __name__ == '__main__':
     av_vol_per_hour = []
     av_volat_per_hour = []
     time_per_hour = []
+    volat_time = []
+    vol_time = []
     
     max_vol_per_pos_ass = {}
     dt_max_vol_per_pos_ass = {}
@@ -1552,14 +1554,17 @@ if __name__ == '__main__':
             DateTime = DateTimes[event_idx].decode("utf-8")
             time_stamp = dt.datetime.strptime(DateTime,
                                               '%Y.%m.%d %H:%M:%S')
+            thisAsset = Assets[event_idx].decode("utf-8")
             if not math.isnan(SymbolBids[event_idx]) and not math.isnan(SymbolAsks[event_idx]):
                 bid = int(np.round(SymbolBids[event_idx]*100000))/100000
                 ask = int(np.round(SymbolAsks[event_idx]*100000))/100000
             else:
                 # TODO: find previous entry and substitude
-                print("WARNING! NaN found. Skipping")
+                out = DateTime+" "+thisAsset+" WARNING! NaN FOUND. SKIPPING"
+                print(out)
+                trader.write_log(out)
             e_spread = (ask-bid)/ask
-            thisAsset = Assets[event_idx].decode("utf-8")
+            
             ass_idx = ass2index_mapping[thisAsset]
             # track timestamp for the last mW samps of each asset to 
             # calculate volume
@@ -1581,18 +1586,20 @@ if __name__ == '__main__':
                 if vol<=max_vols[ass_id]:
                     # add vol 
                     max_vols[ass_id] = vol
+                    vol_time_stamp = time_stamp
                 # update max volatility
                 if volat>max_volats[ass_id]:
                     max_volats[ass_id] = volat
+                    volat_time_stamp = time_stamp
                     
                 array_volat = np.array(max_volats)[np.array(max_volats)!=-1]
                 mean_vol = np.mean(np.array(max_vols)[np.array(max_vols)!=99999999])
                 mean_volat = np.mean(array_volat)
                 
-                volatility_idx = (10*np.log10(mean_volat)-mean_volat_db)/var_volat_db
-                volume_idx = (10*np.log10(mean_vol)-mean_vol_db)/var_vol_db
-                
-                margin = max(volatility_idx-volume_idx, 0)/5
+#                volatility_idx = (10*np.log10(mean_volat)-mean_volat_db)/var_volat_db
+#                volume_idx = (10*np.log10(mean_vol)-mean_vol_db)/var_vol_db
+#                
+#                margin = max(volatility_idx-volume_idx, 0)/5
 #                print(margin)
                 
                 # update new hour
@@ -1601,6 +1608,8 @@ if __name__ == '__main__':
                     av_vol_per_hour.append(mean_vol)
                     av_volat_per_hour.append(mean_volat)
                     time_per_hour.append(time_stamp)
+                    vol_time.append(vol_time_stamp)
+                    volat_time.append(volat_time_stamp)
                     max_vols = [99999999 for _ in assets]
                     max_volats = [-1 for _ in assets]
             
@@ -2064,7 +2073,9 @@ if __name__ == '__main__':
                 'diff_dt':diff_dt,
                 'av_vol_per_hour':av_vol_per_hour,
                 'av_volat_per_hour':av_volat_per_hour,
-                'time_per_hour':time_per_hour
+                'time_per_hour':time_per_hour,
+                'vol_time':vol_time,
+                'volat_time':volat_time,
                 }, open( directory+start_time+"_volume.p", "wb" ))
     # end of weeks
     out = ("\nTotal GROI = {0:.3f}% ".format(results.total_GROI)+

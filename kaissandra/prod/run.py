@@ -2599,7 +2599,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
     while run:
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
-            count10s[ass_idx] = np.mod(count10s[ass_idx]+1, 100)
+            count10s[ass_idx] = np.mod(count10s[ass_idx]+1, 1000)
             thisAsset = AllAssets[str(ass_id)]
             
             #test_multiprocessing(ass_idx)
@@ -2636,22 +2636,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     
             except (FileNotFoundError,PermissionError,OSError):
                 
-                # check shut down command
-                if os.path.exists(io_ass_dir+'SD'):
-                    logMsg = " Shutting down"
-                    out = thisAsset+logMsg
-                    print(out)
-                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
-                    os.remove(io_ass_dir+'SD')
-                    send_close_command(thisAsset)
-                    delayed_stop_run = True
-                    run = False
-                    queue.put({"FUNC":"SD"})
-                    # close session
-                    if send_info_api:
-                        api.close_session()
-                    time.sleep(5*np.random.rand(1)+1)
-                elif os.path.exists(io_ass_dir+'PA'):
+                
+                if os.path.exists(io_ass_dir+'PA'):
                     print(thisAsset+" PAUSED. Waiting for RE command...")
                     os.remove(io_ass_dir+'PA')
                     while not os.path.exists(io_ass_dir+'RE'):
@@ -2665,7 +2651,24 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     os.remove(io_ass_dir+'RESET')
                     lists = flush_asset(lists, ass_idx, 0.0)
                 time.sleep(.01)
-            if count10s[ass_idx]==5 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
+            
+            # check shut down command
+            if count10s[ass_idx]==56 and os.path.exists(io_ass_dir+'SD'):
+                logMsg = " Shutting down"
+                out = thisAsset+logMsg
+                print(out)
+                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+                os.remove(io_ass_dir+'SD')
+                send_close_command(thisAsset)
+                delayed_stop_run = True
+                run = False
+                queue.put({"FUNC":"SD"})
+                # close session
+                if send_info_api:
+                    api.close_session()
+                time.sleep(5*np.random.rand(1)+1)
+                
+            if count10s[ass_idx]==6 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
                 print("PARAM found")
                 # check first for local info
                 with open(io_ass_dir+'PARAM', 'r') as f:
@@ -3052,7 +3055,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         ###################### End of Trader ###########################
         event_idx += 1
         # A pause to avoid communication congestion with server
-        time.sleep(.05)
+#        time.sleep(.05)
     # end of while events
     for idx, trader in enumerate(traders):
         # get intermediate results
