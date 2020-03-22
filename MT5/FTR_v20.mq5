@@ -48,7 +48,7 @@ string chunks[];
 CTrade m_Trade;
 CPositionInfo m_Position;
 //input double Lot = 0.01;
-double lot;
+double lot = 0.01;
 const double lot_in_eur = 100000;
 bool record_data = true;
 bool closingInProgress;
@@ -76,7 +76,7 @@ double A_sl;
 double sl_thr = 1;//0.0001; //in ratio (1 pip=0.0001)
 double slThrPips = 100;
 double tpThrPips = 100;
-double slProThrPips = 100;
+double slProThrPips = 1000;
 double const PIP = 0.0001;
 //double bid;
 //double ask;
