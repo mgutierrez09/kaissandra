@@ -406,6 +406,7 @@ class Trader:
         self.n_entries = 0
         self.n_pos_opened = 0
         self.stoplosses = 0
+        self.takeprofits = 0
         self.n_pos_extended = 0
         
         # log
@@ -2911,9 +2912,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 
                 #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
-                trader.stoplosses += 1
-                logMsg = " Exit position due to TAKEPROFIT "+" sl="+\
-                       str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]])
+                trader.takeprofits += 1
+                logMsg = " Exit position due to TAKEPROFIT"
                 out = (thisAsset+logMsg)
                 print("\r"+out)
                 write_log(out, trader.log_file)
