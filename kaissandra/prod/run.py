@@ -2882,7 +2882,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
                 trader.stoplosses += 1
-                logMsg = " Exit position due to stop loss "+" sl="+\
+                logMsg = " Exit position due to STOPLOSS "+" sl="+\
                        str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]])
                 out = (thisAsset+logMsg)
                 print("\r"+out)
