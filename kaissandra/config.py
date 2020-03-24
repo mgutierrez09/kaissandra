@@ -726,11 +726,13 @@ def save_config(config, from_server=False):
         config_filename = local_vars.config_directory+config['config_name']+config_extension
     else:
         config_filename = local_vars.config_directory+config['config_name']+'remote'+config_extension
+    pickle.dump( config, open( config_filename, "wb" ))
     if not os.path.exists(config_filename):
-        pickle.dump( config, open( config_filename, "wb" ))
+        
         print("Config file "+config_filename+" saved")
         return True
     else:
+        print("WARNING! Config file "+config_filename+" overwritten")
         return False
 
 def print_config(config_name):

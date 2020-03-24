@@ -1116,7 +1116,7 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20200224'#'20181112'#'20191202'#
+    init_day_str = '20181112'#'20200224'#'20191202'#
     end_day_str = '20200320'#'20191212'
     list_name = ['5NYORPS2k12K5k12K2E1452ALSRNSP60M2', '5NYORPS2k12K5k12K2E1453BSSRNSP60M2']# margin 2
     list_epoch_journal = [0 for _ in range(numberNetwors)]
@@ -1141,7 +1141,7 @@ if __name__ == '__main__':
                                      (0.75, 0.58), (0.75, 0.58)],
                                'mar':[(0,0.06) for _ in range(46)]} for _ in assets]]
         list_lb_mc_ext = [.5, .51]
-        list_lb_md_ext = [.58,.57]
+        list_lb_md_ext = [.64, .63]#[.58, .57]
     else:
         extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
         extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']
@@ -1925,7 +1925,7 @@ if __name__ == '__main__':
         #    # update time stamp
         #    else:
 ################ WARNING! NO skipping o samps to track volume #############################
-            if 1:
+            if approached:
                 if not rewind:
                     event_idx += 1
                 else:

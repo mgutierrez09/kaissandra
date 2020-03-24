@@ -28,6 +28,7 @@ extension = ".txt"
 deli = "_"
 flag_cl_name = "CL"
 flag_sl_name = "SL"
+flag_tp_name = "TP"
 # TODO: Save entire output vector
 columnsResultInfo = ["Asset","Entry Time","Exit Time","GROI","Spread","ROI","Bet",
                      "Outcome","Diff","Bi","Ai","Bo","Ao","P_mc","P_md",
@@ -1322,6 +1323,13 @@ class Trader:
                     #print("nn "+str(network_index)+" i "+str(i)+" t "+str(t_index))
                     # get probabilities
                     max_bit_md = int(np.argmax(soft_tilde[1:3]))
+#                    if not max_bit_md:
+#                        #Y_tilde = -1
+#                        Y_tilde = np.argmax(soft_tilde[3:5])-2
+#                    else:
+#                        #Y_tilde = 1
+#                        Y_tilde = np.argmax(soft_tilde[6:])+1
+                        
                     if not max_bit_md:
                         #Y_tilde = -1
                         # Revert direction if crisis mode
@@ -1865,7 +1873,7 @@ class Trader:
         """  """
         self.list_is_asset_banned[ass_idx] = False
         
-    def update_parameters(self, config):
+    def update_parameters(self, config, thisAsset):
         """ Update parameters from local config file """
         try:
             
@@ -1883,6 +1891,8 @@ class Trader:
             if 'list_spread_ranges' in config:
                 # update spread ranges
                 self.update_spread_ranges(config['list_spread_ranges'])
+            if send_info_api:
+                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":"Parameters updated:"})
         except:
             print("WARNING!! config file does not exist. Skipped")
         
@@ -1892,6 +1902,7 @@ class Trader:
             self.strategies[s].max_lots_per_pos = list_max_lots_per_pos[s]
         print("list_max_lots_per_pos updated:")
         print(list_max_lots_per_pos)
+        
             
     def update_stoploss(self, list_thr_sl):
         """ Update stoploss threshold """
@@ -2685,7 +2696,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     # update from local
                     config = retrieve_config(config_name)
                     print(thisAsset)
-                    trader.update_parameters(config)
+                    trader.update_parameters(config, thisAsset)
                 
                 
                 
@@ -2761,6 +2772,31 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                         flag_sl = 1
                         if len(info_close)>1:
                             os.remove(directory_MT5_ass+flag_sl_name)
+                            success = 1
+                        else:
+                            out = "Error in reading file. Length "+str(len(info_close))
+                            print(out)
+                            write_log(out, log_file)
+                    except (FileNotFoundError,PermissionError,OSError):
+                        pass
+                    
+            # check for stoploss closing
+            flag_tp = 0
+            if trader.is_opened(ass_id) and os.path.exists(directory_MT5_ass+flag_tp_name):
+                success = 0
+                while not success:
+                    try:
+                        #print(dirOr+flag_name)
+                        fh = open(directory_MT5_ass+flag_tp_name,"r")
+                        # read output
+                        info_close = fh.read()[:-1]
+                        
+                        # close file
+                        fh.close()
+                        
+                        flag_tp = 1
+                        if len(info_close)>1:
+                            os.remove(directory_MT5_ass+flag_tp_name)
                             success = 1
                         else:
                             out = "Error in reading file. Length "+str(len(info_close))
@@ -2861,6 +2897,31 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                                               dtiist=info_split[1], 
                                               groiist=float(info_split[9]), 
                                               roiist=float(info_split[11]))
+                
+            elif flag_tp:
+                # update positions vector
+                info_split = info_close.split(",")
+                list_idx = trader.map_ass_idx2pos_idx[ass_id]
+#                bid = float(info_split[6])
+#                ask = float(info_split[7])
+                DateTime = info_split[2]
+                direction = int(info_split[3])
+                # update bid and ask lists if exist
+                #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
+                
+                #trader.close_position(DateTime, thisAsset, ass_id, results)
+                
+                trader.stoplosses += 1
+                logMsg = " Exit position due to TAKEPROFIT "+" sl="+\
+                       str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]])
+                out = (thisAsset+logMsg)
+                print("\r"+out)
+                write_log(out, trader.log_file)
+                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                
+                #if not simulate:
+                write_log(info_close, trader.log_positions_ist)
+                
         # Communicate with server to update structures
         # TODO: Only enter once a sec (or every 10 secs)
 #        if send_info_api:
@@ -3038,7 +3099,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                     print(config)
                     if config and len(config)>0:
                         print("Updating config:")
-                        trader.update_parameters(config)
+                        trader.update_parameters(config, thisAsset)
                     else:
                         print("No config. Skipped")
                     # check for commands
@@ -3048,7 +3109,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             else:
                 # update from local
                 config = retrieve_config(config_name)
-                trader.update_parameters(config)
+                trader.update_parameters(config, thisAsset)
             
             #api.parameters_enquiry(asynch=True)
             

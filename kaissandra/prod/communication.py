@@ -7,6 +7,7 @@ Created on Mon Apr 29 11:20:05 2019
 import sys
 import os
 import re
+import time
 import requests
 
 def send_command(directory_MT5_ass, command, msg=''):
@@ -350,6 +351,7 @@ def get_account_status():
                 #stop_timer(ass_idx)
             except PermissionError:
                 print("Error writing Account status")
+                time.sleep(.1)
         info_str = info_close.split(',')
         #print(info_close)
         balance = float(info_str[0])
