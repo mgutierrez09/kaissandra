@@ -9,6 +9,7 @@ Advice from Brian Chesky: Get 100 people to love your product! Originaly from Pa
 Word of mouth
 """
 
+import sys
 import os
 import time
 import pandas as pd
@@ -306,7 +307,8 @@ class Strategy():
 class Trader:
     
     def __init__(self, next_candidate, init_budget=10000,log_file='',summary_file='',
-                 positions_dir='',positions_file='', allow_candidates=False):
+                 positions_dir='',positions_file='', allow_candidates=False, 
+                 max_lev_per_curr=20):
         """  """
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
@@ -356,6 +358,8 @@ class Trader:
         self.n_pos_extended = 0
         self.n_entries = 0
         self.allow_candidates = allow_candidates
+        # maximum number of positions betting on same currency and same dir (lev)
+        self.max_lev_per_curr = max_lev_per_curr 
         
         self.save_log = 1
         if log_file=='':
@@ -1113,6 +1117,16 @@ def build_spread_ranges_per_asset(baseName, extentionNameResults, extentionNameS
     return spread_ranges, IDresults, min_p_mcs, min_p_mds
 
 if __name__ == '__main__':
+    
+    this_path = os.getcwd()
+    path = '\\'.join(this_path.split('\\')[:-1])+'\\'
+    if path not in sys.path:
+        sys.path.insert(0, path)
+        #sys.path.append(path)
+        print(path+" added to python path")
+        
+    else:
+        print(path+" already added to python path")
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2

@@ -77,7 +77,7 @@ class API():
         params_networks = []
         for s in range(len(config_trader['list_name'])):
             symbols = ['BID' if i['feats_from_bids'] else 'ASK' for i in config_trader['config_list'][s]]
-            print("WARNING!! symbols overcut!!! in api.py line 75")
+            #print("WARNING!! symbols overcut!!! in api.py line 75")
             params_strategy = {'strategyname':config_trader['list_name'][s],
                                      'phaseshift':config_trader['phase_shifts'][s],
                                      'poslots':config_trader['list_max_lots_per_pos'][s],
@@ -188,25 +188,28 @@ class API():
     def set_strategy(self, params, req_type="POST"):
         """ POST/PUT request to create new strategy or change parameters of 
         existing one """
-        if not self.token or not self.trader_json or 'id' not in self.trader_json:
+        try:
+            if not self.token or not self.trader_json or 'id' not in self.trader_json:
+                return False
+            url_ext = 'traders/'+str(self.trader_json['id'])+'/strategies'
+            if req_type == "POST":
+                response = requests.post(LC.URL+url_ext, json=params, headers=
+                                         self.build_token_header(), verify=self.verify_url)
+            elif req_type == "PUT":
+                response = requests.put(LC.URL+url_ext, json=params, headers=
+                                         self.build_token_header(), verify=self.verify_url)
+            else:
+                return False
+            print("Status code: "+str(response.status_code))
+            if response.status_code == 200:
+                print(response.json())
+                self.strategies_json_list.append(response.json()['Strategy'][0])
+                return True
+            else:
+                print(response.text)
             return False
-        url_ext = 'traders/'+str(self.trader_json['id'])+'/strategies'
-        if req_type == "POST":
-            response = requests.post(LC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=self.verify_url)
-        elif req_type == "PUT":
-            response = requests.put(LC.URL+url_ext, json=params, headers=
-                                     self.build_token_header(), verify=self.verify_url)
-        else:
-            return False
-        print("Status code: "+str(response.status_code))
-        if response.status_code == 200:
-            print(response.json())
-            self.strategies_json_list.append(response.json()['Strategy'][0])
-            return True
-        else:
-            print(response.text)
-        return False
+        except:
+            print("WARNING! Error in set_strategy in kaissandra.prod.api. Skipped")
     
     def set_network(self, params, req_type="POST"):
         """ POST/PUT request to create new network or change parameters of 

@@ -89,6 +89,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
 #            elif os.path.exists(directory_io_ass+"NETWORKLOG"):
 #                pass
         ct.send_account_status(token_header)
+        ct.send_positions_status(token_header)
         asset = AllAssets[str(running_assets[ass_idx])]
         MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
             ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
@@ -127,12 +128,12 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     while run:
         if 1:
             info = queue.get()         # Read from the queue
-            print("From queue: ")
+#            print("From queue: ")
             
             # send log to server
             if send_info_api and info['FUNC'] == 'LOG':
                 
-                print(info['MSG'])
+#                print(info['MSG'])
                 logger = logging.getLogger(name)
                 #level = logging.INFO
                 message = info['MSG']
@@ -150,18 +151,31 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 if info["EVENT"] == "OPEN":
                     position_json = ct.send_open_position(params, info["SESS_ID"], 
                                                           token_header)
-                    assets_opened[position_json['asset']] = position_json['id']
+                    if 'id' in position_json:
+                        print("id in position_json")
+                        assets_opened[position_json['asset']] = position_json['id']
+                    else:
+                        print("WARNING! id NOT in position_json")
                 elif info["EVENT"] == "EXTEND":
-                    pos_id = assets_opened[info["ASSET"]]
-                    ct.send_extend_position(params, pos_id, token_header)
+                    if info["ASSET"] in assets_opened:
+                        pos_id = assets_opened[info["ASSET"]]
+                        ct.send_extend_position(params, pos_id, token_header)
+                    else:
+                        print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
                 elif info["EVENT"] == "NOTEXTEND":
-                    pos_id = assets_opened[info["ASSET"]]
-                    ct.send_not_extend_position(params, pos_id, token_header)
+                    if info["ASSET"] in assets_opened:
+                        pos_id = assets_opened[info["ASSET"]]
+                        ct.send_not_extend_position(params, pos_id, token_header)
+                    else:
+                        print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
                 elif info["EVENT"] == "CLOSE":
-                    pos_id = assets_opened[info["ASSET"]]
-                    dirfilename = info["DIRFILENAME"]
-                    ct.send_close_position(params, pos_id, dirfilename, 
-                                           token_header)
+                    if info["ASSET"] in assets_opened:
+                        pos_id = assets_opened[info["ASSET"]]
+                        dirfilename = info["DIRFILENAME"]
+                        ct.send_close_position(params, pos_id, dirfilename, 
+                                               token_header)
+                    else:
+                        print("WARNING! "+info["ASSET"]+" not in assets_opened. send_close_position skipped.")
                 else:
                     print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
                     

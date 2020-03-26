@@ -892,7 +892,7 @@ class Trader:
     
     def close_position(self, date_time, ass, idx, results,
                        lot_ratio=None, partial_close=False, from_sl=0, 
-                       DTi_real='', groiist=None, roiist=None):
+                       DTi_real='', groiist=None, roiist=None, swap=0):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -1019,7 +1019,8 @@ class Trader:
             
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
                                     100*GROI_live, 100*ROI_live, nett_win, 
-                                    pos_filename, dirfilename, DTi_real, groiist, roiist, slfalg)
+                                    pos_filename, dirfilename, DTi_real, groiist, 
+                                    roiist, slfalg, swap)
         assert(lot_ratio<=1.00 and lot_ratio>0)
     
     def get_current_available_budget(self):
@@ -1122,7 +1123,8 @@ class Trader:
         self.queue.put({"FUNC":"POS","EVENT":"NOTEXTEND","ASSET":thisAsset,"PARAMS":params})
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
-                           roisoll, returns, filename, dirfilename, dtiist, groiist, roiist, slfalg):
+                           roisoll, returns, filename, dirfilename, dtiist, groiist, 
+                           roiist, slfalg, swap):
         """ Send command to API for position closing """
         params = {'dtosoll':DateTime,
                   'dtiist':dtiist,
@@ -1135,7 +1137,8 @@ class Trader:
                   'roiist':roiist,
                   'returns':returns,
                   'filename':filename,
-                  'slfalg':slfalg
+                  'slfalg':slfalg,
+                  'swap':swap
                 }
         self.queue.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params})
         #api.close_postition(thisAsset, params, dirfilename, asynch=True)
@@ -1538,7 +1541,7 @@ class Trader:
                                                                          int(new_entry['Bet']), strategy_name,
                                                                          100*curr_ROI, 
                                                                          self.list_count_all_events[self.map_ass_idx2pos_idx[ass_id]])
-                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                     else:
                                         # crisis and no extention. Close Pos!
                                         logMsg = new_entry[entry_time_column]+" "\
@@ -2673,7 +2676,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 os.remove(io_ass_dir+'SD')
                 send_close_command(thisAsset)
                 delayed_stop_run = True
-                run = False
+                #run = False
                 queue.put({"FUNC":"SD"})
                 # close session
                 if send_info_api:
@@ -2743,7 +2746,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                         fh.close()
 #                        print("out")
 #                        print(out)
-#                        print("info_close")
+                        print("info_close")
                         print(info_close)
                         flag_cl = 1
                         if len(info_close)>1:
@@ -2857,10 +2860,10 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 #                DateTime = info_split[2]
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
-                    
+                swap = float(info_close[12])
                 trader.close_position(info_split[2], thisAsset, ass_id, results, 
                                       DTi_real=info_split[1], groiist=float(info_split[9]), 
-                                      roiist=float(info_split[11]))
+                                      roiist=float(info_split[11]), swap=swap)
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
@@ -2877,11 +2880,6 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 #                ask = float(info_split[7])
                 DateTime = info_split[2]
                 direction = int(info_split[3])
-                # update bid and ask lists if exist
-                #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
-                
-                #trader.close_position(DateTime, thisAsset, ass_id, results)
-                
                 trader.stoplosses += 1
                 logMsg = " Exit position due to STOPLOSS "+" sl="+\
                        str(trader.list_stop_losses[trader.map_ass_idx2pos_idx[ass_id]])
@@ -2907,10 +2905,6 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 #                ask = float(info_split[7])
                 DateTime = info_split[2]
                 direction = int(info_split[3])
-                # update bid and ask lists if exist
-                #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
-                
-                #trader.close_position(DateTime, thisAsset, ass_id, results)
                 
                 trader.takeprofits += 1
                 logMsg = " Exit position due to TAKEPROFIT"
