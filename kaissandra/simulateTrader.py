@@ -170,7 +170,7 @@ class Strategy():
     
     def __init__(self, direct='', thr_sl=1000, lim_groi_ext=-.1, thr_tp=1000, fix_spread=False, 
                  fixed_spread_pips=2, max_lots_per_pos=.1, flexible_lot_ratio=False, 
-                 if_dir_change_close=False, if_dir_change_extend=False, 
+                 if_dir_change_close=False, if_dir_change_extend=False, thr_gb=10,
                  name='',t_index=3,IDgre=None,epoch='11',p_md_margin=0.02,
                  weights=np.array([0,1]),info_spread_ranges=[],entry_strategy='fixed_thr',
                  extend_for_any_thr=True):
@@ -180,6 +180,7 @@ class Strategy():
         
         self.thr_sl = thr_sl
         self.thr_tp = thr_tp
+        self.thr_gb = thr_gb # guardband threshold
         self.lim_groi_ext = lim_groi_ext
         
         self.fix_spread = fix_spread
@@ -314,6 +315,7 @@ class Trader:
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
         self.list_count_events = []
         self.list_stop_losses = []
+        self.list_guard_bands = []
         self.list_lim_groi = []
         self.list_take_profits = []
         self.list_lots_per_pos = []
@@ -403,6 +405,16 @@ class Trader:
                                        strategys[name2str_map[
                                                self.next_candidate.strategy]].thr_tp
                                                *self.pip))
+        if self.next_candidate.direction>0:
+            symbol = self.next_candidate.entry_ask
+            
+        else:
+            symbol = self.next_candidate.entry_bid
+        self.list_guard_bands.append(symbol*
+                                     (1-self.next_candidate.direction*strategys
+                                      [name2str_map[
+                                      self.next_candidate.strategy]].thr_gb*
+                                      self.pip))
         self.list_lim_groi.append(strategys[name2str_map[
                                                self.next_candidate.strategy]].lim_groi_ext)
         
@@ -423,6 +435,9 @@ class Trader:
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_take_profits = self.list_take_profits[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_take_profits[
+                        self.map_ass_idx2pos_idx[idx]+1:]
+        self.list_guard_bands = self.list_guard_bands[
+                :self.map_ass_idx2pos_idx[idx]]+self.list_guard_bands[
                         self.map_ass_idx2pos_idx[idx]+1:]
         self.list_lim_groi = self.list_lim_groi[
                 :self.map_ass_idx2pos_idx[idx]]+self.list_lim_groi[

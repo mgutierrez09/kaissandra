@@ -40,6 +40,7 @@ string logfilename;
 string thisSymbol;
 string directoryNameLive;
 string directoryNameLog;
+string directoryNameComm;
 string directoryNameRecordings;
 string directoryNameAccount;
 string chunks[];
@@ -75,7 +76,7 @@ double B_sl;
 double A_sl;
 double sl_thr = 1;//0.0001; //in ratio (1 pip=0.0001)
 double slThrPips = 100;
-double tpThrPips = 100;
+double tpThrPips = 1000;
 double slProThrPips = 1000;
 double const PIP = 0.0001;
 //double bid;
@@ -126,6 +127,10 @@ void openPosition(string origin, int thisPos){
       message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       //Print("Buy -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       Print(message);
+      
+      // Save timestap
+         
+      
       //writeLog(message);
       //stoploss = -Ai*sl_thr+Bi;
       stoploss = updateSL(Ai, thisPos, slThrPips);
@@ -142,6 +147,10 @@ void openPosition(string origin, int thisPos){
       }
       message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       Print(message);
+      
+      // Save timestap
+         
+         
       //writeLog(message);
       //Print("Sell -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       //stoploss = Bi*sl_thr+Ai;
@@ -162,6 +171,7 @@ void openPosition(string origin, int thisPos){
    //Print(m_Trade.ResultRetcodeDescription());
    //Print("m_Trade.ResultDeal()");
    //Print(m_Trade.ResultDeal());
+   toc = TimeCurrent();
    deadline = 1; // reset deadline
    Bi_soll = buffer[bufferSize-1][0];
    Ai_soll = buffer[bufferSize-1][1];
@@ -275,7 +285,6 @@ void checkForOpening(){
                      
                   }
                }else{ // open new long position
-                  toc = TimeCurrent();
                   openPosition("TICK", 1);
                   }
                
@@ -302,7 +311,7 @@ void checkForOpening(){
                }
                // open new position
                else{
-                  toc = TimeCurrent();
+                  
                   openPosition("TICK", -1);
                }
                
@@ -376,7 +385,7 @@ void controlPositionFlow(){
                Print(message);
                //writeLog(message);
                // WARNING! Temporal close_type as SL. TP not implemented yet!!!
-               close_type = "SL";
+               close_type = "TP";
                closePosition();
             }
          }
@@ -451,6 +460,7 @@ int OnInit()
    thisSymbol = Symbol();
    directoryNameLive = "IOlive//"+thisSymbol+"//";
    directoryNameLog = "Log//"+thisSymbol+"//";
+   directoryNameComm = "COMM//"+thisSymbol+"//";
    directoryNameAccount = "Account//";
    directoryNameRecordings = "Data//"+thisSymbol+"//";
    //Print(thisSymbol+" fetcher launched");
@@ -489,6 +499,9 @@ int OnInit()
    logfilename = thisSymbol+"_"+stringThisDate+".log";
    filehandlelog = FileOpen(directoryNameLog+logfilename,FILE_WRITE|FILE_CSV|FILE_ANSI);
    
+   logfilename = thisSymbol+"_"+stringThisDate+".log";
+   filehandlelog = FileOpen(directoryNameLog+logfilename,FILE_WRITE|FILE_CSV|FILE_ANSI);
+   
    saveAccountInfo();
    
 //---
@@ -508,6 +521,11 @@ void OnDeinit(const int reason)
       m_Trade.PositionClose(thisSymbol);// close position
    }
    FileClose(filehandlelog);
+   
+   if(FileIsExist(directoryNameComm+"POSINFO.txt")==1 ){
+      while(!FileDelete(directoryNameComm+"POSINFO.txt"));
+    }
+   
   }
   
 
@@ -546,6 +564,9 @@ void OnTick()
       filehandle = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
       FileWrite(filehandle,"DateTime","SymbolBid","SymbolAsk");
       saveAccountInfo();
+      if(position!=0){
+         savePositionState();
+      }
       //if(position==0 && first_pos==0){
        //  Print("Ticks counter ",ticks_counter);
       //}
@@ -613,6 +634,37 @@ void OnTimer(){
 
 }
 
+void savePositionState(){
+   //--- we will look for the position by the symbol of the chart, on which the EA is working
+   //string symbol=Symbol();
+//--- attempt to get the position
+   bool selected=PositionSelect(thisSymbol);
+   if(selected) // if the position is selected
+     {
+      long pos_id            =PositionGetInteger(POSITION_IDENTIFIER);
+      double price           =PositionGetDouble(POSITION_PRICE_OPEN);
+      double current_profit  =PositionGetDouble(POSITION_PROFIT);
+      double volume          =PositionGetDouble(POSITION_VOLUME);
+      double current_price   =PositionGetDouble(POSITION_PRICE_CURRENT);
+      double swap            =PositionGetDouble(POSITION_SWAP);
+      long pos_magic         =PositionGetInteger(POSITION_MAGIC);
+      
+      //PrintFormat("Position #%d by %s: POSITION_MAGIC=%d, price=%G, current_profit=%G",
+      //           pos_id, thisSymbol, pos_magic, price, current_profit);
+      // save info
+      int fh = FileOpen(directoryNameComm+"POSINFO.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+      if(fh>0){
+         FileWrite(fh,pos_id,volume,price,current_price,current_profit,swap,deadline-1);
+         FileClose(fh);
+      }
+   }
+   else        // if selecting the position was unsuccessful
+     {
+      PrintFormat("Unsuccessful selection of the position by the symbol %s. Error",thisSymbol,GetLastError());
+     }
+   
+}
+
 void saveAccountInfo()
   {
 //--- trade server name
@@ -642,7 +694,7 @@ void saveAccountInfo()
    //PrintFormat(format_string,_Symbol,point_value);
 //--- int value output
    //int spreads=(int)SymbolInfoInteger(_Symbol,SYMBOL_SPREAD);
-   string message = StringFormat("Equity %.2f Balance %.2f Profits %.2f",equity,balance,profits);
+   //string message = StringFormat("Equity %.2f Balance %.2f Profits %.2f",equity,balance,profits);
    //Print(message);
    //writeLog(message);
    int fh = FileOpen(directoryNameAccount+"Status.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
@@ -677,19 +729,20 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
       long     deal_entry        =0;
       double   deal_profit       =0.0;
       double   deal_volume       =0.0;
+      double   swap              =0.0;
       string   deal_symbol       ="";
       long     deal_magic        =0;
       long     deal_reason       =-1;
       
       if(HistoryDealSelect(trans.deal))
         {
-         deal_entry=HistoryDealGetInteger(trans.deal,DEAL_ENTRY);
+         deal_entry =HistoryDealGetInteger(trans.deal,DEAL_ENTRY);
          deal_profit=HistoryDealGetDouble(trans.deal,DEAL_PROFIT);
          deal_volume=HistoryDealGetDouble(trans.deal,DEAL_VOLUME);
          deal_symbol=HistoryDealGetString(trans.deal,DEAL_SYMBOL);
-         deal_magic=HistoryDealGetInteger(trans.deal,DEAL_MAGIC);
+         deal_magic =HistoryDealGetInteger(trans.deal,DEAL_MAGIC);
          deal_reason=HistoryDealGetInteger(trans.deal,DEAL_REASON);
-         
+         swap       =HistoryDealGetDouble(trans.deal,DEAL_SWAP);
         }
       else
          return;
@@ -707,8 +760,8 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          
          double equity = AccountInfoDouble(ACCOUNT_EQUITY);
          //PrintFormat("Real profit: %.2f",real_profit);
-         string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f",
-                                       close_type,position,Bi,Bi_soll,Ai,Ai_soll,bid,ask,spread,GROI,ROI,profit,dif_ticks,real_profit,equity);
+         string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f swap %.2f",
+                                       close_type,position,Bi,Bi_soll,Ai,Ai_soll,bid,ask,spread,GROI,ROI,profit,dif_ticks,real_profit,equity,swap);
          Print(message);
          //writeLog(message);
          // send signal to trading manager that position has been closed
@@ -719,9 +772,15 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
              filename = close_type;
          }
          filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
-         FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),position,Bi,Ai,bid,ask,dif_ticks,GROI,spread,ROI,real_profit,equity);
+         FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),position,Bi,Ai,bid,ask,dif_ticks,GROI,spread,ROI,real_profit,equity,swap);
          FileClose(filehandleTest);
+         
+         if(FileIsExist(directoryNameComm+"POSINFO.txt")==1 ){
+            while(!FileDelete(directoryNameComm+"POSINFO.txt"));
+          }
+         
          position = 0;
+         
          closingInProgress = false;
          
          if(deal_reason==DEAL_REASON_SL){
