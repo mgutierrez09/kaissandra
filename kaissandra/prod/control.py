@@ -35,7 +35,7 @@ def listener_process(queue, configurer):
             print('Whoops! Problem:', file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
 
-def control(running_assets, timeout=15, queues=[], send_info_api=False, token_header=None):
+def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False, token_header=None):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
@@ -61,9 +61,13 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
     listener.start()
     
     # launch queue listeners as independent processes
-    kwargs = {'send_info_api':send_info_api, 'token_header':token_header}
+    kwargs = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':False}
+    kwargs_prior = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':True}
     for q, queue in enumerate(queues):
+        queue_prior = queues_prior[q]
         disp = Process(target=listen_trader_connection, args=[queue, log_queue, worker_configurer_online, running_assets[q]], kwargs=kwargs)
+        disp.start()
+        disp = Process(target=listen_trader_connection, args=[queue_prior, log_queue, worker_configurer_online, running_assets[q]], kwargs=kwargs_prior)
         disp.start()
     
     # monitor connections
@@ -117,7 +121,7 @@ def control(running_assets, timeout=15, queues=[], send_info_api=False, token_he
         
     print("EXIT control")
             
-def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api=False, token_header=None):
+def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api=False, token_header=None, priority=False):
     """ Local connection with trader through a queue """
     
     configurer(log_queue)
@@ -126,61 +130,64 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     assets_opened = {}
     run = True
     while run:
-        if 1:
-            info = queue.get()         # Read from the queue
-#            print("From queue: ")
+        info = queue.get()         # Read from the queue
+        if priority:
+            print("From priority queue: ")
             
-            # send log to server
-            if send_info_api and info['FUNC'] == 'LOG':
-                
+        else:
+            print("From regular queue: ")
+        print(info)
+        # send log to server
+        if send_info_api and info['FUNC'] == 'LOG':
+            
 #                print(info['MSG'])
-                logger = logging.getLogger(name)
-                #level = logging.INFO
-                message = info['MSG']
-                logger.info(message)
-                if info['ORIGIN'] == 'NET':
-                    ct.send_network_log(info['MSG'], info['ASS'], token_header)
-                elif info['ORIGIN'] == 'TRADE':
-                    ct.send_trader_log(info['MSG'], info['ASS'], token_header)
-                elif info['ORIGIN'] == 'MONITORING':
-                    ct.send_monitoring_log(info['MSG'], info['ASS'], token_header)
+            logger = logging.getLogger(name)
+            #level = logging.INFO
+            message = info['MSG']
+            logger.info(message)
+            if info['ORIGIN'] == 'NET':
+                ct.send_network_log(info['MSG'], info['ASS'], token_header)
+            elif info['ORIGIN'] == 'TRADE':
+                ct.send_trader_log(info['MSG'], info['ASS'], token_header)
+            elif info['ORIGIN'] == 'MONITORING':
+                ct.send_monitoring_log(info['MSG'], info['ASS'], token_header)
+            else:
+                print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
+        elif send_info_api and info['FUNC'] == 'POS':
+            params = info['PARAMS']
+            if info["EVENT"] == "OPEN":
+                position_json = ct.send_open_position(params, info["SESS_ID"], 
+                                                      token_header)
+                if 'id' in position_json:
+                    print("id in position_json")
+                    assets_opened[position_json['asset']] = position_json['id']
                 else:
-                    print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
-            elif send_info_api and info['FUNC'] == 'POS':
-                params = info['PARAMS']
-                if info["EVENT"] == "OPEN":
-                    position_json = ct.send_open_position(params, info["SESS_ID"], 
-                                                          token_header)
-                    if 'id' in position_json:
-                        print("id in position_json")
-                        assets_opened[position_json['asset']] = position_json['id']
-                    else:
-                        print("WARNING! id NOT in position_json")
-                elif info["EVENT"] == "EXTEND":
-                    if info["ASSET"] in assets_opened:
-                        pos_id = assets_opened[info["ASSET"]]
-                        ct.send_extend_position(params, pos_id, token_header)
-                    else:
-                        print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
-                elif info["EVENT"] == "NOTEXTEND":
-                    if info["ASSET"] in assets_opened:
-                        pos_id = assets_opened[info["ASSET"]]
-                        ct.send_not_extend_position(params, pos_id, token_header)
-                    else:
-                        print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
-                elif info["EVENT"] == "CLOSE":
-                    if info["ASSET"] in assets_opened:
-                        pos_id = assets_opened[info["ASSET"]]
-                        dirfilename = info["DIRFILENAME"]
-                        ct.send_close_position(params, pos_id, dirfilename, 
-                                               token_header)
-                    else:
-                        print("WARNING! "+info["ASSET"]+" not in assets_opened. send_close_position skipped.")
+                    print("WARNING! id NOT in position_json")
+            elif info["EVENT"] == "EXTEND":
+                if info["ASSET"] in assets_opened:
+                    pos_id = assets_opened[info["ASSET"]]
+                    ct.send_extend_position(params, pos_id, token_header)
                 else:
-                    print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
-                    
-            elif info['FUNC'] == 'SD':
-                run = False
+                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
+            elif info["EVENT"] == "NOTEXTEND":
+                if info["ASSET"] in assets_opened:
+                    pos_id = assets_opened[info["ASSET"]]
+                    ct.send_not_extend_position(params, pos_id, token_header)
+                else:
+                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
+            elif info["EVENT"] == "CLOSE":
+                if info["ASSET"] in assets_opened:
+                    pos_id = assets_opened[info["ASSET"]]
+                    dirfilename = info["DIRFILENAME"]
+                    ct.send_close_position(params, pos_id, dirfilename, 
+                                           token_header)
+                else:
+                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_close_position skipped.")
+            else:
+                print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
+                
+        elif info['FUNC'] == 'SD':
+            run = False
 #        except Exception as e:
 #            print("WARNING! Error in when reading queue in listen_trader_connection of control.py: "+str(e))
     print("EXIT queue")

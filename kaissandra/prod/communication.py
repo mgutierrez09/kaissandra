@@ -69,7 +69,8 @@ def check_params(config_name=''):
     """  """
     io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
-    command = ''
+    cl_command = False
+    sd_command = False
     if config_name=='':
         # get config from server and pass it to live session
         token = post_token()
@@ -80,11 +81,24 @@ def check_params(config_name=''):
             return None
         if 'config' in json:
             config = json['config']
+            if 'config_name' in config:
+                save_config(config, from_server=True)
         else:
             config = {}
-        if 'command' in json and json['command']!='':
-            command = json['command']
-            print("Command found: "+command)
+        if 'commands' in json:
+            commands = json['commands']
+            if len(commands)>0:
+                print("Command/s found: ")
+                print(commands)
+            if 'CL' in commands:
+                cl_command = True
+            if 'SD' in commands:
+                sd_command = True
+        if 'who' not in json or json['who']==[]:
+            who = [AllAssets[a] for a in AllAssets]
+        else:
+            who = json['who']
+            print(who)
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
         
@@ -96,30 +110,32 @@ def check_params(config_name=''):
 #                fh = open(io_dir+asset+'/PARAM',"w")
 #                fh.write(config_name)
 #                fh.close()
-            if config_name=='' and config and len(config)>0:
-            
-                save_config(config, from_server=True)
+            if config_name=='' and config and len(config)>0 and asset in who:
+                print(asset+": config saved")
+                
                 fh = open(io_dir+asset+'/PARAM',"w")
                 fh.write(config['config_name']+'remote')
                 fh.close()
                 # reset server config json to empty
             # pass config_name through disk to trader to load configuration file
-            elif config_name!='':
+            elif config_name!='' and asset in who:
                 fh = open(io_dir+asset+'/PARAM',"w")
                 fh.write(config_name)
                 fh.close()
             
-            if command == 'CL':
+            if cl_command and asset in who:
                 close_position(asset)
+                print(asset+": cl_command")
         except FileNotFoundError:
             print("WARNING! "+io_dir+asset+"/ not fount")
             #print("Asset not running")
     # execute command
-    if command == 'SD':
+    if sd_command:
         # command is shutdown
         shutdown()
-    if (config_name=='' and config and len(config)>0) or command!='':
-        set_config_session({'config':{},'command':''}, build_token_header(post_token()))
+        print("shutdown")
+    if (config_name=='' and config and len(config)>0) or cl_command or sd_command:
+        set_config_session({'config':{},'commands':[],'who':[]}, build_token_header(post_token()))
     
     return None
 
@@ -531,7 +547,7 @@ def set_budget(token_header, id, budget):
     try:
         response = requests.put(LC.URL+url_ext, json={'budget':budget},
                                 headers=token_header, verify=True, timeout=10)
-        print(response.json())
+#        print(response.json())
     except:
         print("WARNING! Error in send_account_status of communication.py")
         

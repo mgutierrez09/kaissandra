@@ -178,7 +178,7 @@ class API():
             return False
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             self.trader_json = response.json()['trader'][0]
             return True
         else:
@@ -202,7 +202,7 @@ class API():
                 return False
             print("Status code: "+str(response.status_code))
             if response.status_code == 200:
-                print(response.json())
+#                print(response.json())
                 self.strategies_json_list.append(response.json()['Strategy'][0])
                 return True
             else:
@@ -225,9 +225,9 @@ class API():
                                      self.build_token_header(), verify=self.verify_url)
         else:
             return False
-        print("Status code: "+str(response.status_code))
+        print("Status code set_network: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             self.networks_json_list.append(response.json()['Network'][0])
             return True
         else:
@@ -241,9 +241,9 @@ class API():
         url_ext = 'traders/'+str(self.trader_json['id'])+'/assets'
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                      self.build_token_header(), verify=self.verify_url)
-        print("Status code: "+str(response.status_code))
+        print("Status code set_assets: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             self.assets_json_list = response.json()['Assets']
             return True
         else:
@@ -257,9 +257,9 @@ class API():
         url_ext = 'traders/'+str(self.trader_json['id'])+'/sessions'
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                      self.build_token_header(), verify=self.verify_url)
-        print("Status code: "+str(response.status_code))
+        print("Status code open_session: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             self.session_json = response.json()['Session'][0]
             return True
         else:
@@ -275,9 +275,9 @@ class API():
         url_ext = 'traders/sessions/'+str(id)+'/close'
         response = requests.put(LC.URL+url_ext, headers=
                                      self.build_token_header(), verify=self.verify_url)
-        print("Status code: "+str(response.status_code))
+        print("Status code close_session: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             self.session_json = response.json()['Session'][0]
             return True
         else:
@@ -297,9 +297,9 @@ class API():
             if not asynch:
                 response = requests.post(LC.URL+url_ext, json=params, headers=
                                              self.build_token_header(), verify=self.verify_url)
-                print("Status code: "+str(response.status_code))
+                print("Status code open_position: "+str(response.status_code))
                 if response.status_code == 200:
-                    print(response.json())
+#                    print(response.json())
                     self.positions_json_list.append(response.json()['Position'][0])
                     return True
                 else:
@@ -324,9 +324,9 @@ class API():
             print("WARNING! Timeout eror in retrieve_response_open_position. Skipping connection")
             return False
         # print result
-        print("Status code: "+str(response.status_code))
+        print("Status code retrieve_response_open_position: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             self.positions_json_list.append(response.json()['Position'][0])
             del self.list_futures[id_list_futures]
             del self.list_asset_positions[id_list_futures]
@@ -355,9 +355,9 @@ class API():
             if not asynch:
                 response = requests.post(LC.URL+url_ext, json=params, headers=
                                              self.build_token_header(), verify=self.verify_url)
-                print("Status code: "+str(response.status_code))
+                print("Status code extend_position: "+str(response.status_code))
                 if response.status_code == 200:
-                    print(response.json())
+#                    print(response.json())
                     id_list = [i for i in range(len(self.positions_json_list)) if \
                                self.positions_json_list[i]['asset']==assetname and not \
                                self.positions_json_list[i]['closed']][0]
@@ -386,9 +386,9 @@ class API():
             #print("WARNING! Timeout eror in retrieve_response_extend_position. Skipping connection")
             #return False
         # print result
-        print("Status code: "+str(response.status_code))
+        print("Status code retrieve_response_extend_position: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             id_list = [i for i in range(len(self.positions_json_list)) if \
                            self.positions_json_list[i]['asset']==assetname and not \
                            self.positions_json_list[i]['closed']][0]
@@ -426,9 +426,9 @@ class API():
                                         headers=self.build_token_header(), verify=self.verify_url)
                 response_file = requests.post(LC.URL+url_file, files=files, 
                                         headers=self.build_token_header(), verify=self.verify_url)
-                print("Status code: "+str(response.status_code))
+                print("Status code close_postition: "+str(response.status_code))
                 if response.status_code == 200:
-                    print(response.json())
+#                    print(response.json())
                     id_list = [i for i in range(len(self.positions_json_list)) if \
                                self.positions_json_list[i]['asset']==assetname and not\
                                self.positions_json_list[i]['closed']][0]
@@ -464,9 +464,9 @@ class API():
             print("WARNING! Timeout eror in retrieve_response_close_position. Skipping connection")
             return False
         # print result
-        print("Status code: "+str(response.status_code))
+        print("Status code retrieve_response_close_position: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             id_list = [i for i in range(len(self.positions_json_list)) if \
                            self.positions_json_list[i]['asset']==assetname and not \
                            self.positions_json_list[i]['closed']][0]
@@ -488,7 +488,7 @@ class API():
         try:
             response = requests.post(LC.URL+url_ext, json={'Message':message,'Name':self.trader_json['tradername']},
                                     headers=self.build_token_header(), verify=self.verify_url, timeout=10)
-            print(response.json())
+#            print(response.json())
         except:
             print("WARNING! Error in send_network_log die to timeout.")
         
@@ -500,7 +500,7 @@ class API():
         try:
             response = requests.post(LC.URL+url_ext, json={'Message':message},
                                     headers=self.build_token_header(), verify=self.verify_url, timeout=10)
-            print(response.json())
+#            print(response.json())
         except:
             print("WARNING! Error in send_network_log die to timeout.")
             
@@ -509,7 +509,7 @@ class API():
         url_ext = 'traders/sessions/reset'
         response = requests.put(LC.URL+url_ext, headers=
                                      self.build_token_header(), verify=self.verify_url)
-        print(response.json())
+#        print(response.json())
             
     def parameters_enquiry(self, asynch=False):
         """ Enquire strategy parameters in case of external manipulation """
@@ -553,9 +553,9 @@ class API():
             print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
             return False
         # print result
-        #print("Status code: "+str(response.status_code))
+        print("Status code retrieve_response_parameters_enquiry: "+str(response.status_code))
         if response.status_code == 200:
-            print(response.json())
+#            print(response.json())
             params = response.json()['params']#[0]
             #self.positions_json_list.append(params)
             del self.list_futures[id_list_futures]
