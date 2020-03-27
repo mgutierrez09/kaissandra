@@ -689,7 +689,8 @@ class Trader:
             condition_open = cond_pmc and\
                 cond_pmd and\
                 cond_spread and\
-                cond_bet
+                cond_bet and\
+                cond_pos_can_be_allocated
             if not cond_pmc:
                 reason += 'pmc_'
             if not cond_pmd:
