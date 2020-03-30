@@ -2678,7 +2678,10 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                 os.remove(io_ass_dir+'SD')
                 send_close_command(thisAsset)
-                delayed_stop_run = True
+                if len(trader.list_opened_positions)>0:
+                    delayed_stop_run = True
+                else:
+                    run = False
                 # close session
                 if send_info_api:
                     api.close_session()
@@ -2702,6 +2705,8 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     config = retrieve_config(config_name)
                     print(thisAsset)
                     trader.update_parameters(config, thisAsset)
+#                    logMsg = " Parameters updated"
+#                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                 
                 
                 
@@ -3981,7 +3986,7 @@ if not test:
     else:
         n_samps_buffer = 100
 else:
-    n_samps_buffer = 5
+    n_samps_buffer = 10
 
 if not test:
     if len(config_names)>0:
