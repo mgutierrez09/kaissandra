@@ -32,6 +32,13 @@ def send_command(directory_MT5_ass, command, msg=''):
 def shutdown(id=None):
     """  """
     io_dir = LC.io_live_dir
+    # shutdown control
+    try:
+        fh = open(io_dir+'SD',"w")
+        fh.close()
+    except FileNotFoundError:
+        #print("FileNotFoundError")
+        pass
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -53,6 +60,7 @@ def close_session(id):
 def pause():
     """  """
     io_dir = LC.io_live_dir
+    # shutdown control
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]

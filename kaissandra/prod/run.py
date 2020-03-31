@@ -245,7 +245,7 @@ class Strategy():
         self.priorities = priorities
         # retrocompatinility in info_spread_ranges
         if 'mar' not in info_spread_ranges:
-            info_spread_ranges['mar'] = [(0.0,0.0) for _ in range(len(info_spread_ranges['th']))]
+            info_spread_ranges['mar'] = [(0.0,0.0) for _ in range(3)]
         self.info_spread_ranges = info_spread_ranges
         self.lim_groi_ext = lim_groi_ext
         
@@ -352,12 +352,11 @@ class Strategy():
 class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
-                 AllAssets, log_file, results_dir="", max_opened_positions=None, 
+                 log_file, results_dir="", max_opened_positions=None, 
                  start_time='', config_name='',net2strategy=[], queue=None, queue_prior=None):
         
         self.list_opened_positions = []
-        self.AllAssets = AllAssets
-        self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(AllAssets))])
+        self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
         self.list_count_events = []
         self.list_count_all_events = []
         self.list_stop_losses = []
@@ -1740,8 +1739,8 @@ class Trader:
         # for ban on all assets sharing one currency
         ass_idx = 0
         message = thisAsset+','+str(direction)
-        for ass_key in self.AllAssets:
-            asset = self.AllAssets[ass_key]
+        for ass_key in C.AllAssets:
+            asset = C.AllAssets[ass_key]
             ass_id = int(ass_key)
             m1 = re.search(thisAsset[:3],asset)
             m2 = re.search(thisAsset[3:],asset)
@@ -2360,7 +2359,7 @@ def flush_asset(lists, ass_idx, bid):
     print("Flushed")
     return lists
 
-def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, queue):
+def dispatch(lists, list_models, tradeInfo, AllAssets, ass_id, ass_idx, log_file, queue):
     #AllAssets, assets, running_assets, nCxAxN, buffSizes, simulation, delays, PA, verbose
     '''
     inputs: AllAssets
@@ -2419,7 +2418,7 @@ def dispatch(lists, tradeInfo, AllAssets, ass_id, ass_idx, log_file, queue):
                                        ch, 
                                        lists['resultsDir'][nn],
                                        lists['results_files'][nn], 
-                                       lists['list_models'][nn],
+                                       list_models[nn],
                                        lists['list_unique_configs'][nn], 
                                        log_file, 
                                        lists['list_nonVarIdx'][nn],
@@ -2596,11 +2595,24 @@ def send_close_command(asset):
                 success = 1
             except PermissionError:
                 print("Error writing LC")
+
+#def save_images(asset, lists, trader):
+#    """  """
+#    backup_dir_ass = LC.backup_live_dir+asset+'/'
+#    # save network image
+#    pickle.dump( lists, open( backup_dir_ass+"netImage.p", "wb" ))
+#    print(vars(trader))
+#    pickle.dump( vars(trader), open( backup_dir_ass+"tradeImage.p", "wb" ))
+#    print("Images saved in "+backup_dir_ass)
+#    # save trader image
+##    list_trader_attrs = [a for a in dir(trader) if not a.startswith('__') and not callable(getattr(trader, a))]
     
-def fetch(lists, trader, directory_MT5, AllAssets, 
+
+def fetch(lists, list_models, trader, directory_MT5, AllAssets, 
           running_assets, log_file, results, queue, queue_prior):
     """ Fetch info coming from MT5 """
     print("Fetcher lauched")
+    
     #nAssets = len(running_assets)
     # renew MT5 directories
     fileExt, list_log_ids, run = renew_mt5_dir(AllAssets, running_assets)
@@ -2634,7 +2646,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 buffer = pd.read_csv(directory_MT5_ass+fileID)#
                 #print(thisAsset+" new buffer received")
                 os.remove(directory_MT5_ass+fileID)
-                success = 1
+                
                 #nFilesDir = len(os.listdir(directory_MT5_ass))
                 #start_timer(ass_idx)
                 if not first_info_fetched:
@@ -2644,17 +2656,19 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                     #print(buffer)
                     first_info_fetched = True
-#                elif nMaxFilesInDir<nFilesDir:
-#                    nMaxFilesInDir = nFilesDir
-#                    logMsg = " new max number files in dir: "+str(nMaxFilesInDir)
-#                    out = thisAsset+logMsg
-#                    print(out)
-#                    write_log(out, log_file)
-#                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                print(fileID+" size: "+str(buffer.shape[0]))
+#                print(buffer)
+                if buffer.shape[0]==10:
+                    success = 1
+                else:
+                    print(thisAsset+" WARNING! Buffer size not 10. Skipped")
                     
             except (FileNotFoundError,PermissionError,OSError):
-                
-                
+                # reset coming from Broker
+                if os.path.exists(directory_MT5_ass+'0RESET'):
+                    print("RESET from broker found.")
+                    os.remove(directory_MT5_ass+'0RESET')
+                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
                 if os.path.exists(io_ass_dir+'PA'):
                     print(thisAsset+" PAUSED. Waiting for RE command...")
                     os.remove(io_ass_dir+'PA')
@@ -2678,9 +2692,13 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                 os.remove(io_ass_dir+'SD')
                 send_close_command(thisAsset)
+                
                 if len(trader.list_opened_positions)>0:
                     delayed_stop_run = True
                 else:
+                    
+                    # save network lists dictionary
+#                    save_images(thisAsset, lists, trader)
                     run = False
                 # close session
                 if send_info_api:
@@ -2725,7 +2743,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                     trader.update_symbols_tracking(list_idx, buffer)
                     trader.count_events(ass_id, buffer.shape[0])
                 # dispatch
-                outputs, new_outputs = dispatch(lists, buffer, AllAssets, 
+                outputs, new_outputs = dispatch(lists, list_models, buffer, AllAssets, 
                                                 ass_id, ass_idx, 
                                                 log_file, queue)
                 ################# Trader ##################
@@ -2876,8 +2894,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
                 if delayed_stop_run:
-                    queue_prior.put({"FUNC":"SD"})
-                    queue.put({"FUNC":"SD"})
+#                    save_images(thisAsset, lists, trader)
                     run = False
                 
             elif flag_sl:
@@ -2928,7 +2945,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
         # TODO: Only enter once a sec (or every 10 secs)
 #        if send_info_api:
 #            api.parameters_enquiry()
-        
+    
     # end of while run
     budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
     return budget
@@ -2939,7 +2956,7 @@ def fetch(lists, trader, directory_MT5, AllAssets,
 
 def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
               traders, list_results, running_assets, ass2index_mapping, lists,
-              AllAssets, log_file, queue):
+              list_models, AllAssets, log_file, queue):
     """
     <DocString>
     """
@@ -3021,7 +3038,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
 
         if sampsBuffersCounter[ass_idx]==0:
-            outputs, new_outputs = dispatch(lists, buffers[ass_idx], AllAssets, 
+            outputs, new_outputs = dispatch(lists, list_models, buffers[ass_idx], AllAssets, 
                                             ass_id, ass_idx, 
                                             log_file, queue)
 
@@ -3300,7 +3317,13 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     dir_log = dir_results+'log/'
     if not os.path.exists(dir_log):
         os.makedirs(dir_log)
+    
     AllAssets = C.AllAssets
+    for ass in AllAssets:
+        asset = AllAssets[ass]
+        backup_dir_ass = LC.backup_live_dir+asset+'/'
+        if not os.path.exists(backup_dir_ass):
+            os.makedirs(backup_dir_ass)
     # unique network list
     unique_nets = []
     list_models = []
@@ -3383,49 +3406,48 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         # add unique networks
         for nn in range(numberNetworks):
             # TODO! Take unique networks!
-            if 1:#netNames[nn] not in unique_nets:
-                unique_nets.append(netNames[nn])
-                configs = config_list[nn]
-                #list_data.append(data)
-                list_nExS.append(nExSs[nn])
-                list_mW.append(mWs[nn])
-                list_lBs.append(configs[0]['lB'])
-                feature_keys_manual = configs[0]['feature_keys_manual']
-                n_feats_manual = len(feature_keys_manual)
-                list_n_feats.append(n_feats_manual)
-                unique_IDresults.append(IDresults[nn])
-                unique_IDepoch.append(IDepoch[nn])
-                unique_phase_shifts.append(phase_shifts[nn])
-                unique_t_indexs.append(list_t_indexs[nn])
-                #unique_feats_from.append(list_feats_from[nn])
-                unique_delays.append(delays[nn])
-                unique_netNames.append(netNames[nn])
-                unique_inv_out.append(list_inv_out[nn])
-                list_models.append(StackedModel(configs,IDweights[nn]).init_interactive_session(epochs=IDepoch[nn]))
-                feats_from_bids = configs[0]['feats_from_bids']
+            unique_nets.append(netNames[nn])
+            configs = config_list[nn]
+            #list_data.append(data)
+            list_nExS.append(nExSs[nn])
+            list_mW.append(mWs[nn])
+            list_lBs.append(configs[0]['lB'])
+            feature_keys_manual = configs[0]['feature_keys_manual']
+            n_feats_manual = len(feature_keys_manual)
+            list_n_feats.append(n_feats_manual)
+            unique_IDresults.append(IDresults[nn])
+            unique_IDepoch.append(IDepoch[nn])
+            unique_phase_shifts.append(phase_shifts[nn])
+            unique_t_indexs.append(list_t_indexs[nn])
+            #unique_feats_from.append(list_feats_from[nn])
+            unique_delays.append(delays[nn])
+            unique_netNames.append(netNames[nn])
+            unique_inv_out.append(list_inv_out[nn])
+            list_models.append(StackedModel(configs,IDweights[nn]).init_interactive_session(epochs=IDepoch[nn]))
+            feats_from_bids = configs[0]['feats_from_bids']
 #                movingWindow = configs[0]['movingWindow']
 #                nEventsPerStat = configs[0]['nEventsPerStat']
-                feature_keys_manual = configs[0]['feature_keys_manual']
-                n_feats_manual = len(feature_keys_manual)
-                noVarFeats = configs[0]['noVarFeatsManual']
-                # load stats
-                if feats_from_bids:
-                    # only get short bets (negative directions)
-                    #tag = 'IO_mW'
-                    tag_stats = 'IOB'
-                    tag_stats_modular = 'bid'
-                else:
-                    # only get long bets (positive directions)
-                    #tag = 'IOA_mW'
-                    tag_stats = 'IOA'
-                    tag_stats_modular = 'ask'
-                print(tag_stats)
-                list_tags.append(tag_stats)
-                list_tags_modular.append(tag_stats_modular)
+            feature_keys_manual = configs[0]['feature_keys_manual']
+            n_feats_manual = len(feature_keys_manual)
+            noVarFeats = configs[0]['noVarFeatsManual']
+            # load stats
+            if feats_from_bids:
+                # only get short bets (negative directions)
+                #tag = 'IO_mW'
+                tag_stats = 'IOB'
+                tag_stats_modular = 'bid'
+            else:
+                # only get long bets (positive directions)
+                #tag = 'IOA_mW'
+                tag_stats = 'IOA'
+                tag_stats_modular = 'ask'
+            print(tag_stats)
+            list_tags.append(tag_stats)
+            list_tags_modular.append(tag_stats_modular)
 #                filename_prep_IO = (hdf5_directory+tag+str(movingWindow)+'_nE'+
 #                                    str(nEventsPerStat)+'_nF'+str(n_feats_manual)+'.hdf5')
 #                list_filenames.append(filename_prep_IO)
-                list_unique_configs.append(configs[0])
+            list_unique_configs.append(configs[0])
             #else:
             list_net2strategy[idx_tr].append(netNames[nn])
         ################# Strategies #############################
@@ -3724,7 +3746,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                 lists['countOutss'] = countOutss
                 lists['resultsDir'] = resultsDir
                 lists['results_files'] = results_files
-                lists['list_models'] = list_models
+#                lists['list_models'] = list_models
                 #lists['list_data'] = list_data
                 lists['list_nonVarIdx'] = list_nonVarIdx
                 lists['list_inv_out'] = unique_inv_out
@@ -3761,7 +3783,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                 shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
                                         Assets, nEvents ,
                                         traders, list_results, running_assets, 
-                                        ass2index_mapping, lists, AllAssets, 
+                                        ass2index_mapping, lists, list_models, AllAssets, 
                                         log_file, queue)
         else:
             
@@ -3784,7 +3806,6 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
             lists['lBs'] = list_lBs
             lists['nExSs'] = nExSs
             lists['mWs'] = mWs
-            #lists['list_data'] = list_data
             lists['nCxAxN'] = nCxAxN
             lists['buffSizes'] = buffSizes
             lists['list_unique_configs'] = list_unique_configs
@@ -3795,7 +3816,6 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
              list_listEM,list_list_Ylive,list_list_Pmc_live,list_list_Pmd_live,
              list_list_Pmg_live,list_list_time_to_entry,list_list_list_soft_tildes,
              list_list_weights_matrix) = init_network_structures(lists, nNets, nAssets)
-                
             lists['buffers'] = buffers
             lists['buffersCounter'] = buffersCounter
             lists['bufferExt'] = bufferExt
@@ -3824,10 +3844,10 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
             lists['countOutss'] = countOutss
             lists['resultsDir'] = resultsDir
             lists['results_files'] = results_files
-            lists['list_models'] = list_models
-            #lists['list_data'] = list_data
+#            lists['list_models'] = list_models
             lists['list_nonVarIdx'] = list_nonVarIdx
             lists['list_inv_out'] = list_inv_out
+#            pickle.dump( lists, open( LC.io_live_dir+AllAssets[str(running_assets[0])]+"/lists.p", "wb" ))
             #lists['list_feats_from'] = list_feats_from
             # init traders
             
@@ -3852,7 +3872,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
 #                                log_file, results_dir=dir_results, 
 #                                start_time=start_time)
             # launch fetcher
-            fetch(lists, trader, LC.directory_MT5_IO, AllAssets, 
+            fetch(lists, list_models, trader, LC.directory_MT5_IO, AllAssets, 
                   running_assets, log_file, results, queue, queue_prior)
         
         for idx, trader in enumerate(traders):

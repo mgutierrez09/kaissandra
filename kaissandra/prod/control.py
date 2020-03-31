@@ -34,6 +34,7 @@ def listener_process(queue, configurer):
             import sys, traceback
             print('Whoops! Problem:', file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
+    print("EXIT Log queue")
 
 def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False, token_header=None):
     """ Master function to manage all controlling functions such as connection
@@ -117,7 +118,15 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
             except ConnectionError:
                 print("WARNING! Connection Error in control() of control.py.")
             
-            
+        if os.path.exists(directory_io+'SD'):
+            os.remove(directory_io+'SD')
+            # shutting down queues
+            log_queue.put(None)
+            for q, queue in enumerate(queues):
+                queue_prior = queues_prior[q]
+                queue.put({'FUNC':'SD'})
+                queue_prior.put({'FUNC':'SD'})
+            run = False
         
     print("EXIT control")
             

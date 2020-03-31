@@ -278,7 +278,7 @@ def automate_Kfold(rootname_config, entries={}, K=5, tAt='TrTe', IDrs=[], build_
                 print(mess)
                 if len(log)>0:
                     write_log(mess)
-                if tAt=='TrTe':
+                if tAt=='TrTe' or tAt=='TeTr':
                     RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it,log=log).\
                         cv(Xte, Yte, DTA, IDresults=IDresults, config=config, log=log)
                 elif tAt=='Te':
@@ -545,7 +545,7 @@ def automate_fixedEdges(rootname_config, entries={}, tAt='TrTe', IDrs=[],
             print(mess)
             if len(log)>0:
                 write_log(mess)
-            if tAt=='TrTe':
+            if tAt=='TrTe' or tAt=='TeTr':
                 RNN(config).fit(Xtr, Ytr, num_epochs=epochs_per_it,log=log).\
                     cv(Xte, Yte, DTA, IDresults=IDresults, config=config, log=log)
             elif tAt=='Te':

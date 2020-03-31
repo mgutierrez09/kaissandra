@@ -98,23 +98,37 @@ def init_features_live(config, tradeInfoLive):
         
     else:
         symbols = tradeInfoLive.SymbolAsk
-        
-    class parSarInit:
-        # old parsar=> 20
-        #periodSAR = data.nEventsPerStat
-        HP20 = 0
-        HP2 = 0
-        LP20 = 100000
-        LP2 = 100000
-        stepAF = 0.02
-        AFH20 = stepAF
-        AFH2 = stepAF
-        AFL20 = stepAF
-        AFL2 = stepAF
-        maxAF20 = 20*stepAF    
-        maxAF2 = 2*stepAF
     
-    parSarStruct = parSarInit
+    stepAF = 0.02
+#    class parSarInit:
+#        # old parsar=> 20
+#        #periodSAR = data.nEventsPerStat
+#        HP20 = 0
+#        HP2 = 0
+#        LP20 = 100000
+#        LP2 = 100000
+#        stepAF = 0.02
+#        AFH20 = stepAF
+#        AFH2 = stepAF
+#        AFL20 = stepAF
+#        AFL2 = stepAF
+#        maxAF20 = 20*stepAF    
+#        maxAF2 = 2*stepAF
+        
+    
+    
+    parSarStruct = {'HP20': 0,
+                    'HP2':0,
+                    'LP20':100000,
+                    'LP2':100000,
+                    'stepAF':stepAF,
+                    'AFH20':stepAF,
+                    'AFH2':stepAF,
+                    'AFL20':stepAF,
+                    'AFL2':stepAF,
+                    'maxAF20':20*stepAF,
+                    'maxAF2':2*stepAF
+                    }
     nF = len(feature_keys_manual)
     featuresLive = np.zeros((nF,1))
     
@@ -140,7 +154,7 @@ def init_features_live(config, tradeInfoLive):
     
     return featuresLive,parSarStruct,em
 
-def get_features_live(config, tradeInfoLive, featuresLive,parSarStruct,em):
+def get_features_live(config, tradeInfoLive, featuresLive, parSarStruct, em):
     """
     Get features from raw inputs
     """
@@ -173,27 +187,27 @@ def get_features_live(config, tradeInfoLive, featuresLive,parSarStruct,em):
         eml = lbd*eml+(1-lbd)*symbols.iloc[il]
     featuresLive[1:1+lbd.shape[0],0] = eml
     
-    parSarStruct.HP20 = np.max([np.max(symbols.iloc[:]),parSarStruct.HP20])
-    parSarStruct.LP20 = np.min([np.min(symbols.iloc[:]),parSarStruct.LP20])
-    featuresLive[10,0] = featuresLive[10,0]+parSarStruct.AFH20*(parSarStruct.HP20-featuresLive[10,0]) #parSar high
-    featuresLive[11,0] = featuresLive[11,0]-parSarStruct.AFL20*(featuresLive[11,0]-parSarStruct.LP20) # parSar low
-    if featuresLive[10,0]<parSarStruct.HP20:
-        parSarStruct.AFH20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
-        parSarStruct.LP20 = np.min(symbols.iloc[:])
-    if featuresLive[11,0]>parSarStruct.LP20:
-        parSarStruct.AFL20 = np.min([parSarStruct.AFH20+parSarStruct.stepAF,parSarStruct.maxAF20])
-        parSarStruct.HP20 = np.max(symbols.iloc[:])
+    parSarStruct['HP20'] = np.max([np.max(symbols.iloc[:]),parSarStruct['HP20']])
+    parSarStruct['LP20'] = np.min([np.min(symbols.iloc[:]),parSarStruct['LP20']])
+    featuresLive[10,0] = featuresLive[10,0]+parSarStruct['AFH20']*(parSarStruct['HP20']-featuresLive[10,0]) #parSar high
+    featuresLive[11,0] = featuresLive[11,0]-parSarStruct['AFL20']*(featuresLive[11,0]-parSarStruct['LP20']) # parSar low
+    if featuresLive[10,0]<parSarStruct['HP20']:
+        parSarStruct['AFH20'] = np.min([parSarStruct['AFH20']+parSarStruct['stepAF'],parSarStruct['maxAF20']])
+        parSarStruct['LP20'] = np.min(symbols.iloc[:])
+    if featuresLive[11,0]>parSarStruct['LP20']:
+        parSarStruct['AFL20'] = np.min([parSarStruct['AFH20']+parSarStruct['stepAF'],parSarStruct['maxAF20']])
+        parSarStruct['HP20'] = np.max(symbols.iloc[:])
     
-    parSarStruct.HP2 = np.max([np.max(symbols.iloc[:]),parSarStruct.HP2])
-    parSarStruct.LP2 = np.min([np.min(symbols.iloc[:]),parSarStruct.LP2])
-    featuresLive[13,0] = featuresLive[13,0]+parSarStruct.AFH2*(parSarStruct.HP2-featuresLive[13,0]) #parSar high
-    featuresLive[14,0] = featuresLive[14,0]-parSarStruct.AFL2*(featuresLive[14,0]-parSarStruct.LP2) # parSar low
-    if featuresLive[13,0]<parSarStruct.HP2:
-        parSarStruct.AFH2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
-        parSarStruct.LP2 = np.min(symbols.iloc[:])
-    if featuresLive[14,0]>parSarStruct.LP2:
-        parSarStruct.AFL2 = np.min([parSarStruct.AFH2+parSarStruct.stepAF,parSarStruct.maxAF2])
-        parSarStruct.HP2 = np.max(symbols.iloc[:])
+    parSarStruct['HP2'] = np.max([np.max(symbols.iloc[:]),parSarStruct['HP2']])
+    parSarStruct['LP2'] = np.min([np.min(symbols.iloc[:]),parSarStruct['LP2']])
+    featuresLive[13,0] = featuresLive[13,0]+parSarStruct['AFH2']*(parSarStruct['HP2']-featuresLive[13,0]) #parSar high
+    featuresLive[14,0] = featuresLive[14,0]-parSarStruct['AFL2']*(featuresLive[14,0]-parSarStruct['LP2']) # parSar low
+    if featuresLive[13,0]<parSarStruct['HP2']:
+        parSarStruct['AFH2'] = np.min([parSarStruct['AFH2']+parSarStruct['stepAF'],parSarStruct['maxAF2']])
+        parSarStruct['LP2'] = np.min(symbols.iloc[:])
+    if featuresLive[14,0]>parSarStruct['LP2']:
+        parSarStruct['AFL2'] = np.min([parSarStruct['AFH2']+parSarStruct['stepAF'],parSarStruct['maxAF2']])
+        parSarStruct['HP2'] = np.max(symbols.iloc[:])
 
     featuresLive[0,0] = symbols.iloc[-1]
     
@@ -222,4 +236,4 @@ def get_features_live(config, tradeInfoLive, featuresLive,parSarStruct,em):
     for i in range(lbd.shape[0]):                
         featuresLive[30+i,0] = featuresLive[0,0]/eml[i]
     
-    return featuresLive,parSarStruct,em
+    return featuresLive, parSarStruct, em
