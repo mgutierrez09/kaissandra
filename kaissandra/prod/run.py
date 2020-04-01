@@ -3755,7 +3755,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                 traders = []
                 for idx_tr, config_trader in enumerate(config_traders_list):
                     trader = Trader(running_assets,
-                                    ass2index_mapping, list_strategies[idx_tr], AllAssets, 
+                                    ass2index_mapping, list_strategies[idx_tr], 
                                     log_file, results_dir=dir_results, 
                                     start_time=start_time, config_name=config_trader['config_name'],
                                     net2strategy=list_net2strategy[idx_tr], 
@@ -3854,7 +3854,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
             traders = []
             for idx_tr, config_trader in enumerate(config_traders_list):
                 trader = Trader(running_assets,
-                                ass2index_mapping, list_strategies[idx_tr], AllAssets, 
+                                ass2index_mapping, list_strategies[idx_tr], 
                                 log_file, results_dir=dir_results, 
                                 start_time=start_time, config_name=config_trader['config_name'],
                                 net2strategy=list_net2strategy[idx_tr], queue=queue, 
