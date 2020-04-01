@@ -101,7 +101,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         print(asset+MSG)
         ct.send_trader_log(MSG, asset, token_header)
         ass_idx = np.mod(ass_idx+1,len(running_assets))
-        
+        ct.check_for_warnings()
         time.sleep(5)
         
         watchdog_counter += 1

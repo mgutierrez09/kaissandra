@@ -254,6 +254,32 @@ def get_account_status():
     status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
     return status
 
+def check_for_warnings():
+    """ Check for warning messages from broker """
+    AllAssets = Config.AllAssets
+    try:
+        for asset_key in AllAssets:
+            thisAsset = AllAssets[asset_key]
+            dirfilename = LC.directory_MT5_comm+thisAsset+'/WARNING'
+            if os.path.exists(dirfilename):
+                # load network output
+                success = 0
+                while not success:
+                    try:
+                        fh = open(dirfilename,"r")
+                        info = fh.read()[:-1]
+                        # close file
+                        fh.close()
+                        success = 1
+                        #stop_timer(ass_idx)
+                    except PermissionError:
+                        print("Error reading position status")
+                print("\n\nWARNING FROM BROKER in "+thisAsset+": "+info+"\n\n")
+                        
+    except:
+        print("Error in check_for_warnings in kaissandra.prod.communication. Skipped.")
+    return None
+
 def get_positions_status():
     """ Get account status from broker """
     
