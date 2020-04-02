@@ -27,6 +27,7 @@ nFiles = 100
 extension = ".txt"
 deli = "_"
 flag_cl_name = "CL"
+flag_ma_name = "MA" # manual close of position
 flag_sl_name = "SL"
 flag_tp_name = "TP"
 # TODO: Save entire output vector
@@ -353,7 +354,8 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  log_file, results_dir="", max_opened_positions=None, 
-                 start_time='', config_name='',net2strategy=[], queue=None, queue_prior=None):
+                 start_time='', config_name='',net2strategy=[], 
+                 queue=None, queue_prior=None, session_json=None):
         
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
@@ -468,6 +470,7 @@ class Trader:
         #self.api = api
         self.queue = queue
         self.queue_prior = queue_prior
+        self.session_json = session_json
     
     def get_account_status(self):
         """ Get account status from broker """
@@ -1091,8 +1094,7 @@ class Trader:
                   'strategyname':self.list_opened_positions[-1].strategy.name,
                   'p_mc':self.list_opened_positions[-1].p_mc,
                   'p_md':self.list_opened_positions[-1].p_md}
-        self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":api.session_json['id'],"PARAMS":params})
-        #api.open_position(params, asynch=True)
+        self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
         
     def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                             direction, strategy, roi, ticks):
@@ -1107,7 +1109,6 @@ class Trader:
                   'strategyname':strategy,
                   'roi':roi}
         self.queue_prior.put({"FUNC":"POS","EVENT":"EXTEND","ASSET":thisAsset,"PARAMS":params})
-        #api.extend_position(thisAsset, params, asynch=True)
         
     def send_not_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                                 direction, strategy, roi, ticks):
@@ -1143,7 +1144,6 @@ class Trader:
                 }
         print("Sent CLOSE through priority queue")
         self.queue_prior.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params})
-        #api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1853,7 +1853,6 @@ class Trader:
                 print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-#                    api.send_network_log(out)
                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
             if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
                 self.lift_ban_asset(ass_idx)
@@ -1862,7 +1861,6 @@ class Trader:
                     print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-#                    api.send_network_log(out)
                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":out})
         else:
             logMsg = entry[entry_time_column]+" "+\
@@ -1872,7 +1870,6 @@ class Trader:
                 print("\r"+out)
             self.write_log(out)
             if send_info_api:
-#                api.send_network_log(out)
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
     
     def lift_ban_asset(self, ass_idx):
@@ -2290,7 +2287,6 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             write_log(out, log_file)
                         if send_info_api:
                             queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":out})
-                                #api.send_network_log(out)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -2596,17 +2592,29 @@ def send_close_command(asset):
             except PermissionError:
                 print("Error writing LC")
 
-#def save_images(asset, lists, trader):
-#    """  """
-#    backup_dir_ass = LC.backup_live_dir+asset+'/'
-#    # save network image
-#    pickle.dump( lists, open( backup_dir_ass+"netImage.p", "wb" ))
-#    print(vars(trader))
-#    pickle.dump( vars(trader), open( backup_dir_ass+"tradeImage.p", "wb" ))
-#    print("Images saved in "+backup_dir_ass)
-#    # save trader image
-##    list_trader_attrs = [a for a in dir(trader) if not a.startswith('__') and not callable(getattr(trader, a))]
+def save_snapshot(asset, lists, trader, command='SD'):
+    """ Save session snapshot for later resume """
+    snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
+    # save network image
+    #pickle.dump( lists, open( backup_dir_ass+"netImage.p", "wb" ))
     
+    if command=='SD':
+        trader_dict = {}
+    else:
+        trader_dict = vars(trader)
+        del trader_dict['queue']
+        del trader_dict['queue_prior']
+    
+    pickle.dump( {'trader':trader_dict,
+                  'network':lists}, open( snapshot_dir_ass+"snapshot.p", "wb" ))
+    print(asset+" SNAPSHOT SAVED")
+    print("Snapshot saved in "+snapshot_dir_ass)
+    # save trader image
+#    list_trader_attrs = [a for a in dir(trader) if not a.startswith('__') and not callable(getattr(trader, a))]
+
+def load_snapshot():
+    """  """
+    pass
 
 def fetch(lists, list_models, trader, directory_MT5, AllAssets, 
           running_assets, log_file, results, queue, queue_prior):
@@ -2662,6 +2670,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     success = 1
                 else:
                     print(thisAsset+" WARNING! Buffer size not 10. Skipped")
+                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
                     
             except (FileNotFoundError,PermissionError,OSError):
                 # reset coming from Broker
@@ -2696,13 +2705,15 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if len(trader.list_opened_positions)>0:
                     delayed_stop_run = True
                 else:
+                    queue.put({"FUNC":"SD"})
+                    queue_prior.put({"FUNC":"SD"})
                     
-                    # save network lists dictionary
-#                    save_images(thisAsset, lists, trader)
                     run = False
-                # close session
-                if send_info_api:
-                    api.close_session()
+                    # close session
+                    if send_info_api:
+                        close_session(trader.session_json)
+                    # save network lists dictionary
+                    save_snapshot(thisAsset, lists, trader, command='SD')
                 time.sleep(5*np.random.rand(1)+1)
                 
             if count10s[ass_idx]==6 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
@@ -2726,7 +2737,18 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                    logMsg = " Parameters updated"
 #                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                 
-                
+            # check hibernate command
+            if count10s[ass_idx]==106 and os.path.exists(io_ass_dir+'HIBER'):
+                logMsg = " HIBERNATING"
+                out = thisAsset+logMsg
+                print(out)
+                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+                os.remove(io_ass_dir+'HIBER')
+                queue.put({"FUNC":"SD"})
+                queue_prior.put({"FUNC":"SD"})
+                # save network lists dictionary
+                save_snapshot(thisAsset, lists, trader, command='HI')
+                run = False
                 
                 
             # update file extension
@@ -2755,7 +2777,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             # check for closing
             flag_cl = 0
             # check if position closed
-            if trader.is_opened(ass_id) and os.path.exists(directory_MT5_ass+flag_cl_name):
+            if trader.is_opened(ass_id) and \
+            (os.path.exists(directory_MT5_ass+flag_cl_name) or 
+             os.path.exists(directory_MT5_ass+flag_ma_name)):
                 
                 success = 0
                 while not success:
@@ -2774,7 +2798,10 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                         print(info_close)
                         flag_cl = 1
                         if len(info_close)>1:
-                            os.remove(directory_MT5_ass+flag_cl_name)
+                            if os.path.exists(directory_MT5_ass+flag_cl_name):
+                                os.remove(directory_MT5_ass+flag_cl_name)
+                            else:
+                                os.remove(directory_MT5_ass+flag_ma_name)
                             success = 1
                         else:
                             pass
@@ -2884,7 +2911,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                DateTime = info_split[2]
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
-                swap = float(info_close[12])
+                swap = float(info_split[14])
                 trader.close_position(info_split[2], thisAsset, ass_id, results, 
                                       DTi_real=info_split[1], groiist=float(info_split[9]), 
                                       roiist=float(info_split[11]), swap=swap)
@@ -2894,7 +2921,11 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
                 if delayed_stop_run:
-#                    save_images(thisAsset, lists, trader)
+                    queue.put({"FUNC":"SD"})
+                    queue_prior.put({"FUNC":"SD"})
+                    if send_info_api:
+                        close_session(trader.session_json)
+                    save_snapshot(thisAsset, lists, trader, command='SD')
                     run = False
                 
             elif flag_sl:
@@ -2941,10 +2972,6 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
                 
-        # Communicate with server to update structures
-        # TODO: Only enter once a sec (or every 10 secs)
-#        if send_info_api:
-#            api.parameters_enquiry()
     
     # end of while run
     budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
@@ -3112,8 +3139,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             if config_name=='':
                 # read from remote
                 try:
-#                    api.parameters_enquiry(asynch=True)
-                    json = get_config_session(api.build_token_header())
+                    json = get_config_session()
                     config = json['config']
                     print(config)
                     if config and len(config)>0:
@@ -3130,8 +3156,6 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                 config = retrieve_config(config_name)
                 trader.update_parameters(config, thisAsset)
             
-            #api.parameters_enquiry(asynch=True)
-            
         ###################### End of Trader ###########################
         event_idx += 1
         # A pause to avoid communication congestion with server
@@ -3141,7 +3165,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # get intermediate results
         get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
     if send_info_api:
-        api.close_session()
+        close_session(trader.session_json)
     return shutdown
 
 def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
@@ -3299,12 +3323,9 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         raise ValueError("Live execution not compatible with more than one trader")
     
     # init futures session of API
-    if send_info_api:
-        api.post_token()
-        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
-#        print("api.trader_json:")
-#        print(api.trader_json)
-        api.init_future_session()
+#    if send_info_api:
+#        api.post_token()
+#        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
     # directories
     if run_back_test:
         dir_results = LC.live_results_dict+"back_test/"    
@@ -3321,9 +3342,9 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     AllAssets = C.AllAssets
     for ass in AllAssets:
         asset = AllAssets[ass]
-        backup_dir_ass = LC.backup_live_dir+asset+'/'
-        if not os.path.exists(backup_dir_ass):
-            os.makedirs(backup_dir_ass)
+        snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
+        if not os.path.exists(snapshot_dir_ass):
+            os.makedirs(snapshot_dir_ass)
     # unique network list
     unique_nets = []
     list_models = []
@@ -3651,171 +3672,70 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     
     ################### RNN ###############################
     
-    
-    
-    if 1:
-        shutdown = False
-        if run_back_test:
-            first_day = '2020.01.06'#'2018.11.12'
-            last_day = '2020.01.10'#'2019.08.22'
-            init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
-            end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
-            delta_dates = end_day-init_day
-            dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
-            dateTest = []
-            for d in dateTestDt:
-                if d.weekday()<5:
-                    dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
-            ##### TEMP! #####
+    shutdown = False
+    if run_back_test:
+        first_day = '2020.01.06'#'2018.11.12'
+        last_day = '2020.01.10'#'2019.08.22'
+        init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
+        end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
+        delta_dates = end_day-init_day
+        dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+        dateTest = []
+        for d in dateTestDt:
+            if d.weekday()<5:
+                dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+        ##### TEMP! #####
 #            dateTest = dateTest+['2019.03.11','2019.03.12','2019.03.13','2019.03.14','2019.03.15']
-            day_index = 0
-            #t_journal_entries = 0
-            week_counter = 0
-            while day_index<len(dateTest) and not shutdown:
-                counter_back = 0
-                init_list_index = day_index#data.dateTest[day_index]
-                
-                # find sequence of consecutive days in test days
-                while (day_index<len(dateTest)-1 and dt.datetime.strptime(
-                        dateTest[day_index],'%Y.%m.%d')+dt.timedelta(1)==
-                        dt.datetime.strptime(dateTest[day_index+1],'%Y.%m.%d')):
-                    day_index += 1
-                
-                end_list_index = day_index+counter_back
+        day_index = 0
+        #t_journal_entries = 0
+        week_counter = 0
+        while day_index<len(dateTest) and not shutdown:
+            counter_back = 0
+            init_list_index = day_index#data.dateTest[day_index]
+            
+            # find sequence of consecutive days in test days
+            while (day_index<len(dateTest)-1 and dt.datetime.strptime(
+                    dateTest[day_index],'%Y.%m.%d')+dt.timedelta(1)==
+                    dt.datetime.strptime(dateTest[day_index+1],'%Y.%m.%d')):
+                day_index += 1
+            
+            end_list_index = day_index+counter_back
 #                out = "Week from "+dateTest[init_list_index]+" to "+dateTest[end_list_index]
 #                print(out)
-                
-                day_index += counter_back+1
-                
-                buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
-                                for nn in range(nNets)] 
-                                for ass in range(nAssets)]
-                buffersCounter = [[[-k*buffSizes[ass,nn]/nCxAxN[ass,nn]-unique_delays[nn] 
-                                    for k in range(int(nCxAxN[ass,nn]))] 
-                                    for nn in range(nNets)] 
-                                    for ass in range(nAssets)]
-                bufferExt = [[[0 for k in range(int(nCxAxN[ass,nn]))] 
-                              for nn in range(nNets)] 
-                              for ass in range(nAssets)]
-                #timers_till_open = [0 for ass in range(nAssets)]
-                
-                lists = {}
-                lists['phase_shifts'] = unique_phase_shifts
-                lists['nChans'] = nChans
-                lists['list_t_indexs'] = unique_t_indexs
-                lists['lBs'] = list_lBs
-                lists['nExSs'] = list_nExS
-                lists['mWs'] = list_mW
-                #lists['list_data'] = list_data
-                lists['nCxAxN'] = nCxAxN
-                lists['buffSizes'] = buffSizes
-                lists['list_unique_configs'] = list_unique_configs
-                lists['list_n_feats'] = list_n_feats
-                
-                (inits,listFillingXs,listCountPoss,countOutss,EOFs,list_list_X_i,
-                 list_listAllFeatsLive,list_listFeaturesLive,list_listParSarStruct,
-                 list_listEM,list_list_Ylive,list_list_Pmc_live,list_list_Pmd_live,
-                 list_list_Pmg_live,list_list_time_to_entry,list_list_list_soft_tildes,
-                 list_list_weights_matrix) = init_network_structures(lists, nNets, nAssets)
-                
-                lists['buffers'] = buffers
-                lists['buffersCounter'] = buffersCounter
-                lists['bufferExt'] = bufferExt
-                lists['listFillingXs'] = listFillingXs
-                lists['inits'] = inits
-                lists['list_listFeaturesLive'] = list_listFeaturesLive
-                lists['list_listParSarStruct']= list_listParSarStruct
-                lists['list_listEM'] = list_listEM
-                lists['list_listAllFeatsLive'] = list_listAllFeatsLive
-                lists['list_list_X_i'] = list_list_X_i
-                lists['list_means_in'] = list_means_in
-                lists['phase_shifts'] = unique_phase_shifts
-                lists['list_stds_in'] = list_stds_in
-                lists['list_stds_out'] = list_stds_out
-                lists['ADs'] = ADs
-                lists['netNames'] = netNames
-                lists['listCountPoss'] = listCountPoss
-                lists['list_list_weights_matrix'] = list_list_weights_matrix
-                lists['list_list_time_to_entry'] = list_list_time_to_entry
-                lists['list_list_list_soft_tildes'] = list_list_list_soft_tildes
-                lists['list_list_Ylive'] = list_list_Ylive
-                lists['list_list_Pmc_live'] = list_list_Pmc_live
-                lists['list_list_Pmd_live'] = list_list_Pmd_live
-                lists['list_list_Pmg_live'] = list_list_Pmg_live
-                lists['EOFs'] = EOFs
-                lists['countOutss'] = countOutss
-                lists['resultsDir'] = resultsDir
-                lists['results_files'] = results_files
-#                lists['list_models'] = list_models
-                #lists['list_data'] = list_data
-                lists['list_nonVarIdx'] = list_nonVarIdx
-                lists['list_inv_out'] = unique_inv_out
-                #lists['list_feats_from'] = unique_feats_from
-                
-                traders = []
-                for idx_tr, config_trader in enumerate(config_traders_list):
-                    trader = Trader(running_assets,
-                                    ass2index_mapping, list_strategies[idx_tr], 
-                                    log_file, results_dir=dir_results, 
-                                    start_time=start_time, config_name=config_trader['config_name'],
-                                    net2strategy=list_net2strategy[idx_tr], 
-                                    queue=queue, queue_prior=queue_prior, 
-                                    max_opened_positions=max_opened_positions)#, api=api
-                    # pass trader to api
-                    if send_info_api:
-                        api.init_trader(trader)
-#                    if not os.path.exists(trader.log_file):
-#                        write_log(out, trader.log_file)
-#                        write_log(out, trader.log_summary)
-                    
-                    traders.append(trader)
-                out = ("Week counter "+str(week_counter)+". From "+dateTest[init_list_index]+
-                       " to "+dateTest[end_list_index])
-                week_counter += 1
-                print(out)
-                #if not os.path.exists(trader.log_file):
-                trader.write_log(out)
-                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":"ALL","MSG":out})
-                write_log(out, trader.log_summary)
-                DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
-                    load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
-                                   end_list_index, root_dir=LC.data_test_dir)
-                shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
-                                        Assets, nEvents ,
-                                        traders, list_results, running_assets, 
-                                        ass2index_mapping, lists, list_models, AllAssets, 
-                                        log_file, queue)
-        else:
+ 
+            day_index += counter_back+1
             
             buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
+                            for nn in range(nNets)] 
+                            for ass in range(nAssets)]
+            buffersCounter = [[[-k*buffSizes[ass,nn]/nCxAxN[ass,nn]-unique_delays[nn] 
+                                for k in range(int(nCxAxN[ass,nn]))] 
                                 for nn in range(nNets)] 
                                 for ass in range(nAssets)]
-            buffersCounter = [[[-k*buffSizes[ass,nn]/nCxAxN[ass,nn]-delays[nn] 
-                                    for k in range(int(nCxAxN[ass,nn]))] 
-                                    for nn in range(nNets)] 
-                                    for ass in range(nAssets)]
             bufferExt = [[[0 for k in range(int(nCxAxN[ass,nn]))] 
-                              for nn in range(nNets)] 
-                              for ass in range(nAssets)]
+                          for nn in range(nNets)] 
+                          for ass in range(nAssets)]
             #timers_till_open = [0 for ass in range(nAssets)]
-                
+            
             lists = {}
-            lists['phase_shifts'] = phase_shifts
+            lists['phase_shifts'] = unique_phase_shifts
             lists['nChans'] = nChans
-            lists['list_t_indexs'] = list_t_indexs
+            lists['list_t_indexs'] = unique_t_indexs
             lists['lBs'] = list_lBs
-            lists['nExSs'] = nExSs
-            lists['mWs'] = mWs
+            lists['nExSs'] = list_nExS
+            lists['mWs'] = list_mW
+            #lists['list_data'] = list_data
             lists['nCxAxN'] = nCxAxN
             lists['buffSizes'] = buffSizes
             lists['list_unique_configs'] = list_unique_configs
             lists['list_n_feats'] = list_n_feats
-                
+            
             (inits,listFillingXs,listCountPoss,countOutss,EOFs,list_list_X_i,
              list_listAllFeatsLive,list_listFeaturesLive,list_listParSarStruct,
              list_listEM,list_list_Ylive,list_list_Pmc_live,list_list_Pmd_live,
              list_list_Pmg_live,list_list_time_to_entry,list_list_list_soft_tildes,
              list_list_weights_matrix) = init_network_structures(lists, nNets, nAssets)
+            
             lists['buffers'] = buffers
             lists['buffersCounter'] = buffersCounter
             lists['bufferExt'] = bufferExt
@@ -3827,7 +3747,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
             lists['list_listAllFeatsLive'] = list_listAllFeatsLive
             lists['list_list_X_i'] = list_list_X_i
             lists['list_means_in'] = list_means_in
-            lists['phase_shifts'] = phase_shifts
+            lists['phase_shifts'] = unique_phase_shifts
             lists['list_stds_in'] = list_stds_in
             lists['list_stds_out'] = list_stds_out
             lists['ADs'] = ADs
@@ -3844,72 +3764,173 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
             lists['countOutss'] = countOutss
             lists['resultsDir'] = resultsDir
             lists['results_files'] = results_files
-#            lists['list_models'] = list_models
+#                lists['list_models'] = list_models
+            #lists['list_data'] = list_data
             lists['list_nonVarIdx'] = list_nonVarIdx
-            lists['list_inv_out'] = list_inv_out
-#            pickle.dump( lists, open( LC.io_live_dir+AllAssets[str(running_assets[0])]+"/lists.p", "wb" ))
-            #lists['list_feats_from'] = list_feats_from
-            # init traders
+            lists['list_inv_out'] = unique_inv_out
+            #lists['list_feats_from'] = unique_feats_from
             
             traders = []
             for idx_tr, config_trader in enumerate(config_traders_list):
                 trader = Trader(running_assets,
                                 ass2index_mapping, list_strategies[idx_tr], 
                                 log_file, results_dir=dir_results, 
-                                start_time=start_time, config_name=config_trader['config_name'],
-                                net2strategy=list_net2strategy[idx_tr], queue=queue, 
-                                queue_prior=queue_prior, max_opened_positions=max_opened_positions)
-                    
-#                if not os.path.exists(trader.log_file):
-#                    write_log(out, trader.log_file)
-#                    write_log(out, trader.log_summary)
-                if send_info_api:
-                     api.init_trader(trader)  
+                                start_time=start_time, config_name=config_name,
+                                net2strategy=list_net2strategy[idx_tr], 
+                                queue=queue, queue_prior=queue_prior, 
+                                max_opened_positions=max_opened_positions)#, api=api
+                # pass trader to api
+#                if send_info_api:
+#                    api.init_trader(trader)
+#                    if not os.path.exists(trader.log_file):
+#                        write_log(out, trader.log_file)
+#                        write_log(out, trader.log_summary)
+                
                 traders.append(trader)
-            
-#            trader = Trader(running_assets,
-#                                ass2index_mapping, strategies, AllAssets, 
-#                                log_file, results_dir=dir_results, 
-#                                start_time=start_time)
-            # launch fetcher
-            fetch(lists, list_models, trader, LC.directory_MT5_IO, AllAssets, 
-                  running_assets, log_file, results, queue, queue_prior)
+            out = ("Week counter "+str(week_counter)+". From "+dateTest[init_list_index]+
+                   " to "+dateTest[end_list_index])
+            week_counter += 1
+            print(out)
+            #if not os.path.exists(trader.log_file):
+            trader.write_log(out)
+            queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":"ALL","MSG":out})
+            write_log(out, trader.log_summary)
+            DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
+                load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
+                               end_list_index, root_dir=LC.data_test_dir)
+            shutdown = back_test(DateTimes, SymbolBids, SymbolAsks, 
+                                    Assets, nEvents ,
+                                    traders, list_results, running_assets, 
+                                    ass2index_mapping, lists, list_models, AllAssets, 
+                                    log_file, queue)
+    else:
         
-        for idx, trader in enumerate(traders):
-            # gather results
-            total_entries = int(np.sum(list_results[idx].number_entries))
-            total_successes = int(np.sum(list_results[idx].net_successes))
-            total_failures = total_entries-total_successes
-            per_gross_success = 100*np.sum(list_results[idx].gross_successes)/total_entries
-            per_net_succsess = 100*np.sum(list_results[idx].net_successes)/total_entries
-            average_loss = np.sum(list_results[idx].total_losses)/\
-                ((total_entries-np.sum(list_results[idx].net_successes))*trader.pip)
-            average_win = np.sum(list_results[idx].total_wins)/\
-                (np.sum(list_results[idx].net_successes)*trader.pip)
-            RR = total_successes*average_win/(average_loss*total_failures)
+        buffers = [[[pd.DataFrame() for k in range(int(nCxAxN[ass,nn]))] 
+                            for nn in range(nNets)] 
+                            for ass in range(nAssets)]
+        buffersCounter = [[[-k*buffSizes[ass,nn]/nCxAxN[ass,nn]-delays[nn] 
+                                for k in range(int(nCxAxN[ass,nn]))] 
+                                for nn in range(nNets)] 
+                                for ass in range(nAssets)]
+        bufferExt = [[[0 for k in range(int(nCxAxN[ass,nn]))] 
+                          for nn in range(nNets)] 
+                          for ass in range(nAssets)]
+        #timers_till_open = [0 for ass in range(nAssets)]
             
-            out = ("\nTotal GROI = {0:.3f}% ".format(list_results[idx].total_GROI)+
-                   "Total ROI = {0:.3f}% ".format(list_results[idx].total_ROI)+
-                   "Sum GROI = {0:.3f}% ".format(list_results[idx].sum_GROI)+
-                   "Sum ROI = {0:.3f}%".format(list_results[idx].sum_ROI)+
-                   " Accumulated earnings {0:.2f}E".format(list_results[idx].total_earnings))
-            print(out)
-            write_log(out, trader.log_file)
-            write_log(out, trader.log_summary)
-            out = ("Total entries "+str(total_entries)+
-                   " percent gross success {0:.2f}%".format(per_gross_success)+
-                  " percent nett success {0:.2f}%".format(per_net_succsess)+
-                  " average loss {0:.2f}p".format(average_loss)+
-                  " average win {0:.2f}p".format(average_win)+
-                  " RR 1 to {0:.2f}".format(RR))
-            print(out)
-            write_log(out, trader.log_file)
-            write_log(out, trader.log_summary)
-            out = ("DONE. Total time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins\n")
-            print(out)
-            write_log(out, trader.log_file)
-            write_log(out, trader.log_summary)
-            list_results[idx].save_results()
+        lists = {}
+        lists['phase_shifts'] = phase_shifts
+        lists['nChans'] = nChans
+        lists['list_t_indexs'] = list_t_indexs
+        lists['lBs'] = list_lBs
+        lists['nExSs'] = nExSs
+        lists['mWs'] = mWs
+        lists['nCxAxN'] = nCxAxN
+        lists['buffSizes'] = buffSizes
+        lists['list_unique_configs'] = list_unique_configs
+        lists['list_n_feats'] = list_n_feats
+            
+        (inits,listFillingXs,listCountPoss,countOutss,EOFs,list_list_X_i,
+         list_listAllFeatsLive,list_listFeaturesLive,list_listParSarStruct,
+         list_listEM,list_list_Ylive,list_list_Pmc_live,list_list_Pmd_live,
+         list_list_Pmg_live,list_list_time_to_entry,list_list_list_soft_tildes,
+         list_list_weights_matrix) = init_network_structures(lists, nNets, nAssets)
+        lists['buffers'] = buffers
+        lists['buffersCounter'] = buffersCounter
+        lists['bufferExt'] = bufferExt
+        lists['listFillingXs'] = listFillingXs
+        lists['inits'] = inits
+        lists['list_listFeaturesLive'] = list_listFeaturesLive
+        lists['list_listParSarStruct']= list_listParSarStruct
+        lists['list_listEM'] = list_listEM
+        lists['list_listAllFeatsLive'] = list_listAllFeatsLive
+        lists['list_list_X_i'] = list_list_X_i
+        lists['list_means_in'] = list_means_in
+        lists['phase_shifts'] = phase_shifts
+        lists['list_stds_in'] = list_stds_in
+        lists['list_stds_out'] = list_stds_out
+        lists['ADs'] = ADs
+        lists['netNames'] = netNames
+        lists['listCountPoss'] = listCountPoss
+        lists['list_list_weights_matrix'] = list_list_weights_matrix
+        lists['list_list_time_to_entry'] = list_list_time_to_entry
+        lists['list_list_list_soft_tildes'] = list_list_list_soft_tildes
+        lists['list_list_Ylive'] = list_list_Ylive
+        lists['list_list_Pmc_live'] = list_list_Pmc_live
+        lists['list_list_Pmd_live'] = list_list_Pmd_live
+        lists['list_list_Pmg_live'] = list_list_Pmg_live
+        lists['EOFs'] = EOFs
+        lists['countOutss'] = countOutss
+        lists['resultsDir'] = resultsDir
+        lists['results_files'] = results_files
+#            lists['list_models'] = list_models
+        lists['list_nonVarIdx'] = list_nonVarIdx
+        lists['list_inv_out'] = list_inv_out
+#            pickle.dump( lists, open( LC.io_live_dir+AllAssets[str(running_assets[0])]+"/lists.p", "wb" ))
+        #lists['list_feats_from'] = list_feats_from
+        # init traders
+        session_json = open_session(config_name, sessiontype, test)
+        #traders = []
+        #for idx_tr, config_trader in enumerate(config_traders_list):
+        trader = Trader(running_assets,
+                        ass2index_mapping, list_strategies[idx_tr], 
+                        log_file, results_dir=dir_results, session_json=session_json,
+                        start_time=start_time, config_name=config_name,
+                        net2strategy=list_net2strategy[idx_tr], queue=queue, 
+                        queue_prior=queue_prior, max_opened_positions=max_opened_positions)
+
+        # Resume after hibernation
+        snapshot_filename = LC.snapshot_live_dir+AllAssets[str(running_assets[0])]+"/snapshot.p"
+        if resume:
+            if os.path.exists(snapshot_filename):
+                # Load
+                # WARNING! Not compatible with more than one asset per trader
+                print("Loading "+snapshot_filename)
+                snapshot = pickle.load( open( snapshot_filename, "rb" ))
+                lists = snapshot['network']
+                for attr in snapshot['trader']:
+                    setattr(trader, attr, snapshot['trader'][attr])
+            else:
+                print("\n\n"+AllAssets[str(running_assets[0])]+" WARNING! Snapshot does not exist. Skipped.\n\n")
+        
+        # launch fetcher
+        fetch(lists, list_models, trader, LC.directory_MT5_IO, AllAssets, 
+              running_assets, log_file, results, queue, queue_prior)
+    
+    for idx in range(1):
+        # gather results
+        total_entries = int(np.sum(list_results[idx].number_entries))
+        total_successes = int(np.sum(list_results[idx].net_successes))
+        total_failures = total_entries-total_successes
+        per_gross_success = 100*np.sum(list_results[idx].gross_successes)/total_entries
+        per_net_succsess = 100*np.sum(list_results[idx].net_successes)/total_entries
+        average_loss = np.sum(list_results[idx].total_losses)/\
+            ((total_entries-np.sum(list_results[idx].net_successes))*trader.pip)
+        average_win = np.sum(list_results[idx].total_wins)/\
+            (np.sum(list_results[idx].net_successes)*trader.pip)
+        RR = total_successes*average_win/(average_loss*total_failures)
+        
+        out = ("\nTotal GROI = {0:.3f}% ".format(list_results[idx].total_GROI)+
+               "Total ROI = {0:.3f}% ".format(list_results[idx].total_ROI)+
+               "Sum GROI = {0:.3f}% ".format(list_results[idx].sum_GROI)+
+               "Sum ROI = {0:.3f}%".format(list_results[idx].sum_ROI)+
+               " Accumulated earnings {0:.2f}E".format(list_results[idx].total_earnings))
+        print(out)
+        write_log(out, trader.log_file)
+        write_log(out, trader.log_summary)
+        out = ("Total entries "+str(total_entries)+
+               " percent gross success {0:.2f}%".format(per_gross_success)+
+              " percent nett success {0:.2f}%".format(per_net_succsess)+
+              " average loss {0:.2f}p".format(average_loss)+
+              " average win {0:.2f}p".format(average_win)+
+              " RR 1 to {0:.2f}".format(RR))
+        print(out)
+        write_log(out, trader.log_file)
+        write_log(out, trader.log_summary)
+        out = ("DONE. Total time: "+"{0:.2f}".format((time.time()-tic)/60)+" mins\n")
+        print(out)
+        write_log(out, trader.log_file)
+        write_log(out, trader.log_summary)
+        list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
 def launch(synchroned_run=False, test=False):
@@ -3923,17 +3944,19 @@ def launch(synchroned_run=False, test=False):
     else:
         queues = []
         queues_prior = []
+        processes = []
         for ass_idx in range(len(running_assets)):
             queue = Queue()
             queue_prior = Queue()
             disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, queue, queue_prior])
             disp.start()
+            processes.append(disp)
             queues.append(queue)
             queues_prior.append(queue_prior)
             time.sleep(2)
         #time.sleep(30)
         print("All RNNs launched")
-        return queues, queues_prior
+        return processes, queues, queues_prior
 
 if __name__=='__main__':
     import sys
@@ -3973,7 +3996,9 @@ import shutil
 from kaissandra.local_config import local_vars as LC
 #if send_info_api:
 from kaissandra.prod.api import API
-from kaissandra.prod.communication import get_config_session
+from kaissandra.prod.communication import get_config_session, \
+                                          open_session, \
+                                          close_session
 from kaissandra.config import Config as C
 # runLive in multiple processes
 from multiprocessing import Process, Queue
@@ -3992,6 +4017,9 @@ if hasattr(LC,'CRISIS_MODE'):
 else:
     print("\n\nWARNING! Crisis mode not in LC\n\n")
     crisis_mode = False
+resume = LC.RESUME
+if resume:
+    print("\n\nWARNING! RESUME is ON!!\n\n")
 
 # depricated
 spread_ban = False
@@ -4011,6 +4039,7 @@ else:
 if not test:
     if len(config_names)>0:
         list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+        print("config_names")
         print(config_names)
     #        for config_name in ins:
     #            #config_trader = retrieve_config(ins[0])
@@ -4034,7 +4063,8 @@ else:
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
 #if send_info_api:
-api = API()
+#print("API")
+#api = API()
 #else:
 #     api = None
 #     print("send_info_api")
@@ -4043,16 +4073,13 @@ api = API()
 if __name__=='__main__':
     # lauch
     if send_info_api:
-        api.post_token()
-        api.reset_activate_sessions()
+        pass
     renew_directories(C.AllAssets, running_assets)
-    if synchroned_run and send_info_api:
-        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
-#        print("api.trader_json:")
-#        print(api.trader_json)
-    queues, queues_prior = launch(synchroned_run=synchroned_run, test=test)#
+#    if synchroned_run and send_info_api:
+#        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
+    processes, queues, queues_prior = launch(synchroned_run=synchroned_run, test=test)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
         
         from kaissandra.prod.control import control
-        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api, token_header=api.build_token_header())
+        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)

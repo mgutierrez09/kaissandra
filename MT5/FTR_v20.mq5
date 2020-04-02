@@ -44,6 +44,7 @@ string directoryNameComm;
 string directoryNameRecordings;
 string directoryNameAccount;
 string chunks[];
+string posinfo[];
 
 // Define variables
 CTrade m_Trade;
@@ -63,7 +64,7 @@ long prediction;
 string TTfile;
 string LCfile;
 bool timer_bool;
-string close_type;
+string close_type="";
 //datetime currTime;
 
 double stoploss;
@@ -72,8 +73,6 @@ double sl_protect;
 double tp_protect;
 double sl_protect_prev;
 double tp_protect_prev;
-double B_sl;
-double A_sl;
 double sl_thr = 1;//0.0001; //in ratio (1 pip=0.0001)
 double slThrPips = 100;
 double tpThrPips = 1000;
@@ -111,9 +110,6 @@ void openPosition(string origin, int thisPos){
    position = thisPos;
    Bi = bid;
    Ai = ask;
-   B_sl = Bi;
-   A_sl = Ai;
-   string thisPosString;
    string message;
    if(thisPos==1){
       while(!m_Trade.Buy(lot,thisSymbol)){
@@ -135,7 +131,6 @@ void openPosition(string origin, int thisPos){
       //stoploss = -Ai*sl_thr+Bi;
       stoploss = updateSL(Ai, thisPos, slThrPips);
       takeprofit = updateTP(Ai, thisPos, tpThrPips);
-      thisPosString = "Long";
    }
    else{if(thisPos==-1){
       while(!m_Trade.Sell(lot,thisSymbol)){
@@ -156,7 +151,6 @@ void openPosition(string origin, int thisPos){
       //stoploss = Bi*sl_thr+Ai;
       stoploss = updateSL(Bi, thisPos, slThrPips);
       takeprofit = updateTP(Bi, thisPos, tpThrPips);
-      thisPosString = "Short";
    }
       else{
          Print("ERROR! Position cannot be zero");
@@ -179,8 +173,6 @@ void openPosition(string origin, int thisPos){
    message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStat,dif_ticks,Bi_soll, 
          Bi,Ai_soll,Ai,stoploss,(Ai-Bi)/Ai);
    Print(message);
-   //writeLog(message);
-   //Print(origin," ",thisPosString,". Number events ",nEventsPerStat," Ticks diff ",dif_ticks," Bi soll ",Bi_soll, " Bi ist ",Bi," Ai soll ",Ai_soll," Ai ",Ai," SL ",stoploss, " SP ",(Ai-Bi)/Ai);
 }
 
 
@@ -191,6 +183,15 @@ void closePosition(){
    //while(!executed && position!=0){
    if(m_Trade.PositionClose(thisSymbol))
       executed = 1;
+   else{
+      // Send Warning message to trader that execution wasn't successful
+      int fh = FileOpen(directoryNameComm+"WARNING",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+      if(fh>0){
+         FileWrite(fh,"POSITION NOT CLOSED");
+         FileClose(fh);
+      }
+      
+   }
    message = StringFormat("Close position executed: %d",executed);
    Print(message);
       //writeLog(message);
@@ -219,6 +220,11 @@ void closePosition(){
    else{
       message = "WARNING! Try to close position but no position is open. Skipped";
       Print(message);
+      // Send CL in case it's unsynched with trader
+      filename = "CL";
+      filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+      FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),position,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0.0,0.0,0);
+      FileClose(filehandleTest);
       //writeLog(message);
    }
 
@@ -325,8 +331,8 @@ void checkForOpening(){
             
       }
       else{if(FileIsExist(directoryNameLive+TTfile)==1){
-         message = "WARNING! TT found but closing in progress. Opening delayed";
-         Print(message);
+         //message = "WARNING! TT found but closing in progress. Opening delayed";
+         //Print(message);
          //writeLog(message);
       }
       
@@ -469,7 +475,7 @@ int OnInit()
    ask = 1.0;
    ulong m_slippage = 100;                // slippage
    
-   timer_bool = EventSetMillisecondTimer(10);
+   timer_bool = EventSetMillisecondTimer(100);
    m_Trade.SetDeviationInPoints(m_slippage);
 
    TTfile = "TT";// trade trigger file signalling
@@ -491,8 +497,11 @@ int OnInit()
    // Generate file name
    stringThisDate = StringFormat("%4d%02d%02d%02d%02d%02d",timeStruct.year,timeStruct.mon,timeStruct.day,timeStruct.hour,timeStruct.min,timeStruct.sec);
    filename = thisSymbol+"_"+stringThisDate+".txt";
-   //Print(stringThisDate);
-   // init file
+   
+   filehandle_record=FileOpen(directoryNameLive+"//0RESET",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+   FileClose(filehandle_record); 
+   //FileWrite(filehandle_record,"DateTime","SymbolBid","SymbolAsk");
+   
    filehandle_record=FileOpen(directoryNameRecordings+"//"+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
    FileWrite(filehandle_record,"DateTime","SymbolBid","SymbolAsk");
    // init log file
@@ -501,6 +510,27 @@ int OnInit()
    
    logfilename = thisSymbol+"_"+stringThisDate+".log";
    filehandlelog = FileOpen(directoryNameLog+logfilename,FILE_WRITE|FILE_CSV|FILE_ANSI);
+   
+   // check if position was left open
+   if(FileIsExist(directoryNameComm+"POSSTATE.txt")==1 ){
+      int fh = FileOpen(directoryNameComm+"POSSTATE.txt",FILE_READ|FILE_ANSI);
+      string info = FileReadString(fh);
+      Print(info);
+      int k = StringSplit(info,StringGetCharacter(",",0),posinfo);
+      FileClose(fh);
+      
+      position = (int)StringToInteger(posinfo[0]);
+      deadline = StringToInteger(posinfo[1]);
+      Bi = StringToDouble(posinfo[2]);
+      Ai = StringToDouble(posinfo[3]);
+      dif_ticks = StringToInteger(posinfo[4]);
+      nEventsPerStat = StringToInteger(posinfo[5]);
+      stoploss = StringToDouble(posinfo[6]);
+      takeprofit = StringToDouble(posinfo[7]);
+      lot = StringToDouble(posinfo[8]);
+      
+      while(!FileDelete(directoryNameComm+"POSSTATE.txt"));
+   }
    
    saveAccountInfo();
    
@@ -525,6 +555,17 @@ void OnDeinit(const int reason)
    if(FileIsExist(directoryNameComm+"POSINFO.txt")==1 ){
       while(!FileDelete(directoryNameComm+"POSINFO.txt"));
     }
+   
+   if(FileIsExist(directoryNameComm+"WARNING")==1 ){
+      while(!FileDelete(directoryNameComm+"WARNING"));
+   }
+   
+   // Save position state if open
+   if (position!=0){
+      int fh = FileOpen(directoryNameComm+"POSSTATE.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+      FileWrite(fh,position,deadline,Bi,Ai,dif_ticks,nEventsPerStat,stoploss,takeprofit,lot);
+      FileClose(fh);
+   }
    
   }
   
@@ -750,15 +791,18 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
       //if(deal_symbol==m_symbol.Name() && deal_magic==EXPERT_MAGIC)
       if(deal_entry==DEAL_ENTRY_OUT && deal_symbol==thisSymbol)
       {
-         
          saveAccountInfo();
          real_profit = deal_profit;
          // calulate real GROI and ROI
          //profit = ROI*lot*lot_in_eur/100;
-         ROI = 100*real_profit/(lot*lot_in_eur);
+         ROI = 100*real_profit/(deal_volume*lot_in_eur);
          GROI = ROI+spread;
          
          double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+         // check if close type is manual
+         if (close_type==""){
+            close_type = "MA";
+         }
          //PrintFormat("Real profit: %.2f",real_profit);
          string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f swap %.2f",
                                        close_type,position,Bi,Bi_soll,Ai,Ai_soll,bid,ask,spread,GROI,ROI,profit,dif_ticks,real_profit,equity,swap);
@@ -778,8 +822,13 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          if(FileIsExist(directoryNameComm+"POSINFO.txt")==1 ){
             while(!FileDelete(directoryNameComm+"POSINFO.txt"));
           }
+          
+         if(FileIsExist(directoryNameComm+"WARNING")==1 ){
+            while(!FileDelete(directoryNameComm+"WARNING"));
+         }
          
          position = 0;
+         close_type = "";
          
          closingInProgress = false;
          

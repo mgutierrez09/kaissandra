@@ -9,6 +9,7 @@ import os
 import re
 import time
 import requests
+import datetime as dt
 
 def send_command(directory_MT5_ass, command, msg=''):
     """
@@ -32,13 +33,8 @@ def send_command(directory_MT5_ass, command, msg=''):
 def shutdown(id=None):
     """  """
     io_dir = LC.io_live_dir
-    # shutdown control
-    try:
-        fh = open(io_dir+'SD',"w")
-        fh.close()
-    except FileNotFoundError:
-        #print("FileNotFoundError")
-        pass
+    
+    
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -51,11 +47,40 @@ def shutdown(id=None):
             pass
     if id!=None:
         close_session(id)
+    
+        
+    return None
 
-def close_session(id):
+def shutdown_control():
+    # shutdown control
+    io_dir = LC.io_live_dir
+    try:
+        fh = open(io_dir+'SD',"w")
+        fh.close()
+    except FileNotFoundError:
+        #print("FileNotFoundError")
+        pass
+
+def hibernate():
     """  """
-    from kaissandra.prod.api import API
-    API().close_session(id)
+    io_dir = LC.io_live_dir
+    
+    
+    AllAssets = Config.AllAssets
+    for asset_key in AllAssets:
+        asset = AllAssets[asset_key]
+        
+        try:
+            fh = open(io_dir+asset+'/HIBER',"w")
+            fh.close()
+        except FileNotFoundError:
+            #print("FileNotFoundError")
+            pass
+
+#def close_session(id):
+#    """  """
+#    from kaissandra.prod.api import API
+#    API().close_session(id)
     
 def pause():
     """  """
@@ -77,13 +102,14 @@ def check_params(config_name=''):
     """  """
     io_dir = LC.io_live_dir
     AllAssets = Config.AllAssets
-    cl_command = False
-    sd_command = False
+    cl_command = False # close command
+    sd_command = False # shutdown command
+    hi_command = False # hibernate command
     if config_name=='':
         # get config from server and pass it to live session
         token = post_token()
         if token:
-            json = get_config_session(build_token_header(token))
+            json = get_config_session()
         else:
             print("WARNING! Unable to build token in check_params in kaissandra.prod.communication. Skipped.")
             return None
@@ -102,6 +128,8 @@ def check_params(config_name=''):
                 cl_command = True
             if 'SD' in commands:
                 sd_command = True
+            if 'HI' in commands:
+                hi_command = True
         if 'who' not in json or json['who']==[]:
             who = [AllAssets[a] for a in AllAssets]
         else:
@@ -119,7 +147,7 @@ def check_params(config_name=''):
 #                fh.write(config_name)
 #                fh.close()
             if config_name=='' and config and len(config)>0 and asset in who:
-                print(asset+": config saved")
+#                print(asset+": config saved")
                 
                 fh = open(io_dir+asset+'/PARAM',"w")
                 fh.write(config['config_name']+'remote')
@@ -133,7 +161,7 @@ def check_params(config_name=''):
             
             if cl_command and asset in who:
                 close_position(asset)
-                print(asset+": cl_command")
+#                print(asset+": cl_command")
         except FileNotFoundError:
             print("WARNING! "+io_dir+asset+"/ not fount")
             #print("Asset not running")
@@ -142,7 +170,10 @@ def check_params(config_name=''):
         # command is shutdown
         shutdown()
         print("shutdown")
-    if (config_name=='' and config and len(config)>0) or cl_command or sd_command:
+    if hi_command:
+        hibernate()
+        print("From kaissandra.prod.communication.check_params: hibernate")
+    if (config_name=='' and config and len(config)>0) or cl_command or sd_command or hi_command:
         set_config_session({'config':{},'commands':[],'who':[]}, build_token_header(post_token()))
     
     return None
@@ -254,6 +285,35 @@ def get_account_status():
     status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
     return status
 
+def check_for_warnings():
+    """ Check for warning messages from broker """
+    AllAssets = Config.AllAssets
+    try:
+        for asset_key in AllAssets:
+            thisAsset = AllAssets[asset_key]
+            dirfilename = LC.directory_MT5_comm+thisAsset+'/WARNING'
+            if os.path.exists(dirfilename):
+                # load network output
+                success = 0
+                while not success:
+                    try:
+                        fh = open(dirfilename,"r")
+                        info = fh.read()[:-1]
+                        # close file
+                        fh.close()
+                        success = 1
+                        #stop_timer(ass_idx)
+                    except PermissionError:
+                        print("Error reading position status")
+                msgLog = "\n\nWARNING FROM BROKER in "+": "+info+"\n\n"
+                print(thisAsset+msgLog)
+                send_monitoring_log(msgLog, thisAsset, build_token_header(post_token()))
+                
+                        
+    except:
+        print("Error in check_for_warnings in kaissandra.prod.communication. Skipped.")
+    return None
+
 def get_positions_status():
     """ Get account status from broker """
     
@@ -333,7 +393,7 @@ def send_trader_log(message, asset, token_header):
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
     except:
-        print("WARNING! Error in send_network_log die to timeout.")
+        print("WARNING! Error in send_trader_log die to timeout.")
     return None
         
 def send_monitoring_log(message, asset, token_header):
@@ -346,7 +406,7 @@ def send_monitoring_log(message, asset, token_header):
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
     except:
-        print("WARNING! Error in send_network_log die to timeout.")
+        print("WARNING! Error in send_monitoring_log die to timeout.")
     return None
         
 def send_global_log(message, token_header):
@@ -358,7 +418,7 @@ def send_global_log(message, token_header):
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
     except:
-        print("WARNING! Error in send_network_log die to timeout.")
+        print("WARNING! Error in send_global_log die to timeout.")
     return None
         
 def send_network_log(message, asset, token_header):
@@ -386,12 +446,14 @@ def set_config_session(config, token_header):
     except:
         print("WARNING! Error in send_network_log in kaissandra.prod.communication.")
         
-def get_config_session(token_header):
+def get_config_session():
     """ Send trader log to server api """
     url_ext = 'traders/sessions/get_session_config'
     try:
+        
         response = requests.get(LC.URL+url_ext, 
-                                headers=token_header, verify=True, timeout=10)
+                                headers=build_token_header(post_token()), 
+                                verify=True, timeout=10)
         #print(response.json())
         return response.json()
     except:
@@ -421,7 +483,7 @@ def send_open_position(params, session_id, token_header):
             print(response.text)
             return {}
     except:
-        print("WARNING! Error in get_config_session in kaissandra.prod.communication.")
+        print("WARNING! Error in send_open_position in kaissandra.prod.communication.")
         return None
     
 def send_extend_position(params, pos_id, token_header):
@@ -460,14 +522,16 @@ def send_not_extend_position(params, pos_id, token_header):
     
 def send_close_position(params, pos_id, dirfilename, token_header):
     """ Send close position command to server api """
+    
     url_ext = 'traders/positions/'+str(pos_id)+'/close'
     url_file = 'traders/positions/'+str(pos_id)+'/upload'
     try:
         files={'file': open(dirfilename,'rb')}
-        response = requests.put(LC.URL+url_ext, json=params, 
-                                headers=token_header, verify=True)
         response_file = requests.post(LC.URL+url_file, files=files, 
                                       headers=token_header, verify=True)
+        response = requests.put(LC.URL+url_ext, json=params, 
+                                headers=token_header, verify=True)
+        
         print("Status code: "+str(response.status_code))
         if response.status_code == 200:
     #        print(response.json())
@@ -558,6 +622,44 @@ def set_budget(token_header, id, budget):
 #        print(response.json())
     except:
         print("WARNING! Error in send_account_status of communication.py")
+        
+def open_session(config_name, sessiontype, sessiontest):
+        """ POST request to open a session """
+        sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')+\
+                      '_'+config_name
+        params_session = {'sessionname':sessionname,
+                          'sessiontype':sessiontype,
+                          'sessiontest':sessiontest}
+        try:
+            url_ext = 'traders/'+str(CC.TRADERNAME)+'/sessions'
+            response = requests.post(LC.URL+url_ext, json=params_session, 
+                                     headers=build_token_header(post_token()), 
+                                     verify=True)
+            print("Status code open_session: "+str(response.status_code))
+            if response.status_code == 200:
+    #            print(response.json())
+#                self.session_json = response.json()['Session'][0]
+                return response.json()['Session'][0]
+            else:
+                print(response.text)
+            return None
+        except:
+            print("WARNING! Error in open_session in kaissandra.prod.communication")
+            return None
+    
+def close_session(session_json):
+    """  PUT request to close session """
+    id = session_json['id']
+    url_ext = 'traders/sessions/'+str(id)+'/close'
+    response = requests.put(LC.URL+url_ext, 
+                            headers=build_token_header(post_token()), 
+                            verify=True)
+    print("Status code close_session: "+str(response.status_code))
+    if response.status_code == 200:
+        return True
+    else:
+        print(response.text)
+    return False
         
 from kaissandra.config import retrieve_config, Config, save_config
 from kaissandra.local_config import local_vars as LC
