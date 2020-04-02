@@ -36,7 +36,7 @@ def listener_process(queue, configurer):
             traceback.print_exc(file=sys.stderr)
     print("EXIT Log queue")
 
-def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False, token_header=None):
+def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
@@ -61,6 +61,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
     listener = Process(target=listener_process, args=(log_queue, config_logger_online))
     listener.start()
     
+    token_header = ct.build_token_header(ct.post_token())
     # launch queue listeners as independent processes
     kwargs = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':False}
     kwargs_prior = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':True}
@@ -122,10 +123,10 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
             os.remove(directory_io+'SD')
             # shutting down queues
             log_queue.put(None)
-            for q, queue in enumerate(queues):
-                queue_prior = queues_prior[q]
-                queue.put({'FUNC':'SD'})
-                queue_prior.put({'FUNC':'SD'})
+#            for q, queue in enumerate(queues):
+#                queue_prior = queues_prior[q]
+#                queue.put({'FUNC':'SD'})
+#                queue_prior.put({'FUNC':'SD'})
             run = False
         
     print("EXIT control")
@@ -173,25 +174,30 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 else:
                     print("WARNING! id NOT in position_json")
             elif info["EVENT"] == "EXTEND":
-                if info["ASSET"] in assets_opened:
-                    pos_id = assets_opened[info["ASSET"]]
-                    ct.send_extend_position(params, pos_id, token_header)
-                else:
-                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
+                ct.send_extend_position(params, info["ASSET"], token_header)
+#                if info["ASSET"] in assets_opened:
+#                    pos_id = assets_opened[info["ASSET"]]
+#                    ct.send_extend_position(params, pos_id, token_header)
+#                    
+#                else:
+#                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
             elif info["EVENT"] == "NOTEXTEND":
-                if info["ASSET"] in assets_opened:
-                    pos_id = assets_opened[info["ASSET"]]
-                    ct.send_not_extend_position(params, pos_id, token_header)
-                else:
-                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
+                ct.send_not_extend_position(params, info["ASSET"], token_header)
+#                if info["ASSET"] in assets_opened:
+#                    pos_id = assets_opened[info["ASSET"]]
+#                    ct.send_not_extend_position(params, pos_id, token_header)
+#                else:
+#                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
             elif info["EVENT"] == "CLOSE":
-                if info["ASSET"] in assets_opened:
-                    pos_id = assets_opened[info["ASSET"]]
-                    dirfilename = info["DIRFILENAME"]
-                    ct.send_close_position(params, pos_id, dirfilename, 
-                                           token_header)
-                else:
-                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_close_position skipped.")
+                dirfilename = info["DIRFILENAME"]
+                ct.send_close_position(params, info["ASSET"], dirfilename, token_header)
+#                if info["ASSET"] in assets_opened:
+#                    pos_id = assets_opened[info["ASSET"]]
+#                    dirfilename = info["DIRFILENAME"]
+#                    ct.send_close_position(params, pos_id, dirfilename, 
+#                                           token_header)
+#                else:
+#                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_close_position skipped.")
             else:
                 print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
                 

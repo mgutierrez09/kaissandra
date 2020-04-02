@@ -353,7 +353,8 @@ class Trader:
     
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  log_file, results_dir="", max_opened_positions=None, 
-                 start_time='', config_name='',net2strategy=[], queue=None, queue_prior=None):
+                 start_time='', config_name='',net2strategy=[], 
+                 queue=None, queue_prior=None, session_json=None):
         
         self.list_opened_positions = []
         self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
@@ -468,6 +469,7 @@ class Trader:
         #self.api = api
         self.queue = queue
         self.queue_prior = queue_prior
+        self.session_json = session_json
     
     def get_account_status(self):
         """ Get account status from broker """
@@ -1091,8 +1093,7 @@ class Trader:
                   'strategyname':self.list_opened_positions[-1].strategy.name,
                   'p_mc':self.list_opened_positions[-1].p_mc,
                   'p_md':self.list_opened_positions[-1].p_md}
-        self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":api.session_json['id'],"PARAMS":params})
-        #api.open_position(params, asynch=True)
+        self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
         
     def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                             direction, strategy, roi, ticks):
@@ -1107,7 +1108,6 @@ class Trader:
                   'strategyname':strategy,
                   'roi':roi}
         self.queue_prior.put({"FUNC":"POS","EVENT":"EXTEND","ASSET":thisAsset,"PARAMS":params})
-        #api.extend_position(thisAsset, params, asynch=True)
         
     def send_not_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                                 direction, strategy, roi, ticks):
@@ -1143,7 +1143,6 @@ class Trader:
                 }
         print("Sent CLOSE through priority queue")
         self.queue_prior.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params})
-        #api.close_postition(thisAsset, params, dirfilename, asynch=True)
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename=''):
@@ -1853,7 +1852,6 @@ class Trader:
                 print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-#                    api.send_network_log(out)
                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
             if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
                 self.lift_ban_asset(ass_idx)
@@ -1862,7 +1860,6 @@ class Trader:
                     print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-#                    api.send_network_log(out)
                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":out})
         else:
             logMsg = entry[entry_time_column]+" "+\
@@ -1872,7 +1869,6 @@ class Trader:
                 print("\r"+out)
             self.write_log(out)
             if send_info_api:
-#                api.send_network_log(out)
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
     
     def lift_ban_asset(self, ass_idx):
@@ -2290,7 +2286,6 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             write_log(out, log_file)
                         if send_info_api:
                             queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":out})
-                                #api.send_network_log(out)
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -2596,20 +2591,24 @@ def send_close_command(asset):
             except PermissionError:
                 print("Error writing LC")
 
-def save_images(asset, lists, trader):
-    """  """
-    backup_dir_ass = LC.backup_live_dir+asset+'/'
+def save_snapshot(asset, lists, trader):
+    """ Save session snapshot for later resume """
+    snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
     # save network image
-    pickle.dump( lists, open( backup_dir_ass+"netImage.p", "wb" ))
+    #pickle.dump( lists, open( backup_dir_ass+"netImage.p", "wb" ))
     trader_dict = vars(trader)
     del trader_dict['queue']
     del trader_dict['queue_prior']
     print(trader_dict)
-    pickle.dump( trader_dict, open( backup_dir_ass+"tradeImage.p", "wb" ))
-    print("Images saved in "+backup_dir_ass)
+    pickle.dump( {'trader':trader_dict,
+                  'network':lists}, open( snapshot_dir_ass+"snapshot.p", "wb" ))
+    print("Snapshot saved in "+snapshot_dir_ass)
     # save trader image
 #    list_trader_attrs = [a for a in dir(trader) if not a.startswith('__') and not callable(getattr(trader, a))]
-    
+
+def load_snapshot():
+    """  """
+    pass
 
 def fetch(lists, list_models, trader, directory_MT5, AllAssets, 
           running_assets, log_file, results, queue, queue_prior):
@@ -2665,6 +2664,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     success = 1
                 else:
                     print(thisAsset+" WARNING! Buffer size not 10. Skipped")
+                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
                     
             except (FileNotFoundError,PermissionError,OSError):
                 # reset coming from Broker
@@ -2699,13 +2699,14 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if len(trader.list_opened_positions)>0:
                     delayed_stop_run = True
                 else:
-                    
+                    queue.put({"FUNC":"SD"})
+                    queue_prior.put({"FUNC":"SD"})
                     # save network lists dictionary
-                    save_images(thisAsset, lists, trader)
+                    save_snapshot(thisAsset, lists, trader)
                     run = False
                 # close session
                 if send_info_api:
-                    api.close_session()
+                    close_session(trader.session_json)
                 time.sleep(5*np.random.rand(1)+1)
                 
             if count10s[ass_idx]==6 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
@@ -2729,7 +2730,18 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                    logMsg = " Parameters updated"
 #                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                 
-                
+            # check hibernate command
+            if count10s[ass_idx]==106 and os.path.exists(io_ass_dir+'HIBER'):
+                logMsg = " HIBERNATING"
+                out = thisAsset+logMsg
+                print(out)
+                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+                os.remove(io_ass_dir+'HIBER')
+                queue.put({"FUNC":"SD"})
+                queue_prior.put({"FUNC":"SD"})
+                # save network lists dictionary
+                save_snapshot(thisAsset, lists, trader)
+                run = False
                 
                 
             # update file extension
@@ -2887,7 +2899,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                DateTime = info_split[2]
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
-                swap = float(info_close[12])
+                swap = float(info_split[14])
                 trader.close_position(info_split[2], thisAsset, ass_id, results, 
                                       DTi_real=info_split[1], groiist=float(info_split[9]), 
                                       roiist=float(info_split[11]), swap=swap)
@@ -2897,7 +2909,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
                 if delayed_stop_run:
-                    save_images(thisAsset, lists, trader)
+                    queue.put({"FUNC":"SD"})
+                    queue_prior.put({"FUNC":"SD"})
+                    save_snapshot(thisAsset, lists, trader)
                     run = False
                 
             elif flag_sl:
@@ -2944,10 +2958,6 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
                 
-        # Communicate with server to update structures
-        # TODO: Only enter once a sec (or every 10 secs)
-#        if send_info_api:
-#            api.parameters_enquiry()
     
     # end of while run
     budget = get_intermediate_results(trader, AllAssets, running_assets, tic, results)
@@ -3115,8 +3125,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             if config_name=='':
                 # read from remote
                 try:
-#                    api.parameters_enquiry(asynch=True)
-                    json = get_config_session(api.build_token_header())
+                    json = get_config_session()
                     config = json['config']
                     print(config)
                     if config and len(config)>0:
@@ -3133,8 +3142,6 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                 config = retrieve_config(config_name)
                 trader.update_parameters(config, thisAsset)
             
-            #api.parameters_enquiry(asynch=True)
-            
         ###################### End of Trader ###########################
         event_idx += 1
         # A pause to avoid communication congestion with server
@@ -3144,7 +3151,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # get intermediate results
         get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
     if send_info_api:
-        api.close_session()
+        close_session(trader.session_json)
     return shutdown
 
 def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
@@ -3302,12 +3309,9 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         raise ValueError("Live execution not compatible with more than one trader")
     
     # init futures session of API
-    if send_info_api:
-        api.post_token()
-        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
-#        print("api.trader_json:")
-#        print(api.trader_json)
-        api.init_future_session()
+#    if send_info_api:
+#        api.post_token()
+#        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
     # directories
     if run_back_test:
         dir_results = LC.live_results_dict+"back_test/"    
@@ -3324,9 +3328,9 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     AllAssets = C.AllAssets
     for ass in AllAssets:
         asset = AllAssets[ass]
-        backup_dir_ass = LC.backup_live_dir+asset+'/'
-        if not os.path.exists(backup_dir_ass):
-            os.makedirs(backup_dir_ass)
+        snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
+        if not os.path.exists(snapshot_dir_ass):
+            os.makedirs(snapshot_dir_ass)
     # unique network list
     unique_nets = []
     list_models = []
@@ -3757,13 +3761,13 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                 trader = Trader(running_assets,
                                 ass2index_mapping, list_strategies[idx_tr], 
                                 log_file, results_dir=dir_results, 
-                                start_time=start_time, config_name=config_trader['config_name'],
+                                start_time=start_time, config_name=config_name,
                                 net2strategy=list_net2strategy[idx_tr], 
                                 queue=queue, queue_prior=queue_prior, 
                                 max_opened_positions=max_opened_positions)#, api=api
                 # pass trader to api
-                if send_info_api:
-                    api.init_trader(trader)
+#                if send_info_api:
+#                    api.init_trader(trader)
 #                    if not os.path.exists(trader.log_file):
 #                        write_log(out, trader.log_file)
 #                        write_log(out, trader.log_summary)
@@ -3850,32 +3854,35 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
 #            pickle.dump( lists, open( LC.io_live_dir+AllAssets[str(running_assets[0])]+"/lists.p", "wb" ))
         #lists['list_feats_from'] = list_feats_from
         # init traders
+        session_json = open_session(config_name, sessiontype, test)
+        #traders = []
+        #for idx_tr, config_trader in enumerate(config_traders_list):
+        trader = Trader(running_assets,
+                        ass2index_mapping, list_strategies[idx_tr], 
+                        log_file, results_dir=dir_results, session_json=session_json,
+                        start_time=start_time, config_name=config_name,
+                        net2strategy=list_net2strategy[idx_tr], queue=queue, 
+                        queue_prior=queue_prior, max_opened_positions=max_opened_positions)
+
+        # Resume after hibernation
+        snapshot_filename = LC.snapshot_live_dir+AllAssets[str(running_assets[0])]+"/snapshot.p"
+        if resume:
+            if os.path.exists(snapshot_filename):
+                # Load
+                # WARNING! Not compatible with more than one asset per trader
+                print("Loading "+snapshot_filename)
+                snapshot = pickle.load( open( snapshot_filename, "rb" ))
+                lists = snapshot['network']
+                for attr in snapshot['trader']:
+                    setattr(trader, attr, snapshot['trader'][attr])
+            else:
+                print("\n\n"+AllAssets[str(running_assets[0])]+" WARNING! Snapshot does not exist. Skipped.\n\n")
         
-        traders = []
-        for idx_tr, config_trader in enumerate(config_traders_list):
-            trader = Trader(running_assets,
-                            ass2index_mapping, list_strategies[idx_tr], 
-                            log_file, results_dir=dir_results, 
-                            start_time=start_time, config_name=config_trader['config_name'],
-                            net2strategy=list_net2strategy[idx_tr], queue=queue, 
-                            queue_prior=queue_prior, max_opened_positions=max_opened_positions)
-                
-#                if not os.path.exists(trader.log_file):
-#                    write_log(out, trader.log_file)
-#                    write_log(out, trader.log_summary)
-            if send_info_api:
-                 api.init_trader(trader)  
-            traders.append(trader)
-        
-#            trader = Trader(running_assets,
-#                                ass2index_mapping, strategies, AllAssets, 
-#                                log_file, results_dir=dir_results, 
-#                                start_time=start_time)
         # launch fetcher
         fetch(lists, list_models, trader, LC.directory_MT5_IO, AllAssets, 
               running_assets, log_file, results, queue, queue_prior)
     
-    for idx, trader in enumerate(traders):
+    for idx in range(1):
         # gather results
         total_entries = int(np.sum(list_results[idx].number_entries))
         total_successes = int(np.sum(list_results[idx].net_successes))
@@ -3973,7 +3980,9 @@ import shutil
 from kaissandra.local_config import local_vars as LC
 #if send_info_api:
 from kaissandra.prod.api import API
-from kaissandra.prod.communication import get_config_session
+from kaissandra.prod.communication import get_config_session, \
+                                          open_session, \
+                                          close_session
 from kaissandra.config import Config as C
 # runLive in multiple processes
 from multiprocessing import Process, Queue
@@ -3992,6 +4001,9 @@ if hasattr(LC,'CRISIS_MODE'):
 else:
     print("\n\nWARNING! Crisis mode not in LC\n\n")
     crisis_mode = False
+resume = LC.RESUME
+if resume:
+    print(print("\n\nWARNING! RESUME is ON!!\n\n"))
 
 # depricated
 spread_ban = False
@@ -4011,6 +4023,7 @@ else:
 if not test:
     if len(config_names)>0:
         list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+        print("config_names")
         print(config_names)
     #        for config_name in ins:
     #            #config_trader = retrieve_config(ins[0])
@@ -4034,6 +4047,7 @@ else:
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
 #if send_info_api:
+print("API")
 api = API()
 #else:
 #     api = None
@@ -4043,16 +4057,13 @@ api = API()
 if __name__=='__main__':
     # lauch
     if send_info_api:
-        api.post_token()
-        api.reset_activate_sessions()
+        pass
     renew_directories(C.AllAssets, running_assets)
-    if synchroned_run and send_info_api:
-        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
-#        print("api.trader_json:")
-#        print(api.trader_json)
+#    if synchroned_run and send_info_api:
+#        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
     queues, queues_prior = launch(synchroned_run=synchroned_run, test=test)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
         
         from kaissandra.prod.control import control
-        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api, token_header=api.build_token_header())
+        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)

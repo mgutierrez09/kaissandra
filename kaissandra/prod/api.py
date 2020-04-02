@@ -46,13 +46,13 @@ class API():
         print(self.verify_url)
         #self.post_token()
         
-    def init_trader(self, trader):
-        """ Init session trader """
-        self.trader = trader
+#    def init_trader(self, trader):
+#        """ Init session trader """
+#        self.trader = trader
         
-    def init_future_session(self):
-        """  """
-        self.futureSession = FuturesSession()
+#    def init_future_session(self):
+#        """  """
+#        self.futureSession = FuturesSession()
     
     def intit_all(self, config_trader, ass_idx, sessiontype, sessiontest=False):
         """ Init trader, strategy, networks, session and assets """
@@ -284,301 +284,301 @@ class API():
             print(response.text)
         return False
     
-    def open_position(self, params, asynch=False):
-        """ POST request to open a position """
-        try:
-            # check if close position waiting to be retrieved
-            if asynch and params['asset'] in self.list_asset_positions:
-                id_list_futures = self.list_asset_positions.index(params['asset'])
-                self.retrieve_response_close_position(params['asset'], id_list_futures)
-            if not self.token or not self.session_json or 'id' not in self.session_json:
-                return False
-            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/positions/open'
-            if not asynch:
-                response = requests.post(LC.URL+url_ext, json=params, headers=
-                                             self.build_token_header(), verify=self.verify_url)
-                print("Status code open_position: "+str(response.status_code))
-                if response.status_code == 200:
-#                    print(response.json())
-                    self.positions_json_list.append(response.json()['Position'][0])
-                    return True
-                else:
-                    print(response.text)
-                return False
-            # asynch
-            self.list_futures.append(self.futureSession.post(LC.URL+url_ext, 
-                                    json=params, headers=self.build_token_header(), verify=self.verify_url, timeout=10))
-            # add position asset as identifier
-            self.list_asset_positions.append(params['asset'])
-            self.list_lastevent_positions.append('open')
-            return True
-        except:
-            print("WARNING! Error when requesting opening position. Skiiped")
-            return False
-    
-    def retrieve_response_open_position(self, assetname, id_list_futures):
-        """ Retrieve position request response from futures """
-        try:
-            response = self.list_futures[id_list_futures].result()
-        except :
-            print("WARNING! Timeout eror in retrieve_response_open_position. Skipping connection")
-            return False
-        # print result
-        print("Status code retrieve_response_open_position: "+str(response.status_code))
-        if response.status_code == 200:
-#            print(response.json())
-            self.positions_json_list.append(response.json()['Position'][0])
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            return True
-        else:
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            print(response.text)
-        return False
-    
-    def extend_position(self, assetname, params, asynch=False):
-        """ PUT request to extend a position """
-        # retrieve previous event if asynch
-        try:
-            if asynch:
-                id_list_futures = self.list_asset_positions.index(assetname)
-                if self.list_lastevent_positions[id_list_futures] == 'open':
-                    self.retrieve_response_open_position(assetname, id_list_futures)
-                elif self.list_lastevent_positions[id_list_futures] == 'extend':
-                    self.retrieve_response_extend_position(assetname, id_list_futures)
-            id = [pos['id'] for pos in self.positions_json_list if \
-                  pos['asset']==assetname and not pos['closed']][0]
-            url_ext = 'traders/positions/'+str(id)+'/extend'
-            if not asynch:
-                response = requests.post(LC.URL+url_ext, json=params, headers=
-                                             self.build_token_header(), verify=self.verify_url)
-                print("Status code extend_position: "+str(response.status_code))
-                if response.status_code == 200:
-#                    print(response.json())
-                    id_list = [i for i in range(len(self.positions_json_list)) if \
-                               self.positions_json_list[i]['asset']==assetname and not \
-                               self.positions_json_list[i]['closed']][0]
-                    self.positions_json_list[id_list] = response.json()['Position'][0]
-                    return True
-                else:
-                    print(response.text)
-                return False
-            # asynch
-            self.list_futures.append(self.futureSession.post(LC.URL+url_ext, json=params,#{'groi':params['groi']} 
-                                    headers=self.build_token_header(), verify=self.verify_url, timeout=10))
-            #print(self.list_futures)
-            # add position asset as identifier
-            self.list_asset_positions.append(assetname)
-            self.list_lastevent_positions.append('extend')
-            return True
-        except:
-            print("WARNING! Error when requesting extending position. Skipped")
-            return False
-    
-    def retrieve_response_extend_position(self, assetname, id_list_futures):
-        """ Retrieve position request response from futures """
-        #try:
-        response = self.list_futures[id_list_futures].result()
-        #except :
-            #print("WARNING! Timeout eror in retrieve_response_extend_position. Skipping connection")
-            #return False
-        # print result
-        print("Status code retrieve_response_extend_position: "+str(response.status_code))
-        if response.status_code == 200:
-#            print(response.json())
-            id_list = [i for i in range(len(self.positions_json_list)) if \
-                           self.positions_json_list[i]['asset']==assetname and not \
-                           self.positions_json_list[i]['closed']][0]
-            self.positions_json_list[id_list] = response.json()['Position'][0]
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            return True
-        else:
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            print(response.text)
-        return False
-    
-    def close_postition(self, assetname, params, dirfilename, asynch=False):
-        """ PUT request to extend a position """
-        # retrieve previous event if asynch
-        try:
-            if asynch:
-                id_list_futures = self.list_asset_positions.index(assetname)
-                if self.list_lastevent_positions[id_list_futures] == 'open':
-                    self.retrieve_response_open_position(assetname, id_list_futures)
-                elif self.list_lastevent_positions[id_list_futures] == 'extend':
-                    self.retrieve_response_extend_position(assetname, id_list_futures)
-            # prepare file for upload
-#            files = {'file':open(dirfilename, 'rb'), 'data':('json',json.dumps(params))}
-            files={'file': open(dirfilename,'rb')}
-            id = [pos['id'] for pos in self.positions_json_list if \
-                  pos['asset']==assetname and not pos['closed']][0]
-            url_ext = 'traders/positions/'+str(id)+'/close'
-            url_file = 'traders/positions/'+str(id)+'/upload'
-            if not asynch:
-                response = requests.put(LC.URL+url_ext, json=params, 
-                                        headers=self.build_token_header(), verify=self.verify_url)
-                response_file = requests.post(LC.URL+url_file, files=files, 
-                                        headers=self.build_token_header(), verify=self.verify_url)
-                print("Status code close_postition: "+str(response.status_code))
-                if response.status_code == 200:
-#                    print(response.json())
-                    id_list = [i for i in range(len(self.positions_json_list)) if \
-                               self.positions_json_list[i]['asset']==assetname and not\
-                               self.positions_json_list[i]['closed']][0]
-                    self.positions_json_list[id_list] = response.json()['Position'][0]
-                    if response_file.status_code != 200:
-                        print("WARNING! File not saved in DB")
-                    return True
-                else:
-                    print(response.text)
-                return False
-            # asynch
-            self.list_futures.append(self.futureSession.put(LC.URL+url_ext, 
-                                        json=params, 
-                                        headers=self.build_token_header(), verify=self.verify_url, timeout=10))
-            self.futureSession.post(LC.URL+url_file, 
-                                        files=files, 
-                                        headers=self.build_token_header(), verify=self.verify_url, timeout=10)
-    
-            # add position asset as identifier
-            self.list_asset_positions.append(assetname)
-            self.list_lastevent_positions.append('close')
-            return True
-        except:
-            print("WARNING! Error when requesting closing position. Skiiped")
-            return False
-            
-    
-    def retrieve_response_close_position(self, assetname, id_list_futures):
-        """ Retrieve position request response from futures """
-        try:
-            response = self.list_futures[id_list_futures].result()
-        except :
-            print("WARNING! Timeout eror in retrieve_response_close_position. Skipping connection")
-            return False
-        # print result
-        print("Status code retrieve_response_close_position: "+str(response.status_code))
-        if response.status_code == 200:
-#            print(response.json())
-            id_list = [i for i in range(len(self.positions_json_list)) if \
-                           self.positions_json_list[i]['asset']==assetname and not \
-                           self.positions_json_list[i]['closed']][0]
-            self.positions_json_list[id_list] = response.json()['Position'][0]
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            return True
-        else:
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            print(response.text)
-        return False
-    
-    def send_trader_log(self, message):
-        """ Send trader log to server """
-        url_ext = 'logs/traders'
-        try:
-            response = requests.post(LC.URL+url_ext, json={'Message':message,'Name':self.trader_json['tradername']},
-                                    headers=self.build_token_header(), verify=self.verify_url, timeout=10)
-#            print(response.json())
-        except:
-            print("WARNING! Error in send_network_log die to timeout.")
-        
-    def send_network_log(self, message):
-        """ Send network log to server """
-        url_ext = 'logs/networks'
-#        self.futureSession.post(LC.URL+url_ext, json={'Message':message},
-#                                headers=self.build_token_header(), verify=False, timeout=10)
-        try:
-            response = requests.post(LC.URL+url_ext, json={'Message':message},
-                                    headers=self.build_token_header(), verify=self.verify_url, timeout=10)
-#            print(response.json())
-        except:
-            print("WARNING! Error in send_network_log die to timeout.")
-            
-    def reset_activate_sessions(self):
-        """  """
-        url_ext = 'traders/sessions/reset'
-        response = requests.put(LC.URL+url_ext, headers=
-                                     self.build_token_header(), verify=self.verify_url)
-#        print(response.json())
-            
-    def parameters_enquiry(self, asynch=False):
-        """ Enquire strategy parameters in case of external manipulation """
-        # retrieve previous event if asynch
-        try:
-            # check if parameters enquiry waiting to be retrieved
-            if asynch and 'PARAMS' in self.list_asset_positions:
-                id_list_futures = self.list_asset_positions.index('PARAMS')
-                self.retrieve_response_parameters_enquiry(id_list_futures)
-            if not self.token or not self.session_json or 'id' not in self.session_json:
-                return False
-            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/get_params'
-            if not asynch:
-                response = requests.get(LC.URL+url_ext, headers=self.build_token_header(), verify=self.verify_url)
-                #print("Status code: "+str(response.status_code))
-                if response.status_code == 200:
-                    #print(response.json())
-                    #self.positions_json_list.append(response.json()['params'])#[0]
-                    return True
-                else:
-                    pass
-                    #print(response.text)
-                return False
-            # asynch
-            self.list_futures.append(self.futureSession.get(LC.URL+url_ext, 
-                                    headers=self.build_token_header(), 
-                                    verify=self.verify_url, timeout=10))
-            # add position asset as identifier
-            self.list_asset_positions.append('PARAMS')
-            self.list_lastevent_positions.append('null')
-            return True
-        except:
-            print("WARNING! Error when enquiring parameters. Skiiped")
-            return False
-        
-    def retrieve_response_parameters_enquiry(self, id_list_futures):
-        """ Retrieve response parameters enquiry """
-        try:
-            response = self.list_futures[id_list_futures].result()
-        except :
-            print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
-            return False
-        # print result
-        print("Status code retrieve_response_parameters_enquiry: "+str(response.status_code))
-        if response.status_code == 200:
-#            print(response.json())
-            params = response.json()['params']#[0]
-            #self.positions_json_list.append(params)
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            # update params
-            self.update_trader_params(params)
-            return True
-        else:
-            del self.list_futures[id_list_futures]
-            del self.list_asset_positions[id_list_futures]
-            del self.list_lastevent_positions[id_list_futures]
-            print(response.text)
-        return False
-    
-    def update_trader_params(self, params):
-        """ Update parameters from trader if externally updated """
-        for param in params:
-            if param == 'lots':
-                print("LOTS UPDATED")
-                for s in range(len(self.trader.strategies)):
-                    self.trader.strategies[s].max_lots_per_pos = params['lots']
-            elif param == 'stoploss':
-                print("SL UPDATED")
-                for s in range(len(self.trader.strategies)):
-                    self.trader.strategies[s].thr_sl = params['stoploss']
+#    def open_position(self, params, asynch=False):
+#        """ POST request to open a position """
+#        try:
+#            # check if close position waiting to be retrieved
+#            if asynch and params['asset'] in self.list_asset_positions:
+#                id_list_futures = self.list_asset_positions.index(params['asset'])
+#                self.retrieve_response_close_position(params['asset'], id_list_futures)
+#            if not self.token or not self.session_json or 'id' not in self.session_json:
+#                return False
+#            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/positions/open'
+#            if not asynch:
+#                response = requests.post(LC.URL+url_ext, json=params, headers=
+#                                             self.build_token_header(), verify=self.verify_url)
+#                print("Status code open_position: "+str(response.status_code))
+#                if response.status_code == 200:
+##                    print(response.json())
+#                    self.positions_json_list.append(response.json()['Position'][0])
+#                    return True
+#                else:
+#                    print(response.text)
+#                return False
+#            # asynch
+#            self.list_futures.append(self.futureSession.post(LC.URL+url_ext, 
+#                                    json=params, headers=self.build_token_header(), verify=self.verify_url, timeout=10))
+#            # add position asset as identifier
+#            self.list_asset_positions.append(params['asset'])
+#            self.list_lastevent_positions.append('open')
+#            return True
+#        except:
+#            print("WARNING! Error when requesting opening position. Skiiped")
+#            return False
+#    
+#    def retrieve_response_open_position(self, assetname, id_list_futures):
+#        """ Retrieve position request response from futures """
+#        try:
+#            response = self.list_futures[id_list_futures].result()
+#        except :
+#            print("WARNING! Timeout eror in retrieve_response_open_position. Skipping connection")
+#            return False
+#        # print result
+#        print("Status code retrieve_response_open_position: "+str(response.status_code))
+#        if response.status_code == 200:
+##            print(response.json())
+#            self.positions_json_list.append(response.json()['Position'][0])
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            return True
+#        else:
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            print(response.text)
+#        return False
+#    
+#    def extend_position(self, assetname, params, asynch=False):
+#        """ PUT request to extend a position """
+#        # retrieve previous event if asynch
+#        try:
+#            if asynch:
+#                id_list_futures = self.list_asset_positions.index(assetname)
+#                if self.list_lastevent_positions[id_list_futures] == 'open':
+#                    self.retrieve_response_open_position(assetname, id_list_futures)
+#                elif self.list_lastevent_positions[id_list_futures] == 'extend':
+#                    self.retrieve_response_extend_position(assetname, id_list_futures)
+#            id = [pos['id'] for pos in self.positions_json_list if \
+#                  pos['asset']==assetname and not pos['closed']][0]
+#            url_ext = 'traders/positions/'+str(id)+'/extend'
+#            if not asynch:
+#                response = requests.post(LC.URL+url_ext, json=params, headers=
+#                                             self.build_token_header(), verify=self.verify_url)
+#                print("Status code extend_position: "+str(response.status_code))
+#                if response.status_code == 200:
+##                    print(response.json())
+#                    id_list = [i for i in range(len(self.positions_json_list)) if \
+#                               self.positions_json_list[i]['asset']==assetname and not \
+#                               self.positions_json_list[i]['closed']][0]
+#                    self.positions_json_list[id_list] = response.json()['Position'][0]
+#                    return True
+#                else:
+#                    print(response.text)
+#                return False
+#            # asynch
+#            self.list_futures.append(self.futureSession.post(LC.URL+url_ext, json=params,#{'groi':params['groi']} 
+#                                    headers=self.build_token_header(), verify=self.verify_url, timeout=10))
+#            #print(self.list_futures)
+#            # add position asset as identifier
+#            self.list_asset_positions.append(assetname)
+#            self.list_lastevent_positions.append('extend')
+#            return True
+#        except:
+#            print("WARNING! Error when requesting extending position. Skipped")
+#            return False
+#    
+#    def retrieve_response_extend_position(self, assetname, id_list_futures):
+#        """ Retrieve position request response from futures """
+#        #try:
+#        response = self.list_futures[id_list_futures].result()
+#        #except :
+#            #print("WARNING! Timeout eror in retrieve_response_extend_position. Skipping connection")
+#            #return False
+#        # print result
+#        print("Status code retrieve_response_extend_position: "+str(response.status_code))
+#        if response.status_code == 200:
+##            print(response.json())
+#            id_list = [i for i in range(len(self.positions_json_list)) if \
+#                           self.positions_json_list[i]['asset']==assetname and not \
+#                           self.positions_json_list[i]['closed']][0]
+#            self.positions_json_list[id_list] = response.json()['Position'][0]
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            return True
+#        else:
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            print(response.text)
+#        return False
+#    
+#    def close_postition(self, assetname, params, dirfilename, asynch=False):
+#        """ PUT request to extend a position """
+#        # retrieve previous event if asynch
+#        try:
+#            if asynch:
+#                id_list_futures = self.list_asset_positions.index(assetname)
+#                if self.list_lastevent_positions[id_list_futures] == 'open':
+#                    self.retrieve_response_open_position(assetname, id_list_futures)
+#                elif self.list_lastevent_positions[id_list_futures] == 'extend':
+#                    self.retrieve_response_extend_position(assetname, id_list_futures)
+#            # prepare file for upload
+##            files = {'file':open(dirfilename, 'rb'), 'data':('json',json.dumps(params))}
+#            files={'file': open(dirfilename,'rb')}
+#            id = [pos['id'] for pos in self.positions_json_list if \
+#                  pos['asset']==assetname and not pos['closed']][0]
+#            url_ext = 'traders/positions/'+str(id)+'/close'
+#            url_file = 'traders/positions/'+str(id)+'/upload'
+#            if not asynch:
+#                response = requests.put(LC.URL+url_ext, json=params, 
+#                                        headers=self.build_token_header(), verify=self.verify_url)
+#                response_file = requests.post(LC.URL+url_file, files=files, 
+#                                        headers=self.build_token_header(), verify=self.verify_url)
+#                print("Status code close_postition: "+str(response.status_code))
+#                if response.status_code == 200:
+##                    print(response.json())
+#                    id_list = [i for i in range(len(self.positions_json_list)) if \
+#                               self.positions_json_list[i]['asset']==assetname and not\
+#                               self.positions_json_list[i]['closed']][0]
+#                    self.positions_json_list[id_list] = response.json()['Position'][0]
+#                    if response_file.status_code != 200:
+#                        print("WARNING! File not saved in DB")
+#                    return True
+#                else:
+#                    print(response.text)
+#                return False
+#            # asynch
+#            self.list_futures.append(self.futureSession.put(LC.URL+url_ext, 
+#                                        json=params, 
+#                                        headers=self.build_token_header(), verify=self.verify_url, timeout=10))
+#            self.futureSession.post(LC.URL+url_file, 
+#                                        files=files, 
+#                                        headers=self.build_token_header(), verify=self.verify_url, timeout=10)
+#    
+#            # add position asset as identifier
+#            self.list_asset_positions.append(assetname)
+#            self.list_lastevent_positions.append('close')
+#            return True
+#        except:
+#            print("WARNING! Error when requesting closing position. Skiiped")
+#            return False
+#            
+#    
+#    def retrieve_response_close_position(self, assetname, id_list_futures):
+#        """ Retrieve position request response from futures """
+#        try:
+#            response = self.list_futures[id_list_futures].result()
+#        except :
+#            print("WARNING! Timeout eror in retrieve_response_close_position. Skipping connection")
+#            return False
+#        # print result
+#        print("Status code retrieve_response_close_position: "+str(response.status_code))
+#        if response.status_code == 200:
+##            print(response.json())
+#            id_list = [i for i in range(len(self.positions_json_list)) if \
+#                           self.positions_json_list[i]['asset']==assetname and not \
+#                           self.positions_json_list[i]['closed']][0]
+#            self.positions_json_list[id_list] = response.json()['Position'][0]
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            return True
+#        else:
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            print(response.text)
+#        return False
+#    
+#    def send_trader_log(self, message):
+#        """ Send trader log to server """
+#        url_ext = 'logs/traders'
+#        try:
+#            response = requests.post(LC.URL+url_ext, json={'Message':message,'Name':self.trader_json['tradername']},
+#                                    headers=self.build_token_header(), verify=self.verify_url, timeout=10)
+##            print(response.json())
+#        except:
+#            print("WARNING! Error in send_network_log die to timeout.")
+#        
+#    def send_network_log(self, message):
+#        """ Send network log to server """
+#        url_ext = 'logs/networks'
+##        self.futureSession.post(LC.URL+url_ext, json={'Message':message},
+##                                headers=self.build_token_header(), verify=False, timeout=10)
+#        try:
+#            response = requests.post(LC.URL+url_ext, json={'Message':message},
+#                                    headers=self.build_token_header(), verify=self.verify_url, timeout=10)
+##            print(response.json())
+#        except:
+#            print("WARNING! Error in send_network_log die to timeout.")
+#            
+#    def reset_activate_sessions(self):
+#        """  """
+#        url_ext = 'traders/sessions/reset'
+#        response = requests.put(LC.URL+url_ext, headers=
+#                                     self.build_token_header(), verify=self.verify_url)
+##        print(response.json())
+#            
+#    def parameters_enquiry(self, asynch=False):
+#        """ Enquire strategy parameters in case of external manipulation """
+#        # retrieve previous event if asynch
+#        try:
+#            # check if parameters enquiry waiting to be retrieved
+#            if asynch and 'PARAMS' in self.list_asset_positions:
+#                id_list_futures = self.list_asset_positions.index('PARAMS')
+#                self.retrieve_response_parameters_enquiry(id_list_futures)
+#            if not self.token or not self.session_json or 'id' not in self.session_json:
+#                return False
+#            url_ext = 'traders/sessions/'+str(self.session_json['id'])+'/get_params'
+#            if not asynch:
+#                response = requests.get(LC.URL+url_ext, headers=self.build_token_header(), verify=self.verify_url)
+#                #print("Status code: "+str(response.status_code))
+#                if response.status_code == 200:
+#                    #print(response.json())
+#                    #self.positions_json_list.append(response.json()['params'])#[0]
+#                    return True
+#                else:
+#                    pass
+#                    #print(response.text)
+#                return False
+#            # asynch
+#            self.list_futures.append(self.futureSession.get(LC.URL+url_ext, 
+#                                    headers=self.build_token_header(), 
+#                                    verify=self.verify_url, timeout=10))
+#            # add position asset as identifier
+#            self.list_asset_positions.append('PARAMS')
+#            self.list_lastevent_positions.append('null')
+#            return True
+#        except:
+#            print("WARNING! Error when enquiring parameters. Skiiped")
+#            return False
+#        
+#    def retrieve_response_parameters_enquiry(self, id_list_futures):
+#        """ Retrieve response parameters enquiry """
+#        try:
+#            response = self.list_futures[id_list_futures].result()
+#        except :
+#            print("WARNING! Timeout eror in retrieve_response_parameters_enquiry. Skipping connection")
+#            return False
+#        # print result
+#        print("Status code retrieve_response_parameters_enquiry: "+str(response.status_code))
+#        if response.status_code == 200:
+##            print(response.json())
+#            params = response.json()['params']#[0]
+#            #self.positions_json_list.append(params)
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            # update params
+#            self.update_trader_params(params)
+#            return True
+#        else:
+#            del self.list_futures[id_list_futures]
+#            del self.list_asset_positions[id_list_futures]
+#            del self.list_lastevent_positions[id_list_futures]
+#            print(response.text)
+#        return False
+#    
+#    def update_trader_params(self, params):
+#        """ Update parameters from trader if externally updated """
+#        for param in params:
+#            if param == 'lots':
+#                print("LOTS UPDATED")
+#                for s in range(len(self.trader.strategies)):
+#                    self.trader.strategies[s].max_lots_per_pos = params['lots']
+#            elif param == 'stoploss':
+#                print("SL UPDATED")
+#                for s in range(len(self.trader.strategies)):
+#                    self.trader.strategies[s].thr_sl = params['stoploss']
