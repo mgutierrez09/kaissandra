@@ -27,6 +27,7 @@ nFiles = 100
 extension = ".txt"
 deli = "_"
 flag_cl_name = "CL"
+flag_ma_name = "MA" # manual close of position
 flag_sl_name = "SL"
 flag_tp_name = "TP"
 # TODO: Save entire output vector
@@ -2591,17 +2592,22 @@ def send_close_command(asset):
             except PermissionError:
                 print("Error writing LC")
 
-def save_snapshot(asset, lists, trader):
+def save_snapshot(asset, lists, trader, command='SD'):
     """ Save session snapshot for later resume """
     snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
     # save network image
     #pickle.dump( lists, open( backup_dir_ass+"netImage.p", "wb" ))
-    trader_dict = vars(trader)
-    del trader_dict['queue']
-    del trader_dict['queue_prior']
-    print(trader_dict)
+    
+    if command=='SD':
+        trader_dict = {}
+    else:
+        trader_dict = vars(trader)
+        del trader_dict['queue']
+        del trader_dict['queue_prior']
+    
     pickle.dump( {'trader':trader_dict,
                   'network':lists}, open( snapshot_dir_ass+"snapshot.p", "wb" ))
+    print(asset+" SNAPSHOT SAVED")
     print("Snapshot saved in "+snapshot_dir_ass)
     # save trader image
 #    list_trader_attrs = [a for a in dir(trader) if not a.startswith('__') and not callable(getattr(trader, a))]
@@ -2701,12 +2707,13 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 else:
                     queue.put({"FUNC":"SD"})
                     queue_prior.put({"FUNC":"SD"})
-                    # save network lists dictionary
-                    save_snapshot(thisAsset, lists, trader)
+                    
                     run = False
-                # close session
-                if send_info_api:
-                    close_session(trader.session_json)
+                    # close session
+                    if send_info_api:
+                        close_session(trader.session_json)
+                    # save network lists dictionary
+                    save_snapshot(thisAsset, lists, trader, command='SD')
                 time.sleep(5*np.random.rand(1)+1)
                 
             if count10s[ass_idx]==6 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
@@ -2740,7 +2747,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 queue.put({"FUNC":"SD"})
                 queue_prior.put({"FUNC":"SD"})
                 # save network lists dictionary
-                save_snapshot(thisAsset, lists, trader)
+                save_snapshot(thisAsset, lists, trader, command='HI')
                 run = False
                 
                 
@@ -2770,7 +2777,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             # check for closing
             flag_cl = 0
             # check if position closed
-            if trader.is_opened(ass_id) and os.path.exists(directory_MT5_ass+flag_cl_name):
+            if trader.is_opened(ass_id) and \
+            (os.path.exists(directory_MT5_ass+flag_cl_name) or 
+             os.path.exists(directory_MT5_ass+flag_ma_name)):
                 
                 success = 0
                 while not success:
@@ -2789,7 +2798,10 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                         print(info_close)
                         flag_cl = 1
                         if len(info_close)>1:
-                            os.remove(directory_MT5_ass+flag_cl_name)
+                            if os.path.exists(directory_MT5_ass+flag_cl_name):
+                                os.remove(directory_MT5_ass+flag_cl_name)
+                            else:
+                                os.remove(directory_MT5_ass+flag_ma_name)
                             success = 1
                         else:
                             pass
@@ -2911,7 +2923,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if delayed_stop_run:
                     queue.put({"FUNC":"SD"})
                     queue_prior.put({"FUNC":"SD"})
-                    save_snapshot(thisAsset, lists, trader)
+                    if send_info_api:
+                        close_session(trader.session_json)
+                    save_snapshot(thisAsset, lists, trader, command='SD')
                     run = False
                 
             elif flag_sl:
@@ -4003,7 +4017,7 @@ else:
     crisis_mode = False
 resume = LC.RESUME
 if resume:
-    print(print("\n\nWARNING! RESUME is ON!!\n\n"))
+    print("\n\nWARNING! RESUME is ON!!\n\n")
 
 # depricated
 spread_ban = False
@@ -4047,8 +4061,8 @@ else:
 start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 
 #if send_info_api:
-print("API")
-api = API()
+#print("API")
+#api = API()
 #else:
 #     api = None
 #     print("send_info_api")

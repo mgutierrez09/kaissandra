@@ -33,13 +33,8 @@ def send_command(directory_MT5_ass, command, msg=''):
 def shutdown(id=None):
     """  """
     io_dir = LC.io_live_dir
-    # shutdown control
-    try:
-        fh = open(io_dir+'SD',"w")
-        fh.close()
-    except FileNotFoundError:
-        #print("FileNotFoundError")
-        pass
+    
+    
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -52,12 +47,7 @@ def shutdown(id=None):
             pass
     if id!=None:
         close_session(id)
-        
-    return None
-
-def hibernate():
-    """  """
-    io_dir = LC.io_live_dir
+    time.sleep(5)
     # shutdown control
     try:
         fh = open(io_dir+'SD',"w")
@@ -65,6 +55,14 @@ def hibernate():
     except FileNotFoundError:
         #print("FileNotFoundError")
         pass
+        
+    return None
+
+def hibernate():
+    """  """
+    io_dir = LC.io_live_dir
+    
+    
     AllAssets = Config.AllAssets
     for asset_key in AllAssets:
         asset = AllAssets[asset_key]
@@ -75,6 +73,14 @@ def hibernate():
         except FileNotFoundError:
             #print("FileNotFoundError")
             pass
+    time.sleep(5)
+    # shutdown control
+    try:
+        fh = open(io_dir+'SD',"w")
+        fh.close()
+    except FileNotFoundError:
+        #print("FileNotFoundError")
+        pass
 
 #def close_session(id):
 #    """  """

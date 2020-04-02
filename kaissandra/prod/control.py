@@ -169,7 +169,6 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 position_json = ct.send_open_position(params, info["SESS_ID"], 
                                                       token_header)
                 if 'id' in position_json:
-                    print("id in position_json")
                     assets_opened[position_json['asset']] = position_json['id']
                 else:
                     print("WARNING! id NOT in position_json")
