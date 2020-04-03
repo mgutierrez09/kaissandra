@@ -2669,7 +2669,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if buffer.shape[0]==10:
                     success = 1
                 else:
-                    print(thisAsset+" WARNING! Buffer size not 10. Skipped")
+                    logMsg = " WARNING! Buffer size not 10. Discarded"
+                    print(thisAsset+logMsg)
+                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                     fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
                     
             except (FileNotFoundError,PermissionError,OSError):
@@ -3995,10 +3997,11 @@ from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
 #if send_info_api:
-from kaissandra.prod.api import API
+#from kaissandra.prod.api import API
 from kaissandra.prod.communication import get_config_session, \
                                           open_session, \
-                                          close_session
+                                          close_session, \
+                                          shutdown_control
 from kaissandra.config import Config as C
 # runLive in multiple processes
 from multiprocessing import Process, Queue
@@ -4082,4 +4085,14 @@ if __name__=='__main__':
         # Controlling and message passing to releave traders of these tasks
         
         from kaissandra.prod.control import control
-        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
+        kwargs = {'queues':queues, 'queues_prior':queues_prior, 'send_info_api':send_info_api}
+        Process(target=control, args=[running_assets], kwargs=kwargs).start()
+        # wait for last trader to finish
+        print("WAITING FOR PROCESSES TO FINISH")
+        for p in processes:
+            p.join()
+        # shutdown control
+        print("TRADER PROCESSES FINISHED")
+        shutdown_control()
+#        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
+        
