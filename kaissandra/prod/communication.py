@@ -305,7 +305,7 @@ def check_for_warnings():
                         #stop_timer(ass_idx)
                     except PermissionError:
                         print("Error reading position status")
-                msgLog = "\n\nWARNING FROM BROKER in "+": "+info+"\n\n"
+                msgLog = "\n\nWARNING FROM BROKER in "+thisAsset+": "+info+"\n\n"
                 print(thisAsset+msgLog)
                 send_monitoring_log(msgLog, thisAsset, build_token_header(post_token()))
                 

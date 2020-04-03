@@ -177,54 +177,57 @@ void openPosition(string origin, int thisPos){
 
 
 void closePosition(){
-   int executed = 0;
-   //bool closed = false;
-   string message;
-   //while(!executed && position!=0){
-   if(m_Trade.PositionClose(thisSymbol))
-      executed = 1;
-   else{
-      // Send Warning message to trader that execution wasn't successful
-      int fh = FileOpen(directoryNameComm+"WARNING",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
-      if(fh>0){
-         FileWrite(fh,"POSITION NOT CLOSED");
-         FileClose(fh);
-      }
-      
-   }
-   message = StringFormat("Close position executed: %d",executed);
-   Print(message);
-      //writeLog(message);
-      //if(closed && m_Trade.ResultDeal()!=0)
-      //   executed = true;
-   //}// close position if deadline reached
    if(position!=0){
-      message = StringFormat("Close -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
-      Print(message);
-      //writeLog(message);
-      deadline = -1;
-      closingInProgress = true;
+      int executed = 0;
+      //bool closed = false;
+      string message;
+      //while(!executed && position!=0){
+      if(m_Trade.PositionClose(thisSymbol)){
+         executed = 1;
+         message = StringFormat("Close position executed: %d",executed);
+         Print(message);
       
-      if (position==1){
-         GROI = 100*(ask-Ai)/Ai;
-         ROI = 100*(bid-Ai)/Ai;
-   
-      }else{if(position==-1){
-         GROI = 100*(Bi-bid)/ask;
-         ROI = 100*(Bi-ask)/ask;
-      }}
+         message = StringFormat("Close -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+         Print(message);
+         //writeLog(message);
+         deadline = -1;
+         closingInProgress = true;
+         
+         if (position==1){
+            GROI = 100*(ask-Ai)/Ai;
+            ROI = 100*(bid-Ai)/Ai;
       
-      profit = ROI*lot*lot_in_eur/100;
-      spread = GROI-ROI;
+         }else{if(position==-1){
+            GROI = 100*(Bi-bid)/ask;
+            ROI = 100*(Bi-ask)/ask;
+         }}
+         
+         profit = ROI*lot*lot_in_eur/100;
+         spread = GROI-ROI;
+      }
+      else{
+         message = StringFormat("WARNING! Close position executed: %d",executed);
+         Print(message);
+            //writeLog(message);
+            //if(closed && m_Trade.ResultDeal()!=0)
+            //   executed = true;
+         //}// close position if deadline reached
+         // Send Warning message to trader that execution wasn't successful
+         int fh = FileOpen(directoryNameComm+"WARNING",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+         if(fh>0){
+            FileWrite(fh,"POSITION NOT CLOSED");
+            FileClose(fh);
+         }
+      }
    }
    else{
-      message = "WARNING! Try to close position but no position is open. Skipped";
+      string message = "WARNING! Try to close position but no position is open. Skipped";
       Print(message);
       // Send CL in case it's unsynched with trader
-      filename = "CL";
-      filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
-      FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),position,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0.0,0.0,0);
-      FileClose(filehandleTest);
+      //filename = "CL";
+      //filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+      //FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),position,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0.0,0.0,0);
+      //FileClose(filehandleTest);
       //writeLog(message);
    }
 
@@ -236,105 +239,113 @@ void checkForOpening(){
 //---
    // Launch position 
    string message;
-      if(FileIsExist(directoryNameLive+TTfile)==1 && !closingInProgress){
-         message = "TT found";
-         Print(message);
-         //writeLog(message);
-         // open position
-            first_pos = 1;
+   if(FileIsExist(directoryNameLive+TTfile)==1 && !closingInProgress){
+      message = "TT found";
+      Print(message);
+      //writeLog(message);
+      // open position
+         first_pos = 1;
+         
+         
+         // Read type of trigger and delete TT
+         int k;
+         bool reset = false;
+         int tries = 0;
+         do{
+            filehandle_trader = FileOpen(directoryNameLive+TTfile,FILE_READ|FILE_ANSI);
+            predictionString = FileReadString(filehandle_trader);
+            k = StringSplit(predictionString,StringGetCharacter(",",0),chunks);
+            FileClose(filehandle_trader);
+            tries = tries+1;
+         }while(k!=4);
+         prediction = StringToInteger(chunks[0]);
+         lot = StringToDouble(chunks[1]);
+         slThrPips = (int)StringToInteger(chunks[3]);
+         //Print("slThrPips %d",slThrPips);
+         // extend deadline only when new deadline is further in time
+         if(nEventsPerStat-deadline<StringToDouble(chunks[2])){
+            nEventsPerStat = StringToInteger(chunks[2]);
+            reset = true;
+         }
+         
+         FileDelete(directoryNameLive+TTfile);
+         long thr_pred = 0;
+         //diffTime = toc-tic;
+         // launch long positon
+         //Print(prediction);
+         if(prediction>thr_pred){
+            //if the position for this symbol already exists -> extend deadline
+            if(m_Position.Select(thisSymbol)){
+               
+               //if(m_Position.PositionType()==POSITION_TYPE_SELL) m_Trade.PositionClose(my_symbol);  //and this is a Sell position, then close it
+               if(m_Position.PositionType()==POSITION_TYPE_BUY){
+                  if(reset){
+                     message = StringFormat("Deadline extended by %d",nEventsPerStat);
+                     Print(message);
+                     // save position state
+                     int fh = FileOpen(directoryNameComm+"POSSTATE.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+                     FileWrite(fh,position,deadline,Bi,Ai,dif_ticks,nEventsPerStat,stoploss,takeprofit,lot);
+                     FileClose(fh);
+                     // reset deadline
+                     deadline = 1;
+                  }else{
+                     message = StringFormat("Deadline not extended. Remaining %d",nEventsPerStat-dif_ticks-deadline);
+                     Print(message);
+                     //writeLog(message);
+                  }
+                  
+               }
+            }else{ // open new long position
+               openPosition("TICK", 1);
+               }
             
-            
-            // Read type of trigger and delete TT
-            int k;
-            bool reset = false;
-            int tries = 0;
-            do{
-               filehandle_trader = FileOpen(directoryNameLive+TTfile,FILE_READ|FILE_ANSI);
-               predictionString = FileReadString(filehandle_trader);
-               k = StringSplit(predictionString,StringGetCharacter(",",0),chunks);
-               FileClose(filehandle_trader);
-               tries = tries+1;
-            }while(k!=4);
-            prediction = StringToInteger(chunks[0]);
-            lot = StringToDouble(chunks[1]);
-            slThrPips = (int)StringToInteger(chunks[3]);
-            //Print("slThrPips %d",slThrPips);
-            // extend deadline only when new deadline is further in time
-            if(nEventsPerStat-deadline<StringToDouble(chunks[2])){
-               nEventsPerStat = StringToInteger(chunks[2]);
-               reset = true;
+         }
+         // launch short positon
+         else{if(prediction<thr_pred){
+            //if the position for this symbol already exists -> extend deadline
+            if(m_Position.Select(thisSymbol)){
+               
+               if(m_Position.PositionType()==POSITION_TYPE_SELL){ 
+                  if(reset){
+                     //dif_ticks = dif_ticks+ticks_counter-ticks_counter_open;
+                     message = StringFormat("Deadline extended by %d",nEventsPerStat);
+                     Print(message);
+                     // save position state
+                     int fh = FileOpen(directoryNameComm+"POSSTATE.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+                     FileWrite(fh,position,deadline,Bi,Ai,dif_ticks,nEventsPerStat,stoploss,takeprofit,lot);
+                     FileClose(fh);
+                     // reset deadline
+                     deadline = 1;
+                  }else{
+                     message = StringFormat("Deadline not extended. Remaining %d",nEventsPerStat-dif_ticks-deadline);
+                     Print(message);
+                     //writeLog(message);
+                  }
+               }
+            }
+            // open new position
+            else{
+               
+               openPosition("TICK", -1);
             }
             
+            // if else
+            }else{
+                     message = StringFormat("ERROR!! Prediction cannot be zero!. Prediction string %s. Tries %d. Prediction %d",predictionString,tries,prediction);
+                     Print(message);
+                     //writeLog(message);
+                  }
+         }
+         
+      }
+      else{
+         if(FileIsExist(directoryNameLive+TTfile)==1){
+            message = "WARNING! TT found but closing in progress. Opening cancelled and trying to close again.";
+            Print(message);
             FileDelete(directoryNameLive+TTfile);
-            long thr_pred = 0;
-            //diffTime = toc-tic;
-            // launch long positon
-            //Print(prediction);
-            if(prediction>thr_pred){
-               //if the position for this symbol already exists -> extend deadline
-               if(m_Position.Select(thisSymbol)){
-                  
-                  //if(m_Position.PositionType()==POSITION_TYPE_SELL) m_Trade.PositionClose(my_symbol);  //and this is a Sell position, then close it
-                  if(m_Position.PositionType()==POSITION_TYPE_BUY){
-                     if(reset){
-                        message = StringFormat("Deadline extended by %d",nEventsPerStat);
-                        Print(message);
-                        //writeLog(message);
-                        //dif_ticks = dif_ticks+ticks_counter-ticks_counter_open;
-                        // reset deadline
-                        deadline = 1;
-                     }else{
-                        message = StringFormat("Deadline not extended. Remaining %d",nEventsPerStat-dif_ticks-deadline);
-                        Print(message);
-                        //writeLog(message);
-                     }
-                     
-                  }
-               }else{ // open new long position
-                  openPosition("TICK", 1);
-                  }
-               
-            }
-            // launch short positon
-            else{if(prediction<thr_pred){
-               //if the position for this symbol already exists -> extend deadline
-               if(m_Position.Select(thisSymbol)){
-                  
-                  if(m_Position.PositionType()==POSITION_TYPE_SELL){ 
-                     if(reset){
-                        //dif_ticks = dif_ticks+ticks_counter-ticks_counter_open;
-                        message = StringFormat("Deadline extended by %d",nEventsPerStat);
-                        Print(message);
-                        //writeLog(message);
-                        // reset deadline
-                        deadline = 1;
-                     }else{
-                        message = StringFormat("Deadline not extended. Remaining %d",nEventsPerStat-dif_ticks-deadline);
-                        Print(message);
-                        //writeLog(message);
-                     }
-                  }
-               }
-               // open new position
-               else{
-                  
-                  openPosition("TICK", -1);
-               }
-               
-               // if else
-               }else{
-                        message = StringFormat("ERROR!! Prediction cannot be zero!. Prediction string %s. Tries %d. Prediction %d",predictionString,tries,prediction);
-                        Print(message);
-                        //writeLog(message);
-                     }
-            }
             
-      }
-      else{if(FileIsExist(directoryNameLive+TTfile)==1){
-         //message = "WARNING! TT found but closing in progress. Opening delayed";
-         //Print(message);
-         //writeLog(message);
-      }
+            //writeLog(message);
+         }
       
       }
    
@@ -647,7 +658,7 @@ void OnTick()
    *****************************/
    
    
-   checkForOpening();
+   //checkForOpening();
    
    controlPositionFlow();
    
@@ -695,7 +706,7 @@ void savePositionState(){
       // save info
       int fh = FileOpen(directoryNameComm+"POSINFO.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
       if(fh>0){
-         FileWrite(fh,pos_id,volume,price,current_price,current_profit,swap,deadline-1);
+         FileWrite(fh,pos_id,volume,price,current_price,current_profit,swap,nEventsPerStat-dif_ticks-deadline-1);
          FileClose(fh);
       }
    }

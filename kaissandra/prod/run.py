@@ -4022,7 +4022,7 @@ else:
     crisis_mode = False
 resume = LC.RESUME
 if resume:
-    print("\n\nWARNING! RESUME is ON!!\n\n")
+    print("\n\nRESUME ON\n\n")
 
 # depricated
 spread_ban = False

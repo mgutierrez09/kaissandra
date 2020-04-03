@@ -110,8 +110,8 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         if watchdog_counter==1:
             try:
                 ct.check_params()
-                token = ct.get_token()
-                print(token)
+                #token = ct.get_token()
+                #print(token)
                 # wake up server
                 watchdog_counter = 0
                 # send number of files in Broker communication directory of one asset
@@ -141,11 +141,11 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     run = True
     while run:
         info = queue.get()         # Read from the queue
-        if priority:
-            print("From priority queue: ")
-            
-        else:
-            print("From regular queue: ")
+#        if priority:
+#            print("From priority queue: ")
+#            
+#        else:
+#            print("From regular queue: ")
         print(info)
         # send log to server
         if send_info_api and info['FUNC'] == 'LOG':
