@@ -880,6 +880,9 @@ class Trader:
         results.earnings = np.append(results.GROIs,nett_win)
         self.write_log(out)
         print(out)
+        ## TEST MARGIN ##
+        global margin
+        margin -= 0.01
         assert(lot_ratio<=1.00 and lot_ratio>0)
         
     def create_candidate(self, idx, approached, n_pos_opened, lots):
@@ -911,6 +914,10 @@ class Trader:
               " spread={0:.3f}".format(100*e_spread))
         print(out)
         self.write_log(out)
+        
+        ## TEST MARGIN ##
+        global margin
+        margin += 0.01
         
         return approached, n_pos_opened, EXIT, rewind
     
@@ -1161,16 +1168,16 @@ if __name__ == '__main__':
                                      (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                      (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                      (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.06) for _ in range(46)]} for _ in assets],
+                               'mar':[(0.0,0.02) for _ in range(46)]} for _ in assets],
                               [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                      (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                      (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.06) for _ in range(46)]} for _ in assets]]
+                               'mar':[(0.0,0.02) for _ in range(46)]} for _ in assets]]
         list_lb_mc_ext = [.5, .51]
-        list_lb_md_ext = [.64, .63]#[.58, .57]
+        list_lb_md_ext = [.58, .57]#[.64, .63]#
     else:
         extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
         extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']

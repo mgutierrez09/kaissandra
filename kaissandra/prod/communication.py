@@ -580,7 +580,7 @@ def send_positions_status(token_header):
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
     except:
-        print("WARNING! Error in send_account_status of kaissandra.prod.communication")
+        print("WARNING! Error in send_positions_status of kaissandra.prod.communication")
     return None
 
 def send_reset_positions(token_header):
@@ -591,7 +591,7 @@ def send_reset_positions(token_header):
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
-        print("WARNING! Error in send_account_status in kaissandra.prod.communication")
+        print("WARNING! Error in send_reset_positions in kaissandra.prod.communication")
         
 def get_number_positions(token_header):
     """ Send trader log to server api """
@@ -601,7 +601,7 @@ def get_number_positions(token_header):
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
-        print("WARNING! Error in send_account_status of communication.py")
+        print("WARNING! Error in get_number_positions of communication.py")
         
 def get_user_id(token_header, username):
     """ get user id """
@@ -611,7 +611,7 @@ def get_user_id(token_header, username):
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
     except:
-        print("WARNING! Error in send_account_status of communication.py")
+        print("WARNING! Error in get_user_id of communication.py")
         
 def set_budget(token_header, id, budget):
     """ get user id """
@@ -621,7 +621,7 @@ def set_budget(token_header, id, budget):
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
     except:
-        print("WARNING! Error in send_account_status of communication.py")
+        print("WARNING! Error in set_budget of communication.py")
         
 def open_session(config_name, sessiontype, sessiontest):
         """ POST request to open a session """
