@@ -2627,8 +2627,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     
     #fileExt = [0 for ass in range(nAssets)]
     
-    first_info_fetched = False
-    
+    first_info_fetched = False    
     
     #nMaxFilesInDir = 0
     tic = time.time()
@@ -3128,34 +3127,22 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             lists = flush_asset(lists, ass_idx, bid)
         # Enquire parameters from Server
         elif send_info_api and os.path.exists(io_ass_dir+'PARAM'):
-            print("\n\nENQUIRE PARAMETERS\n\n")
-            
-            
+            print("PARAM found")
+            # check first for local info
             with open(io_ass_dir+'PARAM', 'r') as f:
                 config_name = f.read()
                 f.close()
             try:
                 os.remove(io_ass_dir+'PARAM')
             except:
-                pass
+                print("WARNING! Error while deleting PARAM. Continuing")
+                
             if config_name=='':
-                # read from remote
-                try:
-                    json = get_config_session()
-                    config = json['config']
-                    print(config)
-                    if config and len(config)>0:
-                        print("Updating config:")
-                        trader.update_parameters(config, thisAsset)
-                    else:
-                        print("No config. Skipped")
-                    # check for commands
-                    
-                except:
-                    print("WARNING! Error whil updating config. Skipped")
+                pass
             else:
                 # update from local
                 config = retrieve_config(config_name)
+                print(thisAsset)
                 trader.update_parameters(config, thisAsset)
             
         ###################### End of Trader ###########################

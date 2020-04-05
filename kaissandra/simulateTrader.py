@@ -881,8 +881,8 @@ class Trader:
         self.write_log(out)
         print(out)
         ## TEST MARGIN ##
-        global margin
-        margin -= 0.01
+#        global margin
+#        margin -= 0.01
         assert(lot_ratio<=1.00 and lot_ratio>0)
         
     def create_candidate(self, idx, approached, n_pos_opened, lots):
@@ -916,8 +916,8 @@ class Trader:
         self.write_log(out)
         
         ## TEST MARGIN ##
-        global margin
-        margin += 0.01
+#        global margin
+#        margin += 0.01
         
         return approached, n_pos_opened, EXIT, rewind
     
@@ -1152,8 +1152,8 @@ if __name__ == '__main__':
     
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20181112'#'20200224'#'20191202'#
-    end_day_str = '20200320'#'20191212'
+    init_day_str = '20200224'#'20200224'#'20191202'#
+    end_day_str = '20200404'#'20191212'
     list_name = ['5NYORPS2k12K5k12K2E1452ALSRNSP60M2', '5NYORPS2k12K5k12K2E1453BSSRNSP60M2']# margin 2
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
@@ -1961,7 +1961,7 @@ if __name__ == '__main__':
         #    # update time stamp
         #    else:
 ################ WARNING! NO skipping o samps to track volume #############################
-            if approached:
+            if 1:#approached
                 if not rewind:
                     event_idx += 1
                 else:
