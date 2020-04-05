@@ -2630,7 +2630,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     first_info_fetched = False
     
     
-    nMaxFilesInDir = 0
+    #nMaxFilesInDir = 0
     tic = time.time()
     delayed_stop_run = False
     count10s = [0 for _ in running_assets]
@@ -2712,8 +2712,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     
                     run = False
                     # close session
-                    if send_info_api:
-                        close_session(trader.session_json)
+#                    if send_info_api:
+#                        close_session(trader.session_json)
                     # save network lists dictionary
                     save_snapshot(thisAsset, lists, trader, command='SD')
                 time.sleep(5*np.random.rand(1)+1)
@@ -2925,8 +2925,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 if delayed_stop_run:
                     queue.put({"FUNC":"SD"})
                     queue_prior.put({"FUNC":"SD"})
-                    if send_info_api:
-                        close_session(trader.session_json)
+#                    if send_info_api:
+#                        close_session(trader.session_json)
                     save_snapshot(thisAsset, lists, trader, command='SD')
                     run = False
                 
@@ -3166,8 +3166,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
     for idx, trader in enumerate(traders):
         # get intermediate results
         get_intermediate_results(trader, AllAssets, running_assets, tic, list_results[idx])
-    if send_info_api:
-        close_session(trader.session_json)
+#    if send_info_api:
+#        close_session(trader.session_json)
     return shutdown
 
 def get_intermediate_results(trader, AllAssets, running_assets, tic, results):
@@ -3311,14 +3311,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time, test, queue, queue_prior):
+def run_carefully(config_trader, running_assets, start_time, test, queue, queue_prior, session_json):
     """  """
     try:
-        run(config_trader, running_assets, start_time, test, queue, queue_prior)
+        run(config_trader, running_assets, start_time, test, queue, queue_prior, session_json)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time, test, queue, queue_prior):
+def run(config_traders_list, running_assets, start_time, test, queue, queue_prior, session_json):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
@@ -3870,7 +3870,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
 #            pickle.dump( lists, open( LC.io_live_dir+AllAssets[str(running_assets[0])]+"/lists.p", "wb" ))
         #lists['list_feats_from'] = list_feats_from
         # init traders
-        session_json = open_session(config_name, sessiontype, test)
+#        session_json = open_session(config_name, sessiontype, test)
         #traders = []
         #for idx_tr, config_trader in enumerate(config_traders_list):
         trader = Trader(running_assets,
@@ -3935,7 +3935,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
-def launch(synchroned_run=False, test=False):
+def launch(synchroned_run=False, test=False, session_json=None):
     
     #print("\n\n\nLaunching\n\n\n")
     if synchroned_run:
@@ -3950,7 +3950,9 @@ def launch(synchroned_run=False, test=False):
         for ass_idx in range(len(running_assets)):
             queue = Queue()
             queue_prior = Queue()
-            disp = Process(target=run_carefully, args=[list_config_traders, running_assets[ass_idx:ass_idx+1], start_time, test, queue, queue_prior])
+            disp = Process(target=run_carefully, args=[list_config_traders, 
+                           running_assets[ass_idx:ass_idx+1], start_time, test, 
+                           queue, queue_prior, session_json])
             disp.start()
             processes.append(disp)
             queues.append(queue)
@@ -4076,11 +4078,12 @@ start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 if __name__=='__main__':
     # lauch
     if send_info_api:
-        pass
+        session_json = open_session(list_config_traders[0]['config_name'], sessiontype, test)
     renew_directories(C.AllAssets, running_assets)
 #    if synchroned_run and send_info_api:
 #        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
-    processes, queues, queues_prior = launch(synchroned_run=synchroned_run, test=test)#
+    processes, queues, queues_prior = launch(synchroned_run=synchroned_run, 
+                                             test=test, session_json=session_json)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
         
@@ -4091,6 +4094,9 @@ if __name__=='__main__':
         print("WAITING FOR PROCESSES TO FINISH")
         for p in processes:
             p.join()
+        # close session
+        if send_info_api:
+            close_session(session_json)
         # shutdown control
         print("TRADER PROCESSES FINISHED")
         shutdown_control()

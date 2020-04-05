@@ -397,8 +397,8 @@ if __name__=='__main__':
     # limit the build of the HDF5 to data comprised in these dates
     build_partial_raw = False
     build_test_db = True
-    init_date = '20181112'#'20200309'#'20191202'#'180928'
-    end_date = '20200320'#'181109'
+    init_date = '20181112'#'20200323'#'20200309'#'20191202'#'180928'
+    end_date = '20200404'#'181109'
     init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
     end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
     
@@ -411,7 +411,7 @@ if __name__=='__main__':
         hdf5_file_name = 'tradeinfo_test.hdf5'
         directory_root = local_vars.data_test_dir
         separators_directory_name = 'separators_test/'
-        dateTest = get_dateTest(init_date='2018.11.12', end_date='2021.12.12')
+        dateTest = get_dateTest(init_date='2018.11.12', end_date='2020.12.12')
     elif not build_test_db and not build_partial_raw:
         hdf5_file_name = 'tradeinfo_py.hdf5'
         separators_directory_name = 'separators_py/'
@@ -445,7 +445,7 @@ if __name__=='__main__':
     last_day = dt.datetime.strptime(dateTest[-1], '%Y.%m.%d').date()
     list_bussines_days = find_bussines_days_v2(first_day=first_day, 
                                                last_day=last_day)
-    assets = [16]#[31,32]#1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,
+    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]#
     # loop over all assets
     for ass in assets:
         thisAsset = C.AllAssets[str(ass)]
