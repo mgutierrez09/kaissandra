@@ -1094,7 +1094,10 @@ class Trader:
                   'strategyname':self.list_opened_positions[-1].strategy.name,
                   'p_mc':self.list_opened_positions[-1].p_mc,
                   'p_md':self.list_opened_positions[-1].p_md}
-        self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
+        try:
+            self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
+        except:
+            print("WARNING! Error in send_open_pos_api in kaissandra.prod.run. Skipped.")
         
     def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                             direction, strategy, roi, ticks):
@@ -3767,7 +3770,8 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                                 start_time=start_time, config_name=config_name,
                                 net2strategy=list_net2strategy[idx_tr], 
                                 queue=queue, queue_prior=queue_prior, 
-                                max_opened_positions=max_opened_positions)#, api=api
+                                max_opened_positions=max_opened_positions, 
+                                session_json=session_json)#, api=api
                 # pass trader to api
 #                if send_info_api:
 #                    api.init_trader(trader)
@@ -4066,6 +4070,7 @@ if __name__=='__main__':
     # lauch
     if send_info_api:
         session_json = open_session(list_config_traders[0]['config_name'], sessiontype, test)
+        
     renew_directories(C.AllAssets, running_assets)
 #    if synchroned_run and send_info_api:
 #        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
