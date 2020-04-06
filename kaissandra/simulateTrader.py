@@ -311,22 +311,22 @@ class Trader:
                  positions_dir='',positions_file='', allow_candidates=False, 
                  max_lev_per_curr=20):
         """  """
-        self.list_opened_positions = []
-        self.map_ass_idx2pos_idx = np.array([-1 for i in range(len(C.AllAssets))])
-        self.list_count_events = []
-        self.list_stop_losses = []
-        self.list_guard_bands = []
-        self.list_lim_groi = []
-        self.list_take_profits = []
-        self.list_lots_per_pos = []
-        self.list_lots_entry = []
-        self.list_sps = []
-        self.list_last_bid = []
-        self.list_last_ask = []
-        self.list_sl_thr_vector = []
-        self.list_EM = []
-        self.list_banned_counter = np.zeros((len(assets)))-1
-        self.list_is_asset_banned = [False for _ in assets]
+        self.list_opened_positions = [[] for _ in len(strategys)]
+        self.map_ass2pos = [np.array([-1 for i in range(len(C.AllAssets))]) for _ in len(strategys)]
+        self.list_count_events = [[] for _ in len(strategys)]
+        self.list_stop_losses = [[] for _ in len(strategys)]
+        self.list_guard_bands = [[] for _ in len(strategys)]
+        self.list_lim_groi = [[] for _ in len(strategys)]
+        self.list_take_profits = [[] for _ in len(strategys)]
+        self.list_lots_per_pos = [[] for _ in len(strategys)]
+        self.list_lots_entry = [[] for _ in len(strategys)]
+        self.list_sps = [[] for _ in len(strategys)]
+        self.list_last_bid = [[] for _ in len(strategys)]
+        self.list_last_ask = [[] for _ in len(strategys)]
+        self.list_sl_thr_vector = [[] for _ in len(strategys)]
+        self.list_EM = [[] for _ in len(strategys)]
+        self.list_banned_counter = [np.zeros((len(assets)))-1 for _ in len(strategys)]
+        self.list_is_asset_banned = [[False for _ in assets] for _ in len(strategys)]
         
         self.next_candidate = next_candidate
         self.journal_idx = 0
@@ -386,37 +386,31 @@ class Trader:
     
     def add_position(self, idx, lots, sp):
         """  """
-        self.list_opened_positions.append(self.next_candidate)
-        self.list_count_events.append(0)
-        self.list_lots_per_pos.append(lots)
-        self.list_lots_entry.append(lots)
-        self.list_sps.append(sp)
-        self.list_last_bid.append(bid)
-        self.list_last_ask.append(ask)
-        self.list_EM.append(bid)
-        self.map_ass_idx2pos_idx[idx] = len(self.list_count_events)-1
-        self.list_stop_losses.append(self.next_candidate.entry_bid*
+        str_idx = name2str_map[self.next_candidate.strategy]
+        self.list_opened_positions[str_idx].append(self.next_candidate)
+        self.list_count_events[str_idx].append(0)
+        self.list_lots_per_pos[str_idx].append(lots)
+        self.list_lots_entry[str_idx].append(lots)
+        self.list_sps[str_idx].append(sp)
+        self.list_last_bid[str_idx].append(bid)
+        self.list_last_ask[str_idx].append(ask)
+        self.list_EM[str_idx].append(bid)
+        self.map_ass2pos[str_idx][idx] = len(self.list_count_events)-1
+        self.list_stop_losses[str_idx].append(self.next_candidate.entry_bid*
                                      (1-self.next_candidate.direction*strategys
-                                      [name2str_map[
-                                              self.next_candidate.strategy]].thr_sl*
-                                              self.pip))
+                                      [str_idx].thr_sl*self.pip))
         self.list_take_profits.append(self.next_candidate.entry_bid*
                                       (1+self.next_candidate.direction*
-                                       strategys[name2str_map[
-                                               self.next_candidate.strategy]].thr_tp
-                                               *self.pip))
+                                       strategys[str_idx].thr_tp*self.pip))
         if self.next_candidate.direction>0:
             symbol = self.next_candidate.entry_ask
             
         else:
             symbol = self.next_candidate.entry_bid
-        self.list_guard_bands.append(symbol*
+        self.list_guard_bands[str_idx].append(symbol*
                                      (1-self.next_candidate.direction*strategys
-                                      [name2str_map[
-                                      self.next_candidate.strategy]].thr_gb*
-                                      self.pip))
-        self.list_lim_groi.append(strategys[name2str_map[
-                                               self.next_candidate.strategy]].lim_groi_ext)
+                                      [str_idx].thr_gb*self.pip))
+        self.list_lim_groi.append(strategys[str_idx].lim_groi_ext)
         
     def add_candidate(self):
         """  """
@@ -424,77 +418,79 @@ class Trader:
     
     def remove_position(self, idx):
         """  """
-        self.list_opened_positions = self.list_opened_positions[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_opened_positions[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_count_events = self.list_count_events[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_count_events[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_stop_losses = self.list_stop_losses[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_stop_losses[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_take_profits = self.list_take_profits[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_take_profits[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_guard_bands = self.list_guard_bands[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_guard_bands[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_lim_groi = self.list_lim_groi[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_lim_groi[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_lots_per_pos = self.list_lots_per_pos[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_lots_per_pos[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_lots_entry = self.list_lots_entry[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_lots_entry[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_sps = self.list_sps[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_sps[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_last_bid = self.list_last_bid[
-                :self.map_ass_idx2pos_idx[idx]]+self.list_last_bid[
-                        self.map_ass_idx2pos_idx[idx]+1:]
-        self.list_last_ask = (self.list_last_ask[:self.map_ass_idx2pos_idx[idx]]+
-                              self.list_last_ask[self.map_ass_idx2pos_idx[idx]+1:])
-        self.list_EM = self.list_EM\
-            [:self.map_ass_idx2pos_idx[idx]]+self.list_EM\
-            [self.map_ass_idx2pos_idx[idx]+1:]
-        mask = self.map_ass_idx2pos_idx>self.map_ass_idx2pos_idx[idx]
-        self.map_ass_idx2pos_idx[idx] = -1
-        self.map_ass_idx2pos_idx = self.map_ass_idx2pos_idx-mask*1#np.maximum(,-1)
+        str_idx = name2str_map[self.next_candidate.strategy]
+        self.list_opened_positions[str_idx] = self.list_opened_positions[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_opened_positions[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_count_events[str_idx] = self.list_count_events[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_count_events[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_stop_losses[str_idx] = self.list_stop_losses[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_stop_losses[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_take_profits[str_idx] = self.list_take_profits[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_take_profits[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_guard_bands[str_idx] = self.list_guard_bands[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_guard_bands[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_lim_groi[str_idx] = self.list_lim_groi[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_lim_groi[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_lots_per_pos[str_idx] = self.list_lots_per_pos[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_lots_per_pos[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_lots_entry[str_idx] = self.list_lots_entry[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_lots_entry[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_sps[str_idx] = self.list_sps[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_sps[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_last_bid[str_idx] = self.list_last_bid[str_idx][
+                :self.map_ass2pos[str_idx][idx]]+self.list_last_bid[str_idx][
+                        self.map_ass2pos[str_idx][idx]+1:]
+        self.list_last_ask[str_idx] = (self.list_last_ask[str_idx][:self.map_ass2pos[str_idx][idx]]+
+                              self.list_last_ask[str_idx][self.map_ass2pos[str_idx][idx]+1:])
+        self.list_EM[str_idx] = self.list_EM[str_idx]\
+            [:self.map_ass2pos[str_idx][idx]]+self.list_EM[str_idx]\
+            [self.map_ass2pos[str_idx][idx]+1:]
+        mask = self.map_ass2pos[str_idx]>self.map_ass2pos[str_idx][idx]
+        self.map_ass2pos[str_idx][idx] = -1
+        self.map_ass2pos[str_idx] = self.map_ass2pos[str_idx]-mask*1#np.maximum(,-1)
         
     def update_position(self, idx):
         # reset counter
-        self.list_count_events[self.map_ass_idx2pos_idx[idx]] = 0
+        str_idx = name2str_map[self.next_candidate.strategy]
+        self.list_count_events[self.map_ass2pos[idx]] = 0
         
-        entry_bid = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
-        entry_ask = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-        bet = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet
-        p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
-        p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
-        entry_time = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
-        #entry_time = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time
+        entry_bid = self.list_opened_positions[self.map_ass2pos[idx]].entry_bid
+        entry_ask = self.list_opened_positions[self.map_ass2pos[idx]].entry_ask
+        direction = self.list_opened_positions[self.map_ass2pos[idx]].direction
+        bet = self.list_opened_positions[self.map_ass2pos[idx]].bet
+        p_mc = self.list_opened_positions[self.map_ass2pos[idx]].p_mc
+        p_md = self.list_opened_positions[self.map_ass2pos[idx]].p_md
+        entry_time = self.list_opened_positions[self.map_ass2pos[idx]].entry_time
+        #entry_time = self.list_opened_positions[self.map_ass2pos[idx]].entry_time
         
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]] = self.next_candidate
+        self.list_opened_positions[self.map_ass2pos[idx]] = self.next_candidate
         
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid = entry_bid
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask = entry_ask
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction = direction
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet = bet
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc = p_mc
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md = p_md
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time = entry_time
-        #self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_time = entry_time
+        self.list_opened_positions[self.map_ass2pos[idx]].entry_bid = entry_bid
+        self.list_opened_positions[self.map_ass2pos[idx]].entry_ask = entry_ask
+        self.list_opened_positions[self.map_ass2pos[idx]].direction = direction
+        self.list_opened_positions[self.map_ass2pos[idx]].bet = bet
+        self.list_opened_positions[self.map_ass2pos[idx]].p_mc = p_mc
+        self.list_opened_positions[self.map_ass2pos[idx]].p_md = p_md
+        self.list_opened_positions[self.map_ass2pos[idx]].entry_time = entry_time
+        #self.list_opened_positions[self.map_ass2pos[idx]].entry_time = entry_time
     
     def is_opened(self, idx):
-        if self.map_ass_idx2pos_idx[idx]>=0:
+        if self.map_ass2pos[idx]>=0:
             return True
         else:
             return False
     
     def count_one_event(self, idx):
-        self.list_count_events[self.map_ass_idx2pos_idx[idx]] += 1
+        self.list_count_events[self.map_ass2pos[idx]] += 1
                 
     def update_candidates(self):
         rewind = 0
@@ -602,7 +598,7 @@ class Trader:
         
         """
         return (self.next_candidate.asset==self.list_opened_positions[
-                self.map_ass_idx2pos_idx[idx]].asset and 
+                self.map_ass2pos[idx]].asset and 
             time_stamp==self.next_candidate.entry_time)
 
     def check_secondary_condition_for_extention(self, idx, curr_GROI):
@@ -613,13 +609,13 @@ class Trader:
         this_strategy = strategys[name2str_map[self.next_candidate.strategy]]
         
         dir_condition = self.list_opened_positions[
-                        self.map_ass_idx2pos_idx[idx]
+                        self.map_ass2pos[idx]
                         ].direction==self.next_candidate.direction
         # if not use GRE matrix
         if this_strategy.entry_strategy=='fixed_thr':
             raise ValueError("Depricated!")
 #            condition =  (self.list_opened_positions[
-#                        self.map_ass_idx2pos_idx[idx]
+#                        self.map_ass2pos[idx]
 #                        ].direction==self.next_candidate.direction and 
 #                        self.next_candidate.p_mc>=this_strategy.lb_mc_ext and 
 #                        self.next_candidate.p_md>=this_strategy.lb_md_ext and
@@ -633,14 +629,14 @@ class Trader:
 #                         this_strategy.get_profitability(
 #                         self.next_candidate.p_mc, self.next_candidate.p_md, 
 #                         int(np.abs(self.next_candidate.bet)-1))>margin and 
-#                         100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]])
+#                         100*curr_GROI>=self.list_lim_groi[self.map_ass2pos[idx]])
 #            prods_condition = condition
         elif this_strategy.entry_strategy=='spread_ranges':
             ass_loc = idx#assets.index(idx)
             if this_strategy.extend_for_any_thr:
                 t = 0
             else:
-                sp = self.list_sps[self.map_ass_idx2pos_idx[idx]]
+                sp = self.list_sps[self.map_ass2pos[idx]]
                 t = next((i for i,x in enumerate(this_strategy.info_spread_ranges[ass_loc]['sp']) if x>=sp), 
                          len(this_strategy.info_spread_ranges[ass_loc]['sp'])-1)
 #            print(t)
@@ -651,7 +647,7 @@ class Trader:
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin
             condition = dir_condition and prods_condition and \
-                100*curr_GROI>=self.list_lim_groi[self.map_ass_idx2pos_idx[idx]]
+                100*curr_GROI>=self.list_lim_groi[self.map_ass2pos[idx]]
         return condition, dir_condition, prods_condition
     
 #    def check_close_dueto_dirchange(self):
@@ -668,18 +664,18 @@ class Trader:
 
     def update_stoploss(self, idx):
         # update stoploss
-        if self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction == 1:
-            self.list_stop_losses[self.map_ass_idx2pos_idx[idx]] = max(
-                    self.list_stop_losses[self.map_ass_idx2pos_idx[idx]],
+        if self.list_opened_positions[self.map_ass2pos[idx]].direction == 1:
+            self.list_stop_losses[self.map_ass2pos[idx]] = max(
+                    self.list_stop_losses[self.map_ass2pos[idx]],
                     bid*(1-self.list_opened_positions[
-                    self.map_ass_idx2pos_idx[idx]].direction*strategys[
+                    self.map_ass2pos[idx]].direction*strategys[
                     name2str_map[self.next_candidate.strategy]].thr_sl*strategys[
                     name2str_map[self.next_candidate.strategy]].fixed_spread_ratio))
         else:
-            self.list_stop_losses[self.map_ass_idx2pos_idx[idx]] = min(
-                    self.list_stop_losses[self.map_ass_idx2pos_idx[idx]],
+            self.list_stop_losses[self.map_ass2pos[idx]] = min(
+                    self.list_stop_losses[self.map_ass2pos[idx]],
                     bid*(1-self.list_opened_positions[
-                    self.map_ass_idx2pos_idx[idx]].direction*strategys[
+                    self.map_ass2pos[idx]].direction*strategys[
                     name2str_map[self.next_candidate.strategy]
                     ].thr_sl*strategys[name2str_map[
                     self.next_candidate.strategy]].fixed_spread_ratio))
@@ -687,15 +683,15 @@ class Trader:
     def is_stoploss_reached(self, idx, stoplosses):
         # check stop loss reachead
         #print(self.list_stop_losses)
-        list_idx = self.map_ass_idx2pos_idx[idx]
-        if (self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction*(
-                self.list_last_bid[list_idx]-self.list_stop_losses[self.map_ass_idx2pos_idx[idx]])<=0):
+        list_idx = self.map_ass2pos[idx]
+        if (self.list_opened_positions[self.map_ass2pos[idx]].direction*(
+                self.list_last_bid[list_idx]-self.list_stop_losses[self.map_ass2pos[idx]])<=0):
             # exit position due to stop loss
             exit_pos = 1
             stoplosses += 1
             out = ("Exit position due to stop loss @event idx "+str(event_idx)+
                    " bid="+str(bid)+" sl="+
-                   str(self.list_stop_losses[self.map_ass_idx2pos_idx[idx]]))
+                   str(self.list_stop_losses[self.map_ass2pos[idx]]))
             self.write_log(out)
             print(out)
         else:
@@ -733,18 +729,18 @@ class Trader:
     def get_rois(self, idx, date_time='', roi_ratio=1, ass=''):
         """ Get current GROI and ROI of a given asset idx """
         
-        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
+        direction = self.list_opened_positions[self.map_ass2pos[idx]].direction
         Ti = \
             dt.datetime.strftime(self.list_opened_positions
-                                 [self.map_ass_idx2pos_idx[idx]].entry_time,
+                                 [self.map_ass2pos[idx]].entry_time,
                                  '%Y.%m.%d %H:%M:%S')
-        Dir = np.sign(self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet)
-        strategy_name = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].strategy
+        Dir = np.sign(self.list_opened_positions[self.map_ass2pos[idx]].bet)
+        strategy_name = self.list_opened_positions[self.map_ass2pos[idx]].strategy
 ############################ WARNING!!!! ##############################################        
-        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
-        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
-        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+        Bi = self.list_opened_positions[self.map_ass2pos[idx]].entry_bid
+        Ai = self.list_opened_positions[self.map_ass2pos[idx]].entry_ask
+        Bo = self.list_last_bid[self.map_ass2pos[idx]]
+        Ao = self.list_last_ask[self.map_ass2pos[idx]]
         espread = (Ai-Bi)/Ai
         if direction>0:
             GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -773,8 +769,8 @@ class Trader:
         return GROI_live, ROI_live, spread, info
     
     def update_groi_limit(self, idx, curr_GROI):
-        self.list_lim_groi[self.map_ass_idx2pos_idx[idx]] = \
-            max(self.list_lim_groi[self.map_ass_idx2pos_idx[idx]], 
+        self.list_lim_groi[self.map_ass2pos[idx]] = \
+            max(self.list_lim_groi[self.map_ass2pos[idx]], 
                 100*curr_GROI+strategys[name2str_map[
                 self.next_candidate.strategy]].lim_groi)
         return None
@@ -787,19 +783,19 @@ class Trader:
         if not partial_close:
             lot_ratio = 1.0
         roi_ratio = lot_ratio*self.list_lots_per_pos[
-                self.map_ass_idx2pos_idx[idx]]/self.list_lots_entry[
-                        self.map_ass_idx2pos_idx[idx]]
+                self.map_ass2pos[idx]]/self.list_lots_entry[
+                        self.map_ass2pos[idx]]
         
         if np.isnan(roi_ratio):
             raise ValueError("roi_ratio NaN")
         
-        direction = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
-#        Bi = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_bid
-#        Ai = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].entry_ask
-#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
-#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
-        p_mc = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_mc
-        p_md = self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].p_md
+        direction = self.list_opened_positions[self.map_ass2pos[idx]].direction
+#        Bi = self.list_opened_positions[self.map_ass2pos[idx]].entry_bid
+#        Ai = self.list_opened_positions[self.map_ass2pos[idx]].entry_ask
+#        Ao = self.list_last_ask[self.map_ass2pos[idx]]
+#        Bo = self.list_last_bid[self.map_ass2pos[idx]]
+        p_mc = self.list_opened_positions[self.map_ass2pos[idx]].p_mc
+        p_md = self.list_opened_positions[self.map_ass2pos[idx]].p_md
 #        
 #        if direction>0:
 #            GROI_live = roi_ratio*(Ao-Ai)/Ai
@@ -826,14 +822,14 @@ class Trader:
         self.write_pos_info(pos_info)
         
         self.available_budget += self.list_lots_per_pos[
-                self.map_ass_idx2pos_idx[idx]]*self.LOT*(lot_ratio+ROI_live)
+                self.map_ass2pos[idx]]*self.LOT*(lot_ratio+ROI_live)
         self.available_bugdet_in_lots = self.available_budget/self.LOT
         self.budget_in_lots += self.list_lots_per_pos[
-                self.map_ass_idx2pos_idx[idx]]*ROI_live
+                self.map_ass2pos[idx]]*ROI_live
         nett_win = self.list_lots_entry[
-                self.map_ass_idx2pos_idx[idx]]*ROI_live*self.LOT
+                self.map_ass2pos[idx]]*ROI_live*self.LOT
         gross_win = self.list_lots_entry[
-                self.map_ass_idx2pos_idx[idx]]*GROI_live*self.LOT
+                self.map_ass2pos[idx]]*GROI_live*self.LOT
         self.budget += nett_win
         earnings = self.budget-self.init_budget
         self.gross_earnings += gross_win
@@ -851,8 +847,8 @@ class Trader:
             self.remove_position(idx)
         else:
             # decrease the lot ratio in case the position is not fully closed
-            self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]
-            ] = self.list_lots_per_pos[self.map_ass_idx2pos_idx[idx]]*(1-lot_ratio)
+            self.list_lots_per_pos[self.map_ass2pos[idx]
+            ] = self.list_lots_per_pos[self.map_ass2pos[idx]]*(1-lot_ratio)
 #        if partial_close:
 #            partial_string = ' Partial'
 #        else:
@@ -925,16 +921,16 @@ class Trader:
         """
         <DocString>
         """
-        self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].direction
+        self.list_opened_positions[self.map_ass2pos[idx]].direction
         out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Extended "+
-               self.list_opened_positions[self.map_ass_idx2pos_idx[idx]
+               self.list_opened_positions[self.map_ass2pos[idx]
                ].asset.decode("utf-8")+
                " Lots {0:.1f}".format(lots)+" "+
-               str(self.list_opened_positions[self.map_ass_idx2pos_idx[idx]].bet)+
+               str(self.list_opened_positions[self.map_ass2pos[idx]].bet)+
                " p_mc={0:.2f}".format(self.list_opened_positions[
-                       self.map_ass_idx2pos_idx[idx]].p_mc)+
+                       self.map_ass2pos[idx]].p_mc)+
                " p_md={0:.2f}".format(self.list_opened_positions[
-                       self.map_ass_idx2pos_idx[idx]].p_md)+
+                       self.map_ass2pos[idx]].p_md)+
                " spread={0:.3f}".format(100*e_spread)+ " cGROI {0:.2f}".format(100*curr_GROI))
         print(out)
         self.write_log(out)
@@ -1060,8 +1056,8 @@ class Trader:
 #        Dir = np.sign(position.bet)     
         Bi = position.entry_bid
         Ai = position.entry_ask
-#        Bo = self.list_last_bid[self.map_ass_idx2pos_idx[idx]]
-#        Ao = self.list_last_ask[self.map_ass_idx2pos_idx[idx]]
+#        Bo = self.list_last_bid[self.map_ass2pos[idx]]
+#        Ao = self.list_last_ask[self.map_ass2pos[idx]]
 #        espread = (Ai-Bi)/Ai
         if direction>0:
             GROI_live = (Ao-Ai)/Ai
@@ -1649,7 +1645,7 @@ if __name__ == '__main__':
                     max_vols = [99999999 for _ in assets]
                     max_volats = [-1 for _ in assets]
             
-            list_idx = trader.map_ass_idx2pos_idx[ass_idx]
+            list_idx = trader.map_ass2pos[ass_idx]
             # update bid and ask lists if exist
             if list_idx>-1:
                 trader.list_last_bid[list_idx] = bid
@@ -1744,13 +1740,13 @@ if __name__ == '__main__':
                     dt_max_diff_per_pos_ass[thisAsset] = time_stamp
                     
                 trader.count_one_event(ass_idx)
-        #        stop_loss = update_stoploss(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]], stop_loss)
+        #        stop_loss = update_stoploss(trader.list_opened_positions[trader.map_ass2pos[ass_idx]], stop_loss)
                 exit_pos, stoplosses = trader.is_stoploss_reached(ass_idx, stoplosses)
                 if exit_pos:
                     # save original exit time for skipping positions
                     #original_exit_time = trader.list_opened_positions[0].exit_time
                     
-                    trader.ban_asset(trader.list_opened_positions[trader.map_ass_idx2pos_idx[ass_idx]],
+                    trader.ban_asset(trader.list_opened_positions[trader.map_ass2pos[ass_idx]],
                                      DateTime, thisAsset, ass_idx, bid, ask)
                     trader.close_position(DateTime, 
                                           thisAsset, 
@@ -1811,7 +1807,7 @@ if __name__ == '__main__':
                             elif strategys[name2str_map[
                                         trader.next_candidate.strategy]
                                         ].if_dir_change_close: # if p_mc/p_md greater than min values for market access, then close
-                                sp = trader.list_sps[trader.map_ass_idx2pos_idx[ass_idx]]
+                                sp = trader.list_sps[trader.map_ass2pos[ass_idx]]
                                 this_strategy = strategys[name2str_map[
                                         trader.next_candidate.strategy]]
                                 # check if the new level is as certain as the opening one
@@ -1861,7 +1857,7 @@ if __name__ == '__main__':
 #                                change_dir += 1
 #                                print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Exit position due to direction change "+Assets[event_idx].decode("utf-8"))
 #                                # get lots in case a new one is directly opened
-#                                lots = trader.list_lots_per_pos[trader.map_ass_idx2pos_idx[ass_idx]]
+#                                lots = trader.list_lots_per_pos[trader.map_ass2pos[ass_idx]]
 #                                trader.close_position(DateTimes[event_idx], Assets[event_idx].decode("utf-8"), ass_idx)
 #                                # reset approched
 #                                if len(trader.list_opened_positions)==0:
@@ -1873,15 +1869,15 @@ if __name__ == '__main__':
                     # end of if (time_stamp==next_pos.entry_time and bid==next_pos.entry_bid and ask==next_pos.entry_ask):   
                     
                     # check if it is time to exit market
-                    if (trader.map_ass_idx2pos_idx[ass_idx]>-1 and 
+                    if (trader.map_ass2pos[ass_idx]>-1 and 
                         Assets[event_idx]==trader.list_opened_positions[
-                                trader.map_ass_idx2pos_idx[ass_idx]].asset and 
+                                trader.map_ass2pos[ass_idx]].asset and 
                                 bid==trader.list_opened_positions[
-                                trader.map_ass_idx2pos_idx[ass_idx]].exit_bid and 
+                                trader.map_ass2pos[ass_idx]].exit_bid and 
                                 ask==trader.list_opened_positions[
-                                trader.map_ass_idx2pos_idx[ass_idx]].exit_ask and
+                                trader.map_ass2pos[ass_idx]].exit_ask and
                                 time_stamp==trader.list_opened_positions[
-                                trader.map_ass_idx2pos_idx[ass_idx]].exit_time):#and trader.list_count_events[trader.map_ass_idx2pos_idx[ass_idx]]>=nExS
+                                trader.map_ass2pos[ass_idx]].exit_time):#and trader.list_count_events[trader.map_ass2pos[ass_idx]]>=nExS
                         
                         trader.close_position(DateTime, 
                                               thisAsset, 
