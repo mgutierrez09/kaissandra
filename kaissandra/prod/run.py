@@ -4081,7 +4081,8 @@ if __name__=='__main__':
         
         from kaissandra.prod.control import control
         kwargs = {'queues':queues, 'queues_prior':queues_prior, 'send_info_api':send_info_api}
-        Process(target=control, args=[running_assets], kwargs=kwargs).start()
+        #Process(target=control, args=[running_assets], kwargs=kwargs).start()
+        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
         # wait for last trader to finish
         print("WAITING FOR PROCESSES TO FINISH")
         for p in processes:
