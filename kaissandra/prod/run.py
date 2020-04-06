@@ -4033,7 +4033,7 @@ else:
     n_samps_buffer = 10
 
 if not test:
-    if len(config_names)>0:
+    if len(config_names)>0: 
         list_config_traders = [retrieve_config(config_name) for config_name in config_names]
         print("config_names")
         print(config_names)
