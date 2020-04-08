@@ -376,8 +376,8 @@ class Trader:
         self.list_is_asset_banned = [False for _ in running_assets]
         self.max_opened_positions = max_opened_positions
         
-        self.journal_idx = 0
-        self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
+#        self.journal_idx = 0
+#        self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
         
         init_budget, leverage, _, _ = self.get_account_status()
         #print("Init budget: "+str(init_budget)+" Leverage: "+str(leverage))
@@ -510,12 +510,12 @@ class Trader:
         print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
               .format(balance,leverage,equity,profits))
         return balance, leverage, equity, profits
-        
-    def _get_thr_sl_vector(self):
-        '''
-        '''
-        return self.next_candidate.entry_bid*(1-self.next_candidate.direction*
-                                              self.sl_thr_vector)
+#        
+#    def _get_thr_sl_vector(self):
+#        '''
+#        '''
+#        return self.next_candidate.entry_bid*(1-self.next_candidate.direction*
+#                                              self.sl_thr_vector)
     
     def add_new_candidate(self, position):
         '''
@@ -896,7 +896,8 @@ class Trader:
     
     def close_position(self, date_time, ass, idx, results,
                        lot_ratio=None, partial_close=False, from_sl=0, 
-                       DTi_real='', groiist=None, roiist=None, swap=0):
+                       DTi_real='', groiist=None, roiist=None, swap=0, 
+                       returnist=None):
         """ Close position """
         list_idx = self.map_ass_idx2pos_idx[idx]
         # if it's full close, get the raminings of lots as lots ratio
@@ -913,6 +914,12 @@ class Trader:
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
+        if not groiist:
+            groiist = 100*GROI_live
+            roiist = 100*ROI_live
+            returnist = self.list_lots_entry[list_idx]*ROI_live*self.LOT
+        if DTi_real=='':
+            DTi_real = date_time
         
         lots2add = self.list_lots_per_pos[list_idx]*(lot_ratio+ROI_live)
         self.available_bugdet_in_lots = self.get_current_available_budget()+lots2add
@@ -921,13 +928,14 @@ class Trader:
         self.update_current_available_budget()
         
         self.budget_in_lots += self.list_lots_per_pos[list_idx]*ROI_live
-                                                    
+        
+        
         nett_win = self.list_lots_entry[list_idx]*ROI_live*self.LOT
         gross_win = self.list_lots_entry[list_idx]*GROI_live*self.LOT
-        self.budget += nett_win
+        self.budget += returnist
         earnings = self.budget-self.init_budget
         self.gross_earnings += gross_win
-        self.nett_earnigs += nett_win
+        self.nett_earnigs += returnist
         
         if ROI_live>0:
             self.net_successes += 1
@@ -1006,23 +1014,17 @@ class Trader:
             balance, leverage, equity, profits = self.get_account_status()
             logMsg = " "+date_time+" equity "+str(equity)+" Balance "+str(balance)+\
                     " Budget "+str(self.budget)+" budget difference: "+str(balance-self.budget)
-            if verbose_trader:
+            if 1:
                 
                 out = ass+logMsg
                 self.write_log(out)
                 print("\r"+out)
             if send_info_api:
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-            self.budget = balance
+            #self.budget = balance
         if send_info_api:
-            if not groiist:
-                groiist = 100*GROI_live
-                roiist = 100*ROI_live
-            if DTi_real=='':
-                DTi_real = date_time
-            
             self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
-                                    100*GROI_live, 100*ROI_live, nett_win, 
+                                    100*GROI_live, 100*ROI_live, returnist, 
                                     pos_filename, dirfilename, DTi_real, groiist, 
                                     roiist, slfalg, swap)
         assert(lot_ratio<=1.00 and lot_ratio>0)
@@ -2907,6 +2909,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 
             # close position
             if flag_cl:
+                # info close: [thisSymbol,toc,TimeCurrent(),position,Bi,Ai,bid,ask,dif_ticks,GROI,spread,ROI,real_profit,equity,swap]
                 # update postiions vector
                 info_split = info_close.split(",")
                 list_idx = trader.map_ass_idx2pos_idx[ass_id]
@@ -2916,9 +2919,11 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
                 swap = float(info_split[14])
+                returnist = float(info_split[12])
                 trader.close_position(info_split[2], thisAsset, ass_id, results, 
                                       DTi_real=info_split[1], groiist=float(info_split[9]), 
-                                      roiist=float(info_split[11]), swap=swap)
+                                      roiist=float(info_split[11]), swap=swap, 
+                                      returnist=returnist)
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
@@ -3991,8 +3996,7 @@ import shutil
 from kaissandra.local_config import local_vars as LC
 #if send_info_api:
 #from kaissandra.prod.api import API
-from kaissandra.prod.communication import get_config_session, \
-                                          open_session, \
+from kaissandra.prod.communication import open_session, \
                                           close_session, \
                                           shutdown_control
 from kaissandra.config import Config as C

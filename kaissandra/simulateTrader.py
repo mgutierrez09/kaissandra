@@ -359,9 +359,11 @@ class Trader:
         self.gross_successes = 0
         self.n_pos_extended = 0
         self.n_entries = 0
+        self.n_pos_currently_open = 0
         self.allow_candidates = allow_candidates
+        
         # maximum number of positions betting on same currency and same dir (lev)
-        self.max_lev_per_curr = max_lev_per_curr 
+        self.max_lev_per_curr = max_lev_per_curr
         
         self.save_log = 1
         if log_file=='':
@@ -584,7 +586,7 @@ class Trader:
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin and\
                 e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
-                len(self.list_opened_positions[str_idx])<max_opened_positions
+                self.n_pos_currently_open<max_opened_positions
                 if second_condition_open:
                     sp = this_strategy.info_spread_ranges[ass_loc]['sp'][t]
                     return second_condition_open, sp
@@ -865,6 +867,8 @@ class Trader:
 #            ].get_profitability(self.next_candidate.p_mc, 
 #            self.next_candidate.p_md, 
 #            int(np.abs(self.next_candidate.bet)-1))
+        self.n_pos_currently_open -= 1
+        
         out =( date_time+" "+str(direction)+" close "+ass+
               " p_mc={0:.2f}".format(p_mc)+
               " p_md={0:.2f}".format(p_md)+
@@ -873,12 +877,13 @@ class Trader:
                       " TGROI {1:.3f}% TROI = {0:.3f}%".format(
                       100*self.tROI_live,100*self.tGROI_live)+
                               " Earnings {0:.2f}".format(earnings)
-              +". Remeining open "+str(len(self.list_opened_positions[s])))
+              +". Remeining open "+str(self.n_pos_currently_open))
         # update results
         results.datetimes.append(date_time)
         results.GROIs = np.append(results.GROIs,100*GROI_live)
         results.ROIs = np.append(results.ROIs,100*ROI_live)
         results.earnings = np.append(results.GROIs,nett_win)
+        
         self.write_log(out)
         print(out)
         ## TEST MARGIN ##
@@ -900,7 +905,7 @@ class Trader:
         self.available_bugdet_in_lots -= lots
         approached = 1
         n_pos_opened += 1
-        
+        self.n_pos_currently_open += 1
         # update vector of opened positions
         self.add_position(idx, lots, sp)
         # update candidate positions
@@ -1169,14 +1174,14 @@ if __name__ == '__main__':
                                      (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                      (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                      (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0.0,0.02) for _ in range(46)]} for _ in assets],
+                               'mar':[(0.0,0.06) for _ in range(46)]} for _ in assets],
                               [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                      (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                      (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0.0,0.02) for _ in range(46)]} for _ in assets]]
+                               'mar':[(0.0,0.06) for _ in range(46)]} for _ in assets]]
         list_lb_mc_ext = [.5, .51]
         list_lb_md_ext = [.58, .57]#[.64, .63]#
     else:
