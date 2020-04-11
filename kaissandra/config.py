@@ -96,6 +96,8 @@ class Config():
              "75":"XRPUSD",
              "76":"ZECBTC",
              "77":"ZECUSD"}
+    # list of currencies
+    AllCurrencies = ['AUD', 'CAD', 'CHF', 'EUR', 'GBP', 'JPY', 'NZD', 'USD']
     
     # feature indexes
     FI = {"symbol":0,
