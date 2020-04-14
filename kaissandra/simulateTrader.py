@@ -1349,7 +1349,7 @@ if __name__ == '__main__':
     init_day_str = '20181112'#'20200224'#'20200224'#'20191202'#
     end_day_str = '20200404'#'20191212'
     filter_KW = True
-    days_KWs = ['181112', '181231']
+    days_KWs = ['191011']
     KWs = list(map(lambda x:dt.datetime.strptime(x,'%y%m%d').date().isocalendar()[:2], days_KWs))
     list_name = ['10PS2k12K5E19ALSRNSP50M2', '10PS2k12K5E19BSRNSP50M2']# margin 2
     list_epoch_journal = [0 for _ in range(numberNetwors)]
@@ -1361,7 +1361,7 @@ if __name__ == '__main__':
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
         list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th':[(0.61, 0.56), (0.61, 0.56), (0.61, 0.56), (0.61, 0.56), (0.61, 0.56), (0.61, 0.56), (0.67, 0.57), (0.67, 0.57), (0.67, 0.57), (0.67, 0.57), (0.67, 0.57), 
-                                           (0.67, 0.57), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.69, 0.6), (0.69, 0.6), (0.69, 0.6), (0.69, 0.6), (0.69, 0.6), 
+                                     (0.67, 0.57), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.67, 0.6), (0.69, 0.6), (0.69, 0.6), (0.69, 0.6), (0.69, 0.6), (0.69, 0.6), 
                                            (0.69, 0.6), (0.69, 0.6), (0.71, 0.6), (0.71, 0.6), (0.71, 0.6), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), 
                                            (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.81, 0.59), (0.82, 0.59), (0.82, 0.59), (0.82, 0.59)],
                                'mar':[(0.0,0.02) for _ in range(46)]} for _ in assets],
@@ -1428,7 +1428,7 @@ if __name__ == '__main__':
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     
-    positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
+    
 #    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
 #    delta_dates = dt.datetime.strptime('2018.11.09','%Y.%m.%d').date()-edges[-2]
 #    dateTestDt = [edges[-2] + dt.timedelta(i) for i in range(delta_dates.days + 1)]
@@ -1440,10 +1440,18 @@ if __name__ == '__main__':
         for d in dateTestDt:
             if d.weekday()<5:
                 dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+        positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'.csv'
     else:
+        init_day_str = ''
+        end_day_str = ''
         for d in dateTestDt:
             if d.weekday()<5 and d.isocalendar()[:2] in KWs:
+                if init_day_str == '':
+                    init_day_str = dt.date.strftime(d,'%Y%m%d')
                 dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+                end_day_str = dt.date.strftime(d,'%Y%m%d')
+        positions_file = start_time+'_F'+init_day_str+'T'+end_day_str+'_KW.csv'
+    print(positions_file)
     #dateTest = ['2018.11.15','2018.11.16']
     load_from_live = False
     # data structure
@@ -1454,12 +1462,14 @@ if __name__ == '__main__':
 #    last_day = '2020.01.10'#'2019.08.22'
 #    init_day = dt.datetime.strptime(first_day,'%Y.%m.%d').date()
 #    end_day = dt.datetime.strptime(last_day,'%Y.%m.%d').date()
-    delta_dates = end_day-init_day
-    dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
-    dateTest = []
-    for d in dateTestDt:
-        if d.weekday()<5:
-            dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
+    
+    
+#    delta_dates = end_day-init_day
+#    dateTestDt = [init_day + dt.timedelta(i) for i in range(delta_dates.days + 1)]
+#    dateTest = []
+#    for d in dateTestDt:
+#        if d.weekday()<5:
+#            dateTest.append(dt.date.strftime(d,'%Y.%m.%d'))
                     
     tic = time.time()
     # init positions vector
@@ -2037,6 +2047,7 @@ if __name__ == '__main__':
                     ### Track Quarantine ###
                     # if position still open
                     if trader.next_candidate!= None and trader.is_opened_strategy(ass_idx):
+                        str_idx = name2str_map[trader.next_candidate.strategy]
                         if -curr_GROI>=qurantine_thr+curr_spread and not trader.list_quarantined_pos[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]]['on']:
                             # quarantine
                             trader.quarantine_position(DateTime, thisAsset, ass_idx, str_idx, curr_GROI)
@@ -2053,7 +2064,7 @@ if __name__ == '__main__':
                 #trader.decrease_ban_counter(ass_idx, 1)
                 trader.track_banned_asset(DateTime, thisAsset, ass_idx, bid, ask)
                 EXIT, rewind = trader.update_candidates()
-            # uptade posiitions if ADm is too low or eGROI is too low too
+            # uptade posiitions if ADm is too low or eGROI is too low too 10.11. 15:33:54
 #            if (trader.chech_ground_condition_for_opening() and 
 #                trader.check_primary_condition_for_opening()):
 #                print("Primary and sec ok")
