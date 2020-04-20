@@ -173,7 +173,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 else:
                     print("WARNING! id NOT in position_json")
             elif info["EVENT"] == "EXTEND":
-                ct.send_extend_position(params, info["ASSET"], token_header)
+                ct.send_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
 #                if info["ASSET"] in assets_opened:
 #                    pos_id = assets_opened[info["ASSET"]]
 #                    ct.send_extend_position(params, pos_id, token_header)
@@ -181,7 +181,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
 #                else:
 #                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
             elif info["EVENT"] == "NOTEXTEND":
-                ct.send_not_extend_position(params, info["ASSET"], token_header)
+                ct.send_not_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
 #                if info["ASSET"] in assets_opened:
 #                    pos_id = assets_opened[info["ASSET"]]
 #                    ct.send_not_extend_position(params, pos_id, token_header)
@@ -189,7 +189,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
 #                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
             elif info["EVENT"] == "CLOSE":
                 dirfilename = info["DIRFILENAME"]
-                ct.send_close_position(params, info["ASSET"], dirfilename, token_header)
+                ct.send_close_position(params, info["ASSET"], info["STRATEGY"], dirfilename, token_header)
 #                if info["ASSET"] in assets_opened:
 #                    pos_id = assets_opened[info["ASSET"]]
 #                    dirfilename = info["DIRFILENAME"]

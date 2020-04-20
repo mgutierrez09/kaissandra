@@ -486,10 +486,10 @@ def send_open_position(params, session_id, token_header):
         print("WARNING! Error in send_open_position in kaissandra.prod.communication.")
         return None
     
-def send_extend_position(params, pos_id, token_header):
+def send_extend_position(params, pos_id, str_idx, token_header):
     """ Send extend position commnad to server api"""
     try:
-        url_ext = 'traders/positions/'+str(pos_id)+'/extend'
+        url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/extend'
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                  token_header, verify=True)
         print("Status code: "+str(response.status_code))
@@ -503,9 +503,9 @@ def send_extend_position(params, pos_id, token_header):
         print("WARNING! Error in send_extend_position in kaissandra.prod.communication.")
         return False
     
-def send_not_extend_position(params, pos_id, token_header):
+def send_not_extend_position(params, pos_id, str_idx, token_header):
     """ Send extend position commnad to server api"""
-    url_ext = 'traders/positions/'+str(pos_id)+'/notextend'
+    url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/notextend'
     try:
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                  token_header, verify=True)
@@ -520,11 +520,11 @@ def send_not_extend_position(params, pos_id, token_header):
         print("WARNING! Error in send_not_extend_position in kaissandra.prod.communication. Skipped.")
     return None
     
-def send_close_position(params, pos_id, dirfilename, token_header):
+def send_close_position(params, pos_id, str_idx, dirfilename, token_header):
     """ Send close position command to server api """
     
-    url_ext = 'traders/positions/'+str(pos_id)+'/close'
-    url_file = 'traders/positions/'+str(pos_id)+'/upload'
+    url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/close'
+    url_file = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/upload'
     try:
         files={'file': open(dirfilename,'rb')}
         response_file = requests.post(LC.URL+url_file, files=files, 

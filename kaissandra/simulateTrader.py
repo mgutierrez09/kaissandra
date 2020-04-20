@@ -1036,6 +1036,7 @@ class Trader:
     def open_position(self, idx, approached, n_pos_opened, lots, sp):
         """ Open position """
         str_idx = name2str_map[self.next_candidate.strategy]
+        str_name = self.next_candidate.strategy
         self.available_budget -= lots*self.LOT
         self.available_bugdet_in_lots -= lots
         
@@ -1053,7 +1054,7 @@ class Trader:
         
         out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Open "+asset+
               " Lots {0:.1f}".format(lots)+" "+
-              str(asset)+
+              str(asset)+" "+str_name+
               " p_mc={0:.2f}".format(self.list_opened_pos_per_str[str_idx][-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_pos_per_str[str_idx][-1].p_md)+
               " spread={0:.3f}".format(100*e_spread))
@@ -1347,16 +1348,16 @@ if __name__ == '__main__':
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     filter_KW = False
     KWs = []
-    numberNetwors = 2
+    numberNetwors = 4
     init_day_str = '20181112'#'20191202'#
     end_day_str = '20200403'#'20191212'
-    list_name = ['0110NYORPS2k12K2K5E19ALSRNSP50', '0110NYORPS2k12K2K5E19BSSRNSP50']
+    list_name = ['0110NYORPS2k12K2K5E19ALSRNSP50', '0110NYORPS2k12K2K5E19BSSRNSP50']+['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     spreads_per_asset = False
     if not spreads_per_asset:
-        list_IDresults = ['R01100PS2CMF181112T200404ALk12K2K5E19', 'R01100PS2CMF181112T200404BSk12K2K5E19']
+        list_IDresults = ['R01100PS2CMF181112T200404ALk12K2K5E19', 'R01100PS2CMF181112T200404BSk12K2K5E19']+['R01050NYORPS2CMF181112T200404ALk12K5K2E141452','R01050NYORPS2CMF181112T200404BSk12K5K2E141453']
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
         list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                 'th': [(0.54, 0.56), (0.56, 0.56), (0.54, 0.58), (0.6, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.67, 0.58), (0.67, 0.58), 
@@ -1371,9 +1372,23 @@ if __name__ == '__main__':
                                       (0.82, 0.55), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
                                       (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
                                       (0.85, 0.56), (0.85, 0.56)],
-                               'mar':[(0,0.04) for _ in range(46)]} for _ in assets]]
-        list_lb_mc_ext = [.54, .54]
-        list_lb_md_ext = [.56, .55]
+                               'mar':[(0,0.04) for _ in range(46)]} for _ in assets]]+\
+                            [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
+                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
+                                     (0.75, 0.61), (0.75, 0.61)],
+                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
+                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
+                                     (0.75, 0.58), (0.75, 0.58)],
+                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
+        list_lb_mc_ext = [.54, .54]+[.5, .51]
+        list_lb_md_ext = [.56, .55]+[.58,.57]
     else:
         extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
         extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']

@@ -84,8 +84,8 @@ if __name__ == '__main__':
         
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20181112'#'20190225'#'20181112'#'20191202'#
-    end_day_str = '20200306'#'20191212'
+    init_day_str = '20200309'#'20181112'
+    end_day_str = '20200403'#'20191212'
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     
     root_dir = local_vars.data_test_dir
