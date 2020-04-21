@@ -1347,79 +1347,66 @@ if __name__ == '__main__':
 
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     filter_KW = False
-    KWs = []
-    numberNetwors = 4
+    KWs = [(2020,12)]#format: (%Y, KW)
+    numberNetwors = 2
     init_day_str = '20181112'#'20191202'#
     end_day_str = '20200403'#'20191212'
-    list_name = ['0110NYORPS2k12K2K5E19ALSRNSP50', '0110NYORPS2k12K2K5E19BSSRNSP50']+['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
+    list_name = ['0110PS2k12345K5E19ALSRNSP50M04', '0110PS2k12345K5E19BSSRNSP50M04']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     spreads_per_asset = False
     if not spreads_per_asset:
-        list_IDresults = ['R01100PS2CMF181112T200404ALk12K2K5E19', 'R01100PS2CMF181112T200404BSk12K2K5E19']+['R01050NYORPS2CMF181112T200404ALk12K5K2E141452','R01050NYORPS2CMF181112T200404BSk12K5K2E141453']
+        list_IDresults = ['R01100PS2CMF181112T200404ALk12345K2K5E19', 'R01100PS2CMF181112T200404BSk12345K2K5E19']
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
         list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                                'th': [(0.54, 0.56), (0.56, 0.56), (0.54, 0.58), (0.6, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.67, 0.58), (0.67, 0.58), 
-                                       (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), 
-                                       (0.7, 0.58), (0.7, 0.58), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), 
-                                       (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), 
-                                       (0.83, 0.59), (0.83, 0.59)],
+                                'th': [(0.56, 0.55), (0.61, 0.55), (0.61, 0.55), (0.61, 0.55), (0.61, 0.57), (0.61, 0.58), (0.61, 0.58), (0.61, 0.58), (0.61, 0.58), (0.67, 0.57), (0.67, 0.57), 
+                                       (0.67, 0.57), (0.67, 0.57), (0.67, 0.58), (0.68, 0.58), (0.71, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), 
+                                       (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.76, 0.57), (0.76, 0.57), (0.76, 0.57), (0.76, 0.57), (0.76, 0.57), (0.84, 0.58), 
+                                       (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), 
+                                       (0.84, 0.58), (0.84, 0.58)],
                                'mar':[(0,0.04) for _ in range(46)]} for _ in assets],
                               [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th': [(0.54, 0.55), (0.54, 0.56), (0.54, 0.56), (0.54, 0.56), (0.63, 0.56), (0.63, 0.56), (0.63, 0.56), (0.66, 0.56), (0.66, 0.56), (0.66, 0.56), (0.66, 0.56), 
-                                      (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.82, 0.55), (0.82, 0.55), (0.82, 0.55), (0.82, 0.55), (0.82, 0.55), 
-                                      (0.82, 0.55), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
+                               'th': [(0.53, 0.56), (0.53, 0.56), (0.53, 0.56), (0.53, 0.56), (0.64, 0.56), (0.64, 0.56), (0.64, 0.56), (0.64, 0.56), (0.64, 0.56), (0.66, 0.56), (0.66, 0.56), 
+                                      (0.78, 0.56), (0.78, 0.56), (0.78, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), 
+                                      (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.85, 0.56), 
                                       (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
                                       (0.85, 0.56), (0.85, 0.56)],
-                               'mar':[(0,0.04) for _ in range(46)]} for _ in assets]]+\
-                            [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
-                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
-                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
-                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
-                                     (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets],
-                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
-                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
-                                     (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.02) for _ in range(46)]} for _ in assets]]
-        list_lb_mc_ext = [.54, .54]+[.5, .51]
-        list_lb_md_ext = [.56, .55]+[.58,.57]
+                               'mar':[(0,0.04) for _ in range(46)]} for _ in assets]]
+        list_lb_mc_ext = [.56, .53]
+        list_lb_md_ext = [.55, .56]
     else:
-        extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
-        extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']
-        baseNames = ['R01050NYORPS2', 'R01050NYORPS2']
-        list_anchor_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
-                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
-                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
-                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
-                                     (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
-                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
-                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
-                                     (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
-        mar = (0.0, 0.02)
-        list_spread_ranges = []
-        list_IDresults = []
-        list_min_p_mcs = []
-        list_min_p_mds = []
-        for net in range(numberNetwors):
-            spread_ranges, IDresults, min_p_mcs, min_p_mds = build_spread_ranges_per_asset(baseNames[net], 
-                                                        extentionNamesResults[net], extentionNamesSpreads[net], assets, 60, 
-                                                        mar=mar, anchor=list_anchor_spread_ranges[net])
-            list_spread_ranges.append(spread_ranges)
-            list_IDresults.append(IDresults)
-            list_min_p_mcs.append(min_p_mcs)
-            list_min_p_mds.append(min_p_mds)
+        pass
+#        extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
+#        extentionNamesResults = ['CMF181112T200306AL', 'CMF181112T200306BS']
+#        baseNames = ['R01050NYORPS2', 'R01050NYORPS2']
+#        list_anchor_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+#                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+#                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+#                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
+#                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
+#                                     (0.75, 0.61), (0.75, 0.61)],
+#                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
+#                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+#                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+#                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+#                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+#                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
+#                                     (0.75, 0.58), (0.75, 0.58)],
+#                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
+#        mar = (0.0, 0.02)
+#        list_spread_ranges = []
+#        list_IDresults = []
+#        list_min_p_mcs = []
+#        list_min_p_mds = []
+#        for net in range(numberNetwors):
+#            spread_ranges, IDresults, min_p_mcs, min_p_mds = build_spread_ranges_per_asset(baseNames[net], 
+#                                                        extentionNamesResults[net], extentionNamesSpreads[net], assets, 60, 
+#                                                        mar=mar, anchor=list_anchor_spread_ranges[net])
+#            list_spread_ranges.append(spread_ranges)
+#            list_IDresults.append(IDresults)
+#            list_min_p_mcs.append(min_p_mcs)
+#            list_min_p_mds.append(min_p_mds)
     
     list_lim_groi_ext = [-10 for i in range(numberNetwors)] # in %
     list_max_lots_per_pos = [.1 for i in range(numberNetwors)]
@@ -1428,8 +1415,8 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
-    max_opened_positions = 20
-    max_pos_per_curr = 20
+    max_opened_positions = 100
+    max_pos_per_curr = 100
     qurantine_thr = 1#0.008 # quarantine thr in ratio, i.e. 0.01=1%
     histeresis = 0.0005 # # histeresis of quarantine thr in ratio, i.e. 0.001=0.1%
 
@@ -2118,13 +2105,13 @@ if __name__ == '__main__':
                 str_idx = name2str_map[trader.next_candidate.strategy]
                 if len(trader.list_opened_pos_per_str[str_idx])==0:
                     approached = 0
-            if (trader.next_candidate!= None and 
+            if (trader.next_candidate!= None and not rewind and
                 trader.next_candidate.entry_time<time_stamp):# and len(trader.list_opened_pos_per_str)==0
-#                out = (DateTime+
-#                      " ERROR! Next exit time should be "+
-#                      "later than current time stamp."+" Updating candidates")
-#                print(out)
-#                trader.write_log(out)
+                out = (DateTime+
+                      " ERROR! Next exit time should be "+
+                      "later than current time stamp."+" Updating candidates")
+                print(out)
+                trader.write_log(out)
                 #raise ValueError(out)
                 # updating candidates
                 EXIT, rewind = trader.update_candidates()
@@ -2140,11 +2127,13 @@ if __name__ == '__main__':
 #                    out = "WARNING! "+original_time+" Rewind @ index "+str(event_idx)
 #                    print(out)
 #                    trader.write_log(out)
-                    event_idx -= 100
+                    #event_idx -= 100
 #                    trader.list_banned_counter[trader.list_banned_counter>-1] = \
 #                        trader.list_banned_counter[trader.list_banned_counter>-1]+100
-                    while DateTimes[event_idx]==original_time:
+                    while DateTimes[event_idx].decode("utf-8")>=original_time and event_idx>0:
                         event_idx -= 100
+                    event_idx -= 100
+                    event_idx = max(event_idx, 0)
 #                        trader.list_banned_counter[trader.list_banned_counter>-1] = \
 #                            trader.list_banned_counter[trader.list_banned_counter>-1]+100
                     #print("Rewinded to "+DateTimes[event_idx].decode("utf-8"))

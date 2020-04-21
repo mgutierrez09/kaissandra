@@ -57,9 +57,10 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
     
     list_num_files = [{'max':-1,'curr':0, 'time':dt.datetime.now()} for i in running_assets]
     # crate log queue and lauch it in a separate process
-    log_queue = Queue(-1)
-    listener = Process(target=listener_process, args=(log_queue, config_logger_online))
-    listener.start()
+    if len(queues)>0:
+        log_queue = Queue(-1)
+        listener = Process(target=listener_process, args=(log_queue, config_logger_online))
+        listener.start()
     
     token_header = ct.build_token_header(ct.post_token())
     # launch queue listeners as independent processes
@@ -83,7 +84,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
                                                       timeout, directory_io,
                                                       reset_command, directory_MT5, 
                                                       list_last_file, list_num_files, timeouts, 
-                                                      reset, log_queue)
+                                                      reset)
         
         # loop over assets
 #        for ass_idx, ass_id in enumerate(running_assets):
@@ -122,7 +123,8 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         if os.path.exists(directory_io+'SD'):
             os.remove(directory_io+'SD')
             # shutting down queues
-            log_queue.put(None)
+            if len(queues)>0:
+                log_queue.put(None)
 #            for q, queue in enumerate(queues):
 #                queue_prior = queues_prior[q]
 #                queue.put({'FUNC':'SD'})
@@ -209,7 +211,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     
 def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                            reset_command, directory_MT5, list_last_file, list_num_files, 
-                           timeouts, reset, log_queue):
+                           timeouts, reset):
     """ Controls the connection and arrival of new info from trader and 
     sends reset command in case connection is lost """
     for ass_idx, ass_id in enumerate(running_assets):

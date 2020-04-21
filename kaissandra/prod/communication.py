@@ -319,44 +319,48 @@ def get_positions_status():
     
     ##### WARNING! #####
     AllAssets = Config.AllAssets
+    max_strategies_per_asset = 4
     status = {}
     for asset_key in AllAssets:
         thisAsset = AllAssets[asset_key]
-        dirfilename = LC.directory_MT5_comm+thisAsset+'/POSINFO.txt'
-        if os.path.exists(dirfilename):
-            # load network output
-            success = 0
-            while not success:
-                try:
-                    fh = open(dirfilename,"r")
-                    info_close = fh.read()[:-1]
-                    # close file
-                    fh.close()
-                    success = 1
-                    #stop_timer(ass_idx)
-                except PermissionError:
-                    print("Error reading position status")
-                    time.sleep(.1)
-            info_str = info_close.split(',')
-            #print(info_str)
-            pos_id = int(info_str[0])
-            volume = float(info_str[1])
-            open_price = float(info_str[2])
-            current_price = float(info_str[3])
-            current_profit = float(info_str[4])
-            swap = float(info_str[5])
-            deadline = int(info_str[6])
-            
-            print(thisAsset+": pos_id {0:d} volume {1:.2f} open price {2:.2f} current price {3:.2f} swap {5:.2f} dealine in {6:d} current profit {4:.2f}"\
-              .format(pos_id, volume, open_price, current_price, current_profit, swap, deadline))
-            
-            status[thisAsset] = {'pos_id':pos_id, 
-                                 'volume':volume, 
-                                 'open_price':open_price, 
-                                 'current_price':current_price,
-                                 'current_profit':current_profit,
-                                 'swap':swap,
-                                 'deadline':deadline}
+        for str_idx in range(max_strategies_per_asset):
+            dirfilename = LC.directory_MT5_comm+thisAsset+"/POSINFO"+str(str_idx)+".txt"
+            if os.path.exists(dirfilename):
+                # load network output
+                success = 0
+                while not success:
+                    try:
+                        fh = open(dirfilename,"r")
+                        info_close = fh.read()[:-1]
+                        # close file
+                        fh.close()
+                        success = 1
+                        #stop_timer(ass_idx)
+                    except PermissionError:
+                        print("Error reading position status")
+                        time.sleep(.1)
+                info_str = info_close.split(',')
+                #print(info_str)
+                pos_id = int(info_str[0])
+                volume = float(info_str[1])
+                open_price = float(info_str[2])
+                current_price = float(info_str[3])
+                current_profit = float(info_str[4])
+                swap = float(info_str[5])
+                deadline = int(info_str[6])
+                direction = int(info_str[7])
+                
+                print(thisAsset+"_"+str(str_idx)+": pos_id {0:d} volume {1:.2f} open price {2:.2f} current price {3:.2f} swap {5:.2f} dir {7:d} dealine in {6:d} current profit {4:.2f}"\
+                  .format(pos_id, volume, open_price, current_price, current_profit, swap, deadline, direction))
+                
+                status[thisAsset+"_"+str(str_idx)] = {'pos_id':pos_id, 
+                                     'volume':volume, 
+                                     'open_price':open_price, 
+                                     'current_price':current_price,
+                                     'current_profit':current_profit,
+                                     'swap':swap,
+                                     'deadline':deadline,
+                                     'direction':direction}
     print("Total open positions: "+str(len(status)))
     return status
 

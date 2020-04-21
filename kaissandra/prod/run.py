@@ -537,7 +537,7 @@ class Trader:
         self.list_last_ask[str_idx].append([ask])
         self.list_last_dt[str_idx].append([datetime])
         self.list_symbols_tracking[str_idx].append(pd.DataFrame(columns=['DateTime','SymbolBid','SymbolAsk']))
-        self.map_ass_idx2pos_idx[str_idx][idx] = len(self.list_count_events)-1
+        self.map_ass_idx2pos_idx[str_idx][idx] = len(self.list_count_events[str_idx])-1
         self.list_stop_losses[str_idx].append(self.next_candidate.entry_bid*\
                                 (1-self.next_candidate.direction*\
                                 self.next_candidate.strategy.thr_sl*self.pip))
@@ -628,14 +628,14 @@ class Trader:
     def is_opened_asset(self, idx):
         """ Check if Asset is opened for any strategy """
         for s in range(len(self.strategies)):
-            if self.map_ass2pos_str[s][idx]>=0:
+            if self.map_ass_idx2pos_idx[s][idx]>=0:
                 return True
         return False
     
     def is_opened_strategy(self, idx):
         """ Check if Asset is opened for a strategy """
         str_idx = self.next_candidate.strategy_index
-        if self.map_ass2pos_str[str_idx][idx]>=0:
+        if self.map_ass_idx2pos_idx[str_idx][idx]>=0:
             return True
         else:
             return False
@@ -650,7 +650,7 @@ class Trader:
     def count_events(self, idx, n_events):
         """  """
         for s in range(len(self.strategies)):
-            if self.map_ass2pos_str[s][idx]>=0:
+            if self.map_ass_idx2pos_idx[s][idx]>=0:
                 self.list_count_events[s][self.map_ass_idx2pos_idx[s][idx]] += n_events
                 self.list_count_all_events[s][self.map_ass_idx2pos_idx[s][idx]] += n_events
     
@@ -868,9 +868,12 @@ class Trader:
 #            exit_pos = 0
 #        return exit_pos, takeprofits
     
-    def get_rois(self, idx, date_time='', roi_ratio=1, ass=''):
+    def get_rois(self, idx, date_time='', roi_ratio=1, ass='', s=-1):
         """ Get current GROI and ROI of a given asset idx """
-        str_idx = self.next_candidate.strategy_index
+        if s==-1:
+            str_idx = self.next_candidate.strategy_index
+        else:
+            str_idx = s
         strategy_name = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].strategy.name
         direction = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].direction
         Ti = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_time
@@ -939,7 +942,7 @@ class Trader:
         GROI_live, ROI_live, spread, Bo, Ao, info = self.get_rois(idx, 
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
-                                                          ass=ass)
+                                                          ass=ass, s=s)
         if not groiist:
             groiist = 100*GROI_live
             roiist = 100*ROI_live
@@ -1005,7 +1008,7 @@ class Trader:
             #pos_filename = get_positions_filename(ass, DTi_real, date_time)
             dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[s][list_idx])
         
-        self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename)
+        self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename, s=s)
         # update output lists
         results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
         
@@ -1096,7 +1099,7 @@ class Trader:
               " p_mc={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_md)+
               " spread={0:.3f} ".format(e_spread)+" strategy "+
-              self.list_opened_positions[-1].strategy.name)
+              self.list_opened_positions[str_idx][-1].strategy.name)
         
         if self.next_candidate.strategy.entry_strategy == 'gre_v2':
             logMsg += logMsg+' prof '+str(self.next_candidate.profitability)
@@ -1124,9 +1127,10 @@ class Trader:
                   'direction':self.list_opened_positions[str_idx][-1].bet,
                   'strategyname':self.list_opened_positions[str_idx][-1].strategy.name,
                   'p_mc':self.list_opened_positions[str_idx][-1].p_mc,
-                  'p_md':self.list_opened_positions[str_idx][-1].p_md}
+                  'p_md':self.list_opened_positions[str_idx][-1].p_md,
+                  'strategyidx':str_idx}
         try:
-            self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params,"STRATEGY":str_idx})
+            self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
         except:
             print("WARNING! Error in send_open_pos_api in kaissandra.prod.run. Skipped.")
         
@@ -1180,11 +1184,14 @@ class Trader:
         self.queue_prior.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
-                       filename=''):
+                       filename='', s=-1):
         """ track position.
         Args:
             - event (str): {open, extend, close} """
-        str_idx = self.next_candidate.strategy_index
+        if s==-1:
+            str_idx = self.next_candidate.strategy_index
+        else:
+            str_idx = s
         if event=='open':
             pos_info = {'id':0,
                         'n_ext':0,
@@ -1450,7 +1457,7 @@ class Trader:
                     
                     self.add_new_candidate(position)
                     str_idx = self.next_candidate.strategy_index
-                    ass_idx = self.ass2index_mapping[str_idx][thisAsset]
+                    ass_idx = self.ass2index_mapping[thisAsset]
                     ass_id = self.running_assets[ass_idx]
                     
                     # check if asset is banned
@@ -2808,6 +2815,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 for s in range(len(trader.strategies)):
                     list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
                     if list_idx>-1:
+                        
                         trader.update_symbols_tracking(list_idx, s, buffer)
                 trader.count_events(ass_id, buffer.shape[0])
                 # dispatch
@@ -2955,15 +2963,18 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 # info close: [thisSymbol,toc,TimeCurrent(),position,Bi,Ai,bid,ask,dif_ticks,GROI,spread,ROI,real_profit,equity,swap]
                 # update postiions vector
                 info_split = info_close.split(",")
-                list_idx = trader.map_ass_idx2pos_idx[ass_id]
+
 #                bid = float(info_split[6])
 #                ask = float(info_split[7])
 #                DateTime = info_split[2]
+                #str_idx = int(info_split[15])
                 # update bid and ask lists if exist
                 #trader.update_symbols_tracking(list_idx, DateTime, bid, ask)
+#                list_idx = trader.map_ass_idx2pos_idx[str_idx][ass_id]
                 swap = float(info_split[14])
                 returnist = float(info_split[12])
                 str_idx = int(info_split[15])
+                
                 trader.close_position(info_split[2], thisAsset, ass_id, results, str_idx,
                                       DTi_real=info_split[1], groiist=float(info_split[9]), 
                                       roiist=float(info_split[11]), swap=swap, 
@@ -3010,7 +3021,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             elif flag_tp:
                 # update positions vector
                 info_split = info_close.split(",")
-                list_idx = trader.map_ass_idx2pos_idx[ass_id]
+#                list_idx = trader.map_ass_idx2pos_idx[ass_id]
 #                bid = float(info_split[6])
 #                ask = float(info_split[7])
                 DateTime = info_split[2]
@@ -3077,7 +3088,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         sampsBuffersCounter[ass_idx] = (sampsBuffersCounter[ass_idx]+1)%n_samps_buffer
         
         for idx, trader in enumerate(traders):
-            list_idx = trader.map_ass_idx2pos_idx[ass_id]
+            list_idx = trader.map_ass_idx2pos_idx[str_idx][ass_id]
             trader.update_list_last(list_idx, DateTime, bid, ask)
             # check if asset has been banned from outside
             if os.path.exists(trader.ban_currencies_dir+trader.start_time+thisAsset):
