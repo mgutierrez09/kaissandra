@@ -214,32 +214,35 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                            timeouts, reset):
     """ Controls the connection and arrival of new info from trader and 
     sends reset command in case connection is lost """
-    for ass_idx, ass_id in enumerate(running_assets):
-        thisAsset = AllAssets[str(ass_id)]
-        directory_MT5_IO_ass = directory_MT5+thisAsset+"/"
-        directory_io_ass = directory_io+thisAsset+"/"
-        listAllFiles = sorted(os.listdir(directory_MT5_IO_ass))
-        # track max delay in ticks processing
-        if len(listAllFiles)>list_num_files[ass_idx]['max']:
-            max_num = len(listAllFiles)
-            occured = dt.datetime.now()
-        else:
-            max_num = list_num_files[ass_idx]['max']
-            occured = list_num_files[ass_idx]['time']
-        list_num_files[ass_idx] = {'max':max_num,'curr':len(listAllFiles),'time':occured}
-        # avoid error in case listAllFiles is empty and replace with empty
-        # string if so
-        if len(listAllFiles)>0:
-            newLastFile = listAllFiles[-1]
-        else:
-            newLastFile = ''
-        if newLastFile!=list_last_file[ass_idx]:
-            # reset timeout
-            timeouts[ass_idx] = time.time()
-            # update last file list
-            list_last_file[ass_idx] = newLastFile
-            # reset reset flag
-        reset = False
+    try:
+        for ass_idx, ass_id in enumerate(running_assets):
+            thisAsset = AllAssets[str(ass_id)]
+            directory_MT5_IO_ass = directory_MT5+thisAsset+"/"
+            directory_io_ass = directory_io+thisAsset+"/"
+            listAllFiles = sorted(os.listdir(directory_MT5_IO_ass))
+            # track max delay in ticks processing
+            if len(listAllFiles)>list_num_files[ass_idx]['max']:
+                max_num = len(listAllFiles)
+                occured = dt.datetime.now()
+            else:
+                max_num = list_num_files[ass_idx]['max']
+                occured = list_num_files[ass_idx]['time']
+            list_num_files[ass_idx] = {'max':max_num,'curr':len(listAllFiles),'time':occured}
+            # avoid error in case listAllFiles is empty and replace with empty
+            # string if so
+            if len(listAllFiles)>0:
+                newLastFile = listAllFiles[-1]
+            else:
+                newLastFile = ''
+            if newLastFile!=list_last_file[ass_idx]:
+                # reset timeout
+                timeouts[ass_idx] = time.time()
+                # update last file list
+                list_last_file[ass_idx] = newLastFile
+                # reset reset flag
+            reset = False
+    except:
+        print("WARNING! Error in control_broker_connection. Skipped")
 #        else:
 #            print(thisAsset+" timeout NOT reset")
 #    min_to = min([time.time()-to for to in timeouts])
