@@ -242,9 +242,9 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
         reset = False
 #        else:
 #            print(thisAsset+" timeout NOT reset")
-    min_to = min([time.time()-to for to in timeouts])
-    print(dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
-          " Min TO = {0:.2f} mins".format(min_to/60))
+#    min_to = min([time.time()-to for to in timeouts])
+#    print(dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
+#          " Min TO = {0:.2f} mins".format(min_to/60))
 #    print("\r"+dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
 #          " Min TO = {0:.2f} mins".format(min_to/60), sep=' ', end='', flush=True)
 #    if min_to>timeout*60 and not reset:

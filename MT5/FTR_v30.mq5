@@ -123,8 +123,9 @@ void openPosition(string origin, int thisPos, int str_idx){
          //writeLog(message);
          //Print("WARNING! Buy -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
+      pos_tickets[str_idx] = PositionGetTicket(PositionsTotal()-1);//PositionGetInteger(POSITION_IDENTIFIER);
       //string message = StringFormat("Buy -> talse. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+      message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s Ticket %d",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription(),pos_tickets[str_idx]);
       //Print("Buy -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       Print(message);
       
@@ -144,7 +145,8 @@ void openPosition(string origin, int thisPos, int str_idx){
         // writeLog(message);
          //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
-      message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+      pos_tickets[str_idx] = PositionGetTicket(PositionsTotal()-1);//PositionGetInteger(POSITION_IDENTIFIER);
+      message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s Ticket %d",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription(),pos_tickets[str_idx]);
       Print(message);
       
       // Save timestap
@@ -186,38 +188,44 @@ void closePosition(int str_idx){
       //bool closed = false;
       string message;
       //while(!executed && position!=0){
-      if(m_Trade.PositionClose(pos_tickets[str_idx])){
-         executed = 1;
-         message = StringFormat("Close position executed: %d",executed);
-         Print(message);
-      
-         message = StringFormat("Close -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
-         Print(message);
-         //writeLog(message);
-         
-         closingInProgress = true;
-         
-         
-         
-         if (sit!=-1){
-            Print("WARNING! Overlap of transition of closing positions!");
-         }
-         sit = str_idx;
-      }
-      else{
+      while(!m_Trade.PositionClose(pos_tickets[str_idx])){
          message = StringFormat("WARNING! Close position executed: %d",executed);
          Print(message);
-            //writeLog(message);
-            //if(closed && m_Trade.ResultDeal()!=0)
-            //   executed = true;
-         //}// close position if deadline reached
          // Send Warning message to trader that execution wasn't successful
          int fh = FileOpen(directoryNameComm+"WARNING",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
          if(fh>0){
             FileWrite(fh,"POSITION NOT CLOSED");
             FileClose(fh);
          }
+         Sleep(1000);
       }
+      executed = 1;
+      message = StringFormat("Close position executed: %d",executed);
+      Print(message);
+   
+      message = StringFormat("Close -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+      Print(message);
+      //writeLog(message);
+      
+      closingInProgress = true;
+      
+      
+      
+      if (sit!=-1){
+         Print("WARNING! Overlap of transition of closing positions!");
+      }
+      sit = str_idx;
+      //}
+      /*else{
+         message = StringFormat("WARNING! Close position executed: %d",executed);
+         Print(message);
+         // Send Warning message to trader that execution wasn't successful
+         int fh = FileOpen(directoryNameComm+"WARNING",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+         if(fh>0){
+            FileWrite(fh,"POSITION NOT CLOSED");
+            FileClose(fh);
+         }
+      }*/
    }
    else{
       string message = "WARNING! Try to close position but no position is open. Skipped";
@@ -303,14 +311,14 @@ void checkForOpening(){
             //}
             /*else{
                openPosition("TICK", 1, str_idx);
-               pos_tickets[str_idx] = PositionGetTicket(n_pos_open);
+               pos_tickets[str_idx] = PositionGetTicket(PositionsTotal());
                n_pos_open = n_pos_open+1;
             }*/
                //}
             }
             else{ // open new long position
                openPosition("TICK", 1, str_idx);
-               pos_tickets[str_idx] = PositionGetTicket(n_pos_open);
+               //pos_tickets[str_idx] = PositionGetTicket(n_pos_open);
                n_pos_open = n_pos_open+1;
             }
             
@@ -342,7 +350,7 @@ void checkForOpening(){
          
             else{
                openPosition("TICK", -1, str_idx);
-               pos_tickets[str_idx] = PositionGetTicket(n_pos_open);
+               //pos_tickets[str_idx] = PositionGetTicket(n_pos_open);
                n_pos_open = n_pos_open+1;
             }
                //}
@@ -506,7 +514,7 @@ int OnInit()
    // init arrays
    // TODO: Resize array once we know how many strategies are there
    // TEMP: Fix positions size to two
-   numStragtegies = 2;
+   numStragtegies = 4;
    ArrayResize(positions, numStragtegies);
    ArrayResize(deadlines, numStragtegies);
    ArrayResize(sl_protects, numStragtegies);
@@ -891,6 +899,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                if(positions[s]!=0)sit=s;
             }
             
+            
          }else{
             if (positions[sit]==1){
                GROI = 100*(ask-Ais[sit])/Ais[sit];
@@ -904,41 +913,42 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
             profit = ROI*lot*lot_in_eur/100;
             spread = GROI-ROI;
          }
-         
-         ROI = 100*real_profit/(deal_volume*lot_in_eur);
-         GROI = ROI+spread;
-         //PrintFormat("Real profit: %.2f",real_profit);
-         string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f swap %.2f str_idx %d",
-                                       close_type,positions[sit],Bis[sit],Bi_solls[sit],Ais[sit],Ai_solls[sit],bid,ask,spread,GROI,ROI,profit,difs_ticks[sit],real_profit,equity,swap,sit);
-         Print(message);
-         //writeLog(message);
-         // send signal to trading manager that position has been closed
-         if(close_type=="LC"){
-             filename = "CL";
-                  
-         }else{
-             filename = close_type;
+         if(sit!=-1){
+            ROI = 100*real_profit/(deal_volume*lot_in_eur);
+            GROI = ROI+spread;
+            //PrintFormat("Real profit: %.2f",real_profit);
+            string message = StringFormat("%s %d Bi %.4f BiS %.4f Ai %.4f AiS %.4f Bo %.4f Ao %.4f SP %.4f GROI %.4f ROI %.4f Profit %.2f ticks %d real profit %.2f budget %.2f swap %.2f str_idx %d",
+                                          close_type,positions[sit],Bis[sit],Bi_solls[sit],Ais[sit],Ai_solls[sit],bid,ask,spread,GROI,ROI,profit,difs_ticks[sit],real_profit,equity,swap,sit);
+            Print(message);
+            //writeLog(message);
+            // send signal to trading manager that position has been closed
+            if(close_type=="LC"){
+                filename = "CL";
+                     
+            }else{
+                filename = close_type;
+            }
+            filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+            FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),positions[sit],Bis[sit],Ais[sit],bid,ask,difs_ticks[sit],GROI,spread,ROI,real_profit,equity,swap,sit);
+            FileClose(filehandleTest);
+            
+            string infofilename = StringFormat("%sPOSINFO%d.txt",directoryNameComm,sit);
+            if(FileIsExist(infofilename)==1 ){
+               while(!FileDelete(infofilename));
+             }
+             
+            if(FileIsExist(directoryNameComm+"WARNING")==1 ){
+               while(!FileDelete(directoryNameComm+"WARNING"));
+            }
+            deadlines[sit] = -1;
+            positions[sit] = 0;
+            pos_tickets[sit] = -1;
+            sit = -1;
+            close_type = "";
+            n_pos_open = n_pos_open-1;
+            closingInProgress = false;
          }
-         filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
-         FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),positions[sit],Bis[sit],Ais[sit],bid,ask,difs_ticks[sit],GROI,spread,ROI,real_profit,equity,swap,sit);
-         FileClose(filehandleTest);
-         
-         string infofilename = StringFormat("%sPOSINFO%d.txt",directoryNameComm,sit);
-         if(FileIsExist(infofilename)==1 ){
-            while(!FileDelete(infofilename));
-          }
-          
-         if(FileIsExist(directoryNameComm+"WARNING")==1 ){
-            while(!FileDelete(directoryNameComm+"WARNING"));
-         }
-         deadlines[sit] = -1;
-         positions[sit] = 0;
-         pos_tickets[sit] = -1;
-         sit = -1;
-         close_type = "";
-         n_pos_open = n_pos_open-1;
-         closingInProgress = false;
-         
+         /*
          if(deal_reason==DEAL_REASON_SL){
             //ExtLot*=2.0;
             Print("DEAL_REASON_SL");
@@ -946,7 +956,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
          else if(deal_reason==DEAL_REASON_TP){
             //ExtLot=m_symbol.LotsMin();
             Print("DEAL_REASON_TP");
-            writeLog("DEAL_REASON_TP");}
+            writeLog("DEAL_REASON_TP");}*/
       }
       
    }

@@ -2405,7 +2405,7 @@ def flush_asset(lists, ass_idx, bid):
     print("Flushed")
     return lists
 
-def dispatch(lists, list_models, tradeInfo, AllAssets, ass_id, ass_idx, log_file, queue):
+def dispatch(lists, list_models, tradeInfo, AllAssets, ass_id, ass_idx, first_info_nets_fetched, log_file, queue):
     #AllAssets, assets, running_assets, nCxAxN, buffSizes, simulation, delays, PA, verbose
     '''
     inputs: AllAssets
@@ -2423,68 +2423,73 @@ def dispatch(lists, list_models, tradeInfo, AllAssets, ass_id, ass_idx, log_file
     new_outputs = 0
     # add trade info to all networks of this asset
     for nn in range(nNets):
-        # loop over buffers to add new info
-        for ch in range(int(lists['nCxAxN'][ass_idx,nn])):
-            # add info to buffer
-            if lists['buffersCounter'][ass_idx][nn][ch]>=0:
+        # shift each strategy by one buffer
+        if first_info_nets_fetched[ass_idx][nn]:
+            # loop over buffers to add new info
+            for ch in range(int(lists['nCxAxN'][ass_idx,nn])):
                 
-                lists['buffers'][ass_idx][nn][ch] = lists['buffers'][ass_idx][nn][ch].append(
-                        tradeInfo,ignore_index=True)
-            lists['buffersCounter'][ass_idx][nn][ch] += tradeInfo.shape[0]
-            # check if buffer reached max
-            if lists['buffers'][ass_idx][nn][ch].shape[0]==lists['buffSizes'][ass_idx,nn]:
+                # add info to buffer
+                if lists['buffersCounter'][ass_idx][nn][ch]>=0:
+                    
+                    lists['buffers'][ass_idx][nn][ch] = lists['buffers'][ass_idx][nn][ch].append(
+                            tradeInfo,ignore_index=True)
+                lists['buffersCounter'][ass_idx][nn][ch] += tradeInfo.shape[0]
                 
-                ### Dispatch buffer to corresponding network ###
-                output = runRNNliveFun(lists['buffers'][ass_idx][nn][ch],
-                                       lists['listFillingXs'][ass_idx][nn],
-                                       lists['inits'][ass_idx][nn],
-                                       lists['list_listFeaturesLive'][ass_idx][nn],
-                                       lists['list_listParSarStruct'][ass_idx][nn],
-                                       lists['list_listEM'][ass_idx][nn],
-                                       lists['list_listAllFeatsLive'][ass_idx][nn],
-                                       lists['list_list_X_i'][ass_idx][nn],
-                                       lists['list_means_in'][ass_idx][nn],
-                                       lists['phase_shifts'][nn],
-                                       lists['list_stds_in'][ass_idx][nn],
-                                       lists['list_stds_out'][ass_idx][nn],
-                                       lists['ADs'][nn],
-                                       thisAsset,
-                                       lists['netNames'][nn],
-                                       lists['listCountPoss'][ass_idx][nn],
-                                       lists['list_list_weights_matrix'][ass_idx][nn],
-                                       lists['list_list_time_to_entry'][ass_idx][nn],
-                                       lists['list_list_list_soft_tildes'][ass_idx][nn],
-                                       lists['list_list_Ylive'][ass_idx][nn],
-                                       lists['list_list_Pmc_live'][ass_idx][nn],
-                                       lists['list_list_Pmd_live'][ass_idx][nn],
-                                       lists['list_list_Pmg_live'][ass_idx][nn],
-                                       lists['EOFs'][ass_idx][nn],
-                                       lists['countOutss'][ass_idx][nn],
-                                       lists['list_t_indexs'][nn],
-                                       ch, 
-                                       lists['resultsDir'][nn],
-                                       lists['results_files'][nn], 
-                                       list_models[nn],
-                                       lists['list_unique_configs'][nn], 
-                                       log_file, 
-                                       lists['list_nonVarIdx'][nn],
-                                       lists['list_inv_out'][nn],
-                                       queue)
-                if len(output)>0:
-                    outputs.append([output,nn])
-                    new_outputs = 1
-                
-                #reset buffer
-                lists['buffers'][ass_idx][nn][ch] = pd.DataFrame()
-                lists['buffersCounter'][ass_idx][nn][ch] = 0
-                # update file extension
-                lists['bufferExt'][ass_idx][nn][ch] = (lists['bufferExt'][ass_idx][nn][ch]+1)%2
-                            
-            elif lists['buffers'][ass_idx][nn][ch].shape[0]>lists['buffSizes'][ass_idx,nn]:
-                print(thisAsset+" buffer size "+str(lists['buffers'][ass_idx][nn][ch].shape[0]))
-                #print("Error. Buffer cannot be greater than max buff size")
-                raise ValueError("Buffer cannot be greater than max buff size")
-                
+                # check if buffer reached max
+                if lists['buffers'][ass_idx][nn][ch].shape[0]==lists['buffSizes'][ass_idx,nn]:
+                    
+                    ### Dispatch buffer to corresponding network ###
+                    output = runRNNliveFun(lists['buffers'][ass_idx][nn][ch],
+                                           lists['listFillingXs'][ass_idx][nn],
+                                           lists['inits'][ass_idx][nn],
+                                           lists['list_listFeaturesLive'][ass_idx][nn],
+                                           lists['list_listParSarStruct'][ass_idx][nn],
+                                           lists['list_listEM'][ass_idx][nn],
+                                           lists['list_listAllFeatsLive'][ass_idx][nn],
+                                           lists['list_list_X_i'][ass_idx][nn],
+                                           lists['list_means_in'][ass_idx][nn],
+                                           lists['phase_shifts'][nn],
+                                           lists['list_stds_in'][ass_idx][nn],
+                                           lists['list_stds_out'][ass_idx][nn],
+                                           lists['ADs'][nn],
+                                           thisAsset,
+                                           lists['netNames'][nn],
+                                           lists['listCountPoss'][ass_idx][nn],
+                                           lists['list_list_weights_matrix'][ass_idx][nn],
+                                           lists['list_list_time_to_entry'][ass_idx][nn],
+                                           lists['list_list_list_soft_tildes'][ass_idx][nn],
+                                           lists['list_list_Ylive'][ass_idx][nn],
+                                           lists['list_list_Pmc_live'][ass_idx][nn],
+                                           lists['list_list_Pmd_live'][ass_idx][nn],
+                                           lists['list_list_Pmg_live'][ass_idx][nn],
+                                           lists['EOFs'][ass_idx][nn],
+                                           lists['countOutss'][ass_idx][nn],
+                                           lists['list_t_indexs'][nn],
+                                           ch, 
+                                           lists['resultsDir'][nn],
+                                           lists['results_files'][nn], 
+                                           list_models[nn],
+                                           lists['list_unique_configs'][nn], 
+                                           log_file, 
+                                           lists['list_nonVarIdx'][nn],
+                                           lists['list_inv_out'][nn],
+                                           queue)
+                    if len(output)>0:
+                        outputs.append([output,nn])
+                        new_outputs = 1
+                    
+                    #reset buffer
+                    lists['buffers'][ass_idx][nn][ch] = pd.DataFrame()
+                    lists['buffersCounter'][ass_idx][nn][ch] = 0
+                    # update file extension
+                    lists['bufferExt'][ass_idx][nn][ch] = (lists['bufferExt'][ass_idx][nn][ch]+1)%2
+                                
+                elif lists['buffers'][ass_idx][nn][ch].shape[0]>lists['buffSizes'][ass_idx,nn]:
+                    print(thisAsset+" buffer size "+str(lists['buffers'][ass_idx][nn][ch].shape[0]))
+                    #print("Error. Buffer cannot be greater than max buff size")
+                    raise ValueError("Buffer cannot be greater than max buff size")
+        else:
+            print(thisAsset+" nn "+str(nn)+" not inited yet")
 #    if len(outputs)>1:
 #        print("WARNING! Outputs length="+str(len(outputs))+
 #              ". No support for multiple outputs at the same time yet.") 
@@ -2679,7 +2684,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     #fileExt = [0 for ass in range(nAssets)]
     
     first_info_fetched = False    
-    
+    nNets = len(lists['phase_shifts'])
+    first_info_nets_fetched = [[False for _ in range(nNets)] for _ in running_assets]
+    nn_counter = [0 for _ in running_assets]
     #nMaxFilesInDir = 0
     tic = time.time()
     delayed_stop_run = False
@@ -2688,6 +2695,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
             count10s[ass_idx] = np.mod(count10s[ass_idx]+1, 1000)
+            
             thisAsset = AllAssets[str(ass_id)]
             
             #test_multiprocessing(ass_idx)
@@ -2714,6 +2722,10 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
                     #print(buffer)
                     first_info_fetched = True
+                if not first_info_nets_fetched[ass_idx][nn_counter[ass_idx]]:
+                    first_info_nets_fetched[ass_idx][nn_counter[ass_idx]] = True
+                    print(thisAsset+" nn "+str(nn_counter[ass_idx])+" set true")
+                    nn_counter[ass_idx] = np.mod(nn_counter[ass_idx]+1, nNets)
 #                print(fileID+" size: "+str(buffer.shape[0]))
 #                print(buffer)
                 if buffer.shape[0]==10:
@@ -2757,7 +2769,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     if list_idx>-1:
                         send_close_command(thisAsset, s)
                 
-                if len(trader.list_opened_positions)>0:
+                if trader.n_pos_currently_open>0:
                     delayed_stop_run = True
                 else:
                     queue.put({"FUNC":"SD"})
@@ -2771,6 +2783,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     save_snapshot(thisAsset, lists, trader, command='SD')
                 time.sleep(5*np.random.rand(1)+1)
                 
+            
             if count10s[ass_idx]==6 and send_info_api and os.path.exists(io_ass_dir+'PARAM'):
                 print("PARAM found")
                 # check first for local info
@@ -2815,12 +2828,11 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 for s in range(len(trader.strategies)):
                     list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
                     if list_idx>-1:
-                        
                         trader.update_symbols_tracking(list_idx, s, buffer)
                 trader.count_events(ass_id, buffer.shape[0])
                 # dispatch
                 outputs, new_outputs = dispatch(lists, list_models, buffer, AllAssets, 
-                                                ass_id, ass_idx, 
+                                                ass_id, ass_idx, first_info_nets_fetched,
                                                 log_file, queue)
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
