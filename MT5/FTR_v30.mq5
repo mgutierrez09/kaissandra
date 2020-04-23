@@ -242,11 +242,12 @@ void closePosition(int str_idx){
 //+------------------------------------------------------------------+
 //| Check for opening                                                |
 //+------------------------------------------------------------------+
-void checkForOpening(){
+void checkForOpening(int s){
 //---
    // Launch position 
    string message;
-   if(FileIsExist(directoryNameLive+TTfile)==1 && !closingInProgress){
+   string ttfilename = StringFormat("%s%s%d",directoryNameLive,TTfile,s);
+   if(FileIsExist(ttfilename)==1 && !closingInProgress){
       message = "TT found";
       Print(message);
       //writeLog(message);
@@ -260,7 +261,7 @@ void checkForOpening(){
          int tries = 0;
          int str_idx =-1;
          do{
-            filehandle_trader = FileOpen(directoryNameLive+TTfile,FILE_READ|FILE_ANSI);
+            filehandle_trader = FileOpen(ttfilename,FILE_READ|FILE_ANSI);
             predictionString = FileReadString(filehandle_trader);
             k = StringSplit(predictionString,StringGetCharacter(",",0),chunks);
             FileClose(filehandle_trader);
@@ -280,7 +281,7 @@ void checkForOpening(){
          reset = true;
          //}
          
-         FileDelete(directoryNameLive+TTfile);
+         FileDelete(ttfilename);
          long thr_pred = 0;
          //diffTime = toc-tic;
          // launch long positon
@@ -589,27 +590,31 @@ int OnInit()
    logfilename = thisSymbol+"_"+stringThisDate+".log";
    filehandlelog = FileOpen(directoryNameLog+logfilename,FILE_WRITE|FILE_CSV|FILE_ANSI);
    
+   string statusfilename;
+   for(int s=0; s<numStragtegies; s++){
+      statusfilename = StringFormat("%sPOSSTATE%d.txt",directoryNameComm,s);
    // check if position was left open
-   /*if(FileIsExist(directoryNameComm+"POSSTATE.txt")==1 ){
-      int fh = FileOpen(directoryNameComm+"POSSTATE.txt",FILE_READ|FILE_ANSI);
-      string info = FileReadString(fh);
-      Print(info);
-      int k = StringSplit(info,StringGetCharacter(",",0),posinfo);
-      FileClose(fh);
-      
-      position = (int)StringToInteger(posinfo[0]);
-      deadline = StringToInteger(posinfo[1]);
-      Bi = StringToDouble(posinfo[2]);
-      Ai = StringToDouble(posinfo[3]);
-      dif_ticks = StringToInteger(posinfo[4]);
-      nEventsPerStat = StringToInteger(posinfo[5]);
-      stoploss = StringToDouble(posinfo[6]);
-      takeprofit = StringToDouble(posinfo[7]);
-      lot = StringToDouble(posinfo[8]);
-      
-      while(!FileDelete(directoryNameComm+"POSSTATE.txt"));
-   }*/
-   
+      if(FileIsExist(statusfilename)==1 ){
+         int fh = FileOpen(statusfilename,FILE_READ|FILE_ANSI);
+         string info = FileReadString(fh);
+         Print(info);
+         int k = StringSplit(info,StringGetCharacter(",",0),posinfo);
+         FileClose(fh);
+         
+         positions[s] = (int)StringToInteger(posinfo[0]);
+         deadlines[s] = StringToInteger(posinfo[1]);
+         Bis[s] = StringToDouble(posinfo[2]);
+         Ais[s] = StringToDouble(posinfo[3]);
+         difs_ticks[s] = StringToInteger(posinfo[4]);
+         nEventsPerStats[s] = StringToInteger(posinfo[5]);
+         stoplosses[s] = StringToDouble(posinfo[6]);
+         takeprofits[s] = StringToDouble(posinfo[7]);
+         pos_tickets[s] = StringToInteger(posinfo[8]);
+         lot = StringToDouble(posinfo[9]);
+         
+         while(!FileDelete(statusfilename));
+      }
+   }
    saveAccountInfo();
    
 //---
@@ -624,10 +629,6 @@ void OnDeinit(const int reason)
    Print(thisSymbol+" fetcher closed");
    FileClose(filehandle);
    saveAccountInfo();
-   // check if position is opened
-   //if (m_Position.Select(thisSymbol)){
-   //   m_Trade.PositionClose(thisSymbol);// close position
-   //}
    FileClose(filehandlelog);
    
    if(FileIsExist(directoryNameComm+"POSINFO.txt")==1 ){
@@ -638,12 +639,16 @@ void OnDeinit(const int reason)
       while(!FileDelete(directoryNameComm+"WARNING"));
    }
    
-   // NOT SUPPORTED YET Save position state if open
-   //if (position!=0){
-   //   int fh = FileOpen(directoryNameComm+"POSSTATE.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
-   //   FileWrite(fh,position,deadline,Bi,Ai,dif_ticks,nEventsPerStat,stoploss,takeprofit,lot);
-   //   FileClose(fh);
-   //}
+   // Save position state if open
+   string statusfilename;
+   for(int s=0; s<numStragtegies; s++){
+      statusfilename = StringFormat("%sPOSSTATE%d.txt",directoryNameComm,s);
+      if (positions[s]!=0){
+         int fh = FileOpen(statusfilename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
+         FileWrite(fh,positions[s],deadlines[s],Bis[s],Ais[s],difs_ticks[s],nEventsPerStats[s],stoplosses[s],takeprofits[s],pos_tickets[s],lot);
+         FileClose(fh);
+      }
+   }
    
   }
   
@@ -734,32 +739,37 @@ void OnTick()
 void OnTimer(){
    
    // check if flag close position has been launched
-   if(FileIsExist(directoryNameLive+LCfile)==1 ){
-      int k;
-      do{
-         filehandle_trader = FileOpen(directoryNameLive+LCfile,FILE_READ|FILE_ANSI);
-         predictionString = FileReadString(filehandle_trader);
-         k = StringSplit(predictionString,StringGetCharacter(",",0),chunks);
-         FileClose(filehandle_trader);
-         //tries = tries+1;
-      }while(k!=1);
-      // TEMP: define strategy index as 0
-      int str_idx = (int)StringToInteger(chunks[0]);
-      string message = "LC found";
-      Print(message);
-      //writeLog(message);
-      while(!FileDelete(directoryNameLive+LCfile));
-      if(positions[str_idx]!=0){
-         close_type = "LC";
-         closePosition(str_idx);
-      }
-      else{
-         message = "WARNING! Position not opened. LC skipped";
+   string lcfilename;
+   for(int s=0; s<numStragtegies; s++){
+      lcfilename = StringFormat("%s%s%d",directoryNameLive,LCfile,s);
+      if(FileIsExist(lcfilename)==1 ){
+         int k;
+         do{
+            filehandle_trader = FileOpen(lcfilename,FILE_READ|FILE_ANSI);
+            predictionString = FileReadString(filehandle_trader);
+            k = StringSplit(predictionString,StringGetCharacter(",",0),chunks);
+            FileClose(filehandle_trader);
+            //tries = tries+1;
+         }while(k!=1);
+         // TEMP: define strategy index as 0
+         int str_idx = (int)StringToInteger(chunks[0]);
+         string message = "LC found";
          Print(message);
          //writeLog(message);
-      }
+         while(!FileDelete(lcfilename));
+         if(positions[str_idx]!=0){
+            close_type = "LC";
+            closePosition(str_idx);
+         }
+         else{
+            message = "WARNING! Position not opened. LC skipped";
+            Print(message);
+            //writeLog(message);
+         }
+       }
+      checkForOpening(s);
     }
-    checkForOpening();
+    
 
 }
 

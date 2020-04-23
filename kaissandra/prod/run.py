@@ -1665,7 +1665,7 @@ class Trader:
         # load network output
         while not success:
             try:
-                fh = open(directory_MT5_ass+"TT","w")
+                fh = open(directory_MT5_ass+"TT"+str(ass_idx),"w")
                 fh.write(str(self.next_candidate.direction)+","+
                          str(self.next_candidate.strategy.max_lots_per_pos)+
                          ","+str(self.next_candidate.deadline)+","+
@@ -2641,7 +2641,7 @@ def send_close_command(asset, str_idx):
         # load network output
         while not success:
             try:
-                fh = open(directory_MT5_ass2close+"LC","w")
+                fh = open(directory_MT5_ass2close+"LC"+str(str_idx),"w")
                 fh.write(str(str_idx))
                 fh.close()
                 success = 1
