@@ -1676,6 +1676,20 @@ class Trader:
                 #stop_timer(ass_idx)
             except PermissionError:
                 print("Error writing TT")
+    
+    def send_close_command(self, asset, str_idx):
+        """ Send command for closeing position to MT5 software """
+        directory_MT5_ass2close = LC.directory_MT5_IO+asset+"/"
+        success = 0
+        # load network output
+        while not success:
+            try:
+                fh = open(directory_MT5_ass2close+"LC"+str(str_idx),"w")
+                fh.write(str(str_idx))
+                fh.close()
+                success = 1
+            except PermissionError:
+                print("Error writing LC")
                 
 #    def check_resources_swap(self):
 #        """
@@ -2622,31 +2636,6 @@ def renew_directories(AllAssets, running_assets):
             os.makedirs(io_ass_dir)
             print(io_ass_dir+" Directiory created")
 
-#def start_timer(ass_idx):
-#    """  """
-#    timers_till_open[ass_idx] = time.time()
-#
-#def stop_timer(ass_idx):
-#    """  """
-#    out = "Timer stoped for asset "+\
-#        data.AllAssets[str(running_assets[ass_idx])]+" @ "+\
-#        str(time.time()-timers_till_open[ass_idx])+" secs"
-#    print(out)
-#    write_log(out, log_file)
-    
-def send_close_command(asset, str_idx):
-        """ Send command for closeing position to MT5 software """
-        directory_MT5_ass2close = LC.directory_MT5_IO+asset+"/"
-        success = 0
-        # load network output
-        while not success:
-            try:
-                fh = open(directory_MT5_ass2close+"LC"+str(str_idx),"w")
-                fh.write(str(str_idx))
-                fh.close()
-                success = 1
-            except PermissionError:
-                print("Error writing LC")
 
 def save_snapshot(asset, lists, trader, command='SD'):
     """ Save session snapshot for later resume """
@@ -2767,7 +2756,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 for s in range(len(trader.strategies)):
                     list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
                     if list_idx>-1:
-                        send_close_command(thisAsset, s)
+                        trader.send_close_command(thisAsset, s)
                 
                 if trader.n_pos_currently_open>0:
                     delayed_stop_run = True
@@ -2953,7 +2942,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                         for s in range(len(trader.strategies)):
                             list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
                             if list_idx>-1:
-                                send_close_command(thisAsset, s)
+                                trader.send_close_command(thisAsset, s)
                         queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                     else:
                         logMsg = " NOT flushed due to different directions"
