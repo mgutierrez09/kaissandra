@@ -1536,7 +1536,7 @@ class Trader:
                                         self.close_position(new_entry[entry_time_column], 
                                                             thisAsset, ass_id, results, str_idx)
                                     else:
-                                        send_close_command(thisAsset, str_idx)
+                                        self.send_close_command(thisAsset, str_idx)
                                     if send_info_api:
                                         self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                 else:
