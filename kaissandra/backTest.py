@@ -84,8 +84,8 @@ if __name__ == '__main__':
         
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20200309'#'20181112'
-    end_day_str = '20200403'#'20191212'
+    init_day_str = '20200306'#'20181112'
+    end_day_str = '20200425'#'20191212'
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     
     root_dir = local_vars.data_test_dir
@@ -157,13 +157,14 @@ if __name__ == '__main__':
     
     max_vol_per_pos_ass = {}
     dt_max_vol_per_pos_ass = {}
-    max_diff_per_pos_ass = {}
-    dt_max_diff_per_pos_ass = {}
+#    max_diff_per_pos_ass = {}
+#    dt_max_diff_per_pos_ass = {}
     max_vol_per_hour = {}
     mW = 5000
     track_last_dts = [[dt.datetime.strptime(init_day_str,'%Y%m%d') for _ in range(mW)] for i in assets]
     track_last_asks = [[0 for _ in range(mW)] for i in assets]
     track_idx = [0 for i in assets]
+    
     total_tic = time.time()
     # loop over days 
     while day_index<len(dateTest):
@@ -197,7 +198,8 @@ if __name__ == '__main__':
         w20 = 1-1/20
         w100 = 1-1/100
         w1000 = 1-1/1000
-        ws = [w10, w20, w100, w1000]
+        w10000 = 1-1/10000
+        ws = [w10, w20, w100, w1000, w10000]
         max_vols = [99999999 for _ in assets]# inf
         emas_volat = [[-1 for _ in assets] for _ in ws]
         means_volat = [0 for _ in ws]

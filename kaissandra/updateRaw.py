@@ -386,9 +386,9 @@ def get_fileidxs(files_asset, init_date, end_date, isgold=False):
     #print(init_idx)
     #print(end_idx)
     if len(init_idx)>1:
-        print("WARNING! More than one file with the same starting day. Taking the first")
+        print("WARNING! More than one file with the same starting day. Taking the first as starting idx")
     if len(end_idx)>1:
-        print("WARNING! More than one file with the same end day. Taking the last")
+        print("WARNING! More than one file with the same end day. Taking the last and ending idx")
 #    assert(len(init_idx)==1)
 #    assert(len(end_idx)==1)
     return init_idx[0], end_idx[-1]
@@ -397,8 +397,8 @@ if __name__=='__main__':
     # limit the build of the HDF5 to data comprised in these dates
     build_partial_raw = False
     build_test_db = True
-    init_date = '20181112'#'20200323'#'20200309'#'20191202'#'180928'
-    end_date = '20200404'#'181109'
+    init_date = '20200420'#'20200323'#'20200309'#'20191202'#'180928'
+    end_date = '20200425'#'181109'
     init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
     end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
     

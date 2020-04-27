@@ -645,7 +645,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin and\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margins[idx] and\
                 e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
                 self.n_pos_currently_open<max_opened_positions and \
                 self.check_max_pos_curr(self.next_candidate.asset.decode("utf-8"), 
@@ -717,7 +717,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margins[idx]
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]]
         return condition, dir_condition, prods_condition
@@ -958,6 +958,11 @@ class Trader:
             self.list_lots_per_pos[s][self.map_ass2pos_str[s][idx]
             ] = self.list_lots_per_pos[s][self.map_ass2pos_str[s][idx]]*(1-lot_ratio)
         
+        # update margin
+#        if self.n_pos_currently_open == 0:
+#            global margins
+#            margins[ass_idx] = 0.0
+        
         out =( date_time+" "+str(direction)+" close "+ass+
               " GROI {1:.3f}% ROI = {0:.3f}%".format(
                       100*ROI_live,100*GROI_live)+
@@ -965,6 +970,7 @@ class Trader:
                       100*self.tROI_live,100*self.tGROI_live)+
                               " Earnings {0:.1f}".format(self.budget-self.init_budget)
               +". Remaining open "+str(self.n_pos_currently_open)+extra_out)
+        
         
         
         self.write_log(out)
@@ -1120,7 +1126,7 @@ class Trader:
                        self.map_ass2pos_str[str_idx][idx]].p_mc)+
                " p_md={0:.2f}".format(self.list_opened_pos_per_str[str_idx][
                        self.map_ass2pos_str[str_idx][idx]].p_md)+
-               " spread={0:.3f}".format(100*e_spread)+ " cGROI {0:.2f}".format(100*curr_GROI))
+               " spread={0:.3f}".format(100*e_spread)+ " margin "+str(margins[idx])+" cGROI {0:.2f}".format(100*curr_GROI))
         if self.list_quarantined_pos[str_idx][self.map_ass2pos_str[str_idx][idx]]['on']:
             out += " QARAN"
         print(out)
@@ -1327,6 +1333,93 @@ def build_spread_ranges_per_asset(baseName, extentionNameResults, extentionNameS
             
     return spread_ranges, IDresults, min_p_mcs, min_p_mds
 
+def init_index_structures():
+    """ Initialize index structures for tracking and calculation of stats """
+    struct = {}
+    struct['mean_volat'] = 0.0015697629353873933
+    struct['var_volat'] = 1.3700111669750284e-06
+    
+    null_entry = None
+    struct['av_volat'] = [null_entry for _ in range(10000)]
+    struct['time_stamps'] = [null_entry for _ in range(10000)]
+    struct['num_assets_volat'] = [null_entry for _ in range(10000)]
+    
+    mW = 5000
+    #VI_struct['track_last_dts'] = [[dt.datetime.strptime(init_day_str,'%Y%m%d') for _ in range(mW)] for i in assets]
+    struct['track_last_asks'] = [[0 for _ in range(mW)] for i in assets]
+    struct['track_idx'] = [0 for i in assets]
+    
+    w10 = 1-1/10
+    w20 = 1-1/20
+    w100 = 1-1/100
+    w1000 = 1-1/1000
+    w10000 = 1-1/10000
+    struct['ws'] = [w10, w20, w100, w1000, w10000]
+    
+    struct['null_entry'] = null_entry
+    struct['mW'] = mW
+    
+    struct = reset_indexes(struct)
+    
+    return struct
+    
+def calculate_indexes(struct, ass_id):
+    """ Calculate volatility index """
+    mW = struct['mW']
+    ws = struct['ws']
+    emas_volat = struct['emas_volat']
+    means_volat = struct['means_volat']
+    track_idx = struct['track_idx']
+    track_last_asks = struct['track_last_asks']
+    events_per_ass_counter = struct['events_per_ass_counter']
+    mean_VI = struct['mean_volat']
+    var_VI = struct['var_volat']
+    VIs = struct['VIs']
+    
+    track_last_asks[ass_id][track_idx[ass_id]] = ask
+    
+    if events_per_ass_counter[ass_id]>mW:
+        window_asks = np.array(track_last_asks[ass_id])
+        window_asks = window_asks[window_asks>0]
+        volat = (np.max(window_asks)-np.min(window_asks))/np.mean(window_asks)
+        # update max volume
+#                if volat>max_volats[ass_id]:
+        for i in range(len(emas_volat)):
+            if emas_volat[i][ass_id] == -1:
+                emas_volat[i][ass_id] = volat
+            # update volatility tracking
+            emas_volat[i][ass_id] = ws[i]*emas_volat[i][ass_id]+(1-ws[i])*volat
+            VI = emas_volat[i][ass_id]
+        #arrays_volat = [np.array(ema_volat)[np.array(ema_volat)!=-1] for ema_volat in emas_volat]
+        #means_volat = [np.mean(np.array(ema_volat)[np.array(ema_volat)!=-1]) for ema_volat in emas_volat]
+        #VIdbs = [(VI-mean_VI)/var_VI for VI in means_volat]
+            VIs[ass_id][i] = np.sign((VI-mean_VI)/var_VI)*10*np.log10(np.abs((VI-mean_VI)/var_VI))#[np.sign((VI-mean_VI)/var_VI)*10*np.log10(np.abs((VI-mean_VI)/var_VI)) for VI in emas_volat]
+        #volatility_idxs = [np.sign(VI0db)*10*np.log10(np.abs(VI0db)) for mean in means_volat]
+        print("\r"+DateTime+" VI10 {0:.2f} VI20 {1:.2f} VI100 {2:.2f} VI1000 {3:.2f} ".\
+              format(VIs[ass_id][0],VIs[ass_id][1],VIs[ass_id][2],VIs[ass_id][3]), sep=' ', end='', flush=True)
+        struct['VIs'] = VIs
+    
+    track_idx[ass_id] = (track_idx[ass_id]+1) % mW
+    events_per_ass_counter[ass_id] += 1
+    
+    struct['emas_volat'] = emas_volat
+    struct['means_volat'] = means_volat
+    
+    struct['events_per_ass_counter'] = events_per_ass_counter
+    struct['track_idx'] = track_idx
+    
+    return struct
+
+def reset_indexes(struct):
+    """   """
+    ws = struct['ws']
+    struct['emas_volat'] = [[-1 for _ in assets] for _ in ws]
+    struct['means_volat'] = [0 for _ in ws]
+    struct['events_per_ass_counter'] = [-1 for _ in assets]
+    struct['VIs'] = [[0 for _ in struct['means_volat']] for _ in assets]
+    
+    return struct
+
 if __name__ == '__main__':
     
     this_path = os.getcwd()
@@ -1347,34 +1440,35 @@ if __name__ == '__main__':
 
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     filter_KW = False
+    margin_adapt = True
+    init_day_str = '20181115'#'20191202'#
+    end_day_str = '20200424'#'20191212'
     KWs = [(2020,12)]#format: (%Y, KW)
     numberNetwors = 2
-    init_day_str = '20181112'#'20191202'#
-    end_day_str = '20200403'#'20191212'
-    list_name = ['0110PS2k12345K5E19ALSRNSP50M04', '0110PS2k12345K5E19BSSRNSP50M04']
+    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     spreads_per_asset = False
     if not spreads_per_asset:
-        list_IDresults = ['R01100PS2CMF181112T200404ALk12345K2K5E19', 'R01100PS2CMF181112T200404BSk12345K2K5E19']
+        list_IDresults = ['R01050PS2NCMF181112T200424ALk12K5K2E141452','R01050PS2NCMF181112T200424BSk12K5K2E141453']
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
         list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                                'th': [(0.56, 0.55), (0.61, 0.55), (0.61, 0.55), (0.61, 0.55), (0.61, 0.57), (0.61, 0.58), (0.61, 0.58), (0.61, 0.58), (0.61, 0.58), (0.67, 0.57), (0.67, 0.57), 
-                                       (0.67, 0.57), (0.67, 0.57), (0.67, 0.58), (0.68, 0.58), (0.71, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), 
-                                       (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.72, 0.57), (0.76, 0.57), (0.76, 0.57), (0.76, 0.57), (0.76, 0.57), (0.76, 0.57), (0.84, 0.58), 
-                                       (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), (0.84, 0.58), 
-                                       (0.84, 0.58), (0.84, 0.58)],
-                               'mar':[(0,0.04) for _ in range(46)]} for _ in assets],
+                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
+                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
+                                     (0.75, 0.61), (0.75, 0.61)],
+                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
                               [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th': [(0.53, 0.56), (0.53, 0.56), (0.53, 0.56), (0.53, 0.56), (0.64, 0.56), (0.64, 0.56), (0.64, 0.56), (0.64, 0.56), (0.64, 0.56), (0.66, 0.56), (0.66, 0.56), 
-                                      (0.78, 0.56), (0.78, 0.56), (0.78, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), (0.8, 0.56), 
-                                      (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.82, 0.56), (0.85, 0.56), 
-                                      (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
-                                      (0.85, 0.56), (0.85, 0.56)],
-                               'mar':[(0,0.04) for _ in range(46)]} for _ in assets]]
-        list_lb_mc_ext = [.56, .53]
-        list_lb_md_ext = [.55, .56]
+                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
+                                     (0.75, 0.58), (0.75, 0.58)],
+                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
+        list_lb_mc_ext = [.5, .51]
+        list_lb_md_ext = [.58,.57]
     else:
         pass
 #        extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
@@ -1430,6 +1524,8 @@ if __name__ == '__main__':
     
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
+    
+    idx_struct = init_index_structures()
     
     
 #    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
@@ -1693,33 +1789,6 @@ if __name__ == '__main__':
     rewinded = 0
     week_counter = 0
     
-    mean_volat_db = -31.031596804415166
-    var_volat_db = 2.776629833274796
-    mean_vol_db = 25.131909769520508
-    var_vol_db = 5.52461170016939
-    print(root_dir)
-    
-    # tack volume
-    volume = []
-    volume_dt = []
-    volume_ass = []
-    difference = []
-    diff_dt = []
-    av_vol_per_hour = []
-    av_volat_per_hour = []
-    time_per_hour = []
-    volat_time = []
-    vol_time = []
-    
-    max_vol_per_pos_ass = {}
-    dt_max_vol_per_pos_ass = {}
-    max_diff_per_pos_ass = {}
-    dt_max_diff_per_pos_ass = {}
-    max_vol_per_hour = {}
-    mW = 500
-    track_last_dts = [[dt.datetime.strptime(init_day_str,'%Y%m%d') for _ in range(mW)] for i in assets]
-    track_last_asks = [[0 for _ in range(mW)] for i in assets]
-    track_idx = [0 for i in assets]
     # loop over days 
     while day_index<len(dateTest):
         counter_back = 0
@@ -1792,10 +1861,11 @@ if __name__ == '__main__':
         not_entered_secondary = 0
         close_dueto_dirchange = 0
         w = 1-1/20
-        max_vols = [99999999 for _ in assets]# inf
-        max_volats = [-1 for _ in assets]
-        events_per_ass_counter = [-1 for _ in assets]
-        margin = 0.0
+        idx_struct = reset_indexes(idx_struct)
+#        max_vols = [99999999 for _ in assets]# inf
+#        max_volats = [-1 for _ in assets]
+#        events_per_ass_counter = [-1 for _ in assets]
+        margins = [0.02 for _ in assets]
 #        last_dt_per_ass = [False for _ in assets]
         this_hour = False
         # get to 
@@ -1818,6 +1888,45 @@ if __name__ == '__main__':
             e_spread = (ask-bid)/ask
             
             ass_idx = ass2index_mapping[thisAsset]
+            
+            if margin_adapt:
+                idx_struct = calculate_indexes(idx_struct, ass_idx)
+            
+                if idx_struct['VIs'][ass_idx][0]>=40 and margins[ass_idx]<0.12:
+                    margins[ass_idx] = 0.12
+                    out = "Margin changed to 0.12"
+                    print(out)
+                    trader.write_log(out)
+                elif idx_struct['VIs'][ass_idx][0]<40 and idx_struct['VIs'][ass_idx][0]>=38 and margins[ass_idx]<0.1:
+                    margins[ass_idx] = max(0.1, margins[ass_idx])
+                    out = thisAsset+" Margin changed to 0.1"
+                    print(out)
+                    trader.write_log(out)
+                elif idx_struct['VIs'][ass_idx][0]<38 and idx_struct['VIs'][ass_idx][0]>=36 and margins[ass_idx]<0.08:
+                    margins[ass_idx] = max(0.08, margins[ass_idx])
+                    out = thisAsset+" Margin changed to 0.08"
+                    print(out)
+                    trader.write_log(out)
+                elif idx_struct['VIs'][ass_idx][0]<36 and idx_struct['VIs'][ass_idx][0]>=34 and margins[ass_idx]<0.06:
+                    margins[ass_idx] = max(0.06, margins[ass_idx])
+                    out = thisAsset+" Margin changed to 0.06"
+                    print(out)
+                    trader.write_log(out)
+                elif idx_struct['VIs'][ass_idx][0]<34 and idx_struct['VIs'][ass_idx][0]>=32 and margins[ass_idx]<0.04:
+                    margins[ass_idx] = max(0.04, margins[ass_idx])
+                    out = thisAsset+" Margin changed to 0.04"
+                    print(out)
+                    trader.write_log(out)
+                elif idx_struct['VIs'][ass_idx][0]<32 and idx_struct['VIs'][ass_idx][0]>=-40 and margins[ass_idx]<0.02:
+                    margins[ass_idx] = max(0.02, margins[ass_idx])
+                    out = thisAsset+" Margin changed to 0.02"
+                    print(out)
+                    trader.write_log(out)
+                elif idx_struct['VIs'][ass_idx][0]<0 and margins[ass_idx]>0.02 and not trader.is_opened_asset(ass_idx):
+                    margins[ass_idx] = 0.02
+                    out = thisAsset+" Margin reset to 0.02"
+                    print(out)
+                    trader.write_log(out)
             
             for s in range(len(strategys)):
                 list_idx = trader.map_ass2pos_str[s][ass_idx]
@@ -1848,7 +1957,7 @@ if __name__ == '__main__':
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                       " margin {0:.2f}".format(margin)+
+                       " margin {0:.2f}".format(margins[ass_idx])+
                       #" pofitability {0:.3f}".format(profitability)+
                       " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(int(trader.next_candidate.bet))+
@@ -1897,7 +2006,7 @@ if __name__ == '__main__':
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                       " margin {0:.2f}".format(margin)+
+                       " margin {0:.2f}".format(margins[ass_idx])+
                       #" pofitability {0:.3f}".format(profitability)+
                       " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(trader.next_candidate.bet)+
@@ -1956,7 +2065,7 @@ if __name__ == '__main__':
                                        thisAsset+
                                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                                       " margin {0:.2f}".format(margin)+
+                                       " margin {0:.2f}".format(margins[ass_idx])+
                                       #" pofitability {0:.3f}".format(profitability)+
                                       " Spread {0:.3f}".format(e_spread/trader.pip)+
                                       " Bet "+str(trader.next_candidate.bet)+
