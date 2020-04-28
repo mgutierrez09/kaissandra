@@ -57,9 +57,10 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
     
     list_num_files = [{'max':-1,'curr':0, 'time':dt.datetime.now()} for i in running_assets]
     # crate log queue and lauch it in a separate process
-    log_queue = Queue(-1)
-    listener = Process(target=listener_process, args=(log_queue, config_logger_online))
-    listener.start()
+    if len(queues)>0:
+        log_queue = Queue(-1)
+        listener = Process(target=listener_process, args=(log_queue, config_logger_online))
+        listener.start()
     
     token_header = ct.build_token_header(ct.post_token())
     # launch queue listeners as independent processes
@@ -83,7 +84,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
                                                       timeout, directory_io,
                                                       reset_command, directory_MT5, 
                                                       list_last_file, list_num_files, timeouts, 
-                                                      reset, log_queue)
+                                                      reset)
         
         # loop over assets
 #        for ass_idx, ass_id in enumerate(running_assets):
@@ -122,7 +123,8 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         if os.path.exists(directory_io+'SD'):
             os.remove(directory_io+'SD')
             # shutting down queues
-            log_queue.put(None)
+            if len(queues)>0:
+                log_queue.put(None)
 #            for q, queue in enumerate(queues):
 #                queue_prior = queues_prior[q]
 #                queue.put({'FUNC':'SD'})
@@ -173,7 +175,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
                 else:
                     print("WARNING! id NOT in position_json")
             elif info["EVENT"] == "EXTEND":
-                ct.send_extend_position(params, info["ASSET"], token_header)
+                ct.send_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
 #                if info["ASSET"] in assets_opened:
 #                    pos_id = assets_opened[info["ASSET"]]
 #                    ct.send_extend_position(params, pos_id, token_header)
@@ -181,7 +183,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
 #                else:
 #                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
             elif info["EVENT"] == "NOTEXTEND":
-                ct.send_not_extend_position(params, info["ASSET"], token_header)
+                ct.send_not_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
 #                if info["ASSET"] in assets_opened:
 #                    pos_id = assets_opened[info["ASSET"]]
 #                    ct.send_not_extend_position(params, pos_id, token_header)
@@ -189,7 +191,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
 #                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
             elif info["EVENT"] == "CLOSE":
                 dirfilename = info["DIRFILENAME"]
-                ct.send_close_position(params, info["ASSET"], dirfilename, token_header)
+                ct.send_close_position(params, info["ASSET"], info["STRATEGY"], dirfilename, token_header)
 #                if info["ASSET"] in assets_opened:
 #                    pos_id = assets_opened[info["ASSET"]]
 #                    dirfilename = info["DIRFILENAME"]
@@ -209,40 +211,43 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     
 def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                            reset_command, directory_MT5, list_last_file, list_num_files, 
-                           timeouts, reset, log_queue):
+                           timeouts, reset):
     """ Controls the connection and arrival of new info from trader and 
     sends reset command in case connection is lost """
-    for ass_idx, ass_id in enumerate(running_assets):
-        thisAsset = AllAssets[str(ass_id)]
-        directory_MT5_IO_ass = directory_MT5+thisAsset+"/"
-        directory_io_ass = directory_io+thisAsset+"/"
-        listAllFiles = sorted(os.listdir(directory_MT5_IO_ass))
-        # track max delay in ticks processing
-        if len(listAllFiles)>list_num_files[ass_idx]['max']:
-            max_num = len(listAllFiles)
-            occured = dt.datetime.now()
-        else:
-            max_num = list_num_files[ass_idx]['max']
-            occured = list_num_files[ass_idx]['time']
-        list_num_files[ass_idx] = {'max':max_num,'curr':len(listAllFiles),'time':occured}
-        # avoid error in case listAllFiles is empty and replace with empty
-        # string if so
-        if len(listAllFiles)>0:
-            newLastFile = listAllFiles[-1]
-        else:
-            newLastFile = ''
-        if newLastFile!=list_last_file[ass_idx]:
-            # reset timeout
-            timeouts[ass_idx] = time.time()
-            # update last file list
-            list_last_file[ass_idx] = newLastFile
-            # reset reset flag
-        reset = False
+    try:
+        for ass_idx, ass_id in enumerate(running_assets):
+            thisAsset = AllAssets[str(ass_id)]
+            directory_MT5_IO_ass = directory_MT5+thisAsset+"/"
+            directory_io_ass = directory_io+thisAsset+"/"
+            listAllFiles = sorted(os.listdir(directory_MT5_IO_ass))
+            # track max delay in ticks processing
+            if len(listAllFiles)>list_num_files[ass_idx]['max']:
+                max_num = len(listAllFiles)
+                occured = dt.datetime.now()
+            else:
+                max_num = list_num_files[ass_idx]['max']
+                occured = list_num_files[ass_idx]['time']
+            list_num_files[ass_idx] = {'max':max_num,'curr':len(listAllFiles),'time':occured}
+            # avoid error in case listAllFiles is empty and replace with empty
+            # string if so
+            if len(listAllFiles)>0:
+                newLastFile = listAllFiles[-1]
+            else:
+                newLastFile = ''
+            if newLastFile!=list_last_file[ass_idx]:
+                # reset timeout
+                timeouts[ass_idx] = time.time()
+                # update last file list
+                list_last_file[ass_idx] = newLastFile
+                # reset reset flag
+            reset = False
+    except:
+        print("WARNING! Error in control_broker_connection. Skipped")
 #        else:
 #            print(thisAsset+" timeout NOT reset")
-    min_to = min([time.time()-to for to in timeouts])
-    print(dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
-          " Min TO = {0:.2f} mins".format(min_to/60))
+#    min_to = min([time.time()-to for to in timeouts])
+#    print(dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
+#          " Min TO = {0:.2f} mins".format(min_to/60))
 #    print("\r"+dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
 #          " Min TO = {0:.2f} mins".format(min_to/60), sep=' ', end='', flush=True)
 #    if min_to>timeout*60 and not reset:

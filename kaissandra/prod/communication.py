@@ -100,82 +100,85 @@ def pause():
 
 def check_params(config_name=''):
     """  """
-    io_dir = LC.io_live_dir
-    AllAssets = Config.AllAssets
-    cl_command = False # close command
-    sd_command = False # shutdown command
-    hi_command = False # hibernate command
-    if config_name=='':
-        # get config from server and pass it to live session
-        token = post_token()
-        if token:
-            json = get_config_session()
-        else:
-            print("WARNING! Unable to build token in check_params in kaissandra.prod.communication. Skipped.")
-            return None
-        if 'config' in json:
-            config = json['config']
-            if 'config_name' in config:
-                save_config(config, from_server=True)
-        else:
-            config = {}
-        if 'commands' in json:
-            commands = json['commands']
-            if len(commands)>0:
-                print("Command/s found: ")
-                print(commands)
-            if 'CL' in commands:
-                cl_command = True
-            if 'SD' in commands:
-                sd_command = True
-            if 'HI' in commands:
-                hi_command = True
-        if 'who' not in json or json['who']==[]:
-            who = [AllAssets[a] for a in AllAssets]
-        else:
-            who = json['who']
-            print(who)
-    for asset_key in AllAssets:
-        asset = AllAssets[asset_key]
-        
-        try:
+    try:
+        io_dir = LC.io_live_dir
+        AllAssets = Config.AllAssets
+        cl_command = False # close command
+        sd_command = False # shutdown command
+        hi_command = False # hibernate command
+        if config_name=='':
+            # get config from server and pass it to live session
+            token = post_token()
+            if token:
+                json = get_config_session()
+            else:
+                print("WARNING! Unable to build token in check_params in kaissandra.prod.communication. Skipped.")
+                return None
+            if 'config' in json:
+                config = json['config']
+                if 'config_name' in config:
+                    save_config(config, from_server=True)
+            else:
+                config = {}
+            if 'commands' in json:
+                commands = json['commands']
+                if len(commands)>0:
+                    print("Command/s found: ")
+                    print(commands)
+                if 'CL' in commands:
+                    cl_command = True
+                if 'SD' in commands:
+                    sd_command = True
+                if 'HI' in commands:
+                    hi_command = True
+            if 'who' not in json or json['who']==[]:
+                who = [AllAssets[a] for a in AllAssets]
+            else:
+                who = json['who']
+                print(who)
+        for asset_key in AllAssets:
+            asset = AllAssets[asset_key]
             
-            # if parameters come locally
-#            if config_name!='':
-#                # let live session load the file from disk
-#                fh = open(io_dir+asset+'/PARAM',"w")
-#                fh.write(config_name)
-#                fh.close()
-            if config_name=='' and config and len(config)>0 and asset in who:
-#                print(asset+": config saved")
+            try:
                 
-                fh = open(io_dir+asset+'/PARAM',"w")
-                fh.write(config['config_name']+'remote')
-                fh.close()
-                # reset server config json to empty
-            # pass config_name through disk to trader to load configuration file
-            elif config_name!='' and asset in who:
-                fh = open(io_dir+asset+'/PARAM',"w")
-                fh.write(config_name)
-                fh.close()
-            
-            if cl_command and asset in who:
-                close_position(asset)
-#                print(asset+": cl_command")
-        except FileNotFoundError:
-            print("WARNING! "+io_dir+asset+"/ not fount")
-            #print("Asset not running")
-    # execute command
-    if sd_command:
-        # command is shutdown
-        shutdown()
-        print("shutdown")
-    if hi_command:
-        hibernate()
-        print("From kaissandra.prod.communication.check_params: hibernate")
-    if (config_name=='' and config and len(config)>0) or cl_command or sd_command or hi_command:
-        set_config_session({'config':{},'commands':[],'who':[]}, build_token_header(post_token()))
-    
+                # if parameters come locally
+    #            if config_name!='':
+    #                # let live session load the file from disk
+    #                fh = open(io_dir+asset+'/PARAM',"w")
+    #                fh.write(config_name)
+    #                fh.close()
+                if config_name=='' and config and len(config)>0 and asset in who:
+    #                print(asset+": config saved")
+                    
+                    fh = open(io_dir+asset+'/PARAM',"w")
+                    fh.write(config['config_name']+'remote')
+                    fh.close()
+                    # reset server config json to empty
+                # pass config_name through disk to trader to load configuration file
+                elif config_name!='' and asset in who:
+                    fh = open(io_dir+asset+'/PARAM',"w")
+                    fh.write(config_name)
+                    fh.close()
+                
+                if cl_command and asset in who:
+                    close_position(asset)
+    #                print(asset+": cl_command")
+            except FileNotFoundError:
+                print("WARNING! "+io_dir+asset+"/ not fount")
+                #print("Asset not running")
+        # execute command
+        if sd_command:
+            # command is shutdown
+            shutdown()
+            print("shutdown")
+        if hi_command:
+            hibernate()
+            print("From kaissandra.prod.communication.check_params: hibernate")
+        if (config_name=='' and config and len(config)>0) or cl_command or sd_command or hi_command:
+            set_config_session({'config':{},'commands':[],'who':[]}, build_token_header(post_token()))
+    except:
+        print("WARNING! Error in check_params. Skipped")
+        
     return None
 
 def resume():
@@ -253,35 +256,44 @@ def send_close_commands_all():
 def get_account_status():
     """ Get account status from broker """
     success = 0
-    ##### WARNING! #####
-    dirfilename = LC.directory_MT5_account+'Status.txt'
-    if os.path.exists(dirfilename):
-        # load network output
-        while not success:
-            try:
-                fh = open(dirfilename,"r")
-                info_close = fh.read()[:-1]
-                # close file
-                fh.close()
-                success = 1
-                #stop_timer(ass_idx)
-            except PermissionError:
-                print("Error writing Account status")
-                time.sleep(.1)
-        info_str = info_close.split(',')
-        #print(info_close)
-        balance = float(info_str[0])
-        leverage = float(info_str[1])
-        equity = float(info_str[2])
-        profits = float(info_str[3])
-    else:
-        print("WARNING! Account Status file not found. Turning to default")        
+    try:
+        ##### WARNING! #####
+        dirfilename = LC.directory_MT5_account+'Status.txt'
+        if os.path.exists(dirfilename):
+            # load network output
+            while not success:
+                try:
+                    fh = open(dirfilename,"r")
+                    info_close = fh.read()[:-1]
+                    # close file
+                    fh.close()
+                    success = 1
+                    #stop_timer(ass_idx)
+                except PermissionError:
+                    print("Error writing Account status")
+                    time.sleep(.1)
+            info_str = info_close.split(',')
+            #print(info_close)
+            balance = float(info_str[0])
+            leverage = float(info_str[1])
+            equity = float(info_str[2])
+            profits = float(info_str[3])
+        else:
+            print("WARNING! Account Status file not found. Turning to default")        
+            balance = 500.0
+            leverage = 30
+            equity = balance
+            profits = 0.0
+        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
+              .format(balance,leverage,equity,profits))
+        
+    except:
+        print("WARNING! Error in get_account_status. Skipped")
         balance = 500.0
         leverage = 30
         equity = balance
         profits = 0.0
-    print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
-          .format(balance,leverage,equity,profits))
+        
     status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
     return status
 
@@ -319,44 +331,52 @@ def get_positions_status():
     
     ##### WARNING! #####
     AllAssets = Config.AllAssets
+    max_strategies_per_asset = 4
     status = {}
-    for asset_key in AllAssets:
-        thisAsset = AllAssets[asset_key]
-        dirfilename = LC.directory_MT5_comm+thisAsset+'/POSINFO.txt'
-        if os.path.exists(dirfilename):
-            # load network output
-            success = 0
-            while not success:
-                try:
-                    fh = open(dirfilename,"r")
-                    info_close = fh.read()[:-1]
-                    # close file
-                    fh.close()
-                    success = 1
-                    #stop_timer(ass_idx)
-                except PermissionError:
-                    print("Error reading position status")
-                    time.sleep(.1)
-            info_str = info_close.split(',')
-            #print(info_str)
-            pos_id = int(info_str[0])
-            volume = float(info_str[1])
-            open_price = float(info_str[2])
-            current_price = float(info_str[3])
-            current_profit = float(info_str[4])
-            swap = float(info_str[5])
-            deadline = int(info_str[6])
-            
-            print(thisAsset+": pos_id {0:d} volume {1:.2f} open price {2:.2f} current price {3:.2f} swap {5:.2f} dealine in {6:d} current profit {4:.2f}"\
-              .format(pos_id, volume, open_price, current_price, current_profit, swap, deadline))
-            
-            status[thisAsset] = {'pos_id':pos_id, 
-                                 'volume':volume, 
-                                 'open_price':open_price, 
-                                 'current_price':current_price,
-                                 'current_profit':current_profit,
-                                 'swap':swap,
-                                 'deadline':deadline}
+    try:
+        for asset_key in AllAssets:
+            thisAsset = AllAssets[asset_key]
+            for str_idx in range(max_strategies_per_asset):
+                dirfilename = LC.directory_MT5_comm+thisAsset+"/POSINFO"+str(str_idx)+".txt"
+                if os.path.exists(dirfilename):
+                    # load network output
+                    success = 0
+                    while not success:
+                        try:
+                            fh = open(dirfilename,"r")
+                            info_close = fh.read()[:-1]
+                            # close file
+                            fh.close()
+                            success = 1
+                            #stop_timer(ass_idx)
+                        except PermissionError:
+                            print("Error reading position status")
+                            time.sleep(.1)
+                    info_str = info_close.split(',')
+                    #print(info_str)
+                    pos_id = int(info_str[0])
+                    volume = float(info_str[1])
+                    open_price = float(info_str[2])
+                    current_price = float(info_str[3])
+                    current_profit = float(info_str[4])
+                    swap = float(info_str[5])
+                    deadline = int(info_str[6])
+                    direction = int(info_str[7])
+                    
+                    print(thisAsset+"_"+str(str_idx)+": pos_id {0:d} volume {1:.2f} open price {2:.2f} current price {3:.2f} swap {5:.2f} dir {7:d} dealine in {6:d} current profit {4:.2f}"\
+                      .format(pos_id, volume, open_price, current_price, current_profit, swap, deadline, direction))
+                    
+                    status[thisAsset+"_"+str(str_idx)] = {'pos_id':pos_id, 
+                                         'volume':volume, 
+                                         'open_price':open_price, 
+                                         'current_price':current_price,
+                                         'current_profit':current_profit,
+                                         'swap':swap,
+                                         'deadline':deadline,
+                                         'direction':direction}
+    except:
+        print("WARNING! Error in get_positions_status. Skipped")
+        
     print("Total open positions: "+str(len(status)))
     return status
 
@@ -486,10 +506,10 @@ def send_open_position(params, session_id, token_header):
         print("WARNING! Error in send_open_position in kaissandra.prod.communication.")
         return None
     
-def send_extend_position(params, pos_id, token_header):
+def send_extend_position(params, pos_id, str_idx, token_header):
     """ Send extend position commnad to server api"""
     try:
-        url_ext = 'traders/positions/'+str(pos_id)+'/extend'
+        url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/extend'
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                  token_header, verify=True)
         print("Status code: "+str(response.status_code))
@@ -503,9 +523,9 @@ def send_extend_position(params, pos_id, token_header):
         print("WARNING! Error in send_extend_position in kaissandra.prod.communication.")
         return False
     
-def send_not_extend_position(params, pos_id, token_header):
+def send_not_extend_position(params, pos_id, str_idx, token_header):
     """ Send extend position commnad to server api"""
-    url_ext = 'traders/positions/'+str(pos_id)+'/notextend'
+    url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/notextend'
     try:
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                  token_header, verify=True)
@@ -520,11 +540,11 @@ def send_not_extend_position(params, pos_id, token_header):
         print("WARNING! Error in send_not_extend_position in kaissandra.prod.communication. Skipped.")
     return None
     
-def send_close_position(params, pos_id, dirfilename, token_header):
+def send_close_position(params, pos_id, str_idx, dirfilename, token_header):
     """ Send close position command to server api """
     
-    url_ext = 'traders/positions/'+str(pos_id)+'/close'
-    url_file = 'traders/positions/'+str(pos_id)+'/upload'
+    url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/close'
+    url_file = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/upload'
     try:
         files={'file': open(dirfilename,'rb')}
         response_file = requests.post(LC.URL+url_file, files=files, 

@@ -36,7 +36,6 @@ def get_last_saved_epoch2(resultsDir, ID):
     <DocString>
     """
     filename = resultsDir+ID+"/costs.csv"
-    #print(filename)
     
     if os.path.exists(filename):
         TR = pd.read_csv(filename,sep='\t')
@@ -44,9 +43,10 @@ def get_last_saved_epoch2(resultsDir, ID):
             last_saved_epoch = TR.epoch.iloc[-1]
         except IndexError:
             last_saved_epoch = -1
-#        print(last_saved_epoch)
+            print("WARNING! Error when loadign "+filename+ ". last_saved_epoch = -1")
 #        a=p
     else:
+        print("WARNING! "+filename+ "does not exist. last_saved_epoch = -1")
         last_saved_epoch = -1
     return last_saved_epoch
 
