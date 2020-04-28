@@ -645,7 +645,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margins[idx] and\
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin and\
                 e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
                 self.n_pos_currently_open<max_opened_positions and \
                 self.check_max_pos_curr(self.next_candidate.asset.decode("utf-8"), 
@@ -717,7 +717,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margins[idx]
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]]
         return condition, dir_condition, prods_condition
@@ -959,9 +959,9 @@ class Trader:
             ] = self.list_lots_per_pos[s][self.map_ass2pos_str[s][idx]]*(1-lot_ratio)
         
         # update margin
-#        if self.n_pos_currently_open == 0:
-#            global margins
-#            margins[ass_idx] = 0.0
+        if self.n_pos_currently_open == 0:
+            global margin
+            margin = 0.02
         
         out =( date_time+" "+str(direction)+" close "+ass+
               " GROI {1:.3f}% ROI = {0:.3f}%".format(
@@ -1126,7 +1126,7 @@ class Trader:
                        self.map_ass2pos_str[str_idx][idx]].p_mc)+
                " p_md={0:.2f}".format(self.list_opened_pos_per_str[str_idx][
                        self.map_ass2pos_str[str_idx][idx]].p_md)+
-               " spread={0:.3f}".format(100*e_spread)+ " margin "+str(margins[idx])+" cGROI {0:.2f}".format(100*curr_GROI))
+               " spread={0:.3f}".format(100*e_spread)+ " cGROI {0:.2f}".format(100*curr_GROI))
         if self.list_quarantined_pos[str_idx][self.map_ass2pos_str[str_idx][idx]]['on']:
             out += " QARAN"
         print(out)
@@ -1374,7 +1374,6 @@ def calculate_indexes(struct, ass_id):
     events_per_ass_counter = struct['events_per_ass_counter']
     mean_VI = struct['mean_volat']
     var_VI = struct['var_volat']
-    VIs = struct['VIs']
     
     track_last_asks[ass_id][track_idx[ass_id]] = ask
     
@@ -1389,14 +1388,14 @@ def calculate_indexes(struct, ass_id):
                 emas_volat[i][ass_id] = volat
             # update volatility tracking
             emas_volat[i][ass_id] = ws[i]*emas_volat[i][ass_id]+(1-ws[i])*volat
-            VI = emas_volat[i][ass_id]
+        
         #arrays_volat = [np.array(ema_volat)[np.array(ema_volat)!=-1] for ema_volat in emas_volat]
-        #means_volat = [np.mean(np.array(ema_volat)[np.array(ema_volat)!=-1]) for ema_volat in emas_volat]
+        means_volat = [np.mean(np.array(ema_volat)[np.array(ema_volat)!=-1]) for ema_volat in emas_volat]
         #VIdbs = [(VI-mean_VI)/var_VI for VI in means_volat]
-            VIs[ass_id][i] = np.sign((VI-mean_VI)/var_VI)*10*np.log10(np.abs((VI-mean_VI)/var_VI))#[np.sign((VI-mean_VI)/var_VI)*10*np.log10(np.abs((VI-mean_VI)/var_VI)) for VI in emas_volat]
+        VIs = [np.sign((VI-mean_VI)/var_VI)*10*np.log10(np.abs((VI-mean_VI)/var_VI)) for VI in means_volat]
         #volatility_idxs = [np.sign(VI0db)*10*np.log10(np.abs(VI0db)) for mean in means_volat]
-        print("\r"+DateTime+" VI10 {0:.2f} VI20 {1:.2f} VI100 {2:.2f} VI1000 {3:.2f} ".\
-              format(VIs[ass_id][0],VIs[ass_id][1],VIs[ass_id][2],VIs[ass_id][3]), sep=' ', end='', flush=True)
+        print("\r"+DateTime+" VI10 {0:.2f} VI20 {1:.2f} VI100 {2:.2f} VI1000 {3:.2f} ".
+              format(VIs[0],VIs[1],VIs[2],VIs[3]), sep=' ', end='', flush=True)
         struct['VIs'] = VIs
     
     track_idx[ass_id] = (track_idx[ass_id]+1) % mW
@@ -1416,7 +1415,7 @@ def reset_indexes(struct):
     struct['emas_volat'] = [[-1 for _ in assets] for _ in ws]
     struct['means_volat'] = [0 for _ in ws]
     struct['events_per_ass_counter'] = [-1 for _ in assets]
-    struct['VIs'] = [[0 for _ in struct['means_volat']] for _ in assets]
+    struct['VIs'] = [0 for _ in struct['means_volat']]
     
     return struct
 
@@ -1439,11 +1438,11 @@ from kaissandra.results2 import load_spread_ranges
 if __name__ == '__main__':
 
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    filter_KW = False
+    filter_KW = True
     margin_adapt = True
-    init_day_str = '20181115'#'20191202'#
+    init_day_str = '20181112'#'20191202'#
     end_day_str = '20200424'#'20191212'
-    KWs = [(2020,12)]#format: (%Y, KW)
+    KWs = [(2020,9),(2020,10),(2020,11),(2020,12),(2020,13),(2020,14),(2020,15),(2020,16)]#format: (%Y, KW)
     numberNetwors = 2
     list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
@@ -1865,7 +1864,7 @@ if __name__ == '__main__':
 #        max_vols = [99999999 for _ in assets]# inf
 #        max_volats = [-1 for _ in assets]
 #        events_per_ass_counter = [-1 for _ in assets]
-        margins = [0.02 for _ in assets]
+        margin = 0.02
 #        last_dt_per_ass = [False for _ in assets]
         this_hour = False
         # get to 
@@ -1892,39 +1891,39 @@ if __name__ == '__main__':
             if margin_adapt:
                 idx_struct = calculate_indexes(idx_struct, ass_idx)
             
-                if idx_struct['VIs'][ass_idx][0]>=40 and margins[ass_idx]<0.12:
-                    margins[ass_idx] = 0.12
+                if idx_struct['VIs'][0]>=40 and margin<0.12:
+                    margin = 0.12
                     out = "Margin changed to 0.12"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][ass_idx][0]<40 and idx_struct['VIs'][ass_idx][0]>=38 and margins[ass_idx]<0.1:
-                    margins[ass_idx] = max(0.1, margins[ass_idx])
-                    out = thisAsset+" Margin changed to 0.1"
+                elif idx_struct['VIs'][0]<40 and idx_struct['VIs'][0]>=38 and margin<0.1:
+                    margin = max(0.1, margin)
+                    out = "Margin changed to 0.1"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][ass_idx][0]<38 and idx_struct['VIs'][ass_idx][0]>=36 and margins[ass_idx]<0.08:
-                    margins[ass_idx] = max(0.08, margins[ass_idx])
-                    out = thisAsset+" Margin changed to 0.08"
+                elif idx_struct['VIs'][0]<38 and idx_struct['VIs'][0]>=36 and margin<0.08:
+                    margin = max(0.08, margin)
+                    out = "Margin changed to 0.08"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][ass_idx][0]<36 and idx_struct['VIs'][ass_idx][0]>=34 and margins[ass_idx]<0.06:
-                    margins[ass_idx] = max(0.06, margins[ass_idx])
-                    out = thisAsset+" Margin changed to 0.06"
+                elif idx_struct['VIs'][0]<36 and idx_struct['VIs'][0]>=34 and margin<0.06:
+                    margin = max(0.06, margin)
+                    out = "Margin changed to 0.06"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][ass_idx][0]<34 and idx_struct['VIs'][ass_idx][0]>=32 and margins[ass_idx]<0.04:
-                    margins[ass_idx] = max(0.04, margins[ass_idx])
-                    out = thisAsset+" Margin changed to 0.04"
+                elif idx_struct['VIs'][0]<34 and idx_struct['VIs'][0]>=32 and margin<0.04:
+                    margin = max(0.04, margin)
+                    out = "Margin changed to 0.04"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][ass_idx][0]<32 and idx_struct['VIs'][ass_idx][0]>=-40 and margins[ass_idx]<0.02:
-                    margins[ass_idx] = max(0.02, margins[ass_idx])
-                    out = thisAsset+" Margin changed to 0.02"
+                elif idx_struct['VIs'][0]<32 and idx_struct['VIs'][0]>=10 and margin<0.02:
+                    margin = max(0.02, margin)
+                    out = "Margin changed to 0.02"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][ass_idx][0]<0 and margins[ass_idx]>0.02 and not trader.is_opened_asset(ass_idx):
-                    margins[ass_idx] = 0.02
-                    out = thisAsset+" Margin reset to 0.02"
+                elif idx_struct['VIs'][0]<10 and margin>0.02 and trader.n_pos_currently_open==0:
+                    margin = 0.02
+                    out = "Margin reset to 0.02"
                     print(out)
                     trader.write_log(out)
             
@@ -1957,7 +1956,7 @@ if __name__ == '__main__':
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                       " margin {0:.2f}".format(margins[ass_idx])+
+                       " margin {0:.2f}".format(margin)+
                       #" pofitability {0:.3f}".format(profitability)+
                       " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(int(trader.next_candidate.bet))+
@@ -2006,7 +2005,7 @@ if __name__ == '__main__':
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                       " margin {0:.2f}".format(margins[ass_idx])+
+                       " margin {0:.2f}".format(margin)+
                       #" pofitability {0:.3f}".format(profitability)+
                       " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(trader.next_candidate.bet)+
@@ -2065,7 +2064,7 @@ if __name__ == '__main__':
                                        thisAsset+
                                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                                       " margin {0:.2f}".format(margins[ass_idx])+
+                                       " margin {0:.2f}".format(margin)+
                                       #" pofitability {0:.3f}".format(profitability)+
                                       " Spread {0:.3f}".format(e_spread/trader.pip)+
                                       " Bet "+str(trader.next_candidate.bet)+
