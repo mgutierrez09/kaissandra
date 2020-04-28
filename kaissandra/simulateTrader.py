@@ -1439,7 +1439,7 @@ if __name__ == '__main__':
 
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     filter_KW = True
-    margin_adapt = True
+    margin_adapt = False
     init_day_str = '20181112'#'20191202'#
     end_day_str = '20200424'#'20191212'
     KWs = [(2020,9),(2020,10),(2020,11),(2020,12),(2020,13),(2020,14),(2020,15),(2020,16)]#format: (%Y, KW)
