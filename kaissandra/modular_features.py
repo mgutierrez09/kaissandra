@@ -781,7 +781,7 @@ def get_features_modular_parallel(config, groupdirname, DateTime, Symbol, m, shi
     else:
         nEventsPerStat = 5000
     if 'lbd' in config:
-        lbd = config['lbd']
+        lbd = np.array(config['lbd'])
     else:
         lbd = 1-1/(nEventsPerStat*np.array([0.1, 0.5, 1, 5, 10, 50, 100]))
     if 'force_calculation_features' in config:
