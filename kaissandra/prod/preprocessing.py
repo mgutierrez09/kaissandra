@@ -8,6 +8,34 @@ import pickle
 import numpy as np
 import pandas as pd
 
+def load_stats_modular_live(thisAsset, movingWindow, nEventsPerStat, symbol, feature_keys=[i for i in range(37)], ass_rel='direct'):
+    """  """
+    from kaissandra.config import Config as C
+    from kaissandra.local_config import local_vars as LC
+    
+    nChannels = int(nEventsPerStat/movingWindow)
+    
+    stats_dir = LC.stats_modular_live_dir+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+ass_rel+'/'
+    
+    means_in = np.zeros((nChannels, len(feature_keys)))
+    stds_in = np.zeros((nChannels, len(feature_keys)))
+    for i, feat in enumerate(feature_keys):
+        key = C.PF[feat][0]
+        # copy in stats directory
+        filedirname = stats_dir+thisAsset+'_'+symbol+'_'+key+'.p'
+        stats = pickle.load(open( filedirname, "rb"))
+        means_in[:,i] = stats['mean'][:,0]
+        stds_in[:,i] = stats['std'][:,0]
+    stats_in = {'means_t_in':means_in,
+                'stds_t_in':stds_in}
+    filedirname = stats_dir+thisAsset+'_'+symbol+'_out'+'.p'
+    out = pickle.load( open( filedirname, "rb" ))
+    stats_out = {'stds_t_out':out['std_'+symbol],
+                 'means_t_out':out['mean_'+symbol],
+                 'm_t_out':out['m']}
+    return stats_in, stats_out
+
+
 def load_stats_input_live(feature_keys_manual, movingWindow, nEventsPerStat, 
                           thisAsset, ass_group, from_stats_file=False, 
                hdf5_directory='', save_pickle=False, tag='IOB'):

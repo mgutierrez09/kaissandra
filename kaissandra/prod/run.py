@@ -3648,26 +3648,18 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     
     if not test:
         if modular:
-            raise NotImplementedError("Stats from modular features not implemented yet in online session")
-            # TODO: get directory from LC
-#            separators_directory = 'D:/SDC/py/Data/separators/'
+            #raise NotImplementedError("Stats from modular features not implemented yet for live session")
             
-#            list_separators = [load_separators(AllAssets[str(running_assets[ass])], 
-#                                         separators_directory, 
-#                                         from_txt=1) for ass in range(nAssets)]
-        
-#            list_first_dates = [dt.datetime.strftime(dt.datetime.strptime(
-#                    list_separators[ass].DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
-#            list_last_dates = [dt.datetime.strftime(dt.datetime.strptime(
-#                    list_separators[ass].DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
-#            list_stats = [[load_stats_modular(configs[0], AllAssets[str(running_assets[ass])], 
-#                                                            list_first_dates[ass], list_last_dates[ass], list_tags_modular[nn], 'direct',
-#                                                            stats_modular_directory='D:/SDC/py/HDF5/stats_modular/')
-#                                                            for nn in range(nNets)] 
-#                                                            for ass in range(nAssets)]
-            #print(list_tags_modular)
-#            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
-#            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
+            list_stats = [[load_stats_modular_live(AllAssets[str(running_assets[ass])], 
+                                                   mWs[nn], nExSs[nn], 
+                                                   list_tags_modular[nn], 
+                                                   feature_keys=[i for i in range(37)], 
+                                                   ass_rel='direct') 
+                                                    for nn in range(nNets)] 
+                                                    for ass in range(nAssets)]
+            
+            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
+            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
         else:
             list_stats_feats = [[load_stats_input_live(feature_keys_manual, mWs[nn], nExSs[nn], AllAssets[str(running_assets[ass])], 
                             None, 
@@ -4047,7 +4039,8 @@ from kaissandra.updateRaw import load_in_memory
 from kaissandra.prod.preprocessing import load_stats_input_live, \
                                           load_stats_output_live, \
                                           init_features_live,\
-                                          get_features_live
+                                          get_features_live, \
+                                          load_stats_modular_live
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
@@ -4083,7 +4076,7 @@ spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 
-modular = False
+modular = True
 
 if not test:
     if not crisis_mode:
