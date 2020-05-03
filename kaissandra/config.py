@@ -795,42 +795,59 @@ def add_to_config(config_name,key,value):
 def configuration_trader(*ins):
     """ Function to generate a trader config file """
     
-    config_name = 'TN01050N0110v2'#'TESTPARAMUPDATE5'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
+    config_name = 'TN01050N0110v3'#'TESTPARAMUPDATE5'#'TTEST01010FS2NYREDOK2K52145314SR'#'TTESTv3'#
     config_filename = local_vars.config_directory+config_name+config_extension
     
     if not os.path.exists(config_filename):
         
-        numberNetworks = 2
-        IDresults = ['R500AL','R500BS']#+['R1000AL','R1000BS']
-        IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A'],['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A']]
-        list_name = ['R500ALM2SP60','R500BSM2SP60']
+        numberNetworks = 4
+        IDresults = ['R500AL','R500BS']+['R1000AL','R1000BS']
+        IDweights = [['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A'],['W01010PS2NYk1K2A','W01010PS2NYk2K2A','WRNN01010k1K5A','WRNN01010k2K5A'],
+                     ['W01100PS2k1K2A','W01100PS2k2K2A','W01100PS2k1K5A','W01100PS2k2K5A'],['W01100PS2k1K2A','W01100PS2k2K2A','W01100PS2k1K5A','W01100PS2k2K5A']]
+        list_name = ['R500ALM2SP60','R500BSM2SP60']+['R1000ALM4SP50','R1000BSM4SP50']
         
-        list_spread_ranges = [{'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+        list_spread_ranges = [{'sp':[0]+[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
+                               'th':[(.5, .55)]+[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
                                      (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
                                      (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
                                      (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
                                      (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.02) for _ in range(46)],
+                               'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)],
                                'dir':'ASKS'},
-                              {'sp':[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
+                              {'sp':[0]+[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
+                               'th':[(0.51, 0.55)]+[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
                                      (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                      (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
                                      (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.02) for _ in range(46)],
+                               'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)],
+                               'dir':'BIDS'}]+\
+                            [{'sp':[0]+[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
+                               'th': [(0.5, 0.55)]+[(0.54, 0.56), (0.56, 0.56), (0.54, 0.58), (0.6, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.63, 0.58), (0.67, 0.58), (0.67, 0.58), 
+                                       (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), (0.7, 0.58), 
+                                       (0.7, 0.58), (0.7, 0.58), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), 
+                                       (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), (0.83, 0.59), 
+                                       (0.83, 0.59), (0.83, 0.59)],
+                               'mar':[(0,0.04)]+[(0,0.04) for _ in range(46)],
+                               'dir':'ASKS'},
+                              {'sp':[0]+[round(10*i)/10 for i in np.linspace(.5,5,num=46)],
+                               'th': [(0.5, 0.55)]+[(0.54, 0.55), (0.54, 0.56), (0.54, 0.56), (0.54, 0.56), (0.63, 0.56), (0.63, 0.56), (0.63, 0.56), (0.66, 0.56), (0.66, 0.56), (0.66, 0.56), (0.66, 0.56), 
+                                      (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.8, 0.55), (0.82, 0.55), (0.82, 0.55), (0.82, 0.55), (0.82, 0.55), (0.82, 0.55), 
+                                      (0.82, 0.55), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
+                                      (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), (0.85, 0.56), 
+                                      (0.85, 0.56), (0.85, 0.56)],
+                               'mar':[(0,0.04)]+[(0,0.04) for _ in range(46)],
                                'dir':'BIDS'}]
         
-        mWs = [500, 500]
-        nExSs = [5000, 5000]
-        outputGains = [1, 1]
+        mWs = [500, 500]+[1000,1000]
+        nExSs = [5000, 5000]+[10000,10000]
+        outputGains = [1, 1]+[1, 1]
         #lBs = [1300]
-        list_feats_from_bids = [False, True]
+        list_feats_from_bids = [False, True]+[False, True]
         combine_ts = {'if_combine':False,'params_combine':[{'alg':'mean'}]}
         
         config_names = ['config_name'+str(i) for i in range(numberNetworks)]
-        stacked = [4, 4]
+        stacked = [4, 4]+[4, 4]
         max_opened_positions = 30
         
         entries_list = [[{'config_name':config_names[i],'IDweights':IDweights[i][st],
@@ -840,15 +857,15 @@ def configuration_trader(*ins):
                        'outputGain':outputGains[i],'movingWindow':mWs[i],
                        'nEventsPerStat':nExSs[i]}  for st in range(stacked[i])] for i in range(numberNetworks)]
         config_list = [[configuration(e, save=False) for e in entries] for entries in entries_list]
-        IDepoch = [[5,2,14,14], [5,3,14,14]]
-        netNames = ['500AL', '500BS']
-        list_t_indexs = [[0], [0]]
+        IDepoch = [[5,2,14,14], [5,3,14,14], [19,19,19,19], [19,19,19,19]]
+        netNames = ['500AL', '500BS']+['1000AL', '1000BS']
+        list_t_indexs = [[0], [0], [0], [0]]
         list_inv_out = [True for i in range(numberNetworks)]
         #['B','B','B','A']# {B: from bid symbols, A: from ask symbols}
         list_entry_strategy = ['spread_ranges' for i in range(numberNetworks)] #'fixed_thr','gre' or 'spread_ranges', 'gre_v2'
         # {'S': short, 'L':long, 'C':combine} TODO: combine not supported yet
         #list_spread_ranges = [{'sp': [2], 'th': [(0.7, 0.7)],'dir':'C'}]
-        list_priorities = [[0], [0]]#[[3],[2],[1],[0]]
+        list_priorities = [[0], [0], [0], [0]]#[[3],[2],[1],[0]]
         phase_shifts = [2 for i in range(numberNetworks)]
         
         
