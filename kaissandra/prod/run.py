@@ -2264,7 +2264,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 
                 # wait for output to come
                 if listCountPos[sc]>nChannels+seq_len-1:#t_t=2:listCountPos[sc]>nChannels+model.seq_len-1
-                    if not modular:
+                    if test or not modular:
                         std_out = stds_out[0,lookAheadIndex]
                     else:
                         std_out = stds_out[lookAheadIndex]
@@ -2832,14 +2832,19 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             # check for closing
             flag_cl = 0
             # check if position closed
-            if trader.is_opened_asset(ass_id) and \
-            (os.path.exists(directory_MT5_ass+flag_cl_name) or 
-             os.path.exists(directory_MT5_ass+flag_ma_name)):
+            if os.path.exists(directory_MT5_ass+flag_cl_name) or \
+               os.path.exists(directory_MT5_ass+flag_ma_name):
+#            if trader.is_opened_asset(ass_id) and \
+#            (os.path.exists(directory_MT5_ass+flag_cl_name) or 
+#             os.path.exists(directory_MT5_ass+flag_ma_name)):
                 
                 success = 0
                 while not success:
                     try:
-                        fh = open(directory_MT5_ass+flag_cl_name,"r")
+                        if os.path.exists(directory_MT5_ass+flag_cl_name):
+                            fh = open(directory_MT5_ass+flag_cl_name,"r")
+                        else:
+                            fh = open(directory_MT5_ass+flag_ma_name,"r")
                         # read output
                         out = fh.read()
                         info_close = out[:-1]
@@ -2851,7 +2856,10 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                        print(out)
                         print("info_close")
                         print(info_close)
-                        flag_cl = 1
+                        if trader.is_opened_asset(ass_id):
+                            flag_cl = 1
+                        else:
+                            print("WARNING! CL/MA found but no position open. Skipped.")
                         if len(info_close)>1:
                             if os.path.exists(directory_MT5_ass+flag_cl_name):
                                 os.remove(directory_MT5_ass+flag_cl_name)
