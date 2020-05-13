@@ -72,6 +72,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         disp.start()
         disp = Process(target=listen_trader_connection, args=[queue_prior, log_queue, worker_configurer_online, running_assets[q]], kwargs=kwargs_prior)
         disp.start()
+        time.sleep(1)
     
     # monitor connections
     watchdog_counter = 0
