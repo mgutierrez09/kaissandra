@@ -148,10 +148,10 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
 #            
 #        else:
 #            print("From regular queue: ")
-        print(info)
+        
         # send log to server
         if send_info_api and info['FUNC'] == 'LOG':
-            
+            print(info)
 #                print(info['MSG'])
             logger = logging.getLogger(name)
             #level = logging.INFO
@@ -166,6 +166,7 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
             else:
                 print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
         elif send_info_api and info['FUNC'] == 'POS':
+            print(info)
             params = info['PARAMS']
             if info["EVENT"] == "OPEN":
                 position_json = ct.send_open_position(params, info["SESS_ID"], 
@@ -202,7 +203,10 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
             else:
                 print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
                 
+        elif send_info_api and info['FUNC'] == 'CONFIG':
+            ct.confirm_config_info(info['CONFIG'], info["ASSET"], info["ORIGIN"], token_header)
         elif info['FUNC'] == 'SD':
+            print(info)
             run = False
 #        except Exception as e:
 #            print("WARNING! Error in when reading queue in listen_trader_connection of control.py: "+str(e))

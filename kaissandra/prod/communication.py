@@ -480,9 +480,19 @@ def get_config_session():
         print("WARNING! Error in get_config_session in kaissandra.prod.communication.")
         return None
     
+def confirm_config_info(config, asset, origin, token_header):
+    """ Send confirmation with config info to server """
+    url_ext = 'traders/sessions/'+asset+'/confirm_config'
+    try:
+        response = requests.put(LC.URL+url_ext, json=config,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except:
+        print("WARNING! Error in confirm_config_info in kaissandra.prod.communication.")
+    
 def build_and_set_config(config_name='TESTPARAMUPDATE5'):
     """  """
-    config=retrieve_config(config_name)
+    config = retrieve_config(config_name)
     token = get_token()
     token_header = {'Authorization': 'Bearer '+token}
     set_config_session(config, token_header)

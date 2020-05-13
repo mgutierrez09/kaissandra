@@ -1152,7 +1152,8 @@ class Trader:
                                 direction, strategy, roi, ticks):
         """ Send command to API for position extension """
         str_idx = self.next_candidate.strategy_index
-        params = {'groi':groi,
+        params = {'asset':thisAsset,
+                  'groi':groi,
                   'dt':DateTime,
                   'p_mc':p_mc,
                   'p_md':p_md,
@@ -1960,8 +1961,12 @@ class Trader:
                 self.update_spread_ranges(config['list_spread_ranges'])
             if send_info_api:
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":"PARAMETERS UPDATED:"})
+                self.queue_prior.put({"FUNC":"CONFIG", 
+                                      "CONFIG":config, 
+                                      "ASSET":thisAsset, 
+                                      "ORIGIN":"PARAM_UPDATE"})
         except:
-            print("WARNING!! config file does not exist. Skipped")
+            print("WARNING!! Error while reading conig file. Skipped")
         
     def update_lots(self, list_max_lots_per_pos):
         """ Update lots per position """
@@ -3383,6 +3388,8 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     
     if len(config_traders_list)>1 and not run_back_test:
         raise ValueError("Live execution not compatible with more than one trader")
+    if len(running_assets)>1:
+        raise ValueError("Error! Only one running asset per trader is supported")
     
     # init futures session of API
 #    if send_info_api:
@@ -3402,11 +3409,12 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         os.makedirs(dir_log)
     
     AllAssets = C.AllAssets
-    for ass in AllAssets:
-        asset = AllAssets[ass]
-        snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
-        if not os.path.exists(snapshot_dir_ass):
-            os.makedirs(snapshot_dir_ass)
+    thisAsset = AllAssets[str(running_assets[0])]
+#    for ass in AllAssets:
+#        asset = AllAssets[ass]
+    snapshot_dir_ass = LC.snapshot_live_dir+thisAsset+'/'
+    if not os.path.exists(snapshot_dir_ass):
+        os.makedirs(snapshot_dir_ass)
     # unique network list
     unique_nets = []
     list_models = []
@@ -3932,7 +3940,12 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                         start_time=start_time, config_name=config_name,
                         net2strategy=list_net2strategy[idx_tr], queue=queue, 
                         queue_prior=queue_prior, max_opened_positions=max_opened_positions)
-
+        if send_info_api:
+            # send config confirmation
+            trader.queue_prior.put({"FUNC":"CONFIG", 
+                                  "CONFIG":config_trader, 
+                                  "ASSET":thisAsset, 
+                                  "ORIGIN":"PARAM_UPDATE"})
         # Resume after hibernation
         snapshot_filename = LC.snapshot_live_dir+AllAssets[str(running_assets[0])]+"/snapshot.p"
         if resume:
