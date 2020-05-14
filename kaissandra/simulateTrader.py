@@ -959,9 +959,9 @@ class Trader:
             ] = self.list_lots_per_pos[s][self.map_ass2pos_str[s][idx]]*(1-lot_ratio)
         
         # update margin
-        if self.n_pos_currently_open == 0:
+        if margin_adapt and self.n_pos_currently_open == 0:
             global margin
-            margin = 0.02
+            margin = init_margin
         
         out =( date_time+" "+str(direction)+" close "+ass+
               " GROI {1:.3f}% ROI = {0:.3f}%".format(
@@ -1438,36 +1438,36 @@ from kaissandra.results2 import load_spread_ranges
 if __name__ == '__main__':
 
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
-    filter_KW = True
-    margin_adapt = True
+    filter_KW = False
+    margin_adapt = False
     init_day_str = '20181112'#'20191202'#
     end_day_str = '20200424'#'20191212'
     KWs = [(2020,9),(2020,10),(2020,11),(2020,12),(2020,13),(2020,14),(2020,15),(2020,16)]#format: (%Y, KW)
     numberNetwors = 2
-    list_name = ['01050NYORPS2k12K5k12K2E1452ALSRNSP60', '01050NYORPS2k12K5k12K2E1453BSSRNSP60']
+    list_name = ['R01050NYORPS2ALk12K2K5E1452', 'R01050NYORPS2BSk12K2K5E1453']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
     list_t_index = [0 for _ in range(numberNetwors)]
     assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     spreads_per_asset = False
     if not spreads_per_asset:
-        list_IDresults = ['R01050PS2NCMF181112T200424ALk12K5K2E141452','R01050PS2NCMF181112T200424BSk12K5K2E141453']
+        list_IDresults = ['R01050NYORPS2CMF181112T200424ALk12K2K5E1452','R01050NYORPS2CMF181112T200424BSk12K2K5E1453']
         # size is N numberNetwors \times A assets. Eeach entry is a dict with 'sp', 'th', and 'mar' fields.
-        list_spread_ranges = [[{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
-                                     (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
-                                     (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), 
-                                     (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), 
-                                     (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets],
-                              [{'sp':[round_num(i,10) for i in np.linspace(.5,5,num=46)],
-                               'th':[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), 
-                                     (0.66, 0.58), (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                     (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
-                                     (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), 
-                                     (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.0) for _ in range(46)]} for _ in assets]]
-        list_lb_mc_ext = [.5, .51]
-        list_lb_md_ext = [.58,.57]
+        list_spread_ranges = [[{'sp':[0]+[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                                'th': [(0.5, 0.55)]+[(0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.5, 0.58), (0.54, 0.58), (0.55, 0.58), (0.58, 0.58), (0.58, 0.58), (0.55, 0.59), (0.54, 0.6), (0.54, 0.6), 
+                                      (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
+                                      (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), 
+                                      (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61)],
+                               'mar':[(0,0.0)]+[(0,0.01) for _ in range(46)]} for _ in assets],
+                              [{'sp':[0]+[round_num(i,10) for i in np.linspace(.5,5,num=46)],
+                               'th': [(0.5, 0.55)]+[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), (0.66, 0.58), 
+                                      (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
+                                      (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), 
+                                      (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.75, 0.58), (0.75, 0.58)],
+                               'mar':[(0,0.0)]+[(0,0.01) for _ in range(46)]} for _ in assets]]
+        margin = 0.0
+        init_margin = 0.0
+        list_lb_mc_ext = [.5, .5]
+        list_lb_md_ext = [.55,.55]
     else:
         pass
 #        extentionNamesSpreads = ['CMF160101T181109AL', 'CMF160101T181109BS']#'CMF160101T181109BSk12K2K5E141453'
@@ -1864,7 +1864,7 @@ if __name__ == '__main__':
 #        max_vols = [99999999 for _ in assets]# inf
 #        max_volats = [-1 for _ in assets]
 #        events_per_ass_counter = [-1 for _ in assets]
-        margin = 0.02
+        
 #        last_dt_per_ass = [False for _ in assets]
         this_hour = False
         # get to 
@@ -2277,11 +2277,15 @@ if __name__ == '__main__':
         
         # close all open positions before week change
         for s in range(len(strategys)):
-            if len(trader.list_opened_pos_per_str[s])>0:
+            #if len(trader.list_opened_pos_per_str[s])>0:
+            while len(trader.list_opened_pos_per_str[s])>0:
                 out = ("WARNING! Exit time not in this week: "+
-                       str(trader.list_opened_pos_per_str[s][-1].exit_time))
+                       str(trader.list_opened_pos_per_str[s][-1].exit_time)+" closing.")
                 trader.write_log(out)
                 print(out)
+                asset = trader.list_opened_pos_per_str[s][trader.map_ass2pos_str[s][-1]].asset.decode("utf-8")
+                ass_idx = ass2index_mapping[asset]
+                trader.close_position(DateTime, asset, ass_idx, s)
         # get statistics
         t_entries = n_pos_opened+trader.n_pos_extended
         perEntries = t_entries/journal_entries

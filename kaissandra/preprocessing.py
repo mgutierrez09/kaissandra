@@ -1846,6 +1846,53 @@ def sort_input(array, sorted_idx, prevPointerCv, char=False):
 #    IO['Bcv'][prevPointerCv:,:,:] = temp
     return temp
 
+def save_stats_live(feature_keys=[i for i in range(37)], movingWindow=500, 
+                    nEventsPerStat=5000, asset_relation='direct', symbol='ask',
+                    assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]):
+    """  """
+    import shutil
+    from kaissandra.local_config import local_vars as LC
+    from kaissandra.preprocessing import load_separators
+    
+    data_dir = LC.data_dir
+    dir_seps_stats = data_dir+'separators/'
+    stats_dir = LC.stats_modular_directory+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+    stats_live_dir = LC.stats_modular_live_dir+'mW'+str(movingWindow)+'nE'+str(nEventsPerStat)+'/'+asset_relation+'/'
+    
+    if not os.path.exists(stats_live_dir):
+        os.makedirs(stats_live_dir)
+    
+    for ass in assets:
+        thisAsset = C.AllAssets[str(ass)]
+        print(thisAsset)
+        sep_for_stats = load_separators(thisAsset, dir_seps_stats,
+                                 from_txt=1)
+        #print("directory for sep_for_stats:")
+        #print(dir_seps_stats)
+                    
+        first_date = dt.datetime.strftime(dt.datetime.strptime(
+                sep_for_stats.DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        last_date = dt.datetime.strftime(dt.datetime.strptime(
+                sep_for_stats.DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S')
+        # copy file from modular features directory to live dir
+        for i, feat in enumerate(feature_keys):
+            key = C.PF[feat][0]
+            filedirnameor = stats_dir+thisAsset+'_'+symbol+'_'+key+'_'+first_date+last_date+'.p'
+            # copy in stats directory
+            filedirnamedest = stats_live_dir+thisAsset+'_'+symbol+'_'+key+'.p'
+            
+            
+            
+            shutil.copyfile(filedirnameor, filedirnamedest)
+            #os.rename()
+        # copy in stats directory  
+        filedirnameor = stats_dir+thisAsset+'_'+symbol+'_out_'+first_date+last_date+'.p'
+        filedirnamedest = stats_live_dir+thisAsset+'_'+symbol+'_out'+'.p'
+        shutil.copyfile(filedirnameor, filedirnamedest)
+        print("File "+filedirnamedest+" copied")
+    
+    # change name
+
 def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=False, 
                            seps = []):
     """  """
@@ -1865,7 +1912,7 @@ def build_datasets_modular(folds=3, fold_idx=0, config={}, log='',from_py=False,
     if 'assets' in config:
         assets = config['assets']
     else:
-        assets = [1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32]
+        assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     if 'feature_keys' not in config:
         feature_keys = [i for i in range(37)]
     else:

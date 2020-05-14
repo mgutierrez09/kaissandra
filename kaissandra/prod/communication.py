@@ -10,6 +10,8 @@ import re
 import time
 import requests
 import datetime as dt
+import logging
+import logging.handlers
 
 def send_command(directory_MT5_ass, command, msg=''):
     """
@@ -176,8 +178,13 @@ def check_params(config_name=''):
             print("From kaissandra.prod.communication.check_params: hibernate")
         if (config_name=='' and config and len(config)>0) or cl_command or sd_command or hi_command:
             set_config_session({'config':{},'commands':[],'who':[]}, build_token_header(post_token()))
-    except:
-        print("WARNING! Error in check_params. Skipped")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in check_params of kaissandra.communication"
+        logger.exception(message)
         
     return None
 
@@ -322,8 +329,13 @@ def check_for_warnings():
                 send_monitoring_log(msgLog, thisAsset, build_token_header(post_token()))
                 
                         
-    except:
-        print("Error in check_for_warnings in kaissandra.prod.communication. Skipped.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in check_for_warnings of kaissandra.communication"
+        logger.exception(message)
     return None
 
 def get_positions_status():
@@ -374,8 +386,13 @@ def get_positions_status():
                                          'swap':swap,
                                          'deadline':deadline,
                                          'direction':direction}
-    except:
-        print("WARNING! Error in get_positions_status. Skipped")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in get_positions_status of kaissandra.communication"
+        logger.exception(message)
         
     print("Total open positions: "+str(len(status)))
     return status
@@ -392,8 +409,13 @@ def post_token():
         else:
             print(response.text)
         return None
-    except:
-        print("WARNING! Error in post_token in kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in post_token of kaissandra.communication"
+        logger.exception(message)
         return None
 
 def build_token_header(token):
@@ -412,8 +434,13 @@ def send_trader_log(message, asset, token_header):
                                                        'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in send_trader_log die to timeout.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_trader_log of kaissandra.communication"
+        logger.exception(message)
     return None
         
 def send_monitoring_log(message, asset, token_header):
@@ -425,8 +452,13 @@ def send_monitoring_log(message, asset, token_header):
                                                        'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in send_monitoring_log die to timeout.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_monitoring_log of kaissandra.communication"
+        logger.exception(message)
     return None
         
 def send_global_log(message, token_header):
@@ -437,8 +469,13 @@ def send_global_log(message, token_header):
                                                        'Name':CC.TRADERNAME},
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in send_global_log die to timeout.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_global_log of kaissandra.communication"
+        logger.exception(message)
     return None
         
 def send_network_log(message, asset, token_header):
@@ -452,8 +489,13 @@ def send_network_log(message, asset, token_header):
                                                        },
         headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in send_network_log die to timeout.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_network_log of kaissandra.communication"
+        logger.exception(message)
     return None
             
 def set_config_session(config, token_header):
@@ -463,8 +505,13 @@ def set_config_session(config, token_header):
         response = requests.put(LC.URL+url_ext, json=config,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
-    except:
-        print("WARNING! Error in send_network_log in kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in set_config_session of kaissandra.communication"
+        logger.exception(message)
         
 def get_config_session():
     """ Send trader log to server api """
@@ -476,13 +523,35 @@ def get_config_session():
                                 verify=True, timeout=10)
         #print(response.json())
         return response.json()
-    except:
-        print("WARNING! Error in get_config_session in kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in get_config_session of kaissandra.communication"
+        logger.exception(message)
         return None
+    
+def confirm_config_info(config, asset, origin, token_header):
+    """ Send confirmation with config info to server """
+    url_ext = 'traders/sessions/'+asset+'/confirm_config'
+    try:
+        response = requests.put(LC.URL+url_ext, json=config,
+                                headers=token_header, verify=True, timeout=10)
+        print(response.json())
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in confirm_config_info of kaissandra.communication"
+        logger.exception(message)
+#    except:
+#        print("WARNING! Error in confirm_config_info in kaissandra.prod.communication.")
     
 def build_and_set_config(config_name='TESTPARAMUPDATE5'):
     """  """
-    config=retrieve_config(config_name)
+    config = retrieve_config(config_name)
     token = get_token()
     token_header = {'Authorization': 'Bearer '+token}
     set_config_session(config, token_header)
@@ -502,8 +571,13 @@ def send_open_position(params, session_id, token_header):
         else:
             print(response.text)
             return {}
-    except:
-        print("WARNING! Error in send_open_position in kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_open_position of kaissandra.communication"
+        logger.exception(message)
         return None
     
 def send_extend_position(params, pos_id, str_idx, token_header):
@@ -519,8 +593,13 @@ def send_extend_position(params, pos_id, str_idx, token_header):
         else:
             print(response.text)
             return False
-    except:
-        print("WARNING! Error in send_extend_position in kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_extend_position of kaissandra.communication"
+        logger.exception(message)
         return False
     
 def send_not_extend_position(params, pos_id, str_idx, token_header):
@@ -536,8 +615,13 @@ def send_not_extend_position(params, pos_id, str_idx, token_header):
         else:
             print(response.text)
             return False
-    except:
-        print("WARNING! Error in send_not_extend_position in kaissandra.prod.communication. Skipped.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_not_extend_position of kaissandra.communication"
+        logger.exception(message)
     return None
     
 def send_close_position(params, pos_id, str_idx, dirfilename, token_header):
@@ -559,8 +643,13 @@ def send_close_position(params, pos_id, str_idx, dirfilename, token_header):
                 print("WARNING! File not saved in DB")
             else:
                 print(response.text)
-    except:
-        print("WARNING! Error in send_close_position in kaissandra.prod.communication. Skipped.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_close_position of kaissandra.communication"
+        logger.exception(message)
 
 def get_token():
     """  """
@@ -571,8 +660,13 @@ def get_token():
             return token
         else:
             return None
-    except:
-        print("WARNING! Error in get_token of kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in get_token of kaissandra.communication"
+        logger.exception(message)
         return None
     
 def send_account_status(token_header):
@@ -585,8 +679,13 @@ def send_account_status(token_header):
         response = requests.put(LC.URL+url_ext, json=status,
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in send_account_status of kaissandra.prod.communication.")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_account_status of kaissandra.communication"
+        logger.exception(message)
     return None
         
 def send_positions_status(token_header):
@@ -599,8 +698,13 @@ def send_positions_status(token_header):
         response = requests.put(LC.URL+url_ext, json=status,
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in send_positions_status of kaissandra.prod.communication")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_positions_status of kaissandra.communication"
+        logger.exception(message)
     return None
 
 def send_reset_positions(token_header):
@@ -610,8 +714,13 @@ def send_reset_positions(token_header):
         response = requests.post(LC.URL+url_ext,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
-    except:
-        print("WARNING! Error in send_reset_positions in kaissandra.prod.communication")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_reset_positions of kaissandra.communication"
+        logger.exception(message)
         
 def get_number_positions(token_header):
     """ Send trader log to server api """
@@ -620,8 +729,13 @@ def get_number_positions(token_header):
         response = requests.get(LC.URL+url_ext,
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
-    except:
-        print("WARNING! Error in get_number_positions of communication.py")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in get_number_positions of kaissandra.communication"
+        logger.exception(message)
         
 def get_user_id(token_header, username):
     """ get user id """
@@ -630,8 +744,13 @@ def get_user_id(token_header, username):
         response = requests.get(LC.URL+url_ext, json={'username':username},
                                 headers=token_header, verify=True, timeout=10)
         print(response.json())
-    except:
-        print("WARNING! Error in get_user_id of communication.py")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in get_user_id of kaissandra.communication"
+        logger.exception(message)
         
 def set_budget(token_header, id, budget):
     """ get user id """
@@ -640,46 +759,65 @@ def set_budget(token_header, id, budget):
         response = requests.put(LC.URL+url_ext, json={'budget':budget},
                                 headers=token_header, verify=True, timeout=10)
 #        print(response.json())
-    except:
-        print("WARNING! Error in set_budget of communication.py")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in set_budget of kaissandra.communication"
+        logger.exception(message)
         
 def open_session(config_name, sessiontype, sessiontest):
-        """ POST request to open a session """
-        sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')+\
-                      '_'+config_name
-        params_session = {'sessionname':sessionname,
-                          'sessiontype':sessiontype,
-                          'sessiontest':sessiontest}
-        try:
-            url_ext = 'traders/'+str(CC.TRADERNAME)+'/sessions'
-            response = requests.post(LC.URL+url_ext, json=params_session, 
-                                     headers=build_token_header(post_token()), 
-                                     verify=True)
-            print("Status code open_session: "+str(response.status_code))
-            if response.status_code == 200:
-    #            print(response.json())
+    """ POST request to open a session """
+    sessionname = dt.datetime.strftime(dt.datetime.utcnow(),'%y%m%d%H%M%S')+\
+                  '_'+config_name
+    params_session = {'sessionname':sessionname,
+                      'sessiontype':sessiontype,
+                      'sessiontest':sessiontest}
+    try:
+        url_ext = 'traders/'+str(CC.TRADERNAME)+'/sessions'
+        response = requests.post(LC.URL+url_ext, json=params_session, 
+                                 headers=build_token_header(post_token()), 
+                                 verify=True)
+        print("Status code open_session: "+str(response.status_code))
+        if response.status_code == 200:
+#            print(response.json())
 #                self.session_json = response.json()['Session'][0]
-                return response.json()['Session'][0]
-            else:
-                print(response.text)
-            return None
-        except:
-            print("WARNING! Error in open_session in kaissandra.prod.communication")
-            return None
+            return response.json()['Session'][0]
+        else:
+            print(response.text)
+        return None
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in open_session of kaissandra.communication"
+        logger.exception(message)
+        return None
     
 def close_session(session_json):
     """  PUT request to close session """
     id = session_json['id']
     url_ext = 'traders/sessions/'+str(id)+'/close'
-    response = requests.put(LC.URL+url_ext, 
-                            headers=build_token_header(post_token()), 
-                            verify=True)
-    print("Status code close_session: "+str(response.status_code))
-    if response.status_code == 200:
-        return True
-    else:
-        print(response.text)
-    return False
+    try:
+        response = requests.put(LC.URL+url_ext, 
+                                headers=build_token_header(post_token()), 
+                                verify=True)
+        print("Status code close_session: "+str(response.status_code))
+        if response.status_code == 200:
+            return True
+        else:
+            print(response.text)
+        return False
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in close_session of kaissandra.communication"
+        logger.exception(message)
+        return False
         
 from kaissandra.config import retrieve_config, Config, save_config
 from kaissandra.local_config import local_vars as LC

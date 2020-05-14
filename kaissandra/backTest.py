@@ -76,7 +76,6 @@ def delete_leftovers(List, null_entry=0):
         first_lo = List.index(null_entry)
         return List[:first_lo]
     except ValueError:
-        print("WARNING! ValueError. Returning the whole list.")
         return List
     
 
@@ -84,9 +83,9 @@ if __name__ == '__main__':
         
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20200306'#'20181112'
-    end_day_str = '20200425'#'20191212'
-    assets= [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    init_day_str = '20181119'
+    end_day_str = '20200424'#'20200424'
+    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     
     root_dir = local_vars.data_test_dir
     
@@ -150,10 +149,21 @@ if __name__ == '__main__':
     null_entry = None
     av_vol = [null_entry for _ in range(10000)]
     av_volat = [null_entry for _ in range(10000)]
+    
     time_stamps = [null_entry for _ in range(10000)]
     num_assets_vol = [null_entry for _ in range(10000)]
     num_assets_volat = [null_entry for _ in range(10000)]
     idx_stats = 0
+    idx_stats_ass = [0 for _ in assets]
+    w1 = 1-1/1
+    w10 = 1-1/10
+    w20 = 1-1/20
+    w100 = 1-1/100
+    w1000 = 1-1/1000
+    w10000 = 1-1/10000
+    ws = [w1, w10, w20, w100, w1000, w10000]
+    time_stamps_ass = [[null_entry for _ in range(10000)] for _ in assets]
+    volat_per_ass = [[[0 for _ in ws] for _ in range(10000)] for _ in assets]
     
     max_vol_per_pos_ass = {}
     dt_max_vol_per_pos_ass = {}
@@ -176,9 +186,9 @@ if __name__ == '__main__':
 #            i +=1
 #            counter_back += 1
         counter_back += 1
-        end_list_index = i+1
+        end_list_index = min(i+4, len(dateTest)-1)
         
-        day_index += counter_back+1
+        day_index += counter_back+4
         
         out = ("Week counter "+str(week_counter)+". From "+dateTest[init_list_index]+
                " to "+dateTest[end_list_index])
@@ -194,14 +204,9 @@ if __name__ == '__main__':
     
         # set counters and flags
         event_idx = 0
-        w10 = 1-1/10
-        w20 = 1-1/20
-        w100 = 1-1/100
-        w1000 = 1-1/1000
-        w10000 = 1-1/10000
-        ws = [w10, w20, w100, w1000, w10000]
+        
         max_vols = [99999999 for _ in assets]# inf
-        emas_volat = [[-1 for _ in assets] for _ in ws]
+        emas_volat = [[-1 for _ in ws] for _ in assets]
         means_volat = [0 for _ in ws]
         events_per_ass_counter = [-1 for _ in assets]
         margin = 0.0
@@ -209,6 +214,9 @@ if __name__ == '__main__':
         this_hour = None
         this_min = None
         this_sec = None
+        this_hour_ass = [None for _ in assets]
+        this_min_ass = [None for _ in assets]
+        this_sec_ass = [None for _ in assets]
         every = "min"# "min", "hour", "sec"
         inter_tic = time.time()
         # get to 
@@ -237,63 +245,71 @@ if __name__ == '__main__':
             track_last_asks[ass_id][track_idx[ass_id]] = ask
             
             # init last dt of asset
-            if (every=="hour" and this_hour==None) or (every=="min" and this_min==None) or \
-                (every=="sec" and this_sec==None):
+            if (every=="hour" and this_hour_ass[ass_id]==None) or (every=="min" and this_min_ass[ass_id]==None) or \
+                (every=="sec" and this_sec_ass[ass_id]==None):
                 print("\r"+DateTime, sep=' ', end='', flush=True)
-                this_hour = time_stamp.hour
-                this_min = time_stamp.minute
-                this_sec = time_stamp.second
+                this_hour_ass[ass_id] = time_stamp.hour
+                this_min_ass[ass_id] = time_stamp.minute
+                this_sec_ass[ass_id] = time_stamp.second
             if events_per_ass_counter[ass_id]>mW:
-                vol = (track_last_dts[ass_id][track_idx[ass_id]]-time_stamp).seconds
+                #vol = (track_last_dts[ass_id][track_idx[ass_id]]-time_stamp).seconds
                 window_asks = np.array(track_last_asks[ass_id])
                 window_asks = window_asks[window_asks>0]
                 volat = (np.max(window_asks)-np.min(window_asks))/np.mean(window_asks)
 #                if vol<=max_vols[ass_id]:
                 # init volatility tracking
-                if max_vols[ass_id] == 99999999:
-                    max_vols[ass_id] = vol
-                # update volume tracking
-                max_vols[ass_id] = w20*max_vols[ass_id]+(1-w20)*vol
+#                if max_vols[ass_id] == 99999999:
+#                    max_vols[ass_id] = vol
+#                # update volume tracking
+#                max_vols[ass_id] = w20*max_vols[ass_id]+(1-w20)*vol
                 # update max volume
 #                if volat>max_volats[ass_id]:
-                for i in range(len(emas_volat)):
-                    if emas_volat[i][ass_id] == -1:
-                        emas_volat[i][ass_id] = volat
+                for i in range(len(emas_volat[ass_id])):
+                    if emas_volat[ass_id][i] == -1:
+                        emas_volat[ass_id][i] = volat
                     # update volatility tracking
-                    emas_volat[i][ass_id] = ws[i]*emas_volat[i][ass_id]+(1-ws[i])*volat
+                    emas_volat[ass_id][i] = ws[i]*emas_volat[ass_id][i]+(1-ws[i])*volat
                 
-                array_vol = np.array(max_vols)[np.array(max_vols)!=99999999]
-                arrays_volat = [np.array(ema_volat)[np.array(ema_volat)!=-1] for ema_volat in emas_volat]
-                mean_vol = np.mean(array_vol)
-                means_volat = [np.mean(arr) for arr in arrays_volat]
+                #array_vol = np.array(max_vols)[np.array(max_vols)!=99999999]
+#                arrays_volat = [np.array(ema_volat)[np.array(ema_volat)!=-1] for ema_volat in emas_volat]
+#                mean_vol = np.mean(array_vol)
+#                means_volat = [np.mean(arr) for arr in arrays_volat]
                 
                 # update new hour
-                if (every=="hour" and this_hour != time_stamp.hour) or \
-                   (every=="min" and this_min != time_stamp.minute) or \
-                   (every=="sec" and this_sec != time_stamp.second):
-                    volatility_idxs = [(10*np.log10(mean)-mean_volat_db)/var_volat_db for mean in means_volat]
-                    volume_idx = (10*np.log10(mean_vol)-mean_vol_db)/var_vol_db
-                    print("\r"+DateTime+" idx "+str(idx_stats)+": VI10 {0:.2f} VI20 {1:.2f} VI100 {2:.2f} VI1000 {3:.2f}".format(volatility_idxs[0],volatility_idxs[1],volatility_idxs[2],volatility_idxs[3])+\
-                          " Number assets {0:d}".format(len(array_vol))+\
+                if (every=="hour" and this_hour_ass[ass_id] != time_stamp.hour) or \
+                   (every=="min" and this_min_ass[ass_id] != time_stamp.minute) or \
+                   (every=="sec" and this_sec_ass[ass_id] != time_stamp.second):
+                    volatility_idxs = [(10*np.log10(ema)-mean_volat_db)/var_volat_db for ema in emas_volat[ass_id]]
+                    #volume_idx = (10*np.log10(mean_vol)-mean_vol_db)/var_vol_dbe.time()-total_tic)/60), \
+                    print("\r"+DateTime+" "+thisAsset+" idx "+str(idx_stats)+\
+                          ": VI10 {0:.2f} VI20 {1:.2f} VI100 {2:.2f} VI1000 {3:.2f} VI10000 {4:.2f} ".format(volatility_idxs[0],volatility_idxs[1],volatility_idxs[2],volatility_idxs[3],volatility_idxs[4])+\
                           " Time {0:.2f} mins. Total time {1:.2f} mins. "\
-                          .format((time.time()-inter_tic)/60,(time.time()-total_tic)/60), \
-                          sep=' ', end='', flush=True)
-                    this_hour = time_stamp.hour
-                    this_min = time_stamp.minute
-                    this_second = time_stamp.second
+                          .format((time.time()-inter_tic)/60,(time.time()-total_tic)/60), sep=' ', end='', flush=True)
+                    this_hour_ass[ass_id] = time_stamp.hour
+                    this_min_ass[ass_id] = time_stamp.minute
+                    this_sec_ass[ass_id] = time_stamp.second
                     
-                    if idx_stats >= len(time_stamps):
-                        av_vol = av_vol+[null_entry for _ in range(10000)]
-                        av_volat = av_volat+[null_entry for _ in range(10000)]
-                        num_assets_vol = num_assets_vol+[null_entry for _ in range(10000)]
-                        num_assets_volat = num_assets_volat+[null_entry for _ in range(10000)]
-                        time_stamps = time_stamps+[null_entry for _ in range(10000)]
-                    av_vol[idx_stats] = mean_vol#.append(mean_vol)
-                    av_volat[idx_stats] = means_volat#.append(mean_volat)
-                    num_assets_vol[idx_stats] = array_vol#.append(len(array_vol))
-                    num_assets_volat[idx_stats] = arrays_volat#.append(len(array_volat))
-                    time_stamps[idx_stats] = time_stamp#.append(time_stamp)
-                    idx_stats += 1                    
+#                    if idx_stats >= len(time_stamps):
+#                        av_vol = av_vol+[null_entry for _ in range(10000)]
+#                        av_volat = av_volat+[null_entry for _ in range(10000)]
+#                        num_assets_vol = num_assets_vol+[null_entry for _ in range(10000)]
+#                        num_assets_volat = num_assets_volat+[null_entry for _ in range(10000)]
+#                        time_stamps = time_stamps+[null_entry for _ in range(10000)]
+#                    av_vol[idx_stats] = mean_vol#.append(mean_vol)
+#                    av_volat[idx_stats] = means_volat#.append(mean_volat)
+                    
+                    if idx_stats_ass[ass_id] >= len(time_stamps_ass[ass_id]):
+                        volat_per_ass[ass_id] = volat_per_ass[ass_id]+[[0 for _ in ws] for _ in range(10000)]
+                        time_stamps_ass[ass_id] = time_stamps_ass[ass_id]+[null_entry for _ in range(10000)]
+                    for i in range(len(emas_volat[ass_id])):
+                        volat_per_ass[ass_id][idx_stats_ass[ass_id]][i] = emas_volat[ass_id][i]
+                    time_stamps_ass[ass_id][idx_stats_ass[ass_id]] = time_stamp#.append(time_stamp)
+                    
+#                    num_assets_vol[idx_stats] = array_vol#.append(len(array_vol))
+#                    num_assets_volat[idx_stats] = arrays_volat#.append(len(array_volat))
+                    
+                    idx_stats += 1  
+                    idx_stats_ass[ass_id] += 1
             
             track_last_dts[ass_id][track_idx[ass_id]] = time_stamp
             
@@ -301,20 +317,22 @@ if __name__ == '__main__':
             events_per_ass_counter[ass_id] += 1
             event_idx += 1
             
-        av_vol = delete_leftovers(av_vol, null_entry=null_entry)
-        av_volat = delete_leftovers(av_volat, null_entry=null_entry)
-        num_assets_vol = delete_leftovers(num_assets_vol, null_entry=null_entry)
-        num_assets_volat = delete_leftovers(num_assets_volat, null_entry=null_entry)
-        time_stamps = delete_leftovers(time_stamps, null_entry=null_entry)
+#        av_vol = delete_leftovers(av_vol, null_entry=null_entry)
+#        av_volat = delete_leftovers(av_volat, null_entry=null_entry)
+#        num_assets_vol = delete_leftovers(num_assets_vol, null_entry=null_entry)
+#        num_assets_volat = delete_leftovers(num_assets_volat, null_entry=null_entry)
+#        time_stamps = delete_leftovers(time_stamps, null_entry=null_entry)
+        
+        for ass in range(len(assets)):
+            volat_per_ass[ass] = delete_leftovers(volat_per_ass[ass], null_entry=[0 for _ in ws])
+            time_stamps_ass[ass] = delete_leftovers(time_stamps_ass[ass], null_entry=null_entry)
         
         
         # save volumme structs
         pickle.dump( {
-                    'av_vol':av_vol,
-                    'av_volat':av_volat,
-                    'time_stamps':time_stamps,
-                    'len_array_vol':num_assets_vol,
-                    'len_array_volat':num_assets_volat
+                    'volat_per_ass':volat_per_ass,
+                    'time_stamps_ass':time_stamps_ass,
+                    'assets':assets
                     }, open( directory+start_time+'_F'+init_day_str+'T'+end_day_str+"_"+every+"mW"+str(mW)+"_stats.p", "wb" ))
 
     # end of weeks

@@ -44,6 +44,7 @@ string directoryNameRecordings;
 string directoryNameAccount;
 string chunks[];
 string posinfo[];
+int thisPositionsTotal;
 
 // Define variables
 CTrade m_Trade;
@@ -103,18 +104,24 @@ int first_pos = 0;
 int ticks_counter_open = 0;
 long difs_ticks[];
 int n_pos_open = 0;
-int sit = -1; // strategy index in transition
+int sit = -1; // strategy index in transition for closing
+int sot = -1; // strategy index in transition for opening
 //int firstBuff[2] = {1,1};
 
 // Strategy variables
 
 
 void openPosition(string origin, int thisPos, int str_idx){
-   
+   // wait for other positions to open if its the case
+   while(sot!=-1){
+      Print("WARNING! Open position called but sot!=-1! Waiting.");
+      Sleep(1000);
+      }
    Bis[str_idx] = bid;
    Ais[str_idx] = ask;
    positions[str_idx] = thisPos;
    string message;
+   //int n_pos = PositionsTotal();
    if(thisPos==1){
       while(!m_Trade.Buy(lot,thisSymbol)){
          //string message = StringFormat();
@@ -123,9 +130,11 @@ void openPosition(string origin, int thisPos, int str_idx){
          //writeLog(message);
          //Print("WARNING! Buy -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
-      pos_tickets[str_idx] = PositionGetTicket(PositionsTotal()-1);//PositionGetInteger(POSITION_IDENTIFIER);
+      thisPositionsTotal ++;
+      sot = str_idx;
+      pos_tickets[str_idx] = 0;//PositionGetInteger(POSITION_IDENTIFIER);
       //string message = StringFormat("Buy -> talse. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s Ticket %d",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription(),pos_tickets[str_idx]);
+      message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       //Print("Buy -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       Print(message);
       
@@ -145,8 +154,10 @@ void openPosition(string origin, int thisPos, int str_idx){
         // writeLog(message);
          //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
       }
-      pos_tickets[str_idx] = PositionGetTicket(PositionsTotal()-1);//PositionGetInteger(POSITION_IDENTIFIER);
-      message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s Ticket %d",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription(),pos_tickets[str_idx]);
+      thisPositionsTotal ++;
+      sot = str_idx;
+      pos_tickets[str_idx] = 0;//PositionGetInteger(POSITION_IDENTIFIER);
+      message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
       Print(message);
       
       // Save timestap
@@ -187,8 +198,9 @@ void closePosition(int str_idx){
       int executed = 0;
       //bool closed = false;
       string message;
+      int counter = 0;
       //while(!executed && position!=0){
-      while(!m_Trade.PositionClose(pos_tickets[str_idx])){
+      while(!m_Trade.PositionClose(pos_tickets[str_idx]) && counter<5){
          message = StringFormat("WARNING! Close position executed: %d",executed);
          Print(message);
          // Send Warning message to trader that execution wasn't successful
@@ -198,8 +210,9 @@ void closePosition(int str_idx){
             FileClose(fh);
          }
          Sleep(1000);
+         counter ++;
       }
-      executed = 1;
+      if(counter<5)executed = 1;
       message = StringFormat("Close position executed: %d",executed);
       Print(message);
    
@@ -208,7 +221,7 @@ void closePosition(int str_idx){
       //writeLog(message);
       
       closingInProgress = true;
-      
+      thisPositionsTotal --;
       
       
       if (sit!=-1){
@@ -553,6 +566,7 @@ int OnInit()
    bid = 1.0;
    ask = 1.0;
    ulong m_slippage = 100;                // slippage
+   thisPositionsTotal = 0;
    
    timer_bool = EventSetMillisecondTimer(100);
    m_Trade.SetDeviationInPoints(m_slippage);
@@ -804,7 +818,31 @@ void savePositionState(){
          else        // if selecting the position was unsuccessful
            {
             PrintFormat("Unsuccessful selection of the position by the symbol %s. Error",thisSymbol,GetLastError());
-           }
+            int postionsTotal=PositionsTotal();
+            if(sot>-1){
+               
+               ulong ticket;
+               for(int p=postionsTotal-1;p>=0;p--){
+                  if(sot>-1){
+                     ticket = PositionGetTicket(p);
+                     selected = PositionSelectByTicket(ticket);
+                     bool ticketTaken = false;
+                     if(selected && PositionGetString(POSITION_SYMBOL)==thisSymbol){
+                        for(int t=0;t<numStragtegies;t++){
+                           if(pos_tickets[t]==ticket)ticketTaken = true;
+                        }
+                        if(!ticketTaken){
+                           pos_tickets[sot] = ticket;
+                           PrintFormat("Ticket %d found and added to strategy ",ticket);
+                           sot = -1;
+                        }
+                        else Print("WARNING! Ticket taken. Skipped assigment.");
+                     }
+                  }
+               }
+               if(sot!=-1)Print("WARNING! sot!=-1 but no ticket found");
+            }
+         }
       }
    }
 }
@@ -867,6 +905,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
   {
 //--- get transaction type as enumeration value 
    ENUM_TRADE_TRANSACTION_TYPE type=trans.type;
+   
 //--- if transaction is result of addition of the transaction in history
    if(type==TRADE_TRANSACTION_DEAL_ADD)
    {
@@ -969,5 +1008,37 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
             writeLog("DEAL_REASON_TP");}*/
       }
       
-   }
+   }else{
+      if(type==TRADE_TRANSACTION_ORDER_ADD && thisSymbol==trans.symbol){
+         ulong                         deal=trans.deal;             // Deal ticket
+         ulong                         order=trans.order;            // Order ticket
+         string                        symbol=trans.symbol;
+         ulong                         position=trans.position;
+         int                           postionsTotal = PositionsTotal();
+         Print(StringFormat("deal %d order %d symbol %s ticket %d total_pos %d",deal, order, symbol, position, postionsTotal));
+         if(sot>-1){
+            bool selected;
+            ulong ticket;
+            for(int p=postionsTotal-1;p>=0;p--){
+               if(sot>-1){
+                  ticket = PositionGetTicket(p);
+                  selected = PositionSelectByTicket(ticket);
+                  bool ticketTaken = false;
+                  if(selected && PositionGetString(POSITION_SYMBOL)==thisSymbol){
+                     for(int t=0;t<numStragtegies;t++){
+                        if(pos_tickets[t]==ticket)ticketTaken = true;
+                     }
+                     if(!ticketTaken){
+                        pos_tickets[sot] = ticket;
+                        PrintFormat("Ticket %d found and added to strategy ",ticket);
+                        sot = -1;
+                     }
+                     else Print("WARNING! Ticket taken. Skipped assigment.");
+                  }
+               }
+            }
+            if(sot!=-1)Print("WARNING! sot!=-1 but no ticket found");
+         }
+      }
+    }
  }

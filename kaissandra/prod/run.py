@@ -1152,7 +1152,8 @@ class Trader:
                                 direction, strategy, roi, ticks):
         """ Send command to API for position extension """
         str_idx = self.next_candidate.strategy_index
-        params = {'groi':groi,
+        params = {'asset':thisAsset,
+                  'groi':groi,
                   'dt':DateTime,
                   'p_mc':p_mc,
                   'p_md':p_md,
@@ -1960,8 +1961,12 @@ class Trader:
                 self.update_spread_ranges(config['list_spread_ranges'])
             if send_info_api:
                 self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":"PARAMETERS UPDATED:"})
+                self.queue_prior.put({"FUNC":"CONFIG", 
+                                      "CONFIG":config, 
+                                      "ASSET":thisAsset, 
+                                      "ORIGIN":"PARAM_UPDATE"})
         except:
-            print("WARNING!! config file does not exist. Skipped")
+            print("WARNING!! Error while reading conig file. Skipped")
         
     def update_lots(self, list_max_lots_per_pos):
         """ Update lots per position """
@@ -2264,7 +2269,7 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 
                 # wait for output to come
                 if listCountPos[sc]>nChannels+seq_len-1:#t_t=2:listCountPos[sc]>nChannels+model.seq_len-1
-                    if not modular:
+                    if test or not modular:
                         std_out = stds_out[0,lookAheadIndex]
                     else:
                         std_out = stds_out[lookAheadIndex]
@@ -2832,14 +2837,19 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             # check for closing
             flag_cl = 0
             # check if position closed
-            if trader.is_opened_asset(ass_id) and \
-            (os.path.exists(directory_MT5_ass+flag_cl_name) or 
-             os.path.exists(directory_MT5_ass+flag_ma_name)):
+            if os.path.exists(directory_MT5_ass+flag_cl_name) or \
+               os.path.exists(directory_MT5_ass+flag_ma_name):
+#            if trader.is_opened_asset(ass_id) and \
+#            (os.path.exists(directory_MT5_ass+flag_cl_name) or 
+#             os.path.exists(directory_MT5_ass+flag_ma_name)):
                 
                 success = 0
                 while not success:
                     try:
-                        fh = open(directory_MT5_ass+flag_cl_name,"r")
+                        if os.path.exists(directory_MT5_ass+flag_cl_name):
+                            fh = open(directory_MT5_ass+flag_cl_name,"r")
+                        else:
+                            fh = open(directory_MT5_ass+flag_ma_name,"r")
                         # read output
                         out = fh.read()
                         info_close = out[:-1]
@@ -2851,7 +2861,10 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                        print(out)
                         print("info_close")
                         print(info_close)
-                        flag_cl = 1
+                        if trader.is_opened_asset(ass_id):
+                            flag_cl = 1
+                        else:
+                            print("WARNING! CL/MA found but no position open. Skipped.")
                         if len(info_close)>1:
                             if os.path.exists(directory_MT5_ass+flag_cl_name):
                                 os.remove(directory_MT5_ass+flag_cl_name)
@@ -3375,6 +3388,8 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     
     if len(config_traders_list)>1 and not run_back_test:
         raise ValueError("Live execution not compatible with more than one trader")
+    if len(running_assets)>1:
+        raise ValueError("Error! Only one running asset per trader is supported")
     
     # init futures session of API
 #    if send_info_api:
@@ -3394,11 +3409,12 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         os.makedirs(dir_log)
     
     AllAssets = C.AllAssets
-    for ass in AllAssets:
-        asset = AllAssets[ass]
-        snapshot_dir_ass = LC.snapshot_live_dir+asset+'/'
-        if not os.path.exists(snapshot_dir_ass):
-            os.makedirs(snapshot_dir_ass)
+    thisAsset = AllAssets[str(running_assets[0])]
+#    for ass in AllAssets:
+#        asset = AllAssets[ass]
+    snapshot_dir_ass = LC.snapshot_live_dir+thisAsset+'/'
+    if not os.path.exists(snapshot_dir_ass):
+        os.makedirs(snapshot_dir_ass)
     # unique network list
     unique_nets = []
     list_models = []
@@ -3648,26 +3664,18 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
     
     if not test:
         if modular:
-            raise NotImplementedError("Stats from modular features not implemented yet in online session")
-            # TODO: get directory from LC
-#            separators_directory = 'D:/SDC/py/Data/separators/'
+            #raise NotImplementedError("Stats from modular features not implemented yet for live session")
             
-#            list_separators = [load_separators(AllAssets[str(running_assets[ass])], 
-#                                         separators_directory, 
-#                                         from_txt=1) for ass in range(nAssets)]
-        
-#            list_first_dates = [dt.datetime.strftime(dt.datetime.strptime(
-#                    list_separators[ass].DateTime.iloc[0],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
-#            list_last_dates = [dt.datetime.strftime(dt.datetime.strptime(
-#                    list_separators[ass].DateTime.iloc[-1],'%Y.%m.%d %H:%M:%S'),'%y%m%d%H%M%S') for ass in range(nAssets)]
-#            list_stats = [[load_stats_modular(configs[0], AllAssets[str(running_assets[ass])], 
-#                                                            list_first_dates[ass], list_last_dates[ass], list_tags_modular[nn], 'direct',
-#                                                            stats_modular_directory='D:/SDC/py/HDF5/stats_modular/')
-#                                                            for nn in range(nNets)] 
-#                                                            for ass in range(nAssets)]
-            #print(list_tags_modular)
-#            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
-#            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
+            list_stats = [[load_stats_modular_live(AllAssets[str(running_assets[ass])], 
+                                                   mWs[nn], nExSs[nn], 
+                                                   list_tags_modular[nn], 
+                                                   feature_keys=[i for i in range(37)], 
+                                                   ass_rel='direct') 
+                                                    for nn in range(nNets)] 
+                                                    for ass in range(nAssets)]
+            
+            list_stats_feats = [[list_stats[ass][nn][0] for nn in range(nNets)] for ass in range(nAssets)]
+            list_stats_rets = [[list_stats[ass][nn][1] for nn in range(nNets)] for ass in range(nAssets)]
         else:
             list_stats_feats = [[load_stats_input_live(feature_keys_manual, mWs[nn], nExSs[nn], AllAssets[str(running_assets[ass])], 
                             None, 
@@ -3932,7 +3940,12 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                         start_time=start_time, config_name=config_name,
                         net2strategy=list_net2strategy[idx_tr], queue=queue, 
                         queue_prior=queue_prior, max_opened_positions=max_opened_positions)
-
+        if send_info_api:
+            # send config confirmation
+            trader.queue_prior.put({"FUNC":"CONFIG", 
+                                  "CONFIG":config_trader, 
+                                  "ASSET":thisAsset, 
+                                  "ORIGIN":"PARAM_UPDATE"})
         # Resume after hibernation
         snapshot_filename = LC.snapshot_live_dir+AllAssets[str(running_assets[0])]+"/snapshot.p"
         if resume:
@@ -4047,7 +4060,8 @@ from kaissandra.updateRaw import load_in_memory
 from kaissandra.prod.preprocessing import load_stats_input_live, \
                                           load_stats_output_live, \
                                           init_features_live,\
-                                          get_features_live
+                                          get_features_live, \
+                                          load_stats_modular_live
 from kaissandra.models import StackedModel
 import shutil
 from kaissandra.local_config import local_vars as LC
@@ -4083,7 +4097,7 @@ spread_ban = False
 ban_only_if_open = False # not in use
 force_no_extesion = False
 
-modular = False
+modular = True
 
 if not test:
     if not crisis_mode:
