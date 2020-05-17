@@ -21,7 +21,7 @@ from kaissandra.local_config import local_vars
 import zipfile
 
 def change_feature_name(oldfeatname, newfeatname, 
-                        assets=[1,2,3,4,7,8,10,11,12,13,14,15,16,17,19,27,28,29,30,31,32], 
+                        assets=[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], 
                         relations=['direct','inverse'], mW=500, nExS=5000, sources=['bid','ask']):
     """  """
     #from tqdm import tqdm
