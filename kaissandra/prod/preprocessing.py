@@ -42,10 +42,13 @@ def save_stats_live(feature_keys=[i for i in range(37)], movingWindow=500,
         # copy file from modular features directory to live dir
         for i, feat in enumerate(feature_keys):
             key = C.PF[feat][0]
-            filedirnameor = stats_dir+thisAsset+'_'+symbol+'_'+key+'.p'
+            filedirnameor = stats_dir+thisAsset+'_'+symbol+'_'+key+'_'+first_date+last_date+'.p'
+            print(filedirnameor)
             # copy in stats directory
             filedirnamedest = stats_live_dir+thisAsset+'_'+symbol+'_'+key+'.p'
-            
+            print(filedirnamedest)
+            if not os.path.exists(stats_live_dir):
+                os.makedirs(stats_live_dir)
             shutil.copyfile(filedirnameor, filedirnamedest)
             #os.rename()
         # copy in stats directory  
