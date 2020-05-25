@@ -343,7 +343,7 @@ def get_positions_status():
     
     ##### WARNING! #####
     AllAssets = Config.AllAssets
-    max_strategies_per_asset = 8
+    max_strategies_per_asset = 6
     status = {}
     try:
         for asset_key in AllAssets:
