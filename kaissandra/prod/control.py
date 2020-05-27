@@ -286,4 +286,4 @@ if __name__=='__main__':
     
 
 if __name__=='__main__':
-    control([1,2], timeout=timeout)#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    control([1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], timeout=timeout, send_info_api=True)#

@@ -12,8 +12,6 @@ import time
 import h5py
 import datetime as dt
 import os
-from tqdm import tqdm
-from sklearn.metrics import mean_squared_error
 
 from kaissandra.local_config import local_vars
 from kaissandra.config import write_log
@@ -372,6 +370,7 @@ class RNN(Model):
     
     def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0, log='',aloc=3000000):
         """ Fit model to trainning data """
+        from tqdm import tqdm
         # directory to save weights
         weights_directory = local_vars.weights_directory
         # number of samples
@@ -464,6 +463,7 @@ class RNN(Model):
            save_output=False, if_get_results=True, tag='DNNIO',
            startFrom=-1, endAt=-1, config={}, save_cost=True, log=''):
         """ Cross-validation function """
+        from tqdm import tqdm
         tic = time.time()
         results_directory = local_vars.results_directory
         IDweights = self.IDweights
@@ -625,6 +625,7 @@ class RNN(Model):
     def predict_batch(self, X, epoch, alloc=2**10):
         """ Predict output for features input X. If an interactive session
         has not yet been initialzed, this function does it. """
+        from tqdm import tqdm
         # init graph
         tf.reset_default_graph()
         # build model
@@ -748,6 +749,7 @@ class XGB():
         pass
     
     def _rmsle(self, Y, Y_tilde):
+        from sklearn.metrics import mean_squared_error
         return np.sqrt(mean_squared_error(Y, Y_tilde))
     
 class LGBM():
@@ -800,6 +802,7 @@ class LGBM():
         return self.model.predict(X)
     
     def rmsle(self, Y, Y_tilde):
+        from sklearn.metrics import mean_squared_error
         return np.sqrt(mean_squared_error(Y, Y_tilde))
 
 class DNN(Model):
@@ -873,6 +876,7 @@ class DNN(Model):
         
     def fit(self, X, Y, num_epochs=100, keep_prob_dropout=1.0):
         """ Fit model to train data """
+        from tqdm import tqdm
         weights_directory = local_vars.weights_directory
         # init timer
         tic = time.time()
@@ -929,6 +933,7 @@ class DNN(Model):
            save_output=False, if_get_results=True, tag='RDNN',
            startFrom=-1, endAt=-1, config={}):
         """ Cross-validation function """
+        from tqdm import tqdm
         tic = time.time()
         IDweights = self.IDweights
         loss_func = self.loss_func
