@@ -16,11 +16,6 @@ import logging
 import logging.handlers
 from multiprocessing import Process, Queue
 
-from kaissandra.log import config_logger_online, worker_configurer_online
-from kaissandra.config import Config as C
-from kaissandra.local_config import local_vars
-import kaissandra.prod.communication as ct
-
 def listener_process(queue, configurer):
     configurer()
     while True:
@@ -61,8 +56,8 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         log_queue = Queue(-1)
         listener = Process(target=listener_process, args=(log_queue, config_logger_online))
         listener.start()
-    
-    token_header = ct.build_token_header(ct.post_token())
+    token = ct.post_token()
+    token_header = ct.build_token_header(token)
     # launch queue listeners as independent processes
     kwargs = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':False}
     kwargs_prior = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':True}
@@ -104,14 +99,14 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         print(asset+MSG)
         ct.send_trader_log(MSG, asset, token_header)
         ass_idx = np.mod(ass_idx+1,len(running_assets))
-        ct.check_for_warnings()
+        ct.check_for_warnings(token_header=token_header)
         time.sleep(5)
         
         watchdog_counter += 1
         # check parameters every minute
         if watchdog_counter==1:
             try:
-                ct.check_params()
+                ct.check_params(token_header=token_header)
                 #token = ct.get_token()
                 #print(token)
                 # wake up server
@@ -283,7 +278,11 @@ if __name__=='__main__':
 
                 
     print("Timeout={0} mins".format(timeout))
-    
+
+from kaissandra.log import config_logger_online, worker_configurer_online
+from kaissandra.config import Config as C
+from kaissandra.local_config import local_vars
+import kaissandra.prod.communication as ct  
 
 if __name__=='__main__':
-    control([1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], timeout=timeout, send_info_api=True)#
+    control([1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], send_info_api=True)#

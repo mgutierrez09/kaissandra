@@ -100,7 +100,7 @@ def pause():
             #print("Asset not running")
             pass
 
-def check_params(config_name=''):
+def check_params(config_name='', token_header=None):
     """  """
     try:
         io_dir = LC.io_live_dir
@@ -177,7 +177,9 @@ def check_params(config_name=''):
             hibernate()
             print("From kaissandra.prod.communication.check_params: hibernate")
         if (config_name=='' and config and len(config)>0) or cl_command or sd_command or hi_command:
-            set_config_session({'config':{},'commands':[],'who':[]}, build_token_header(post_token()))
+            if not token_header:
+                token_header = build_token_header(post_token())
+            set_config_session({'config':{},'commands':[],'who':[]}, token_header)
     except Exception:
         import sys, traceback
         print('Whoops! Problem:', file=sys.stderr)
@@ -304,7 +306,7 @@ def get_account_status():
     status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
     return status
 
-def check_for_warnings():
+def check_for_warnings(token_header=None):
     """ Check for warning messages from broker """
     AllAssets = Config.AllAssets
     try:
@@ -326,7 +328,9 @@ def check_for_warnings():
                         print("Error reading position status")
                 msgLog = "\n\nWARNING FROM BROKER in "+thisAsset+": "+info+"\n\n"
                 print(thisAsset+msgLog)
-                send_monitoring_log(msgLog, thisAsset, build_token_header(post_token()))
+                if not token_header:
+                    token_header= build_token_header(post_token())
+                send_monitoring_log(msgLog, thisAsset, token_header)
                 
                         
     except Exception:
