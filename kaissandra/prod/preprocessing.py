@@ -53,7 +53,7 @@ def save_stats_live(feature_keys=[i for i in range(37)], movingWindow=500,
             #os.rename()
         # copy in stats directory  
         filedirnameor = stats_dir+thisAsset+'_'+symbol+'_out_'+first_date+last_date+'.p'
-        filedirnamedest = stats_live_dir+thisAsset+'_'+symbol+'_out_'+'.p'
+        filedirnamedest = stats_live_dir+thisAsset+'_'+symbol+'_out'+'.p'
         shutil.copyfile(filedirnameor, filedirnamedest)
         print("File filedirnamedest copied")
 

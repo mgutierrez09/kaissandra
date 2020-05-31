@@ -45,6 +45,9 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
     reset = False
     AllAssets = C.AllAssets
     timeouts = [time.time() for _ in range(len(running_assets))]
+    for ass_id in running_assets:
+        if not os.path.exists(directory_MT5+AllAssets[str(ass_id)]+"/"):
+            os.makedirs(directory_MT5+AllAssets[str(ass_id)]+"/")
     # get last file in asset channel if not empty, empty string otherwise
     list_last_file = [sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/"))[-1] \
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
