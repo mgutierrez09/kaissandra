@@ -288,4 +288,4 @@ from kaissandra.local_config import local_vars
 import kaissandra.prod.communication as ct  
 
 if __name__=='__main__':
-    control([1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32], send_info_api=True)#
+    control(local_vars.ASSETS, send_info_api=True)#

@@ -1996,10 +1996,12 @@ class Trader:
             if send_info_api:
                 if log_thu_control:
                     self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":"PARAMETERS UPDATED:"})
-                self.queue_prior.put({"FUNC":"CONFIG", 
-                                      "CONFIG":config, 
-                                      "ASSET":thisAsset, 
-                                      "ORIGIN":"PARAM_UPDATE"})
+                    self.queue_prior.put({"FUNC":"CONFIG", 
+                                          "CONFIG":config, 
+                                          "ASSET":thisAsset, 
+                                          "ORIGIN":"PARAM_UPDATE"})
+                else:
+                    ct.confirm_config_info(config, thisAsset, "PARAM_UPDATE", self.token_header)
         except:
             print("WARNING!! Error while reading conig file. Skipped")
         

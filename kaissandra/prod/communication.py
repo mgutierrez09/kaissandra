@@ -370,6 +370,7 @@ def get_positions_status():
                             time.sleep(.1)
                     info_str = info_close.split(',')
                     #print(info_str)
+                    dti = info_str[8]
                     pos_id = int(info_str[0])
                     volume = float(info_str[1])
                     open_price = float(info_str[2])
@@ -379,10 +380,12 @@ def get_positions_status():
                     deadline = int(info_str[6])
                     direction = int(info_str[7])
                     
-                    print(thisAsset+"_"+str(str_idx)+": pos_id {0:d} volume {1:.2f} open price {2:.2f} current price {3:.2f} swap {5:.2f} dir {7:d} dealine in {6:d} current profit {4:.2f}"\
+                    print(dti+" "+thisAsset+"_"+str(str_idx)+": pos_id {0:d} volume {1:.2f} open price {2:.2f} current price {3:.2f} swap {5:.2f} dir {7:d} dealine in {6:d} current profit {4:.2f}"\
                       .format(pos_id, volume, open_price, current_price, current_profit, swap, deadline, direction))
                     
-                    status[thisAsset+"_"+str(str_idx)] = {'pos_id':pos_id, 
+                    status[thisAsset+"_"+str(str_idx)] = {
+                                         'dti':dti,
+                                         'pos_id':pos_id, 
                                          'volume':volume, 
                                          'open_price':open_price, 
                                          'current_price':current_price,
@@ -558,7 +561,7 @@ def build_and_set_config(config_name='TESTPARAMUPDATE5'):
     config = retrieve_config(config_name)
     token = get_token()
     token_header = {'Authorization': 'Bearer '+token}
-    set_config_session(config, token_header)
+    set_config_session({'config':config}, token_header)
     return None
     
 
