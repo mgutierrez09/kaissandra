@@ -15,6 +15,7 @@ import numpy as np
 import logging
 import logging.handlers
 from multiprocessing import Process, Queue
+from threading import Thread
 
 def listener_process(queue, configurer):
     configurer()
@@ -26,12 +27,12 @@ def listener_process(queue, configurer):
             logger = logging.getLogger(record.name)
             logger.handle(record)  # No level or filter logic applied - just do it!
         except Exception:
-            import sys, traceback
+            import traceback
             print('Whoops! Problem:', file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
     print("EXIT Log queue")
 
-def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False):
+def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False, from_main=False):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
@@ -59,8 +60,12 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         log_queue = Queue(-1)
         listener = Process(target=listener_process, args=(log_queue, config_logger_online))
         listener.start()
-    token = ct.post_token()
-    token_header = ct.build_token_header(token)
+    if send_info_api:
+        token = ct.post_token()
+        token_header = ct.build_token_header(token)
+    else:
+        token = None
+        token_header = None
     # launch queue listeners as independent processes
     kwargs = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':False}
     kwargs_prior = {'send_info_api':send_info_api, 'token_header':token_header, 'priority':True}
@@ -77,58 +82,44 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
     ass_idx = 0
     run = True
     print("Control running...")
+    logger = logging.getLogger("CONTROL")
     while run:
         # control connection
         list_last_file, list_num_files, timeouts, reset = control_broker_connection(AllAssets, running_assets, 
                                                       timeout, directory_io,
                                                       reset_command, directory_MT5, 
                                                       list_last_file, list_num_files, timeouts, 
-                                                      reset)
+                                                      reset, from_main, token_header, logger, send_info_api)
         
-        # loop over assets
-#        for ass_idx, ass_id in enumerate(running_assets):
-#            # check for new log info to send
-#            thisAsset = AllAssets[str(ass_id)]
-#            directory_io_ass = directory_io+thisAsset+"/"
-#            if os.path.exists(directory_io_ass+"TRADERLOG"):
-#                pass
-#            elif os.path.exists(directory_io_ass+"NETWORKLOG"):
-#                pass
-        ct.send_account_status(token_header)
-        ct.send_positions_status(token_header)
         asset = AllAssets[str(running_assets[ass_idx])]
         MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
             ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
         print(asset+MSG)
-        ct.send_trader_log(MSG, asset, token_header)
+        if send_info_api:
+            ct.send_trader_log(MSG, asset, token_header)
         ass_idx = np.mod(ass_idx+1,len(running_assets))
-        ct.check_for_warnings(token_header=token_header)
-        time.sleep(5)
+        
+        time.sleep(1)
         
         watchdog_counter += 1
         # check parameters every minute
-        if watchdog_counter==1:
+        if watchdog_counter==5:
             try:
-                ct.check_params(token_header=token_header)
-                #token = ct.get_token()
-                #print(token)
-                # wake up server
+                ct.check_for_warnings(token_header=token_header, send_info_api=send_info_api)
+                if send_info_api:
+                    ct.check_params(token_header=token_header)
+                    ct.send_account_status(token_header)
+                    ct.send_positions_status(token_header)
                 watchdog_counter = 0
-                # send number of files in Broker communication directory of one asset
-                
             except ConnectionError:
                 print("WARNING! Connection Error in control() of control.py.")
             
-        if os.path.exists(directory_io+'SD'):
-            os.remove(directory_io+'SD')
-            # shutting down queues
-            if len(queues)>0:
-                log_queue.put(None)
-#            for q, queue in enumerate(queues):
-#                queue_prior = queues_prior[q]
-#                queue.put({'FUNC':'SD'})
-#                queue_prior.put({'FUNC':'SD'})
-            run = False
+            if os.path.exists(directory_io+'SD'):
+                os.remove(directory_io+'SD')
+                # shutting down queues
+                if len(queues)>0:
+                    log_queue.put(None)
+                run = False
         
     print("EXIT control")
             
@@ -142,86 +133,103 @@ def listen_trader_connection(queue, log_queue, configurer, ass_id, send_info_api
     run = True
     while run:
         info = queue.get()         # Read from the queue
-#        if priority:
-#            print("From priority queue: ")
-#            
-#        else:
-#            print("From regular queue: ")
-        
-        # send log to server
-        if send_info_api and info['FUNC'] == 'LOG':
-            print(info)
-#                print(info['MSG'])
-            logger = logging.getLogger(name)
-            #level = logging.INFO
-            message = info['MSG']
-            logger.info(message)
-            if info['ORIGIN'] == 'NET':
-                ct.send_network_log(info['MSG'], info['ASS'], token_header)
-            elif info['ORIGIN'] == 'TRADE':
-                ct.send_trader_log(info['MSG'], info['ASS'], token_header)
-            elif info['ORIGIN'] == 'MONITORING':
-                ct.send_monitoring_log(info['MSG'], info['ASS'], token_header)
-            else:
-                print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
-        elif send_info_api and info['FUNC'] == 'POS':
-            print(info)
-            params = info['PARAMS']
-            if info["EVENT"] == "OPEN":
-                position_json = ct.send_open_position(params, info["SESS_ID"], 
-                                                      token_header)
-                if 'id' in position_json:
-                    assets_opened[position_json['asset']] = position_json['id']
-                else:
-                    print("WARNING! id NOT in position_json")
-            elif info["EVENT"] == "EXTEND":
-                ct.send_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
-#                if info["ASSET"] in assets_opened:
-#                    pos_id = assets_opened[info["ASSET"]]
-#                    ct.send_extend_position(params, pos_id, token_header)
-#                    
+        run, assets_opened = arrange_message_and_send(info, assets_opened, name, token_header, send_info_api)
+#        # send log to server
+#        if send_info_api and info['FUNC'] == 'LOG':
+#            print(info)
+#            logger = logging.getLogger(name)
+#            message = info['MSG']
+#            logger.info(message)
+#            if info['ORIGIN'] == 'NET':
+#                ct.send_network_log(info['MSG'], info['ASS'], token_header)
+#            elif info['ORIGIN'] == 'TRADE':
+#                ct.send_trader_log(info['MSG'], info['ASS'], token_header)
+#            elif info['ORIGIN'] == 'MONITORING':
+#                ct.send_monitoring_log(info['MSG'], info['ASS'], token_header)
+#            else:
+#                print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
+#        elif send_info_api and info['FUNC'] == 'POS':
+#            print(info)
+#            params = info['PARAMS']
+#            if info["EVENT"] == "OPEN":
+#                position_json = ct.send_open_position(params, info["SESS_ID"], 
+#                                                      token_header)
+#                if 'id' in position_json:
+#                    assets_opened[position_json['asset']] = position_json['id']
 #                else:
-#                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_extend_position skipped.")
-            elif info["EVENT"] == "NOTEXTEND":
-                ct.send_not_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
-#                if info["ASSET"] in assets_opened:
-#                    pos_id = assets_opened[info["ASSET"]]
-#                    ct.send_not_extend_position(params, pos_id, token_header)
-#                else:
-#                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_not_extend_position skipped.")
-            elif info["EVENT"] == "CLOSE":
-                dirfilename = info["DIRFILENAME"]
-                ct.send_close_position(params, info["ASSET"], info["STRATEGY"], dirfilename, token_header)
-#                if info["ASSET"] in assets_opened:
-#                    pos_id = assets_opened[info["ASSET"]]
-#                    dirfilename = info["DIRFILENAME"]
-#                    ct.send_close_position(params, pos_id, dirfilename, 
-#                                           token_header)
-#                else:
-#                    print("WARNING! "+info["ASSET"]+" not in assets_opened. send_close_position skipped.")
-            else:
-                print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
-                
-        elif send_info_api and info['FUNC'] == 'CONFIG':
-            ct.confirm_config_info(info['CONFIG'], info["ASSET"], info["ORIGIN"], token_header)
-        elif info['FUNC'] == 'SD':
-            print(info)
-            run = False
+#                    print("WARNING! id NOT in position_json")
+#            elif info["EVENT"] == "EXTEND":
+#                ct.send_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
+#            elif info["EVENT"] == "NOTEXTEND":
+#                ct.send_not_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
+#            elif info["EVENT"] == "CLOSE":
+#                dirfilename = info["DIRFILENAME"]
+#                ct.send_close_position(params, info["ASSET"], info["STRATEGY"], dirfilename, token_header)
+#            else:
+#                print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
+#                
+#        elif send_info_api and info['FUNC'] == 'CONFIG':
+#            ct.confirm_config_info(info['CONFIG'], info["ASSET"], info["ORIGIN"], token_header)
+#        elif info['FUNC'] == 'SD':
+#            print(info)
+#            run = False
 #        except Exception as e:
 #            print("WARNING! Error in when reading queue in listen_trader_connection of control.py: "+str(e))
     print("EXIT queue")
         
-    
+def arrange_message_and_send(info, assets_opened, name, token_header, send_info_api):
+    """  """
+    run = True
+    if send_info_api and info['FUNC'] == 'LOG':
+        print(info)
+        logger = logging.getLogger(name)
+        message = info['MSG']
+        logger.info(message)
+        if info['ORIGIN'] == 'NET':
+            ct.send_network_log(info['MSG'], info['ASS'], token_header)
+        elif info['ORIGIN'] == 'TRADE':
+            ct.send_trader_log(info['MSG'], info['ASS'], token_header)
+        elif info['ORIGIN'] == 'MONITORING':
+            ct.send_monitoring_log(info['MSG'], info['ASS'], token_header)
+        else:
+            print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
+    elif send_info_api and info['FUNC'] == 'POS':
+        print(info)
+        params = info['PARAMS']
+        if info["EVENT"] == "OPEN":
+            position_json = ct.send_open_position(params, info["SESS_ID"], 
+                                                  token_header)
+            if 'id' in position_json:
+                assets_opened[position_json['asset']] = position_json['id']
+            else:
+                print("WARNING! id NOT in position_json")
+        elif info["EVENT"] == "EXTEND":
+            ct.send_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
+        elif info["EVENT"] == "NOTEXTEND":
+            ct.send_not_extend_position(params, info["ASSET"], info["STRATEGY"], token_header)
+        elif info["EVENT"] == "CLOSE":
+            dirfilename = info["DIRFILENAME"]
+            ct.send_close_position(params, info["ASSET"], info["STRATEGY"], dirfilename, token_header)
+        else:
+            print("WARNING! EVENT "+info["EVENT"]+" unsupported. Ignored")
+            
+    elif send_info_api and info['FUNC'] == 'CONFIG':
+        ct.confirm_config_info(info['CONFIG'], info["ASSET"], info["ORIGIN"], token_header)
+    elif info['FUNC'] == 'SD':
+        print(info)
+        run = False
+    return run, assets_opened
+
 def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                            reset_command, directory_MT5, list_last_file, list_num_files, 
-                           timeouts, reset):
+                           timeouts, reset, from_main, token_header, logger, send_info_api):
     """ Controls the connection and arrival of new info from trader and 
     sends reset command in case connection is lost """
-    try:
-        for ass_idx, ass_id in enumerate(running_assets):
+    for ass_idx, ass_id in enumerate(running_assets):
+        try:
             thisAsset = AllAssets[str(ass_id)]
             directory_MT5_IO_ass = directory_MT5+thisAsset+"/"
-            directory_io_ass = directory_io+thisAsset+"/"
+            #directory_io_ass = directory_io+thisAsset+"/"
             listAllFiles = sorted(os.listdir(directory_MT5_IO_ass))
             # track max delay in ticks processing
             if len(listAllFiles)>list_num_files[ass_idx]['max']:
@@ -243,22 +251,48 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                 # update last file list
                 list_last_file[ass_idx] = newLastFile
                 # reset reset flag
-            reset = False
-    except:
-        print("WARNING! Error in control_broker_connection. Skipped")
-#        else:
-#            print(thisAsset+" timeout NOT reset")
-#    min_to = min([time.time()-to for to in timeouts])
-#    print(dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
-#          " Min TO = {0:.2f} mins".format(min_to/60))
-#    print("\r"+dt.datetime.strftime(dt.datetime.now(),'%y.%m.%d %H:%M:%S')+
-#          " Min TO = {0:.2f} mins".format(min_to/60), sep=' ', end='', flush=True)
-#    if min_to>timeout*60 and not reset:
-#        # Reset networks
-#        reset = True
-#        ct.send_command(directory_io_ass, reset_command)
+        except:
+            print("WARNING! Error in control_broker_connection. Skipped")
+        # check for logs in disk if from main
+        if send_info_api:
+            try:
+                if from_main:
+                    ass_dir = local_vars.local_log_comm+thisAsset+'/'
+                    list_logs = sorted(os.listdir(ass_dir))
+                    for file in list_logs:
+                        fh = open(ass_dir+file,"r")
+                        list_info = fh.read()[:-1].split(",")
+                        #print(list_info)
+                        fh.close()
+                        os.remove(ass_dir+file)
+                        # split message
+                        info = get_dict_from_list(list_info)
+                        #print(info)
+                        #send log
+                        Thread(target=arrange_message_and_send, args=(info, None, thisAsset, token_header, send_info_api)).start()
+                        #_, _ = arrange_message_and_send(info, None, thisAsset, token_header, send_info_api)
+    #                    message = info['MSG']
+    #                    logger.info(message)
+    #                    ct.send_log(info, token_header=token_header)
+            except Exception:
+                import traceback
+                print('Whoops! Problem:', file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
+                message = "Error in control_broker_connection of kaissandra.prod.control"
+                logger.exception(message)
+                if os.path.exists(ass_dir+file):
+                    os.remove(ass_dir+file)
+    
+        
+    reset = False
     return list_last_file, list_num_files, timeouts, reset
-            
+
+def get_dict_from_list(list_info):
+    """  """
+    info = {}
+    for i in range(0,len(list_info)-1,2):
+        info[list_info[i]] = list_info[i+1]
+    return info
 if __name__=='__main__':
     # add kaissandra to path
     this_path = os.getcwd()
@@ -288,4 +322,9 @@ from kaissandra.local_config import local_vars
 import kaissandra.prod.communication as ct  
 
 if __name__=='__main__':
-    control(local_vars.ASSETS, send_info_api=True)#
+    for ass_idx, ass_id in enumerate(local_vars.ASSETS):
+        thisAsset = C.AllAssets[str(ass_id)]
+        ass_dir = local_vars.local_log_comm+thisAsset+'/'
+        if not os.path.exists(ass_dir):
+            os.makedirs(ass_dir)
+    control(local_vars.ASSETS, send_info_api=True, from_main=True)#

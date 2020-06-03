@@ -110,12 +110,13 @@ def check_params(config_name='', token_header=None):
         hi_command = False # hibernate command
         if config_name=='':
             # get config from server and pass it to live session
-            token = post_token()
-            if token:
-                json = get_config_session()
-            else:
-                print("WARNING! Unable to build token in check_params in kaissandra.prod.communication. Skipped.")
-                return None
+            #token = post_token()
+            #if token_header:
+            json = get_config_session(token_header=token_header)
+#            else:
+#                token = post_token()
+#                print("WARNING! Unable to build token in check_params in kaissandra.prod.communication. Skipped.")
+#                return None
             if 'config' in json:
                 config = json['config']
                 if 'config_name' in config:
@@ -306,7 +307,7 @@ def get_account_status():
     status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
     return status
 
-def check_for_warnings(token_header=None):
+def check_for_warnings(token_header=None, send_info_api=True):
     """ Check for warning messages from broker """
     AllAssets = Config.AllAssets
     try:
@@ -328,9 +329,10 @@ def check_for_warnings(token_header=None):
                         print("Error reading position status")
                 msgLog = "\n\nWARNING FROM BROKER in "+thisAsset+": "+info+"\n\n"
                 print(thisAsset+msgLog)
-                if not token_header:
+                if not token_header and send_info_api:
                     token_header= build_token_header(post_token())
-                send_monitoring_log(msgLog, thisAsset, token_header)
+                if send_info_api:
+                    send_monitoring_log(msgLog, thisAsset, token_header)
                 
                         
     except Exception:
@@ -431,7 +433,29 @@ def build_token_header(token):
         return {'Authorization': 'Bearer '+token}
     else:
         return {'Authorization': 'Bearer '+""}
-            
+
+def send_log(info, token_header=None):
+    """  """
+    try:
+        if not token_header:
+            token_header = build_token_header(get_token())
+        if info['ORIGIN'] == 'NET':
+            send_network_log(info['MSG'], info['ASS'], token_header)
+        elif info['ORIGIN'] == 'TRADE':
+            send_trader_log(info['MSG'], info['ASS'], token_header)
+        elif info['ORIGIN'] == 'MONITORING':
+            send_monitoring_log(info['MSG'], info['ASS'], token_header)
+        else:
+            print("WARNING! Info origing "+info["ORIGIN"]+" unknown. Skipped")
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in send_trader_log of kaissandra.communication"
+        logger.exception(message)
+    return None
+                        
 def send_trader_log(message, asset, token_header):
     """ Send trader log to server api """
     url_ext = 'logs/traders'
@@ -520,13 +544,14 @@ def set_config_session(config, token_header):
         message = "Error in set_config_session of kaissandra.communication"
         logger.exception(message)
         
-def get_config_session():
+def get_config_session(token_header=None):
     """ Send trader log to server api """
     url_ext = 'traders/sessions/get_session_config'
     try:
-        
+        if not token_header:
+            token_header = build_token_header(post_token())
         response = requests.get(LC.URL+url_ext, 
-                                headers=build_token_header(post_token()), 
+                                headers=token_header, 
                                 verify=True, timeout=10)
         #print(response.json())
         return response.json()
@@ -571,7 +596,7 @@ def send_open_position(params, session_id, token_header):
         url_ext = 'traders/sessions/'+str(session_id)+'/positions/open'
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                                  token_header, verify=True)
-        print("Status code: "+str(response.status_code))
+        #print("Status code: "+str(response.status_code))
         if response.status_code == 200:
     #        print(response.json())
             return response.json()['Position'][0]
@@ -593,7 +618,7 @@ def send_extend_position(params, pos_id, str_idx, token_header):
         url_ext = 'traders/positions/'+str(pos_id)+'/'+str(str_idx)+'/extend'
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                  token_header, verify=True)
-        print("Status code: "+str(response.status_code))
+        #print("Status code: "+str(response.status_code))
         if response.status_code == 200:
     #        print(response.json())
             return True
@@ -615,7 +640,7 @@ def send_not_extend_position(params, pos_id, str_idx, token_header):
     try:
         response = requests.post(LC.URL+url_ext, json=params, headers=
                                  token_header, verify=True)
-        print("Status code: "+str(response.status_code))
+        #print("Status code: "+str(response.status_code))
         if response.status_code == 200:
     #        print(response.json())
             return True
@@ -643,7 +668,7 @@ def send_close_position(params, pos_id, str_idx, dirfilename, token_header):
         response = requests.put(LC.URL+url_ext, json=params, 
                                 headers=token_header, verify=True)
         
-        print("Status code: "+str(response.status_code))
+        #print("Status code: "+str(response.status_code))
         if response.status_code == 200:
     #        print(response.json())
             if response_file.status_code != 200:
