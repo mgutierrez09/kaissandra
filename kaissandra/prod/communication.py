@@ -850,6 +850,28 @@ def close_session(session_json):
         message = "Error in close_session of kaissandra.communication"
         logger.exception(message)
         return False
+    
+def delete_all_positions():
+    """  """
+    url_ext = 'traders/reset_positions'
+    try:
+        response = requests.post(LC.URL+url_ext, 
+                                headers=build_token_header(post_token()), 
+                                verify=True)
+        print("Status code close_session: "+str(response.status_code))
+        if response.status_code == 200:
+            return True
+        else:
+            print(response.text)
+        return False
+    except Exception:
+        import sys, traceback
+        print('Whoops! Problem:', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        logger = logging.getLogger("COMMUNICATION")
+        message = "Error in close_session of kaissandra.communication"
+        logger.exception(message)
+        return False
         
 from kaissandra.config import retrieve_config, Config, save_config
 from kaissandra.local_config import local_vars as LC
