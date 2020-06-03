@@ -75,7 +75,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
         disp.start()
         disp = Process(target=listen_trader_connection, args=[queue_prior, log_queue, worker_configurer_online, running_assets[q]], kwargs=kwargs_prior)
         disp.start()
-        time.sleep(1)
+        time.sleep(10)
     
     # monitor connections
     watchdog_counter = 0
@@ -327,4 +327,4 @@ if __name__=='__main__':
         ass_dir = local_vars.local_log_comm+thisAsset+'/'
         if not os.path.exists(ass_dir):
             os.makedirs(ass_dir)
-    control(local_vars.ASSETS, send_info_api=True, from_main=True)#
+    control(local_vars.ASSETS, send_info_api=local_vars.API, from_main=True)#

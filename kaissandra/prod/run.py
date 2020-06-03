@@ -2836,7 +2836,7 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                     print("RESET command found.")
                     os.remove(io_ass_dir+'RESET')
                     lists = flush_asset(lists, ass_idx, 0.0)
-                time.sleep(.01)
+                time.sleep(.02)
             
             # check shut down command
             if count10s[ass_idx]==56 and os.path.exists(io_ass_dir+'SD'):
@@ -3228,7 +3228,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # add new entry to buffer
         (buffers[ass_idx]).iloc[sampsBuffersCounter[ass_idx]] = [DateTime, bid, ask]
         sampsBuffersCounter[ass_idx] = (sampsBuffersCounter[ass_idx]+1)%n_samps_buffer
-        
+        str_idx=0
         for idx, trader in enumerate(traders):
             list_idx = trader.map_ass_idx2pos_idx[str_idx][ass_id]
             trader.update_list_last(list_idx, DateTime, bid, ask)
@@ -4162,7 +4162,7 @@ def launch(synchroned_run=False, test=False, session_json=None, token_header=Non
             queues.append(queue)
             queues_prior.append(queue_prior)
             time.sleep(10)
-        #time.sleep(30)
+        time.sleep(30)
         print("All RNNs launched")
         return processes, queues, queues_prior
 
@@ -4305,6 +4305,7 @@ if __name__=='__main__':
             from kaissandra.prod.control import control
             kwargs = {'queues':queues, 'queues_prior':queues_prior, 'send_info_api':send_info_api}
             #Process(target=control, args=[running_assets], kwargs=kwargs).start()
+            
             control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
         # wait for last trader to finish
         print("WAITING FOR PROCESSES TO FINISH")
