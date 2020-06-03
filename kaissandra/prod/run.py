@@ -4290,6 +4290,9 @@ if __name__=='__main__':
     if send_info_api:
         session_json = ct.open_session(list_config_traders[0]['config_name'], sessiontype, test)
         token_header = ct.build_token_header(ct.post_token())
+    else:
+        session_json = None
+        token_header = None
         
     renew_directories(C.AllAssets, running_assets)
 #    if synchroned_run and send_info_api:
