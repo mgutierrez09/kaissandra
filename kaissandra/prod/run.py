@@ -436,8 +436,8 @@ class Trader:
                 tag = '_LI_'
             self.log_file_trader = self.results_dir_trader+start_time+tag+config_name+"trader.log"
             self.log_file = log_file
-            self.log_positions_soll = self.results_dir_trader+start_time+tag+config_name+"positions_soll.log"
-            self.log_positions_ist = self.results_dir_trader+start_time+tag+config_name+"positions_ist.log"
+            self.log_positions_soll = self.results_dir_trader+start_time+tag+config_name+"positions_soll.csv"
+            self.log_positions_ist = self.results_dir_trader+start_time+tag+config_name+"positions_ist.csv"
             self.log_summary = self.results_dir_trader+start_time+tag+config_name+"summary.log"
             self.dir_positions = results_dir+'/positions/'+start_time+config_name+'/'
             self.budget_file = self.results_dir_trader+start_time+tag+config_name+"budget.log"
@@ -458,11 +458,13 @@ class Trader:
             time.sleep(np.random.rand())
             # results tracking
             if not os.path.exists(self.log_positions_soll):
-                resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
+                resultsInfoHeaderSoll = "Asset,Entry Time,Exit Time,Position,"+\
                     "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,strategy,Profit,E_spread,stoploss,stGROI,stROI"
-                write_log(resultsInfoHeader, self.log_positions_soll)
+                write_log(resultsInfoHeaderSoll, self.log_positions_soll)
                 if not run_back_test:
-                    write_log(resultsInfoHeader, self.log_positions_ist)
+                    resultsInfoHeaderIst = "Asset,Entry Time,Exit Time,Position,"+\
+                    "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,Equity,Swap,strategy"
+                    write_log(resultsInfoHeaderIst, self.log_positions_ist)
                 write_log(str(self.available_bugdet_in_lots), self.budget_file)
         # flow control
         self.EXIT = 0
@@ -4263,7 +4265,7 @@ if not test:
         list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
 # override list configs if test is True
 else:
-    list_config_traders = [retrieve_config('TTESTv3')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
+    list_config_traders = [retrieve_config('T6N504060TESTv1')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
     print("WARNING! TEST ON")
 #print("synchroned_run: "+str(synchroned_run))
 #print("Test "+str(test))

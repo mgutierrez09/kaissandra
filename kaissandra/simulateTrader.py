@@ -110,7 +110,11 @@ class Position:
         self.exit_bid = int(np.round(journal_entry[exit_bid_column]*100000))/100000
         self.entry_ask = int(np.round(journal_entry[entry_ask_column]*100000))/100000
         self.exit_ask = int(np.round(journal_entry[exit_ask_column]*100000))/100000
-        self.bet = int(journal_entry['Bet'])
+        
+        if not crisis_mode:
+            self.bet = int(journal_entry['Bet'])
+        else:
+            self.bet = -1*int(journal_entry['Bet'])
         self.direction = np.sign(self.bet)
         self.p_mc = journal_entry['P_mc']
         self.p_md = journal_entry['P_md']
@@ -673,7 +677,7 @@ class Trader:
         str_idx = name2str_map[self.next_candidate.strategy]
         return (self.next_candidate.asset==self.list_opened_pos_per_str[str_idx][
                 self.map_ass2pos_str[str_idx][idx]].asset and 
-            time_stamp==self.next_candidate.entry_time)
+                time_stamp==self.next_candidate.entry_time)
 
     def check_secondary_condition_for_extention(self, idx, curr_GROI):
         """  """
@@ -1121,11 +1125,9 @@ class Trader:
                self.list_opened_pos_per_str[str_idx][self.map_ass2pos_str[str_idx][idx]
                ].asset.decode("utf-8")+
                " Lots {0:.1f}".format(lots)+" "+
-               str(self.list_opened_pos_per_str[str_idx][self.map_ass2pos_str[str_idx][idx]].bet)+
-               " p_mc={0:.2f}".format(self.list_opened_pos_per_str[str_idx][
-                       self.map_ass2pos_str[str_idx][idx]].p_mc)+
-               " p_md={0:.2f}".format(self.list_opened_pos_per_str[str_idx][
-                       self.map_ass2pos_str[str_idx][idx]].p_md)+
+               str(self.next_candidate.bet)+
+               " p_mc={0:.2f}".format(self.next_candidate.p_mc)+
+               " p_md={0:.2f}".format(self.next_candidate.p_md)+
                " spread={0:.3f}".format(100*e_spread)+ " cGROI {0:.2f}".format(100*curr_GROI))
         if self.list_quarantined_pos[str_idx][self.map_ass2pos_str[str_idx][idx]]['on']:
             out += " QARAN"
@@ -1457,13 +1459,13 @@ if __name__ == '__main__':
                                       (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
                                       (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), 
                                       (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61)],
-                               'mar':[(0,0.0)]+[(0,0.01) for _ in range(46)]} for _ in assets],
+                               'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)]} for _ in assets],
                               [{'sp':[0]+[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                                'th': [(0.5, 0.55)]+[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), (0.66, 0.58), 
                                       (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                       (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), 
                                       (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.75, 0.58), (0.75, 0.58)],
-                               'mar':[(0,0.0)]+[(0,0.01) for _ in range(46)]} for _ in assets]]
+                               'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)]} for _ in assets]]
         margin = 0.0
         init_margin = 0.0
         list_lb_mc_ext = [.5, .5]
@@ -1512,6 +1514,7 @@ if __name__ == '__main__':
     max_pos_per_curr = 100
     qurantine_thr = 1#0.008 # quarantine thr in ratio, i.e. 0.01=1%
     histeresis = 0.0005 # # histeresis of quarantine thr in ratio, i.e. 0.001=0.1%
+    crisis_mode = False
 
     # depricated/not supported
     list_IDgre = ['' for i in range(numberNetwors)]
@@ -1943,9 +1946,10 @@ if __name__ == '__main__':
                 sec_cond, sp = trader.check_secondary_contition_for_opening(ass_idx)
             else:
                 sec_cond = False
-                
-            condition_open = (trader.chech_ground_condition_for_opening() and 
-                              trader.check_primary_condition_for_opening() and 
+            
+            elementary_conditions = trader.chech_ground_condition_for_opening() and \
+                                    trader.check_primary_condition_for_opening()
+            condition_open = (elementary_conditions and 
                               sec_cond and not ban_condition and 
                               not trader.is_opened_strategy(ass_idx))
             
@@ -1991,9 +1995,8 @@ if __name__ == '__main__':
                 else:
                     no_budget = True
                 
-            elif (trader.chech_ground_condition_for_opening() and 
-                  trader.check_primary_condition_for_opening() and 
-                  not sec_cond and not trader.is_opened_strategy(ass_idx)):
+            elif (elementary_conditions and not sec_cond and 
+                  not trader.is_opened_strategy(ass_idx)):
                 #pass
 #                profitability = strategys[name2str_map
 #                                          [trader.next_candidate.strategy]
@@ -2074,8 +2077,14 @@ if __name__ == '__main__':
                                     out += " QARAN"
                                 print(out)
                                 trader.write_log(out)
-                                
-                                EXIT, rewind = trader.update_candidates()
+                                if not crisis_mode:
+                                    EXIT, rewind = trader.update_candidates()
+                                else:
+                                    out = "Close from open_asset and open_strategy p_mc {0:.3f}".format(trader.next_candidate.p_mc)+\
+                                       " p_md {0:.3f}".format(trader.next_candidate.p_md)
+                                    print(out)
+                                    trader.write_log(out)
+                                    trader.close_position(DateTime, thisAsset, ass_idx, str_idx)
                                 
                             
 #                            elif strategys[name2str_map[
@@ -2133,9 +2142,28 @@ if __name__ == '__main__':
 #                                
 #                                if trader.chech_ground_condition_for_opening() and trader.check_primary_condition_for_opening() and trader.check_secondary_contition_for_opening():
 #                                    approached, n_entries, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, approached, n_entries, n_pos_opened, lots=lots)
+                        
                         # end of if (next_pos.ADm>this_pos.ADm or (next_pos.ADm==this_pos.ADm and np.abs(next_pos.bet)>np.abs(this_pos.bet))) and Assets[event_idx]!=next_pos.asset:
                     # end of if (time_stamp==next_pos.entry_time and bid==next_pos.entry_bid and ask==next_pos.entry_ask):   
-                    
+                    elif trader.next_candidate!= None and crisis_mode:
+                        # crisis mode and no extension due to different direction: close
+                        # WARNING! Not compatible with multi-strategies
+                        for s in range(len(strategys)):
+                            if (trader.map_ass2pos_str[s][ass_idx]>-1 and 
+                                trader.next_candidate.asset==trader.list_opened_pos_per_str[s][
+                                trader.map_ass2pos_str[s][ass_idx]].asset and 
+                                time_stamp==trader.next_candidate.entry_time):
+                                out = "Close from open_asset but not open_strategy"+\
+                                    " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+\
+                                    " p_md {0:.3f}".format(trader.next_candidate.p_md)
+                                print(out)
+                                trader.write_log(out)
+                                trader.close_position(DateTime, thisAsset, ass_idx, s)
+#                            if trader.map_ass2pos_str[s][ass_idx]>-1 and \
+#                               Assets[event_idx]==trader.list_opened_pos_per_str[s][
+#                                            trader.map_ass2pos_str[s][ass_idx]].asset:
+#                                   
+#                                   trader.close_position(DateTime, thisAsset, ass_idx, s)
                     # check if it is time to exit market
                     if trader.next_candidate!= None:
                         for s in range(len(strategys)):
@@ -2148,10 +2176,13 @@ if __name__ == '__main__':
                                         trader.map_ass2pos_str[s][ass_idx]].exit_ask and
                                         time_stamp==trader.list_opened_pos_per_str[s][
                                         trader.map_ass2pos_str[s][ass_idx]].exit_time):#and trader.list_count_events[trader.map_ass2pos_str[ass_idx]]>=nExS
-                                
+                                if crisis_mode:
+                                    out = "Close from end of ticks"
+                                    print(out)
+                                    trader.write_log(out)
                                 trader.close_position(DateTime, 
-                                                      thisAsset, 
-                                                      ass_idx, s)
+                                                          thisAsset, 
+                                                          ass_idx, s)
                                 # reset approched
 #                                if len(trader.list_opened_pos_per_str[s])==0:
 #                                    approached = 0

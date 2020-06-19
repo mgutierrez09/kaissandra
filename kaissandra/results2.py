@@ -1487,7 +1487,8 @@ def get_results(config, y, DTA, J_test, soft_tilde,
     # save fuction cost
     print("Epoch "+str(epoch)+", J_train = "+str(J_train)+", J_test = "+str(J_test))
     save_costs(costs_filename, [epoch, J_train]+J_test)
-    
+    print("thresholds_md")
+    print(thresholds_md)
     f_dta = h5py.File(DTA,'r')
     DT = f_dta['D'][:]
     ASS = f_dta['ASS'][:]

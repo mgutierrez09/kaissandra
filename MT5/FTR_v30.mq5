@@ -24,7 +24,8 @@ int filehandle;
 datetime currTime;
 datetime timeSoll;
 datetime tic;
-datetime toc;
+//datetime toc;
+datetime tocs[];
 double diffTime;
 double bid;
 double ask;
@@ -182,7 +183,8 @@ void openPosition(string origin, int thisPos, int str_idx){
    //Print(m_Trade.ResultRetcodeDescription());
    //Print("m_Trade.ResultDeal()");
    //Print(m_Trade.ResultDeal());
-   toc = TimeCurrent();
+   //toc = TimeCurrent();
+   tocs[str_idx] = TimeCurrent();
    deadlines[str_idx] = 1; // reset deadline
    Bi_solls[str_idx] = buffer[bufferSize-1][0];
    Ai_solls[str_idx] = buffer[bufferSize-1][1];
@@ -528,7 +530,7 @@ int OnInit()
    // init arrays
    // TODO: Resize array once we know how many strategies are there
    // TEMP: Fix positions size to two
-   numStragtegies = 4;
+   numStragtegies = 6;
    ArrayResize(positions, numStragtegies);
    ArrayResize(deadlines, numStragtegies);
    ArrayResize(sl_protects, numStragtegies);
@@ -547,6 +549,7 @@ int OnInit()
    ArrayResize(Ais, numStragtegies);
    ArrayResize(pos_tickets, numStragtegies);
    ArrayResize(predictions, numStragtegies);
+   ArrayResize(tocs, numStragtegies);
    //ArrayResize(closingInProgresses, numStragtegies);
    
    ArrayInitialize(positions, 0);
@@ -702,9 +705,9 @@ void OnTick()
       filehandle = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
       FileWrite(filehandle,"DateTime","SymbolBid","SymbolAsk");
       saveAccountInfo();
-      if(n_pos_open>0){
-         savePositionState();
-      }
+      //if(n_pos_open>0){
+      savePositionState();
+      //}
       //if(position==0 && first_pos==0){
        //  Print("Ticks counter ",ticks_counter);
       //}
@@ -811,7 +814,7 @@ void savePositionState(){
             int fh = FileOpen(infofilename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
             if(fh>0){
                // TODO! ADD DIRECTION
-               FileWrite(fh,pos_id,volume,price,current_price,current_profit,swap,nEventsPerStats[s]-difs_ticks[s]-deadlines[s]-1,positions[s]);
+               FileWrite(fh,pos_id,volume,price,current_price,current_profit,swap,nEventsPerStats[s]-difs_ticks[s]-deadlines[s]-1,positions[s],tocs[s]);
                FileClose(fh);
             }
          }
@@ -973,12 +976,12 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
             // send signal to trading manager that position has been closed
             if(close_type=="LC"){
                 filename = "CL";
-                     
+                
             }else{
                 filename = close_type;
             }
             filehandleTest = FileOpen(directoryNameLive+filename,FILE_WRITE|FILE_CSV|FILE_ANSI,',');
-            FileWrite(filehandleTest,thisSymbol,toc,TimeCurrent(),positions[sit],Bis[sit],Ais[sit],bid,ask,difs_ticks[sit],GROI,spread,ROI,real_profit,equity,swap,sit);
+            FileWrite(filehandleTest,thisSymbol,tocs[sit],TimeCurrent(),positions[sit],Bis[sit],Ais[sit],bid,ask,difs_ticks[sit],GROI,spread,ROI,real_profit,equity,swap,sit);
             FileClose(filehandleTest);
             
             string infofilename = StringFormat("%sPOSINFO%d.txt",directoryNameComm,sit);
