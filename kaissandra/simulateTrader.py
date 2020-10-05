@@ -321,6 +321,7 @@ class Trader:
         self.list_quarantined_pos = [[] for _ in range(len(strategys))]
         self.map_ass2pos_str = [np.array([-1 for i in range(len(C.AllAssets))]) for _ in range(len(strategys))]
         self.list_count_events = [[] for _ in range(len(strategys))]
+        self.list_dd_info = [[] for _ in range(len(strategys))]
         self.list_stop_losses = [[] for _ in range(len(strategys))]
         self.list_guard_bands = [[] for _ in range(len(strategys))]
         self.list_lim_groi = [[] for _ in range(len(strategys))]
@@ -446,6 +447,12 @@ class Trader:
         """  """
         str_idx = name2str_map[self.next_candidate.strategy]
         self.list_opened_pos_per_str[str_idx].append(self.next_candidate)
+        # update double downs
+        self.list_dd_info[str_idx].append([{'entry_bid':self.next_candidate.entry_bid,
+                                            'entry_ask':self.next_candidate.entry_ask,
+                                            'entry_time':self.next_candidate.entry_time,
+                                            'checkpoint':0,
+                                            'lots':lots}])
         self.list_quarantined_pos[str_idx].append({'on':False, 'groi':0.0, 
                                                    'roi':0.0, 'spread':0.0, 
                                                    'tgroi':0.0, 'troi':0.0,
@@ -476,6 +483,7 @@ class Trader:
                                       [str_idx].thr_gb*self.pip))
         self.list_lim_groi[str_idx].append(strategys[str_idx].lim_groi_ext)
         
+        
     def add_candidate(self):
         """  """
         pass
@@ -490,6 +498,9 @@ class Trader:
                         self.map_ass2pos_str[s][idx]+1:]
         self.list_count_events[s] = self.list_count_events[s][
                 :self.map_ass2pos_str[s][idx]]+self.list_count_events[s][
+                        self.map_ass2pos_str[s][idx]+1:]
+        self.list_dd_info[s] = self.list_dd_info[s][
+                :self.map_ass2pos_str[s][idx]]+self.list_dd_info[s][
                         self.map_ass2pos_str[s][idx]+1:]
         self.list_stop_losses[s] = self.list_stop_losses[s][
                 :self.map_ass2pos_str[s][idx]]+self.list_stop_losses[s][
@@ -721,7 +732,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]#+margin
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]]
         return condition, dir_condition, prods_condition
@@ -816,64 +827,81 @@ class Trader:
         """ Get current GROI and ROI of a given asset idx """
         #str_idx = name2str_map[self.next_candidate.strategy]
         direction = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].direction
-        Ti = \
-            dt.datetime.strftime(self.list_opened_pos_per_str[s]
-                                 [self.map_ass2pos_str[s][idx]].entry_time,
-                                 '%Y.%m.%d %H:%M:%S')
         Dir = np.sign(self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].bet)
         strategy_name = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].strategy
-############################ WARNING!!!! ##############################################        
-        Bi = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].entry_bid
-        Ai = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].entry_ask
         Bo = self.list_last_bid[s][self.map_ass2pos_str[s][idx]]
         Ao = self.list_last_ask[s][self.map_ass2pos_str[s][idx]]
-        espread = (Ai-Bi)/Ai
-        if direction>0:
-            GROI_live = roi_ratio*(Ao-Ai)/Ai
-            spread = (Ao-Bo)/Ai
+        GROIs = []
+        ROIs = []
+        spreads = []
+        infos = []
+        lotss = []
+        for sub_position in self.list_dd_info[s][self.map_ass2pos_str[s][idx]]:
+            Ti = dt.datetime.strftime(sub_position['entry_time'], '%Y.%m.%d %H:%M:%S')
+            Bi = sub_position['entry_bid']
+            Ai = sub_position['entry_ask']
+            lots = sub_position['lots']
             
-        else:
-            GROI_live = roi_ratio*(Bi-Bo)/Ao
-            spread = (Ao-Bo)/Ao
+#        Ti = \
+#            dt.datetime.strftime(self.list_opened_pos_per_str[s]
+#                                 [self.map_ass2pos_str[s][idx]].entry_time,
+#                                 '%Y.%m.%d %H:%M:%S')
+#        
+############################# WARNING!!!! ##############################################        
+#        Bi = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].entry_bid
+#        Ai = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].entry_ask
         
-        if type(self.next_candidate)!=type(None):
-            if strategys[s].fix_spread:
-                ROI_live = GROI_live-roi_ratio*strategys[s].fixed_spread_ratio
+            espread = (Ai-Bi)/Ai
+            if direction>0:
+                GROI_live = roi_ratio*(Ao-Ai)/Ai
+                spread = (Ao-Bo)/Ai
+                
             else:
-                ROI_live = GROI_live-roi_ratio*spread
-        else:
-            if self.last_fix_spread:
-                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
+                GROI_live = roi_ratio*(Bi-Bo)/Ao
+                spread = (Ao-Bo)/Ao
+            
+            if type(self.next_candidate)!=type(None):
+                if strategys[s].fix_spread:
+                    ROI_live = GROI_live-roi_ratio*strategys[s].fixed_spread_ratio
+                else:
+                    ROI_live = GROI_live-roi_ratio*spread
             else:
-                ROI_live = GROI_live-roi_ratio*spread
-        
-        info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
-                str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
-                "0"+"\t"+str(Dir)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
-                str(Ao)+"\t"+strategy_name
-        return GROI_live, ROI_live, spread, info
+                if self.last_fix_spread:
+                    ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
+                else:
+                    ROI_live = GROI_live-roi_ratio*spread
+            
+            info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
+                    str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
+                    "0"+"\t"+str(Dir)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
+                    str(Ao)+"\t"+strategy_name
+                    
+            # update lists
+            GROIs.append(GROI_live)
+            ROIs.append(ROI_live)
+            spreads.append(spread)
+            infos.append(info)
+            lotss.append(lots)
+                
+        return GROIs, ROIs, spreads, lotss, infos
     
-    def update_groi_limit(self, idx, curr_GROI):
-        """  """
-        str_idx = name2str_map[self.next_candidate.strategy]
-        self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]] = \
-            max(self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]], 
-                100*curr_GROI+strategys[str_idx].lim_groi)
-        return None
+#    def update_groi_limit(self, idx, curr_GROI):
+#        """  """
+#        str_idx = name2str_map[self.next_candidate.strategy]
+#        self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]] = \
+#            max(self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]], 
+#                100*curr_GROI+strategys[str_idx].lim_groi)
+#        return None
     
-    def update_position_result(self, idx, s, pos_info, lot_ratio, GROI_live, ROI_live, direction, date_time):
+    def update_position_result(self, idx, s, pos_info, lot_ratio, lots, GROI_live, ROI_live, direction, date_time):
         """  """
         self.write_pos_info(pos_info)
             
-        self.available_budget += self.list_lots_per_pos[s][
-                self.map_ass2pos_str[s][idx]]*self.LOT*(lot_ratio+ROI_live)
+        self.available_budget += lots*self.LOT*(lot_ratio+ROI_live)
         self.available_bugdet_in_lots = self.available_budget/self.LOT
-        self.budget_in_lots += self.list_lots_per_pos[s][
-                self.map_ass2pos_str[s][idx]]*ROI_live
-        nett_win = self.list_lots_entry[s][
-                self.map_ass2pos_str[s][idx]]*ROI_live*self.LOT
-        gross_win = self.list_lots_entry[s][
-                self.map_ass2pos_str[s][idx]]*GROI_live*self.LOT
+        self.budget_in_lots += lots
+        nett_win = lots*ROI_live*self.LOT
+        gross_win = lots*GROI_live*self.LOT
         self.budget += nett_win
         #earnings = self.budget-self.init_budget
         self.gross_earnings += gross_win
@@ -910,50 +938,67 @@ class Trader:
             raise ValueError("roi_ratio NaN")
         
         direction = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].direction
-        GROI_or, ROI_or, spread, pos_info = self.get_rois(idx, s, 
+        GROIs, ROIs, spreads, lotss, pos_infos = self.get_rois(idx, s, 
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass)
         # Update results if position is not quarantined. Otherwise results
         # have being previously updated as pos was quarantined
-        if not self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['ever']:
-            self.n_entries += 1
-            GROI_live = GROI_or
-            ROI_live = ROI_or
-            self.update_position_result(idx, s, pos_info, lot_ratio, GROI_live, ROI_live, direction, date_time)
-            self.n_pos_currently_open -= 1
-            self.substract_currencies(ass, direction)
-            extra_out = ""
+        for i in range(len(GROIs)):
+            if not self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['ever']:
+                self.n_entries += 1
+                GROI_live = GROIs[i]
+                ROI_live = ROIs[i]
+                self.update_position_result(idx, s, pos_infos[i], lot_ratio, lotss[i], GROI_live, ROI_live, direction, date_time)
+                self.n_pos_currently_open -= 1
+                self.substract_currencies(ass, direction)
+                extra_out = ""
+                
+            elif self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['on']:
+                # get position results from when quarantined
+                ROI_live = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['roi']
+                GROI_live = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['groi']
+                spread = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['spread']
+                tgroi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['tgroi']
+                troi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['troi']
+                extra_out = " QUARAN qgroi {0:.2f}% qroi = {1:.2f}% roi_or = {2:.2f}%".format(
+                              100*tgroi,100*troi,100*ROIs[i])
+            else: # ever=True and on=False
+                Bi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['bid']
+                Ai = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['ask']
+                Bo = self.list_last_bid[s][self.map_ass2pos_str[s][idx]]
+                Ao = self.list_last_ask[s][self.map_ass2pos_str[s][idx]]
+                GROI_live, ROI_live, spread, espread = self.get_performance(Bi, Ai, Bo, Ao, direction)
+                strategy_name = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].strategy
+                Ti = dt.datetime.strftime(self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['dt'],
+                                          '%Y.%m.%d %H:%M:%S')
+                pos_info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
+                    str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
+                    "0"+"\t"+str(direction)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
+                    str(Ao)+"\t"+strategy_name
+                self.update_position_result(idx, s, pos_info, lot_ratio, lotss[i], GROI_live, ROI_live, direction, date_time)
+                self.n_pos_currently_open -= 1
+                self.substract_currencies(ass, direction)
+                tgroi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['tgroi']
+                troi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['troi']
+                extra_out = " NOT QUARAN qgroi {0:.2f}% qroi = {1:.2f}% roi_or = {2:.2f}%".format(
+                              100*tgroi,100*troi,100*ROIs[i])
             
-        elif self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['on']:
-            # get position results from when quarantined
-            ROI_live = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['roi']
-            GROI_live = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['groi']
-            spread = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['spread']
-            tgroi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['tgroi']
-            troi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['troi']
-            extra_out = " QUARAN qgroi {0:.2f}% qroi = {1:.2f}% roi_or = {2:.2f}%".format(
-                          100*tgroi,100*troi,100*ROI_or)
-        else: # ever=True and on=False
-            Bi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['bid']
-            Ai = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['ask']
-            Bo = self.list_last_bid[s][self.map_ass2pos_str[s][idx]]
-            Ao = self.list_last_ask[s][self.map_ass2pos_str[s][idx]]
-            GROI_live, ROI_live, spread, espread = self.get_performance(Bi, Ai, Bo, Ao, direction)
-            strategy_name = self.list_opened_pos_per_str[s][self.map_ass2pos_str[s][idx]].strategy
-            Ti = dt.datetime.strftime(self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['dt'],
-                                      '%Y.%m.%d %H:%M:%S')
-            pos_info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
-                str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
-                "0"+"\t"+str(direction)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
-                str(Ao)+"\t"+strategy_name
-            self.update_position_result(idx, s, pos_info, lot_ratio, GROI_live, ROI_live, direction, date_time)
-            self.n_pos_currently_open -= 1
-            self.substract_currencies(ass, direction)
-            tgroi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['tgroi']
-            troi = self.list_quarantined_pos[s][self.map_ass2pos_str[s][idx]]['troi']
-            extra_out = " NOT QUARAN qgroi {0:.2f}% qroi = {1:.2f}% roi_or = {2:.2f}%".format(
-                          100*tgroi,100*troi,100*ROI_or)
+            
+            
+            
+            out =( date_time+" "+str(direction)+" close "+ass+
+                  " GROI {1:.3f}% ROI = {0:.3f}%".format(
+                          100*ROI_live,100*GROI_live)+
+                          " TGROI {1:.2f}% TROI = {0:.2f}%".format(
+                          100*self.tROI_live,100*self.tGROI_live)+
+                                  " Earnings {0:.1f}".format(self.budget-self.init_budget)
+                  +". Remaining open "+str(self.n_pos_currently_open)+extra_out)
+            
+            
+            
+            self.write_log(out)
+            print(out)
         # delete position from tracked positions
         if not partial_close:
             self.remove_position(idx, s)
@@ -961,24 +1006,11 @@ class Trader:
             # decrease the lot ratio in case the position is not fully closed
             self.list_lots_per_pos[s][self.map_ass2pos_str[s][idx]
             ] = self.list_lots_per_pos[s][self.map_ass2pos_str[s][idx]]*(1-lot_ratio)
-        
         # update margin
-        if margin_adapt and self.n_pos_currently_open == 0:
-            global margin
-            margin = init_margin
-        
-        out =( date_time+" "+str(direction)+" close "+ass+
-              " GROI {1:.3f}% ROI = {0:.3f}%".format(
-                      100*ROI_live,100*GROI_live)+
-                      " TGROI {1:.2f}% TROI = {0:.2f}%".format(
-                      100*self.tROI_live,100*self.tGROI_live)+
-                              " Earnings {0:.1f}".format(self.budget-self.init_budget)
-              +". Remaining open "+str(self.n_pos_currently_open)+extra_out)
-        
-        
-        
-        self.write_log(out)
-        print(out)
+#        if margin_adapt and self.n_pos_currently_open == 0:
+#            global margin
+#            margin = init_margin
+        return None
         
     def quarantine_position(self, date_time, ass, idx, s, cGROI, lot_ratio=None):
         """ Quarantine a position, i.e, exit position but keep track of it for
@@ -1009,7 +1041,7 @@ class Trader:
             str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
             "0"+"\t"+str(direction)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
             str(Ao)+"\t"+strategy_name
-        self.update_position_result(idx, s, pos_info, lot_ratio, GROI_live, ROI_live, direction, date_time)
+        self.update_position_result(idx, s, pos_info, lot_ratio, lotss[i], GROI_live, ROI_live, direction, date_time)
         self.n_pos_currently_open -= 1
         self.substract_currencies(ass, direction)
         
@@ -1044,12 +1076,13 @@ class Trader:
             self.open_position(idx, approached, n_pos_opened, lots)
     
     def open_position(self, idx, approached, n_pos_opened, lots, sp):
-        """ Open position """
+        """ Open position 
+        dd_pos: double down position"""
         str_idx = name2str_map[self.next_candidate.strategy]
         str_name = self.next_candidate.strategy
+        
         self.available_budget -= lots*self.LOT
         self.available_bugdet_in_lots -= lots
-        
         approached = 1
         n_pos_opened += 1
         self.n_pos_currently_open += 1
@@ -1063,19 +1096,40 @@ class Trader:
         self.add_currencies(asset, direction)
         
         out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Open "+asset+
-              " Lots {0:.1f}".format(lots)+" "+
-              str(asset)+" "+str_name+
+              " Lots {0:.2f}".format(lots)+" "+
+              str_name+
               " p_mc={0:.2f}".format(self.list_opened_pos_per_str[str_idx][-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_pos_per_str[str_idx][-1].p_md)+
-              " spread={0:.3f}".format(100*e_spread))
+              " spread={0:.3f}".format(100*e_spread)+
+              " Total opened "+str(self.n_pos_currently_open))
         print(out)
         self.write_log(out)
+        # track VIs
+        #track_VI.#append(idx_struct['VIs'])
         
         ## TEST MARGIN ##
 #        global margin
 #        margin += 0.01
         
         return approached, n_pos_opened, EXIT, rewind
+    
+    def double_down_position(self, idx, str_idx, lots, dt, bid, ask, n_pos_opened):
+        """  """
+        self.list_dd_info[str_idx][self.map_ass2pos_str[str_idx][idx]].append({'entry_bid':bid,
+                                                                               'entry_ask':ask,
+                                                                               'entry_time':dt,
+                                                                               'lots':lots})
+        self.available_budget -= lots*self.LOT
+        self.available_bugdet_in_lots -= lots
+        n_pos_opened += 1
+        self.n_pos_currently_open += 1
+        
+        out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Double Down "+#asset+
+              " Lots {0:.2f}".format(lots)+" "+
+              " spread={0:.3f}".format(100*e_spread))
+        print(out)
+        self.write_log(out)
+        return n_pos_opened
     
     def dequarantine_position(self, idx, s, n_pos_opened, lots, entry_time, entry_bid, entry_ask, cGROI):
         """ Open position """
@@ -1120,7 +1174,7 @@ class Trader:
     def extend_position(self, idx, curr_GROI):
         """ Extend position """
         str_idx = name2str_map[self.next_candidate.strategy]
-        self.list_opened_pos_per_str[str_idx][self.map_ass2pos_str[str_idx][idx]].direction
+        #self.list_opened_pos_per_str[str_idx][self.map_ass2pos_str[str_idx][idx]].direction
         out = (time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Extended "+
                self.list_opened_pos_per_str[str_idx][self.map_ass2pos_str[str_idx][idx]
                ].asset.decode("utf-8")+
@@ -1135,7 +1189,7 @@ class Trader:
         self.write_log(out)
         self.n_pos_extended += 1
         
-        self.update_position(ass_idx)
+        self.update_position(idx)
         EXIT, rewind = self.update_candidates()
         
         return EXIT, rewind
@@ -1363,7 +1417,9 @@ def init_index_structures():
     
     struct = reset_indexes(struct)
     
-    return struct
+    track_VI = [0 for _ in struct['means_volat']]
+    
+    return struct, track_VI
     
 def calculate_indexes(struct, ass_id):
     """ Calculate volatility index """
@@ -1442,9 +1498,16 @@ if __name__ == '__main__':
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     filter_KW = False
     margin_adapt = False
+    double_down = {'on':True,  # activate double down strategy
+                  'every':10,  # how many pips down before double down
+                  'amount':1} # how much double down compared to basic entry
+                  #'checkpoint':0}  # last double downed checkpoint 
+    max_opened_positions = 30
+    max_pos_per_curr = 100
     init_day_str = '20181112'#'20191202'#
     end_day_str = '20200424'#'20191212'
-    KWs = [(2020,9),(2020,10),(2020,11),(2020,12),(2020,13),(2020,14),(2020,15),(2020,16)]#format: (%Y, KW)
+    KWs = [(2018,46),(2019,11),(2019,31),(2019,32),(2019,33),(2019,41),(2020,9),
+           (2020,10),(2020,11),(2020,12),(2020,13),(2020,14),(2020,15),(2020,16),(2020,17)]#format: (%Y, KW)
     numberNetwors = 2
     list_name = ['R01050NYORPS2ALk12K2K5E1452', 'R01050NYORPS2BSk12K2K5E1453']
     list_epoch_journal = [0 for _ in range(numberNetwors)]
@@ -1468,6 +1531,7 @@ if __name__ == '__main__':
                                'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)]} for _ in assets]]
         margin = 0.0
         init_margin = 0.0
+        
         list_lb_mc_ext = [.5, .5]
         list_lb_md_ext = [.55,.55]
     else:
@@ -1510,8 +1574,6 @@ if __name__ == '__main__':
     list_if_dir_change_close = [False for i in range(numberNetwors)]
     list_extend_for_any_thr = [True for i in range(numberNetwors)]
     list_thr_sl = [1000 for i in range(numberNetwors)]
-    max_opened_positions = 100
-    max_pos_per_curr = 100
     qurantine_thr = 1#0.008 # quarantine thr in ratio, i.e. 0.01=1%
     histeresis = 0.0005 # # histeresis of quarantine thr in ratio, i.e. 0.001=0.1%
     crisis_mode = False
@@ -1527,7 +1589,7 @@ if __name__ == '__main__':
     init_day = dt.datetime.strptime(init_day_str,'%Y%m%d').date()
     end_day = dt.datetime.strptime(end_day_str,'%Y%m%d').date()
     
-    idx_struct = init_index_structures()
+    idx_struct, track_VI = init_index_structures()
     
     
 #    end_day = dt.datetime.strptime('2019.04.26','%Y.%m.%d').date()
@@ -1894,41 +1956,41 @@ if __name__ == '__main__':
             if margin_adapt:
                 idx_struct = calculate_indexes(idx_struct, ass_idx)
             
-                if idx_struct['VIs'][0]>=40 and margin<0.12:
-                    margin = 0.12
-                    out = "Margin changed to 0.12"
-                    print(out)
-                    trader.write_log(out)
-                elif idx_struct['VIs'][0]<40 and idx_struct['VIs'][0]>=38 and margin<0.1:
-                    margin = max(0.1, margin)
+                if idx_struct['VIs'][0]>=40 and margin!=0.1:# and margin<0.12:
+                    margin = 0.1
                     out = "Margin changed to 0.1"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][0]<38 and idx_struct['VIs'][0]>=36 and margin<0.08:
-                    margin = max(0.08, margin)
+                elif idx_struct['VIs'][0]<40 and idx_struct['VIs'][0]>=38 and margin!=0.08:# and margin<0.1:
+                    margin = 0.08#max(0.08, margin)
                     out = "Margin changed to 0.08"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][0]<36 and idx_struct['VIs'][0]>=34 and margin<0.06:
-                    margin = max(0.06, margin)
+                elif idx_struct['VIs'][0]<38 and idx_struct['VIs'][0]>=36 and margin!=0.06:# and margin<0.08:
+                    margin = 0.06#max(0.06, margin)
                     out = "Margin changed to 0.06"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][0]<34 and idx_struct['VIs'][0]>=32 and margin<0.04:
-                    margin = max(0.04, margin)
+                elif idx_struct['VIs'][0]<36 and idx_struct['VIs'][0]>=34 and margin!=0.04:# and margin<0.06:
+                    margin = 0.04#max(0.04, margin)
                     out = "Margin changed to 0.04"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][0]<32 and idx_struct['VIs'][0]>=10 and margin<0.02:
-                    margin = max(0.02, margin)
+                elif idx_struct['VIs'][0]<34 and idx_struct['VIs'][0]>=32 and margin!=0.02:# and margin<0.04:
+                    margin = 0.02#max(0.02, margin)
                     out = "Margin changed to 0.02"
                     print(out)
                     trader.write_log(out)
-                elif idx_struct['VIs'][0]<10 and margin>0.02 and trader.n_pos_currently_open==0:
-                    margin = 0.02
-                    out = "Margin reset to 0.02"
+                elif idx_struct['VIs'][0]<32 and idx_struct['VIs'][0]>=10 and margin!=0:# and margin<0.02:
+                    margin = 0.0#max(0.0, margin)
+                    out = "Margin changed to 0.0"
                     print(out)
                     trader.write_log(out)
+#                elif idx_struct['VIs'][0]<10 and margin>0.02 and trader.n_pos_currently_open==0:
+##                    margin = 0.02
+#                    out = "Margin reset to 0.02"
+#                    print(out)
+#                    trader.write_log(out)
             
             for s in range(len(strategys)):
                 list_idx = trader.map_ass2pos_str[s][ass_idx]
@@ -2040,7 +2102,7 @@ if __name__ == '__main__':
                     if trader.next_candidate!= None and trader.is_opened_strategy(ass_idx):# and bid==trader.next_candidate.entry_bid and ask==trader.next_candidate.entry_ask
                         # get current ROIs
                         str_idx = name2str_map[trader.next_candidate.strategy]
-                        curr_GROI, curr_ROI, curr_spread, _ = trader.get_rois(ass_idx, str_idx, date_time=DateTime, roi_ratio=1)
+                        curr_GROI, curr_ROI, curr_spread, _, _ = trader.get_rois(ass_idx, str_idx, date_time=DateTime, roi_ratio=1)
                         # extend position
                         if (trader.check_primary_condition_for_extention(
                                 time_stamp, ass_idx)):#next_pos.eGROI>e_spread):
@@ -2049,12 +2111,40 @@ if __name__ == '__main__':
                             # update GROI limit for extension
                             #trader.update_groi_limit(ass_idx, curr_GROI)
                             ext_condition, dir_condition, prods_condition = trader.check_secondary_condition_for_extention(
-                                    ass_idx, curr_GROI)
+                                    ass_idx, curr_GROI[0])
                             
                             if ext_condition:
                                 # include third condition for thresholds
                                 # extend deadline
-                                EXIT, rewind = trader.extend_position(ass_idx, curr_GROI)
+                                EXIT, rewind = trader.extend_position(ass_idx, curr_GROI[0])
+                                #str_idx = name2str_map[trader.next_candidate.strategy]
+                                # double down
+                                if double_down['on'] and \
+                                   curr_GROI[0]/trader.pip<=-(trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint']+double_down['every']) and\
+                                   sec_cond:
+                                    out = "DOUBLING DOWN!"
+                                    print(out)
+                                    trader.write_log(out)
+                                    times_dd = np.floor((-curr_GROI[0]/trader.pip-trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint'])/double_down['every'])
+                                    lots = trader.assign_lots(DateTime)
+                                    amount_dd = times_dd*double_down['amount']*lots
+                                    trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint'] = trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint']+times_dd*double_down['every']
+                                    
+                                    
+                                    if trader.available_bugdet_in_lots>=amount_dd and trader.n_pos_currently_open<max_opened_positions:
+                                        n_pos_opened = trader.double_down_position(ass_idx, 
+                                                                                   str_idx,
+                                                                                   amount_dd,
+                                                                                   time_stamp,
+                                                                                   bid,
+                                                                                   ask,
+                                                                                   n_pos_opened)#idx, str_idx, lots, dt, bid, ask, n_pos_opened
+                                        
+                                        #a=p
+                                    else:
+                                        out = "NOT ENOUGH FUNDS TO DOUBLE DOWN!"
+                                        print(out)
+                                        trader.write_log(out)
                                 
                             else:#elif dir_condition: # means that the reason for no extension is not direction change
                                 # extend conditon not met
@@ -2071,7 +2161,7 @@ if __name__ == '__main__':
                                       #" pofitability {0:.3f}".format(profitability)+
                                       " Spread {0:.3f}".format(e_spread/trader.pip)+
                                       " Bet "+str(trader.next_candidate.bet)+
-                                      " cGROI {0:.2f} ".format(100*curr_GROI)+
+                                      " cGROI {0:.2f} ".format(100*curr_GROI[0])+
                                       " Extend NOT met")
                                 if trader.list_quarantined_pos[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]]['on']:
                                     out += " QARAN"
@@ -2183,6 +2273,7 @@ if __name__ == '__main__':
                                 trader.close_position(DateTime, 
                                                           thisAsset, 
                                                           ass_idx, s)
+#                                a=p
                                 # reset approched
 #                                if len(trader.list_opened_pos_per_str[s])==0:
 #                                    approached = 0
@@ -2190,12 +2281,12 @@ if __name__ == '__main__':
                     # if position still open
                     if trader.next_candidate!= None and trader.is_opened_strategy(ass_idx):
                         str_idx = name2str_map[trader.next_candidate.strategy]
-                        if -curr_GROI>=qurantine_thr+curr_spread and not trader.list_quarantined_pos[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]]['on']:
+                        if -curr_GROI[0]>=qurantine_thr+curr_spread[0] and not trader.list_quarantined_pos[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]]['on']:
                             # quarantine
-                            trader.quarantine_position(DateTime, thisAsset, ass_idx, str_idx, curr_GROI)
-                        elif -curr_GROI<qurantine_thr-curr_spread and trader.list_quarantined_pos[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]]['on']:
+                            trader.quarantine_position(DateTime, thisAsset, ass_idx, str_idx, curr_GROI[0])
+                        elif -curr_GROI[0]<qurantine_thr-curr_spread[0] and trader.list_quarantined_pos[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]]['on']:
                             # dequarantine
-                            n_pos_opened = trader.dequarantine_position(ass_idx, str_idx, n_pos_opened, lots, DateTime, bid, ask, curr_GROI)
+                            n_pos_opened = trader.dequarantine_position(ass_idx, str_idx, n_pos_opened, lots, DateTime, bid, ask, curr_GROI[0])
                 # end of if count_events==nExS or timeout==0 or exit_pos:
             elif trader.chech_ground_condition_for_opening() and \
                 trader.check_primary_condition_for_opening() and \
