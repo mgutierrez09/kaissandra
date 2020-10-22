@@ -14,6 +14,7 @@ import datetime as dt
 import pickle
 import re
 import tensorflow as tf
+from itertools import count, filterfalse
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -359,7 +360,10 @@ class Trader:
         
         self.list_opened_positions = [[] for _ in range(len(strategies))]
         self.map_ass_idx2pos_idx = [np.array([-1 for i in range(len(C.AllAssets))]) for _ in range(len(strategies))]
+        self.pos_idx2map_ass_str = [(-1, -1, -1) for _ in range(max_opened_positions)]
+        self.list_pos_idx = []
         self.list_count_events = [[] for _ in range(len(strategies))]
+        self.list_dd_info = [[] for _ in range(len(strategies))] # track double down positions
         self.list_count_all_events = [[] for _ in range(len(strategies))]
         self.list_stop_losses = [[] for _ in range(len(strategies))]
         self.list_take_profits = [[] for _ in range(len(strategies))]
@@ -380,14 +384,15 @@ class Trader:
 #        self.journal_idx = 0
 #        self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
         
-        init_budget, leverage, _, _ = self.get_account_status()
+#        init_budget, leverage, _, _ = self.get_account_status()
+        status = self.get_account_status()#
         #print("Init budget: "+str(init_budget)+" Leverage: "+str(leverage))
-        self.budget = init_budget
-        self.init_budget = init_budget
+        self.budget = status['balance']#init_budget
+        self.init_budget = status['balance']
         self.LOT = 100000.0
         
         self.pip = 0.0001
-        self.leverage = leverage
+        self.leverage = status['leverage']#
         #self.budget_in_lots = self.leverage*self.budget/self.LOT
         self.available_budget = self.budget*self.leverage
         self.available_bugdet_in_lots = self.available_budget/self.LOT
@@ -479,42 +484,45 @@ class Trader:
     
     def get_account_status(self):
         """ Get account status from broker """
-        success = 0
-        ##### WARNING! #####
-        dirfilename = LC.directory_MT5_account+'Status.txt'
-        if os.path.exists(dirfilename):
-            # load network output
-            while not success:
-                try:
-                    fh = open(dirfilename,"r")
-                    info_close = fh.read()[:-1]
-                    # close file
-                    fh.close()
-                    success = 1
-                    #stop_timer(ass_idx)
-                except PermissionError:
-                    print("Error writing TT")
-            info_str = info_close.split(',')
-            #print(info_close)
-            balance = float(info_str[0])
-            leverage = float(info_str[1])
-            equity = float(info_str[2])
-            profits = float(info_str[3])
-        else:
-            print("WARNING! Account Status file not found. Turning to default")
-            if not hasattr(self, 'budget'):
-                balance = 500.0
-                leverage = 30
-                equity = balance
-                profits = 0.0
-            else:
-                balance = self.budget
-                leverage = 30
-                equity = balance
-                profits = 0.0
-        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
-              .format(balance,leverage,equity,profits))
-        return balance, leverage, equity, profits
+#        success = 0
+#        ##### WARNING! #####
+#        dirfilename = LC.directory_MT5_account+'Status.txt'
+#        if os.path.exists(dirfilename):
+#            # load network output
+#            while not success:
+#                try:
+#                    fh = open(dirfilename,"r")
+#                    info_close = fh.read()[:-1]
+#                    # close file
+#                    fh.close()
+#                    success = 1
+#                    #stop_timer(ass_idx)
+#                except PermissionError:
+#                    print("Error writing TT")
+#            info_str = info_close.split(',')
+#            #print(info_close)
+#            balance = float(info_str[0])
+#            leverage = float(info_str[1])
+#            equity = float(info_str[2])
+#            profits = float(info_str[3])
+#        else:
+#            print("WARNING! Account Status file not found. Turning to default")
+#            if not hasattr(self, 'budget'):
+#                balance = 500.0
+#                leverage = 30
+#                equity = balance
+#                profits = 0.0
+#            else:
+#                balance = self.budget
+#                leverage = 30
+#                equity = balance
+#                profits = 0.0
+#        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
+#              .format(balance,leverage,equity,profits))
+        status = {'error':True}
+        while status['error']:
+            status = ct.get_account_status()
+        return status
 #        
 #    def _get_thr_sl_vector(self):
 #        '''
@@ -548,7 +556,12 @@ class Trader:
                                 (1+self.next_candidate.direction*\
                                 self.next_candidate.strategy.thr_tp*self.pip))
         self.list_deadlines[str_idx].append(deadline)
-        
+        self.list_dd_info[str_idx].append([{'entry_bid':self.next_candidate.entry_bid,
+                                            'entry_ask':self.next_candidate.entry_ask,
+                                            'entry_time':self.next_candidate.entry_time,
+                                            'checkpoint':0,
+                                            'lots':lots}])
+        return None
         
     def remove_position(self, idx, s):
         """ Remove a position from lists after closing """
@@ -594,10 +607,36 @@ class Trader:
         self.list_symbols_tracking[s] = self.list_symbols_tracking[s]\
             [:self.map_ass_idx2pos_idx[s][idx]]+self.list_symbols_tracking[s]\
             [self.map_ass_idx2pos_idx[s][idx]+1:]
+        self.list_dd_info[s] = self.list_dd_info[s]\
+            [:self.map_ass_idx2pos_idx[s][idx]]+self.list_dd_info[s]\
+            [self.map_ass_idx2pos_idx[s][idx]+1:]
         
         mask = self.map_ass_idx2pos_idx[s]>self.map_ass_idx2pos_idx[s][idx]
         self.map_ass_idx2pos_idx[s][idx] = -1
         self.map_ass_idx2pos_idx[s] = self.map_ass_idx2pos_idx[s]-mask*1#np.maximum(,-1)
+        # remove position
+        list_remove = []
+        print("pre remove_position():")
+        print("self.pos_idx2map_ass_str")
+        print(self.pos_idx2map_ass_str)
+        print("self.list_pos_idx")
+        print(self.list_pos_idx)
+        print("(idx, s)")
+        print((idx, s))
+        for i, pos_idx in enumerate(self.list_pos_idx):
+            if self.pos_idx2map_ass_str[pos_idx][:2] == (idx, s):
+                self.pos_idx2map_ass_str[pos_idx] = (-1, -1, -1)
+                list_remove.append(i)
+        
+        print("list_remove")
+        print(list_remove)
+        for i in range(len(list_remove)):
+            self.list_pos_idx.pop(list_remove[-(i+1)])
+        print("post remove_position():")
+        print("self.pos_idx2map_ass_str")
+        print(self.pos_idx2map_ass_str)
+        print("self.list_pos_idx")
+        print(self.list_pos_idx)
         
     def update_position(self, idx):
         """ Update position info due to extension """
@@ -881,10 +920,8 @@ class Trader:
             str_idx = s
         strategy_name = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].strategy.name
         direction = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].direction
-        Ti = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_time
+#        Ti = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_time
         bet = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].bet
-        Bi = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_bid
-        Ai = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_ask
         if run_back_test:
             Ao = self.list_last_ask[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
             Bo = self.list_last_bid[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
@@ -897,33 +934,52 @@ class Trader:
                       "Reading info from list_last_bid instead.")
                 Ao = self.list_last_ask[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
                 Bo = self.list_last_bid[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
+        GROIs = []
+        ROIs = []
+        spreads = []
+        infos = []
+        lotss = []
+        for sub_position in self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]]:
+            Ti = sub_position['entry_time']#dt.datetime.strftime(sub_position['entry_time'], '%Y.%m.%d %H:%M:%S')
+            Bi = sub_position['entry_bid']
+            Ai = sub_position['entry_ask']
+            lots = sub_position['lots']
+#        Bi = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_bid
+#        Ai = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_ask
         
-        if direction>0:
-            GROI_live = roi_ratio*(Ao-Ai)/Ai
-            spread = (Ao-Bo)/Ai
+        
+            if direction>0:
+                GROI_live = roi_ratio*(Ao-Ai)/Ai
+                spread = (Ao-Bo)/Ai
+                
+            else:
+                GROI_live = roi_ratio*(Bi-Bo)/Ao
+                spread = (Ao-Bo)/Ao
             
-        else:
-            GROI_live = roi_ratio*(Bi-Bo)/Ao
-            spread = (Ao-Bo)/Ao
-        
-        if type(self.next_candidate)!=type(None):
-            this_strategy = self.next_candidate.strategy
-            if this_strategy.fix_spread:
-                ROI_live = GROI_live-roi_ratio*this_strategy.fixed_spread_ratio
+            if type(self.next_candidate)!=type(None):
+                this_strategy = self.next_candidate.strategy
+                if this_strategy.fix_spread:
+                    ROI_live = GROI_live-roi_ratio*this_strategy.fixed_spread_ratio
+                else:
+                    ROI_live = GROI_live-roi_ratio*spread
             else:
-                ROI_live = GROI_live-roi_ratio*spread
-        else:
-            if self.last_fix_spread:
-                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
-            else:
-                ROI_live = GROI_live-roi_ratio*spread
+                if self.last_fix_spread:
+                    ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
+                else:
+                    ROI_live = GROI_live-roi_ratio*spread
+            
+            info = (ass+","+Ti+","+date_time+","+str(bet)+","+
+                      str(Bi)+","+str(Ai)+","+str(Bo)+","+
+                      str(Ao)+","+"0"+","+str(100*GROI_live)+","+
+                      str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
+            # update lists
+            GROIs.append(GROI_live)
+            ROIs.append(ROI_live)
+            spreads.append(spread)
+            infos.append(info)
+            lotss.append(lots)
         
-        info = (ass+","+Ti+","+date_time+","+str(bet)+","+
-                  str(Bi)+","+str(Ai)+","+str(Bo)+","+
-                  str(Ao)+","+"0"+","+str(100*GROI_live)+","+
-                  str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
-        
-        return GROI_live, ROI_live, spread, Bo, Ao, info
+        return GROIs, ROIs, spreads, lotss, Bo, Ao, infos
         
     
     def close_position(self, date_time, ass, idx, results, s,
@@ -944,78 +1000,128 @@ class Trader:
         if np.isnan(roi_ratio):
             raise AssertionError("np.isnan(roi_ratio)")
         # get returns
-        GROI_live, ROI_live, spread, Bo, Ao, info = self.get_rois(idx, 
+        GROIs, ROIs, spreads, lotss, Bo, Ao, infos = self.get_rois(idx, 
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass, s=s)
-        if not groiist:
-            groiist = 100*GROI_live
-            roiist = 100*ROI_live
-            returnist = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
-        if DTi_real=='':
-            DTi_real = date_time
-        
-        lots2add = self.list_lots_per_pos[s][list_idx]*(lot_ratio+roiist/100)
-        self.available_bugdet_in_lots = self.get_current_available_budget()+lots2add
+        direction = self.list_opened_positions[s][self.map_ass_idx2pos_idx[s][idx]].direction
+        status = self.get_account_status()
+        self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
         self.available_budget = self.available_bugdet_in_lots*self.LOT 
-        # update available budget file
-        self.update_current_available_budget()
-        
-        self.budget_in_lots += self.list_lots_per_pos[s][list_idx]*ROI_live
-        
-        
-        nett_win = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
-        gross_win = self.list_lots_entry[s][list_idx]*GROI_live*self.LOT
-        
-        self.gross_earnings += gross_win
-        self.nett_earnigs += returnist
-        
-        if ROI_live>0:
-            self.net_successes += 1
-            self.average_win += ROI_live
-        else:
-            self.average_loss += ROI_live
+        for i in range(len(GROIs)):
+            GROI_live = GROIs[i]
+            ROI_live = ROIs[i]
+            if not groiist:
+                groiist = 100*GROI_live
+                roiist = 100*ROI_live
+                returnist = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
+            if DTi_real=='':
+                DTi_real = date_time
             
-        if GROI_live>0:
-            self.gross_successes += 1
+#            lots2add = self.list_lots_per_pos[s][list_idx]*(lot_ratio+roiist/100)
             
-        #ROI_live = ROI_live-spread/entry_bid
-        self.tROI_live += ROI_live
-        self.tGROI_live += GROI_live
-        
-        e_spread = self.list_opened_positions[s][list_idx].e_spread
-        # check if stoploss for server info
-        if from_sl == 0:
-            slfalg = False
-        else:
-            slfalg = True
-        # check if close comes from external ban
-        if not from_sl and self.list_count_events[s][list_idx]!=\
-            self.list_deadlines[s][list_idx]:
-                from_sl = 2
-        # write output to trader summary
-        info_close = info+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
-            str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
-        write_log(info_close, self.log_positions_soll)
-        
-        # save position evolution
-        pos_filename = get_positions_filename(ass, self.list_opened_positions[s]\
-                                              [list_idx].entry_time, 
-                                              date_time)
-        if run_back_test:
-#            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
-#                                              self.list_last_dt[list_idx][-1])
-            dirfilename = results.save_pos_evolution(pos_filename, self.list_last_dt[s][list_idx],
-                                       self.list_last_bid[s][list_idx], 
-                                       self.list_last_ask[s][list_idx])
-        else:
-            ##last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
-            #pos_filename = get_positions_filename(ass, DTi_real, date_time)
-            dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[s][list_idx])
-        
-        self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename, s=s)
-        # update output lists
-        results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
+            # update available budget file
+#            self.update_current_available_budget()
+            
+            self.budget_in_lots += self.list_lots_per_pos[s][list_idx]*ROI_live
+            
+            
+            nett_win = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
+            gross_win = self.list_lots_entry[s][list_idx]*GROI_live*self.LOT
+            
+            self.gross_earnings += gross_win
+            self.nett_earnigs += returnist
+            
+            if ROI_live>0:
+                self.net_successes += 1
+                self.average_win += ROI_live
+            else:
+                self.average_loss += ROI_live
+                
+            if GROI_live>0:
+                self.gross_successes += 1
+                
+            #ROI_live = ROI_live-spread/entry_bid
+            self.tROI_live += ROI_live
+            self.tGROI_live += GROI_live
+            
+            e_spread = self.list_opened_positions[s][list_idx].e_spread
+            # check if stoploss for server info
+            if from_sl == 0:
+                slfalg = False
+            else:
+                slfalg = True
+            # check if close comes from external ban
+            if not from_sl and self.list_count_events[s][list_idx]!=\
+                self.list_deadlines[s][list_idx]:
+                    from_sl = 2
+            # write output to trader summary
+            info_close = infos[i]+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
+                str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
+            write_log(info_close, self.log_positions_soll)
+            
+            # save position evolution
+            pos_filename = get_positions_filename(ass, self.list_opened_positions[s]\
+                                                  [list_idx].entry_time, 
+                                                  date_time)
+            if run_back_test:
+    #            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+    #                                              self.list_last_dt[list_idx][-1])
+                dirfilename = results.save_pos_evolution(pos_filename, self.list_last_dt[s][list_idx],
+                                           self.list_last_bid[s][list_idx], 
+                                           self.list_last_ask[s][list_idx])
+            else:
+                ##last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
+                #pos_filename = get_positions_filename(ass, DTi_real, date_time)
+                dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[s][list_idx])
+            
+            self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename, s=s)
+            # update output lists
+            results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
+            
+            
+    
+            if partial_close:
+                partial_string = ' Partial'
+            else:
+                partial_string = ' Full'
+                self.n_pos_currently_open -= 1
+            logMsg = " "+( date_time+partial_string+" close"+" dir {0:d}"\
+                  .format(direction)+
+                  " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
+                          100*ROI_live,100*spreads[i],100*GROI_live)+
+                          " TGROI {1:.3f}% TROI = {0:.3f}%".format(
+                          100*self.tROI_live,100*self.tGROI_live)+
+                          " Earnings {0:.2f}".format(self.nett_earnigs)+
+                          ". Remeining open "+str(self.n_pos_currently_open))
+            out =ass+logMsg
+            if verbose_trader:
+                self.write_log(out)
+                print("\r"+out)
+            if send_info_api:
+                send_log_info(self.queue, ass, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+    #            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+            # compare budget with real one
+            if not run_back_test:
+#                status = ct.get_account_status()
+#                balance, leverage, equity, profits = #self.get_account_status()
+                logMsg = " "+date_time+" equity "+str(status['equity'])+" Balance "+str(status['balance'])
+                
+                out = ass+logMsg
+                self.write_log(out)
+                print("\r"+out)
+                if send_info_api:
+                    send_log_info(self.queue, ass, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+    #                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+                self.budget = status['balance']
+            else:
+                self.budget += returnist
+            if send_info_api:
+                self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spreads[i], 
+                                        100*GROI_live, 100*ROI_live, returnist, 
+                                        pos_filename, dirfilename, DTi_real, groiist, 
+                                        roiist, slfalg, swap, s)
+            assert(lot_ratio<=1.00 and lot_ratio>0)
         
         if not partial_close:
             self.remove_position(idx, s)
@@ -1023,47 +1129,8 @@ class Trader:
             # decrease the lot ratio in case the position is not fully closed
             self.list_lots_per_pos[s][list_idx] = \
                 self.list_lots_per_pos[s][list_idx]*(1-lot_ratio)
-
-        if partial_close:
-            partial_string = ' Partial'
-        else:
-            partial_string = ' Full'
-            self.n_pos_currently_open -= 1
-        logMsg = " "+( date_time+partial_string+" close"+" Ratio {0:.2f}"\
-              .format(lot_ratio)+
-              " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
-                      100*ROI_live,100*spread,100*GROI_live)+
-                      " TGROI {1:.3f}% TROI = {0:.3f}%".format(
-                      100*self.tROI_live,100*self.tGROI_live)+
-                      " Earnings {0:.2f}".format(self.nett_earnigs)+
-                      ". Remeining open "+str(self.n_pos_currently_open))
-        out =ass+logMsg
-        if verbose_trader:
-            self.write_log(out)
-            print("\r"+out)
-        if send_info_api:
-            send_log_info(self.queue, ass, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-#            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-        # compare budget with real one
-        if not run_back_test:
-            balance, leverage, equity, profits = self.get_account_status()
-            logMsg = " "+date_time+" equity "+str(equity)+" Balance "+str(balance)
-            
-            out = ass+logMsg
-            self.write_log(out)
-            print("\r"+out)
-            if send_info_api:
-                send_log_info(self.queue, ass, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-#                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-            self.budget = balance
-        else:
-            self.budget += returnist
-        if send_info_api:
-            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
-                                    100*GROI_live, 100*ROI_live, returnist, 
-                                    pos_filename, dirfilename, DTi_real, groiist, 
-                                    roiist, slfalg, swap, s)
-        assert(lot_ratio<=1.00 and lot_ratio>0)
+        
+        return None
     
     def get_current_available_budget(self):
         """ get available budget from shared file among traders """
@@ -1074,22 +1141,23 @@ class Trader:
         print("get_current_available_budget: "+str(av_bugdet_in_lots))
         return av_bugdet_in_lots
     
-    def update_current_available_budget(self):
-        """ update available budget from shared file among traders """
-        fh = open(self.budget_file,"w")
-        fh.write(str(self.available_bugdet_in_lots))
-        fh.close()
-        print("update_current_available_budget: "+str(self.available_bugdet_in_lots))
-        return None
+#    def update_current_available_budget(self):
+#        """ update available budget from shared file among traders """
+#        fh = open(self.budget_file,"w")
+#        fh.write(str(self.available_bugdet_in_lots))
+#        fh.close()
+#        print("update_current_available_budget: "+str(self.available_bugdet_in_lots))
+#        return None
     
     def open_position(self, idx, lots, DateTime, e_spread, bid, ask, deadline):
         """ Open position """
         # update available budget
         str_idx = self.next_candidate.strategy_index
-        self.available_bugdet_in_lots -= lots
+        status = self.get_account_status()
+        self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
         self.available_budget = self.available_bugdet_in_lots*self.LOT
         # update available budget file
-        self.update_current_available_budget()
+#        self.update_current_available_budget()
         #self.available_bugdet_in_lots -= lots
         self.n_entries += 1
         self.n_pos_opened += 1
@@ -1105,8 +1173,8 @@ class Trader:
               " Lots {0:.2f}".format(lots)+" "+str(self.list_opened_positions[str_idx][-1].bet)+
               " p_mc={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_md)+
-              " spread={0:.3f} ".format(e_spread)+" strategy "+
-              self.list_opened_positions[str_idx][-1].strategy.name)
+              " spread={0:.3f} ".format(e_spread)+" total opened {0:d}".format(self.n_pos_opened)+
+              " strategy "+self.list_opened_positions[str_idx][-1].strategy.name)
         
         if self.next_candidate.strategy.entry_strategy == 'gre_v2':
             logMsg += logMsg+' prof '+str(self.next_candidate.profitability)
@@ -1123,6 +1191,121 @@ class Trader:
             self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
         
         return None
+    
+    def find_position(self):
+        """  """
+#        out = "find_position"
+#        print("\r"+out)
+#        self.write_log(out)
+        if len(self.list_pos_idx)==0:
+            pos_idx = 0
+        elif not 0 in self.list_pos_idx:
+            pos_idx = 0
+        else:
+            pos_idx = next(filterfalse(set(self.list_pos_idx).__contains__, count(1)))
+#        out = "self.list_pos_idx"
+#        print("\r"+out)
+#        self.write_log(out)
+#        out = str(self.list_pos_idx)
+#        print("\r"+out)
+#        self.write_log(out)
+#        out = "pos_idx"
+#        print("\r"+out)
+#        self.write_log(out)
+#        out = str(pos_idx)
+#        print("\r"+out)
+#        self.write_log(out)
+        return pos_idx
+    
+    def double_down_position(self, ass_id, str_idx, amount_dd, dt, bid, ask, directory_MT5_ass):
+        """  """
+        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]].append({'entry_bid':bid,
+                                                                               'entry_ask':ask,
+                                                                               'entry_time':dt,
+                                                                               'lots':amount_dd})
+        dd_idx = len(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])-1
+#        self.available_budget -= lots*self.LOT
+#        self.available_bugdet_in_lots -= lots
+#        self.update_current_available_budget()
+        self.n_pos_opened += 1
+        self.n_pos_currently_open += 1
+        self.n_entries += 1
+        pos_idx = self.find_position()
+        self.list_pos_idx.append(pos_idx)
+        self.pos_idx2map_ass_str[pos_idx] = (ass_id, str_idx, dd_idx)
+        self.send_open_command(directory_MT5_ass, ass_id, self.list_pos_idx[-1], lots=amount_dd)
+        out = (dt+" Double Down "+#asset+
+              " Lots {0:.2f}".format(amount_dd))
+        print(out)
+        self.write_log(out)
+        status = self.get_account_status()
+        self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
+        self.available_budget = self.available_bugdet_in_lots*self.LOT 
+        return None
+    
+    def check_condition_double_down(self, currGROI, ass_id, str_idx, thisAsset, dt, bid, ask, condition_dd, reason_dd, directory_MT5_ass):
+        """  """
+        if condition_dd:
+            if double_down['on'] and\
+               currGROI/self.pip<=-(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+double_down['every']):
+                
+                times_dd = min(double_down['max'], np.floor((-currGROI/self.pip-self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])/double_down['every']))
+                lots_per_pos = self.assign_lots(dt)
+                slots_requested = times_dd*double_down['amount']
+                status = self.get_account_status()
+                self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#self.get_current_available_budget()
+                slots_available = np.floor(double_down['amount']*self.available_bugdet_in_lots/lots_per_pos)
+                slots_assign = min(slots_requested, slots_available)
+                print("slots_requested")
+                print(slots_requested)
+                print("slots_available")
+                print(slots_available)
+                print("slots_assign")
+                print(slots_assign)
+                amount_dd = slots_assign*lots_per_pos
+                if slots_available>0 and self.n_pos_currently_open<self.max_opened_positions:
+                    self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'] = \
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+times_dd*double_down['every']
+                    self.double_down_position(ass_id, 
+                                              str_idx,
+                                              amount_dd,
+                                              dt,
+                                              bid,
+                                              ask, 
+                                              directory_MT5_ass)
+                    logMsg = "DOUBLING DOWN! "+str(amount_dd)+" lots. New checkpoint "+\
+                        str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])
+                    print(logMsg)
+                    self.write_log(logMsg)
+                    if send_info_api:
+                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                    
+                    #a=p
+                elif slots_available==0:
+                    logMsg = "NOT ENOUGH BUDGET TO DOUBLE DOWN!"
+                    print(logMsg)
+                    self.write_log(logMsg)
+                    if send_info_api:
+                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                else:
+                    logMsg = "NOT DOUBLE DOWN BECAUSE MAX NUMBER OF POSITIONS REACHED!"
+                    print(logMsg)
+                    self.write_log(logMsg)
+                    if send_info_api:
+                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+            else:
+                logMsg = "NOT DD DOUBLE DOWN since next DD is at "+\
+                    str(-self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']-double_down['every'])+" pips"
+                print(logMsg)
+                self.write_log(logMsg)
+                if send_info_api:
+                    send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+        else:
+            logMsg = "NOT DD DOUBLE DOWN due to "+reason_dd
+            print(logMsg)
+            self.write_log(logMsg)
+            if send_info_api:
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
     
     def send_open_pos_api(self, DateTime, bid, ask, e_spread, lots):
         """ Send command to API for position opening """
@@ -1283,13 +1466,15 @@ class Trader:
         this_strategy = self.next_candidate.strategy
         if not this_strategy.flexible_lot_ratio:
             # update available budget
-            self.available_bugdet_in_lots = self.get_current_available_budget()
+#            status = self.get_account_status()
+#            self.available_bugdet_in_lots = status['balance']/self.LOT #self.get_current_available_budget()
+            open_lots = this_strategy.max_lots_per_pos
             # check if there's enough bugdet available
-            if self.available_bugdet_in_lots>0:
-                open_lots = min(this_strategy.max_lots_per_pos, 
-                                self.available_bugdet_in_lots)
-            else:
-                open_lots = this_strategy.max_lots_per_pos
+#            if self.available_bugdet_in_lots>0:
+#                open_lots = min(this_strategy.max_lots_per_pos, 
+#                                self.available_bugdet_in_lots)
+#            else:
+#                open_lots = this_strategy.max_lots_per_pos
         else:
             # lots ratio to asssign to new asset
             pass
@@ -1314,9 +1499,10 @@ class Trader:
 #                    idx = running_assets[ass2index_mapping[ass]]
 #                    self.close_position(date_time, ass, idx, lot_ratio = 
 #                                        close_lot_ratio, partial_close = True)
-#            
+            status = self.get_account_status()
+            self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT
             # make sure the available resources are smaller or equal than slots to open
-            open_lots = min(open_lots,self.available_bugdet_in_lots)
+            open_lots = min(this_strategy.max_lots_per_pos,self.available_bugdet_in_lots)
         #print("open_lots corrected "+str(open_lots))
             
         return open_lots
@@ -1470,10 +1656,25 @@ class Trader:
                 if self.strategies[new_entry['strategy_index']].entry_strategy=='spread_ranges':
                     #n_tactics = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
                     #print(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
+                    margins = self.strategies[new_entry['strategy_index']].info_spread_ranges['mar']
                     for t, tupl in enumerate(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'][::-1]):
-                        if new_entry['P_mc']>=tupl[0] and new_entry['P_md']>=tupl[1]:
+                        
+                        if new_entry['P_mc']>=tupl[0]+margins[-(t+1)][0] and new_entry['P_md']>=tupl[1]+margins[-(t+1)][1]:
+#                            print("tupl")
+#                            print(tupl)
+##                            print("(new_entry['P_mc'],new_entry['P_md'])")
+##                            print((new_entry['P_mc'],new_entry['P_md']))
+#                            print("-(t+1)")
+#                            print(-(t+1))
+#                            print("margins[-(t+1)]")
+#                            print(margins[-(t+1)])
+                            
+#                            print("len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])")
+#                            print(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th']))
                             tactics.append(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1)
+                            
                             break
+                    
                 if len(tactics)==0:
                     tactics = [0]
                 # loop over tactics of one strategy
@@ -1501,6 +1702,13 @@ class Trader:
                     ass_idx = self.ass2index_mapping[thisAsset]
                     ass_id = self.running_assets[ass_idx]
                     
+#                    tactic = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1
+#                    print(this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1])
+#                    print("tactic")
+#                    print(tactic)
+#                    print("self.next_candidate.strategy.info_spread_ranges['th'][tactic]")
+#                    print(self.next_candidate.strategy.info_spread_ranges['th'][tactic])
+                    
                     # check if asset is banned
                     if not self.list_is_asset_banned[ass_idx]:
                         # open market
@@ -1510,10 +1718,24 @@ class Trader:
                             if condition_open:
                                 # assign budget
                                 lots = self.assign_lots(new_entry[entry_time_column])
+                                status = self.get_account_status()
+                                self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT 
                                 # check if there is enough budget
                                 if self.available_bugdet_in_lots>=lots:
+                                    # add postion to str,ass,dd mapping
+                                    pos_idx = self.find_position()
+                                    self.list_pos_idx.append(pos_idx)
+                                    self.pos_idx2map_ass_str[pos_idx] = (ass_id, str_idx, 0)
+#                                    print("pos_idx")
+#                                    print(pos_idx)
+#                                    
+#                                    print("self.list_pos_idx")
+#                                    print(self.list_pos_idx)
+#                                    
+#                                    print("self.pos_idx2map_ass_str[pos_idx]")
+#                                    print(self.pos_idx2map_ass_str[pos_idx])
                                     if not run_back_test:
-                                        self.send_open_command(directory_MT5_ass, ass_idx, str_idx)
+                                        self.send_open_command(directory_MT5_ass, ass_id, self.list_pos_idx[-1], lots=lots)
                                     self.open_position(ass_id, lots, 
                                                        new_entry[entry_time_column], 
                                                        self.next_candidate.e_spread, 
@@ -1552,12 +1774,12 @@ class Trader:
                         else: # position is opened
                             str_idx = self.next_candidate.strategy_index
                             direction = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]].bet
-                            curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                            curr_GROI, curr_ROI, spreads, lotss, Bo, Ao, infos = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             logMsg = " "+new_entry[entry_time_column]+" "+\
                                            " deadline in "+str(self.get_remain_samps(ass_id))+\
                                            " Dir {0:d} ".format(direction)+\
-                                            " current GROI = {0:.2f}%".format(100*curr_GROI)+\
-                                            " current ROI = {0:.2f}%".format(100*curr_ROI)
+                                            " current GROI = {0:.2f}%".format(100*curr_GROI[0])+\
+                                            " current ROI = {0:.2f}%".format(100*curr_ROI[0])
                             if verbose_trader:
                                 out = thisAsset+logMsg
                                 print("\r"+out)
@@ -1584,17 +1806,31 @@ class Trader:
                                         send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
 #                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                 else:
-                                    extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
+                                    extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI[0], tactic)
                                     if extention:    
                                         # include third condition for thresholds
                                         # extend deadline
                                         if not run_back_test:
-                                            self.send_open_command(directory_MT5_ass, ass_idx, str_idx)
-                                        self.update_position(ass_id)
+                                            # find all positions with this ass_idx and str_idx
+                                            # and send extention command
+#                                            print("Check pos_idx for extention")
+#                                            print("(ass_id, str_idx)")
+#                                            print((ass_id, str_idx))
+#                                            print("self.pos_idx2map_ass_str")
+#                                            print(self.pos_idx2map_ass_str)
+#                                            print("self.list_pos_idx")
+#                                            print(self.list_pos_idx)
+                                            for pos_idx in self.list_pos_idx:
+                                                if self.pos_idx2map_ass_str[pos_idx][:2] == (ass_id, str_idx):
+                                                    print("sending ex command. Pos ID "+str(pos_idx))
+                                                    dd_idx = self.pos_idx2map_ass_str[pos_idx][2]
+                                                    lots = self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][dd_idx]['lots']
+                                                    self.send_open_command(directory_MT5_ass, ass_id, pos_idx, lots=lots)
+                                        
                                         self.n_pos_extended += 1
                                         # track position
-                                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
-                                        # print out
+                                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI[0])
+                                        # build out
                                         logMsg = " "+new_entry[entry_time_column]+" "+\
                                                " Extended "+str(self.list_deadlines[str_idx][\
                                                    self.map_ass_idx2pos_idx[str_idx][ass_id]])+" samps"+\
@@ -1603,22 +1839,29 @@ class Trader:
                                                " p_md={0:.2f}".format(new_entry['P_md'])+\
                                                " spread={0:.3f}".format(new_entry['E_spread'])+\
                                                " strategy "+strategy_name
-                                        
-                                        # send position extended command to api
+                                        # print output
                                         if verbose_trader:
+                                            out = thisAsset+logMsg
                                             print("\r"+out)
                                             self.write_log(out)
-                                            out = thisAsset+logMsg
+                                            
+                                        # Check if Double Down
+                                        condition_dd, reason_dd = self.check_contition_for_opening(tactic)
+                                        #if condition_dd:
+                                        self.check_condition_double_down(curr_GROI[0], ass_id, str_idx, thisAsset, new_entry[entry_time_column], Bo, Ao, condition_dd, reason_dd, directory_MT5_ass)
+                                        self.update_position(ass_id)
+                                        # send position extended command to api
                                         if send_info_api:
                                             send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
 #                                            if log_thu_control:
 #                                                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                             self.send_extend_pos_api(new_entry[entry_time_column], 
-                                                                         thisAsset, 100*curr_GROI, 
+                                                                         thisAsset, 100*curr_GROI[0], 
                                                                          new_entry['P_mc'], new_entry['P_md'], 
-                                                                         int(new_entry['Bet']), strategy_name,
-                                                                         100*curr_ROI, 
+                                                                         int(new_entry['Bet']), strategy_name, 
+                                                                         100*curr_ROI[0], 
                                                                          self.list_count_all_events[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])
+                                        
                                             
                                     elif not crisis_mode or not cond_bet: #  # if candidate for extension does not meet requirements
                                         logMsg = " "+new_entry[entry_time_column]+" not extended "+\
@@ -1629,10 +1872,10 @@ class Trader:
                                             self.write_log(out)
                                         if send_info_api:
                                             self.send_not_extend_pos_api(new_entry[entry_time_column], 
-                                                                         thisAsset, 100*curr_GROI, 
+                                                                         thisAsset, 100*curr_GROI[0], 
                                                                          new_entry['P_mc'], new_entry['P_md'], 
                                                                          int(new_entry['Bet']), strategy_name,
-                                                                         100*curr_ROI, 
+                                                                         100*curr_ROI[0], 
                                                                          self.list_count_all_events[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])
 #                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                     else:
@@ -1683,7 +1926,7 @@ class Trader:
                                         self.close_position(new_entry[entry_time_column], 
                                                             thisAsset, ass_id, results, str_idx)
                                     else:
-                                        send_close_command(thisAsset, str_idx)
+                                        self.send_close_command(thisAsset, str_idx)
         #                                # TODO: study the option of not only closing 
                             # end of extention options
                     else: # asset banned
@@ -1706,15 +1949,17 @@ class Trader:
             file.close()
         return None
     
-    def send_open_command(self, directory_MT5_ass, ass_idx, str_idx):
+    def send_open_command(self, directory_MT5_ass, ass_id, str_idx, lots=-1):
         """ Send command for opening position to broker """
+        if lots==-1:
+            lots = self.next_candidate.strategy.max_lots_per_pos
         success = 0
         # load network output
         while not success:
             try:
-                fh = open(directory_MT5_ass+"TT"+str(ass_idx),"w")
+                fh = open(directory_MT5_ass+"TT"+str(str_idx),"w")
                 fh.write(str(self.next_candidate.direction)+","+
-                         str(self.next_candidate.strategy.max_lots_per_pos)+
+                         str(lots)+
                          ","+str(self.next_candidate.deadline)+","+
                          str(self.next_candidate.strategy.thr_sl)+","+
                          str(str_idx))
@@ -1723,6 +1968,24 @@ class Trader:
                 #stop_timer(ass_idx)
             except PermissionError:
                 print("Error writing TT")
+    
+#    def send_extend_command(self, directory_MT5_ass, ass_idx, str_idx):
+#        """ Send command for extending position to broker """
+#        success = 0
+#        # load network output
+#        while not success:
+#            try:
+#                fh = open(directory_MT5_ass+"EX"+str(ass_idx),"w")
+##                fh.write(str(self.next_candidate.direction)+","+
+##                         str(self.next_candidate.strategy.max_lots_per_pos)+
+##                         ","+str(self.next_candidate.deadline)+","+
+##                         str(self.next_candidate.strategy.thr_sl)+","+
+##                         str(str_idx))
+#                fh.close()
+#                success = 1
+#                #stop_timer(ass_idx)
+#            except PermissionError:
+#                print("Error writing EX")
     
     def send_close_command(self, asset, str_idx):
         """ Send command for closeing position to MT5 software """
@@ -2852,10 +3115,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                    log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
 #                    write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                 os.remove(io_ass_dir+'SD')
-                for s in range(len(trader.strategies)):
-                    list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
-                    if list_idx>-1:
-                        trader.send_close_command(thisAsset, s)
+                for p in range(len(trader.pos_idx2map_ass_str)):
+                    if trader.pos_idx2map_ass_str[p][-1]>=0:
+                        trader.send_close_command(thisAsset, p)
                 
                 if trader.n_pos_currently_open>0:
                     delayed_stop_run = True
@@ -3065,10 +3327,9 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                         out = thisAsset+logMsg
                         print(out)
                         trader.write_log(out)
-                        for s in range(len(trader.strategies)):
-                            list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
-                            if list_idx>-1:
-                                trader.send_close_command(thisAsset, s)
+                        for p in range(len(trader.pos_idx2map_ass_str)):
+                            if trader.pos_idx2map_ass_str[p][-1]==0:
+                                trader.send_close_command(thisAsset, p)
                         send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
 #                        if log_thu_control:
 #                            queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
@@ -3112,12 +3373,30 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                list_idx = trader.map_ass_idx2pos_idx[str_idx][ass_id]
                 swap = float(info_split[14])
                 returnist = float(info_split[12])
-                str_idx = int(info_split[15])
-                
-                trader.close_position(info_split[2], thisAsset, ass_id, results, str_idx,
-                                      DTi_real=info_split[1], groiist=float(info_split[9]), 
-                                      roiist=float(info_split[11]), swap=swap, 
-                                      returnist=returnist)
+                pos_idx = int(info_split[15])
+#                print("\nCL found. info=")
+#                print(info_split)
+#                print("pos_idx")
+#                print(pos_idx)
+#                print("trader.pos_idx2map_ass_str[pos_idx]")
+#                print(trader.pos_idx2map_ass_str[pos_idx])
+                # this is the lead position and no double down
+                if trader.pos_idx2map_ass_str[pos_idx][-1]==0:
+                    str_idx = trader.pos_idx2map_ass_str[pos_idx][1]
+                    trader.close_position(info_split[2], thisAsset, ass_id, results, str_idx,
+                                          DTi_real=info_split[1], groiist=float(info_split[9]), 
+                                          roiist=float(info_split[11]), swap=swap, 
+                                          returnist=returnist)
+                elif trader.pos_idx2map_ass_str[pos_idx][-1]>0:
+                    logMsg = " WARNING! Double downed position. Not closing thru here."
+                    out = thisAsset+logMsg
+                    print(out)
+                    trader.write_log(out)
+                else:
+                    logMsg = " WARNING! Position already closed. Skipped."
+                    out = thisAsset+logMsg
+                    print(out)
+                    trader.write_log(out)
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
@@ -4229,6 +4508,14 @@ if hasattr(LC,'CRISIS_MODE'):
 else:
     print("\n\nWARNING! Crisis mode not in LC\n\n")
     crisis_mode = False
+if hasattr(LC,'DOUBLE_DOWN'):
+    double_down = {'on':LC.DOUBLE_DOWN,  # activate double down strategy
+                   'every':1,  # how many pips down before double down
+                   'amount':1, # how much double down compared to basic entry
+                   'max':2} # maximum times the original amount is allowed to be doubled down each time
+    print("\nDOUBLE DOWN ON!")
+else:
+    double_down = {'on':False}
 resume = LC.RESUME
 if resume:
     print("\n\nRESUME ON\n\n")
@@ -4253,20 +4540,27 @@ if not test:
 else:
     n_samps_buffer = 10
 
-if not test:
-    if len(config_names)>0: 
-        list_config_traders = [retrieve_config(config_name) for config_name in config_names]
-        print("config_names")
-        print(config_names)
-    #        for config_name in ins:
-    #            #config_trader = retrieve_config(ins[0])
-    #            list_config_traders.append(retrieve_config(config_name))
-    else:
-        list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
-# override list configs if test is True
-else:
-    list_config_traders = [retrieve_config('T6N504060TESTv1')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
+if len(config_names)>1:
+    raise ValueError("ERROR! config_names len must be 1")
+print("config_names")
+print(config_names)
+list_config_traders = [retrieve_config(LC.CONFIG_FILE)]
+if test:
     print("WARNING! TEST ON")
+#if not test:
+#    if len(config_names)>0: 
+#        list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+#        print("config_names")
+#        print(config_names)
+#    #        for config_name in ins:
+#    #            #config_trader = retrieve_config(ins[0])
+#    #            list_config_traders.append(retrieve_config(config_name))
+#    else:
+#        list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+## override list configs if test is True
+#else:
+#    list_config_traders = [retrieve_config('T6N504060TESTv1')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
+#    print("WARNING! TEST ON")
 #print("synchroned_run: "+str(synchroned_run))
 #print("Test "+str(test))
 #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#

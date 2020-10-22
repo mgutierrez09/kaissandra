@@ -657,14 +657,14 @@ class Trader:
             ass_loc = idx#assets.index(idx)
             for t in range(len(this_strategy.info_spread_ranges[ass_loc]['th'])):
                 second_condition_open = self.next_candidate.p_mc>=\
-                this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
-                self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin and\
-                e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
-                self.n_pos_currently_open<max_opened_positions and \
-                self.check_max_pos_curr(self.next_candidate.asset.decode("utf-8"), 
-                                        self.next_candidate.direction)
+                    this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
+                    this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
+                    self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
+                    this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margin and\
+                    e_spread/self.pip<=this_strategy.info_spread_ranges[ass_loc]['sp'][t] and\
+                    self.n_pos_currently_open<max_opened_positions and \
+                    self.check_max_pos_curr(self.next_candidate.asset.decode("utf-8"), 
+                                            self.next_candidate.direction)
                 if second_condition_open:
                     sp = this_strategy.info_spread_ranges[ass_loc]['sp'][t]
                     return second_condition_open, sp

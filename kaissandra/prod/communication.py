@@ -10,6 +10,7 @@ import re
 import time
 import requests
 import datetime as dt
+import numpy as np
 import logging
 import logging.handlers
 
@@ -265,37 +266,50 @@ def send_close_commands_all():
         
 def get_account_status():
     """ Get account status from broker """
-    success = 0
+    #success = 0
+    ass_idx = np.random.randint(len(LC.ASSETS))
     try:
         ##### WARNING! #####
-        dirfilename = LC.directory_MT5_account+'Status.txt'
+        dirfilename = LC.directory_MT5_account+Config.AllAssets[str(LC.ASSETS[ass_idx])]+'/Status.txt'
         if os.path.exists(dirfilename):
             # load network output
-            while not success:
-                try:
-                    fh = open(dirfilename,"r")
-                    info_close = fh.read()[:-1]
-                    # close file
-                    fh.close()
-                    success = 1
-                    #stop_timer(ass_idx)
-                except PermissionError:
-                    print("Error writing Account status")
-                    time.sleep(.1)
+            #while not success:
+            #try:
+            fh = open(dirfilename,"r")
+            info_close = fh.read()[:-1]
+            # close file
+            fh.close()
+            #success = 1
+            #stop_timer(ass_idx)
+#            except PermissionError:
+#                print("Error reading Account status")
+                    #time.sleep(.1)
             info_str = info_close.split(',')
             #print(info_close)
             balance = float(info_str[0])
             leverage = float(info_str[1])
             equity = float(info_str[2])
             profits = float(info_str[3])
+            margin = float(info_str[4])
+            free_margin = float(info_str[5])
+            
+            print("Margin {4:.2f} Free Margin {5:.2f} Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
+              .format(balance,leverage,equity,profits,margin,free_margin))
+            
+            status = {'balance':balance, 'leverage':leverage, 
+                      'equity':equity, 'profits':profits, 
+                      'margin':margin,'free_margin':free_margin,
+                      'error':False}
+            return status
         else:
             print("WARNING! Account Status file not found. Turning to default")        
             balance = 500.0
             leverage = 30
             equity = balance
             profits = 0.0
-        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
-              .format(balance,leverage,equity,profits))
+            margin = 0.0
+            free_margin = 0.0
+        
         
     except:
         print("WARNING! Error in get_account_status. Skipped")
@@ -303,8 +317,11 @@ def get_account_status():
         leverage = 30
         equity = balance
         profits = 0.0
+        margin = 0.0
+        free_margin = 0.0
         
-    status = {'balance':balance, 'leverage':leverage, 'equity':equity, 'profits':profits}
+    status = {'balance':balance, 'leverage':leverage, 'equity':equity, 
+              'profits':profits, 'margin':margin,'free_margin':free_margin, 'error':True}
     return status
 
 def check_for_warnings(token_header=None, send_info_api=True):
@@ -349,7 +366,7 @@ def get_positions_status():
     
     ##### WARNING! #####
     AllAssets = Config.AllAssets
-    max_strategies_per_asset = 6
+    max_strategies_per_asset = 30
     status = {}
     try:
         for asset_key in AllAssets:
