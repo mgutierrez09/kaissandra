@@ -1658,7 +1658,6 @@ class Trader:
                     #print(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
                     margins = self.strategies[new_entry['strategy_index']].info_spread_ranges['mar']
                     for t, tupl in enumerate(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'][::-1]):
-                        
                         if new_entry['P_mc']>=tupl[0]+margins[-(t+1)][0] and new_entry['P_md']>=tupl[1]+margins[-(t+1)][1]:
 #                            print("tupl")
 #                            print(tupl)
@@ -1671,6 +1670,7 @@ class Trader:
                             
 #                            print("len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])")
 #                            print(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th']))
+
                             tactics.append(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1)
                             
                             break
