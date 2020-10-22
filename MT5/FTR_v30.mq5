@@ -113,94 +113,141 @@ int sot = -1; // strategy index in transition for opening
 
 
 void openPosition(string origin, int thisPos, int str_idx){
-   // wait for other positions to open if its the case
-   while(sot!=-1){
-      Print("WARNING! Open position called but sot!=-1! Waiting.");
-      Sleep(1000);
-      }
-   Bis[str_idx] = bid;
-   Ais[str_idx] = ask;
-   positions[str_idx] = thisPos;
    string message;
-   //int n_pos = PositionsTotal();
-   if(thisPos==1){
-      while(!m_Trade.Buy(lot,thisSymbol)){
-         //string message = StringFormat();
-         message = StringFormat("WARNING! Buy -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
-         Print(message);
-         //writeLog(message);
-         //Print("WARNING! Buy -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      }
-      thisPositionsTotal ++;
-      sot = str_idx;
-      pos_tickets[str_idx] = 0;//PositionGetInteger(POSITION_IDENTIFIER);
-      //string message = StringFormat("Buy -> talse. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
-      //Print("Buy -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      Print(message);
+   // wait for other positions to open if its the case
+   if(sot==-1){
+      //while(sot!=-1){
+      //   Print("WARNING! Open position called but sot!=-1! Waiting.");
+      //   Sleep(1000);
+      //   }
       
-      // Save timestap
-         
-      positions[str_idx] = thisPos;
-      //writeLog(message);
-      //stoploss = -Ai*sl_thr+Bi;
-      stoplosses[str_idx] = updateSL(Ais[str_idx], thisPos, slThrPips);
-      takeprofits[str_idx] = updateTP(Ais[str_idx], thisPos, tpThrPips);
-   }
-   else{if(thisPos==-1){
-      while(!m_Trade.Sell(lot,thisSymbol)){
-         //string message = StringFormat();
-         message = StringFormat("WARNING! Sell -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
-         Print(message);
-        // writeLog(message);
-         //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      }
-      thisPositionsTotal ++;
-      sot = str_idx;
-      pos_tickets[str_idx] = 0;//PositionGetInteger(POSITION_IDENTIFIER);
-      message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
-      Print(message);
       
-      // Save timestap
+      //int n_pos = PositionsTotal();
+      if(thisPos==1){
+         /*while(!m_Trade.Buy(lot,thisSymbol)){
+            //string message = StringFormat();
+            message = StringFormat("WARNING! Buy -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+            Print(message);
+            //writeLog(message);
+            //Print("WARNING! Buy -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+         }*/
+         if(m_Trade.Buy(lot,thisSymbol)){
+            Bis[str_idx] = bid;
+            Ais[str_idx] = ask;
+            positions[str_idx] = thisPos;
+            
+            thisPositionsTotal ++;
+            sot = str_idx;
+            pos_tickets[str_idx] = 0;//PositionGetInteger(POSITION_IDENTIFIER);
+            //string message = StringFormat("Buy -> talse. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+            message = StringFormat("Buy -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+            //Print("Buy -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+            Print(message);
+            
+            // Save timestap
+               
+            positions[str_idx] = thisPos;
+            //writeLog(message);
+            //stoploss = -Ai*sl_thr+Bi;
+            stoplosses[str_idx] = updateSL(Ais[str_idx], thisPos, slThrPips);
+            takeprofits[str_idx] = updateTP(Ais[str_idx], thisPos, tpThrPips);
+            
+            tocs[str_idx] = TimeCurrent();
+            deadlines[str_idx] = 1; // reset deadline
+            Bi_solls[str_idx] = buffer[bufferSize-1][0];
+            Ai_solls[str_idx] = buffer[bufferSize-1][1];
+            difs_ticks[str_idx] = ticks_counter-ticks_counter_open;
+            message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStats[str_idx],difs_ticks[str_idx],Bi_solls[str_idx], 
+                  Bis[str_idx],Ai_solls[str_idx],Ais[str_idx],stoplosses[str_idx],(Ais[str_idx]-Bis[str_idx])/Ais[str_idx]);
+            Print(message);
+         }
+         else{
+            //string message = StringFormat();
+            message = StringFormat("WARNING! Buy -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+            Print(message);
+            //writeLog(message);
+            //Print("WARNING! Buy -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+         }
          
-      positions[str_idx] = thisPos;
-      //writeLog(message);
-      //Print("Sell -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
-      //stoploss = Bi*sl_thr+Ai;
-      stoplosses[str_idx] = updateSL(Bis[str_idx], thisPos, slThrPips);
-      takeprofits[str_idx] = updateTP(Bis[str_idx], thisPos, tpThrPips);
-   }
-      else{
-         Print("ERROR! Position cannot be zero");
       }
+      else{if(thisPos==-1){
+         /*while(!m_Trade.Sell(lot,thisSymbol)){
+            //string message = StringFormat();
+            message = StringFormat("WARNING! Sell -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+            Print(message);
+           // writeLog(message);
+            //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+         }*/
+         if(m_Trade.Sell(lot,thisSymbol)){
+            Bis[str_idx] = bid;
+            Ais[str_idx] = ask;
+            positions[str_idx] = thisPos;
+            thisPositionsTotal ++;
+            sot = str_idx;
+            pos_tickets[str_idx] = 0;//PositionGetInteger(POSITION_IDENTIFIER);
+            message = StringFormat("Sell -> true. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+            Print(message);
+            
+            // Save timestap
+               
+            positions[str_idx] = thisPos;
+            //writeLog(message);
+            //Print("Sell -> true. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+            //stoploss = Bi*sl_thr+Ai;
+            stoplosses[str_idx] = updateSL(Bis[str_idx], thisPos, slThrPips);
+            takeprofits[str_idx] = updateTP(Bis[str_idx], thisPos, tpThrPips);
+            
+            tocs[str_idx] = TimeCurrent();
+            deadlines[str_idx] = 1; // reset deadline
+            Bi_solls[str_idx] = buffer[bufferSize-1][0];
+            Ai_solls[str_idx] = buffer[bufferSize-1][1];
+            difs_ticks[str_idx] = ticks_counter-ticks_counter_open;
+            message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStats[str_idx],difs_ticks[str_idx],Bi_solls[str_idx], 
+                  Bis[str_idx],Ai_solls[str_idx],Ais[str_idx],stoplosses[str_idx],(Ais[str_idx]-Bis[str_idx])/Ais[str_idx]);
+            Print(message);
+         }
+         else{
+            //string message = StringFormat();
+            message = StringFormat("WARNING! Sell -> false. Result Retcode: %u, description of result: %s",m_Trade.ResultRetcode(),m_Trade.ResultRetcodeDescription());
+            Print(message);
+           // writeLog(message);
+            //Print("WARNING! Sell -> false. Result Retcode: ",m_Trade.ResultRetcode(),", description of result: ",m_Trade.ResultRetcodeDescription());
+         }
+         
+      }
+         else{
+            Print("ERROR! Position cannot be zero");
+         }
+      }
+      //Print("m_Trade.ResultRetcode()");
+      //if(m_Trade.ResultRetcode()==TRADE_RETCODE_DONE)
+      //   Print(m_Trade.ResultRetcode());
+      //else
+      //   Print("ResultRetcode() wrong");
+      //Print("m_Trade.ResultRetcodeDescription()");
+      //Print(m_Trade.ResultRetcodeDescription());
+      //Print("m_Trade.ResultDeal()");
+      //Print(m_Trade.ResultDeal());
+      //toc = TimeCurrent();
+      
+   }// if(sot==-1)
+   else{
+      Print("WARNING! Open position called but sot!=-1! Skipped.");
    }
-   //Print("m_Trade.ResultRetcode()");
-   //if(m_Trade.ResultRetcode()==TRADE_RETCODE_DONE)
-   //   Print(m_Trade.ResultRetcode());
-   //else
-   //   Print("ResultRetcode() wrong");
-   //Print("m_Trade.ResultRetcodeDescription()");
-   //Print(m_Trade.ResultRetcodeDescription());
-   //Print("m_Trade.ResultDeal()");
-   //Print(m_Trade.ResultDeal());
-   //toc = TimeCurrent();
-   tocs[str_idx] = TimeCurrent();
-   deadlines[str_idx] = 1; // reset deadline
-   Bi_solls[str_idx] = buffer[bufferSize-1][0];
-   Ai_solls[str_idx] = buffer[bufferSize-1][1];
-   difs_ticks[str_idx] = ticks_counter-ticks_counter_open;
-   message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStats[str_idx],difs_ticks[str_idx],Bi_solls[str_idx], 
-         Bis[str_idx],Ai_solls[str_idx],Ais[str_idx],stoplosses[str_idx],(Ais[str_idx]-Bis[str_idx])/Ais[str_idx]);
-   Print(message);
 }
 
 
-void closePosition(int str_idx){
+void closePosition(int str_idx, string type){
    if(positions[str_idx]!=0){
       int executed = 0;
       //bool closed = false;
       string message;
       int counter = 0;
+      while (sit!=-1){
+         Print("WARNING! Overlap of transition of closing positions!");
+         Sleep(1000);
+      }
+      
       //while(!executed && position!=0){
       while(!m_Trade.PositionClose(pos_tickets[str_idx]) && counter<5){
          message = StringFormat("WARNING! Close position executed: %d",executed);
@@ -214,6 +261,8 @@ void closePosition(int str_idx){
          Sleep(1000);
          counter ++;
       }
+      sit = str_idx;
+      close_type = type;
       if(counter<5)executed = 1;
       message = StringFormat("Close position executed: %d",executed);
       Print(message);
@@ -226,10 +275,8 @@ void closePosition(int str_idx){
       thisPositionsTotal --;
       
       
-      if (sit!=-1){
-         Print("WARNING! Overlap of transition of closing positions!");
-      }
-      sit = str_idx;
+      
+      
       //}
       /*else{
          message = StringFormat("WARNING! Close position executed: %d",executed);
@@ -429,25 +476,30 @@ void controlPositionFlow(){
          //tp_protect_prevs[s] = tp_protect[s];
          
          // update deadline
-         deadlines[s] = (deadlines[s]+1)%(nEventsPerStats[s]-difs_ticks[s]);
+         //deadlines[s] = (deadlines[s]+1)%(nEventsPerStats[s]-difs_ticks[s]);
+         
          
          // close position if deadline reached
-         if (deadlines[s]==0){
+         if ((deadlines[s]+1)%(nEventsPerStats[s]-difs_ticks[s])==0 && sit==-1){
+            deadlines[s] = 0;
             message = "Deadline reached";
             Print(message);
             //writeLog(message);
-            close_type = "CL";
-            closePosition(s);
+            
+            closePosition(s, "CL");
          }
          
          else{
+            if ((deadlines[s]+1)%(nEventsPerStats[s]-difs_ticks[s])>0){
+               deadlines[s] = (deadlines[s]+1)%(nEventsPerStats[s]-difs_ticks[s]);
+            }
             // check if stoploss reached
             if((positions[s]==1 && ask<stoplosses[s]) || (positions[s]==-1 && bid>stoplosses[s])){
                message = "SL reached";
                Print(message);
                //writeLog(message);
-               close_type = "SL";
-               closePosition(s);
+               //close_type = "SL";
+               closePosition(s, "SL");
             }
             // check if takeprofit reached
             if((positions[s]==1 && ask>takeprofits[s]) || (positions[s]==-1 && bid<takeprofits[s])){
@@ -455,8 +507,8 @@ void controlPositionFlow(){
                Print(message);
                //writeLog(message);
                // WARNING! Temporal close_type as SL. TP not implemented yet!!!
-               close_type = "TP";
-               closePosition(s);
+               //close_type = "TP";
+               closePosition(s, "TP");
             }
          }
          
@@ -530,7 +582,7 @@ int OnInit()
    // init arrays
    // TODO: Resize array once we know how many strategies are there
    // TEMP: Fix positions size to two
-   numStragtegies = 6;
+   numStragtegies = 30; // name is depricated. It should be max number of positions.
    ArrayResize(positions, numStragtegies);
    ArrayResize(deadlines, numStragtegies);
    ArrayResize(sl_protects, numStragtegies);
@@ -562,7 +614,7 @@ int OnInit()
    directoryNameLive = "IOlive//"+thisSymbol+"//";
    directoryNameLog = "Log//"+thisSymbol+"//";
    directoryNameComm = "COMM//"+thisSymbol+"//";
-   directoryNameAccount = "Account//";
+   directoryNameAccount = "Account//"+thisSymbol+"//";
    directoryNameRecordings = "Data//"+thisSymbol+"//";
    //Print(thisSymbol+" fetcher launched");
    // init bid and ask to avoud division by zero
@@ -759,7 +811,7 @@ void OnTimer(){
    string lcfilename;
    for(int s=0; s<numStragtegies; s++){
       lcfilename = StringFormat("%s%s%d",directoryNameLive,LCfile,s);
-      if(FileIsExist(lcfilename)==1 ){
+      if(FileIsExist(lcfilename)==1 && sit==-1){
          int k;
          do{
             filehandle_trader = FileOpen(lcfilename,FILE_READ|FILE_ANSI);
@@ -775,8 +827,8 @@ void OnTimer(){
          //writeLog(message);
          while(!FileDelete(lcfilename));
          if(positions[str_idx]!=0){
-            close_type = "LC";
-            closePosition(str_idx);
+            //close_type = "LC";
+            closePosition(str_idx, "LC");
          }
          else{
             message = "WARNING! Position not opened. LC skipped";
@@ -820,7 +872,7 @@ void savePositionState(){
          }
          else        // if selecting the position was unsuccessful
            {
-            PrintFormat("Unsuccessful selection of the position by the symbol %s. Error",thisSymbol,GetLastError());
+            PrintFormat("Unsuccessful selection of the position by the symbol %s sot=%d. Error %s",thisSymbol,sot,GetLastError());
             int postionsTotal=PositionsTotal();
             if(sot>-1){
                
@@ -836,7 +888,7 @@ void savePositionState(){
                         }
                         if(!ticketTaken){
                            pos_tickets[sot] = ticket;
-                           PrintFormat("Ticket %d found and added to strategy ",ticket);
+                           PrintFormat("Ticket %d found in savePositionState and added to strategy ",ticket);
                            sot = -1;
                         }
                         else Print("WARNING! Ticket taken. Skipped assigment.");
@@ -871,6 +923,8 @@ void saveAccountInfo()
    //            server,login,balance,currency);               
 //--- double value output with mandatory output of the +/- sign
    double profits=AccountInfoDouble(ACCOUNT_PROFIT);
+   double margin=AccountInfoDouble(ACCOUNT_MARGIN);
+   double free_margin=AccountInfoDouble(ACCOUNT_MARGIN_FREE);
    //PrintFormat("%s %d: current result for open positions = %+.2f %s",
    //            server,login,profits,currency);
 //--- double value output with variable number of digits after the decimal point
@@ -884,7 +938,7 @@ void saveAccountInfo()
    //writeLog(message);
    int fh = FileOpen(directoryNameAccount+"Status.txt",FILE_WRITE|FILE_CSV|FILE_ANSI,',');
    if(fh>0){
-      FileWrite(fh,balance,leverage,equity,profits);
+      FileWrite(fh,balance,leverage,equity,profits,margin,free_margin);
       FileClose(fh);
    }//else Print("WARNING! Error when opeing Status.txt file. Status not updated");
    //PrintFormat("%s: current spread in points = %d ",
@@ -1033,7 +1087,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                      }
                      if(!ticketTaken){
                         pos_tickets[sot] = ticket;
-                        PrintFormat("Ticket %d found and added to strategy ",ticket);
+                        PrintFormat("Ticket %d found in OnTradeTransaction and added to strategy ",ticket);
                         sot = -1;
                      }
                      else Print("WARNING! Ticket taken. Skipped assigment.");
