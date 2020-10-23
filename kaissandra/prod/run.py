@@ -706,8 +706,8 @@ class Trader:
             condition = True
         else:
             condition = False
-        if test:
-            condition = not condition
+#        if test:
+#            condition = not condition
         return condition
     
     def check_contition_for_opening(self, tactic):
