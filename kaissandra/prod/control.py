@@ -32,7 +32,7 @@ def listener_process(queue, configurer):
             traceback.print_exc(file=sys.stderr)
     print("EXIT Log queue")
 
-def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False, from_main=False):
+def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_api=False, from_main=False, test=False):
     """ Master function to manage all controlling functions such as connection
     control or log control 
     Args:
@@ -92,11 +92,12 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
                                                       reset, from_main, token_header, logger, send_info_api)
         
         asset = AllAssets[str(running_assets[ass_idx])]
-#        MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
-#            ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
-#        print(asset+MSG)
-#        if send_info_api:
-#            ct.send_trader_log(MSG, asset, token_header)
+        if not test:
+            MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
+                ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
+            print(asset+MSG)
+            if send_info_api:
+                ct.send_trader_log(MSG, asset, token_header)
         ass_idx = np.mod(ass_idx+1,len(running_assets))
         
         time.sleep(1)

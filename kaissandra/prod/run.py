@@ -706,6 +706,8 @@ class Trader:
             condition = True
         else:
             condition = False
+        if test:
+            condition = not condition
         return condition
     
     def check_contition_for_opening(self, tactic):
@@ -1256,12 +1258,12 @@ class Trader:
                 self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#self.get_current_available_budget()
                 slots_available = np.floor(double_down['amount']*self.available_bugdet_in_lots/lots_per_pos)
                 slots_assign = min(slots_requested, slots_available)
-                print("slots_requested")
-                print(slots_requested)
-                print("slots_available")
-                print(slots_available)
-                print("slots_assign")
-                print(slots_assign)
+#                print("slots_requested")
+#                print(slots_requested)
+#                print("slots_available")
+#                print(slots_available)
+#                print("slots_assign")
+#                print(slots_assign)
                 amount_dd = slots_assign*lots_per_pos
                 if slots_available>0 and self.n_pos_currently_open<self.max_opened_positions:
                     self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'] = \
@@ -1617,6 +1619,12 @@ class Trader:
                             Y_tilde = np.argmax(soft_tilde[6:])+1
                         else:
                             Y_tilde = np.argmax(soft_tilde[3:5])-2
+                    
+                    # change direction if test
+#                    if test:
+#                        Y_tilde = -1*Y_tilde
+#                        print("Y_tilde")
+#                        print(Y_tilde)
                         
                     p_mc = soft_tilde[0]
                     p_md = np.max([soft_tilde[1],soft_tilde[2]])
@@ -4509,11 +4517,9 @@ else:
     print("\n\nWARNING! Crisis mode not in LC\n\n")
     crisis_mode = False
 if hasattr(LC,'DOUBLE_DOWN'):
-    double_down = {'on':LC.DOUBLE_DOWN,  # activate double down strategy
-                   'every':1,  # how many pips down before double down
-                   'amount':1, # how much double down compared to basic entry
-                   'max':2} # maximum times the original amount is allowed to be doubled down each time
-    print("\nDOUBLE DOWN ON!")
+    double_down = LC.DOUBLE_DOWN
+    if double_down['on']:
+        print("\nDOUBLE DOWN ON!")
 else:
     double_down = {'on':False}
 resume = LC.RESUME
@@ -4602,7 +4608,7 @@ if __name__=='__main__':
             kwargs = {'queues':queues, 'queues_prior':queues_prior, 'send_info_api':send_info_api}
             #Process(target=control, args=[running_assets], kwargs=kwargs).start()
             
-            control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
+            control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api, test=test)
         # wait for last trader to finish
         print("WAITING FOR PROCESSES TO FINISH")
         for p in processes:
