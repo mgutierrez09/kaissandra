@@ -83,9 +83,9 @@ if __name__ == '__main__':
         
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     numberNetwors = 2
-    init_day_str = '20181119'
+    init_day_str = '20181112'
     end_day_str = '20200424'#'20200424'
-    assets = [1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
+    assets = [7]#[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
     
     root_dir = local_vars.data_test_dir
     
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     w100 = 1-1/100
     w1000 = 1-1/1000
     w10000 = 1-1/10000
-    ws = [w1, w10, w20, w100, w1000, w10000]
+    ws = [w1]
     time_stamps_ass = [[null_entry for _ in range(10000)] for _ in assets]
     volat_per_ass = [[[0 for _ in ws] for _ in range(10000)] for _ in assets]
     
@@ -170,7 +170,7 @@ if __name__ == '__main__':
 #    max_diff_per_pos_ass = {}
 #    dt_max_diff_per_pos_ass = {}
     max_vol_per_hour = {}
-    mW = 5000
+    mW = 50000
     track_last_dts = [[dt.datetime.strptime(init_day_str,'%Y%m%d') for _ in range(mW)] for i in assets]
     track_last_asks = [[0 for _ in range(mW)] for i in assets]
     track_idx = [0 for i in assets]
@@ -219,6 +219,7 @@ if __name__ == '__main__':
         this_sec_ass = [None for _ in assets]
         every = "min"# "min", "hour", "sec"
         inter_tic = time.time()
+        expected_ask = 0.8754 # EURGBP
         # get to 
         while event_idx<nEvents:
             rewind = 0
@@ -255,7 +256,7 @@ if __name__ == '__main__':
                 #vol = (track_last_dts[ass_id][track_idx[ass_id]]-time_stamp).seconds
                 window_asks = np.array(track_last_asks[ass_id])
                 window_asks = window_asks[window_asks>0]
-                volat = (np.max(window_asks)-np.min(window_asks))/np.mean(window_asks)
+                volat = np.max(window_asks)/np.min(window_asks)-1#np.mean(window_asks)
 #                if vol<=max_vols[ass_id]:
                 # init volatility tracking
 #                if max_vols[ass_id] == 99999999:
@@ -279,12 +280,12 @@ if __name__ == '__main__':
                 if (every=="hour" and this_hour_ass[ass_id] != time_stamp.hour) or \
                    (every=="min" and this_min_ass[ass_id] != time_stamp.minute) or \
                    (every=="sec" and this_sec_ass[ass_id] != time_stamp.second):
-                    volatility_idxs = [(10*np.log10(ema)-mean_volat_db)/var_volat_db for ema in emas_volat[ass_id]]
+                    volatility_idxs = [100*ema for ema in emas_volat[ass_id]]#(10*np.log10(ema)-mean_volat_db)/var_volat_db
                     #volume_idx = (10*np.log10(mean_vol)-mean_vol_db)/var_vol_dbe.time()-total_tic)/60), \
-                    print("\r"+DateTime+" "+thisAsset+" idx "+str(idx_stats)+\
-                          ": VI10 {0:.2f} VI20 {1:.2f} VI100 {2:.2f} VI1000 {3:.2f} VI10000 {4:.2f} ".format(volatility_idxs[0],volatility_idxs[1],volatility_idxs[2],volatility_idxs[3],volatility_idxs[4])+\
-                          " Time {0:.2f} mins. Total time {1:.2f} mins. "\
-                          .format((time.time()-inter_tic)/60,(time.time()-total_tic)/60), sep=' ', end='', flush=True)
+#                    print("\r"+DateTime+" "+thisAsset+" idx "+str(idx_stats)+\
+#                          ": VI1 {0:.4f}".format(volatility_idxs[0])+\
+#                          " Time {0:.2f} mins. Total time {1:.2f} mins. "\
+#                          .format((time.time()-inter_tic)/60,(time.time()-total_tic)/60), sep=' ', end='', flush=True)
                     this_hour_ass[ass_id] = time_stamp.hour
                     this_min_ass[ass_id] = time_stamp.minute
                     this_sec_ass[ass_id] = time_stamp.second
