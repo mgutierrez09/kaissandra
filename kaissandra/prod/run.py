@@ -120,10 +120,11 @@ class Results:
         
     def save_results(self):
         """ Save results in disk """
-        results_dict = {'dts_close':self.dts_close,
-                    'GROIs':self.GROIs,
-                    'ROIs':self.ROIs,
-                    'earnings':self.earnings}
+        pass
+#        results_dict = {'dts_close':self.dts_close,
+#                    'GROIs':self.GROIs,
+#                    'ROIs':self.ROIs,
+#                    'earnings':self.earnings}
         #pickle.dump( results_dict, open( self.results_dir_and_file, "wb" ))
     
     def update_meta_pos(self):
@@ -417,6 +418,8 @@ class Trader:
         self.n_pos_extended = 0
         self.n_pos_currently_open = 0
         
+        self.margins = [0.0 for _ in running_assets]
+        
         # log
         self.save_log = 1
         self.results_dir_trader = results_dir+'trader/'
@@ -560,6 +563,7 @@ class Trader:
                                             'entry_ask':self.next_candidate.entry_ask,
                                             'entry_time':self.next_candidate.entry_time,
                                             'checkpoint':0,
+                                            'every':double_down['every'],
                                             'lots':lots}])
         return None
         
@@ -710,7 +714,7 @@ class Trader:
 #            condition = not condition
         return condition
     
-    def check_contition_for_opening(self, tactic):
+    def check_contition_for_opening(self, tactic, ass_idx):
         """  """
         reason = ''
         this_strategy = self.next_candidate.strategy
@@ -739,7 +743,7 @@ class Trader:
                 reason += 'bet'
         elif this_strategy.entry_strategy=='spread_ranges':
             cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]+this_strategy.info_spread_ranges['mar'][tactic][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1]+self.margins[ass_idx]
             cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][tactic]
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    self.next_candidate.strategy.info_spread_ranges['dir'])
@@ -1080,9 +1084,7 @@ class Trader:
             self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename, s=s)
             # update output lists
             results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
-            
-            
-    
+                        
             if partial_close:
                 partial_string = ' Partial'
             else:
@@ -1095,7 +1097,7 @@ class Trader:
                           " TGROI {1:.3f}% TROI = {0:.3f}%".format(
                           100*self.tROI_live,100*self.tGROI_live)+
                           " Earnings {0:.2f}".format(self.nett_earnigs)+
-                          ". Remeining open "+str(self.n_pos_currently_open))
+                          ". Remaining open "+str(self.n_pos_currently_open))
             out =ass+logMsg
             if verbose_trader:
                 self.write_log(out)
@@ -1175,7 +1177,7 @@ class Trader:
               " Lots {0:.2f}".format(lots)+" "+str(self.list_opened_positions[str_idx][-1].bet)+
               " p_mc={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_md)+
-              " spread={0:.3f} ".format(e_spread)+" total opened {0:d}".format(self.n_pos_opened)+
+              " spread={0:.3f} ".format(e_spread)+" total opened {0:d}".format(self.n_pos_currently_open)+
               " strategy "+self.list_opened_positions[str_idx][-1].strategy.name)
         
         if self.next_candidate.strategy.entry_strategy == 'gre_v2':
@@ -1236,72 +1238,93 @@ class Trader:
         self.list_pos_idx.append(pos_idx)
         self.pos_idx2map_ass_str[pos_idx] = (ass_id, str_idx, dd_idx)
         self.send_open_command(directory_MT5_ass, ass_id, self.list_pos_idx[-1], lots=amount_dd)
-        out = (dt+" Double Down "+#asset+
-              " Lots {0:.2f}".format(amount_dd))
-        print(out)
-        self.write_log(out)
+#        out = (dt+" Double Down "+#asset+
+#              " Lots {0:.2f}".format(amount_dd))
+#        print(out)
+#        self.write_log(out)
         status = self.get_account_status()
         self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
         self.available_budget = self.available_bugdet_in_lots*self.LOT 
         return None
     
-    def check_condition_double_down(self, currGROI, ass_id, str_idx, thisAsset, dt, bid, ask, condition_dd, reason_dd, directory_MT5_ass):
+    def check_condition_double_down(self, currGROI, ass_id, str_idx, thisAsset, 
+                                    dt, bid, ask, spread, 
+                                    condition_dd, reason_dd, directory_MT5_ass):
         """  """
         if condition_dd:
-            if double_down['on'] and\
-               currGROI/self.pip<=-(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+double_down['every']):
-                
-                times_dd = min(double_down['max'], np.floor((-currGROI/self.pip-self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])/double_down['every']))
-                lots_per_pos = self.assign_lots(dt)
-                slots_requested = times_dd*double_down['amount']
-                status = self.get_account_status()
-                self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#self.get_current_available_budget()
-                slots_available = np.floor(double_down['amount']*self.available_bugdet_in_lots/lots_per_pos)
-                slots_assign = min(slots_requested, slots_available)
-#                print("slots_requested")
-#                print(slots_requested)
-#                print("slots_available")
-#                print(slots_available)
-#                print("slots_assign")
-#                print(slots_assign)
-                amount_dd = slots_assign*lots_per_pos
-                if slots_available>0 and self.n_pos_currently_open<self.max_opened_positions:
-                    self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'] = \
-                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+times_dd*double_down['every']
-                    self.double_down_position(ass_id, 
-                                              str_idx,
-                                              amount_dd,
-                                              dt,
-                                              bid,
-                                              ask, 
-                                              directory_MT5_ass)
-                    logMsg = "DOUBLING DOWN! "+str(amount_dd)+" lots. New checkpoint "+\
-                        str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])
-                    print(logMsg)
-                    self.write_log(logMsg)
-                    if send_info_api:
-                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+            if double_down['on']:
+                if currGROI/self.pip<=-(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+
+                                    self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']):
                     
-                    #a=p
-                elif slots_available==0:
-                    logMsg = "NOT ENOUGH BUDGET TO DOUBLE DOWN!"
-                    print(logMsg)
-                    self.write_log(logMsg)
-                    if send_info_api:
-                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                    times_dd_supposed = np.floor((-currGROI/self.pip-self.list_dd_info[str_idx]
+                        [self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])/
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every'])
+                    times_dd = min(double_down['max'], times_dd_supposed)
+                    lots_per_pos = self.assign_lots(dt)
+                    slots_requested = times_dd*double_down['amount']
+                    status = self.get_account_status()
+                    self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#self.get_current_available_budget()
+                    slots_available = np.floor(double_down['amount']*self.available_bugdet_in_lots/lots_per_pos)
+                    slots_assign = min(slots_requested, slots_available)
+                    n_dds = len(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])
+    #                print("slots_requested")
+    #                print(slots_requested)
+    #                print("slots_available")
+    #                print(slots_available)
+    #                print("slots_assign")
+    #                print(slots_assign)
+                    amount_dd = slots_assign*lots_per_pos
+                    if slots_available>0 and self.n_pos_currently_open<self.max_opened_positions:
+                        
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'] = \
+                            self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+\
+                            times_dd_supposed*self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every'] = \
+                            2*self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']
+                        self.double_down_position(ass_id, 
+                                                  str_idx,
+                                                  amount_dd,
+                                                  dt,
+                                                  bid,
+                                                  ask, 
+                                                  directory_MT5_ass)
+                        logMsg = (dt+" Double Down "+#asset+
+                              " Lots {0:.2f}".format(amount_dd)+" "+
+                              " spread={0:.3f}".format(spread)+
+                              " "+str(n_dds)+"-th time. Multiply by "+str(times_dd)+
+                              ". Next Checkpoint "+
+                              str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])+
+                              " Every "+
+                              str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']))
+#                        print(out)
+#                        trader.write_log(out)
+#                        logMsg = "DOUBLING DOWN! "+str(amount_dd)+" lots. New checkpoint "+\
+#                            str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])
+                        print(thisAsset+" "+logMsg)
+                        self.write_log(thisAsset+" "+logMsg)
+                        if send_info_api:
+                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                        
+                        #a=p
+                    elif slots_available==0:
+                        logMsg = "NOT ENOUGH BUDGET TO DOUBLE DOWN!"
+                        print(logMsg)
+                        self.write_log(logMsg)
+                        if send_info_api:
+                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                    else:
+                        logMsg = "NOT DOUBLE DOWN BECAUSE MAX NUMBER OF POSITIONS REACHED!"
+                        print(logMsg)
+                        self.write_log(logMsg)
+                        if send_info_api:
+                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                 else:
-                    logMsg = "NOT DOUBLE DOWN BECAUSE MAX NUMBER OF POSITIONS REACHED!"
+                    logMsg = "NOT DD DOUBLE DOWN since next DD is at "+\
+                        str(-self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']-double_down['every'])+" pips"
                     print(logMsg)
                     self.write_log(logMsg)
                     if send_info_api:
                         send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
-            else:
-                logMsg = "NOT DD DOUBLE DOWN since next DD is at "+\
-                    str(-self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']-double_down['every'])+" pips"
-                print(logMsg)
-                self.write_log(logMsg)
-                if send_info_api:
-                    send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
         else:
             logMsg = "NOT DD DOUBLE DOWN due to "+reason_dd
             print(logMsg)
@@ -1650,23 +1673,50 @@ class Trader:
                                't':t}
                     else:
                         yield []
-                            
     
-    def check_new_inputs(self, inputs, thisAsset, results, directory_MT5_ass=''):
+    def update_margin(self, ass_idx, vi_struct, DateTime, thisAsset):
+        """ Update margin """
+#        margins[ass_idx] = 0.16*idx_struct['VIs'][0]-0.04
+        # step-like relationship
+        if vi_struct['VIs'][0]>=0.5 and self.margins[ass_idx]!=0.04:# and margin<0.12:
+            self.margins[ass_idx] = 0.04
+            logMsg = DateTime+" "+thisAsset+" VI="+str(vi_struct['VIs'][0])+". Margin changed to 0.04"
+            print(logMsg)
+            self.write_log(logMsg)
+            if send_info_api:
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+        if vi_struct['VIs'][0]<0.5 and self.margins[ass_idx]!=0.0:# and margin<0.12:
+            self.margins[ass_idx] = 0.0
+            logMsg = DateTime+" "+thisAsset+" VI="+str(vi_struct['VIs'][0])+" Margin changed to 0.0"
+            print(logMsg)
+            self.write_log(logMsg)
+            if send_info_api:
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+    
+    def check_new_inputs(self, inputs, thisAsset, results, vi_struct, directory_MT5_ass=''):
         """
         <DocString>
         """
+        ass_idx = self.ass2index_mapping[thisAsset]
+        ass_id = self.running_assets[ass_idx]
+        
         #new_entry = self.select_new_entry(inputs, thisAsset)
         for new_entry in self.select_next_entry(inputs, thisAsset):
             if not type(new_entry)==list:
+                # update margin
+                if margin_adapt:
+                    self.update_margin(ass_idx, vi_struct, new_entry[entry_time_column], thisAsset)
+                    margin_str = "Margin {0:.3f}".format(self.margins[ass_idx])+" VI {0:.3f} ".format(vi_struct['VIs'][0])
+                else:
+                    margin_str = ""
                 # get number of tactics
                 tactics = []
                 if self.strategies[new_entry['strategy_index']].entry_strategy=='spread_ranges':
                     #n_tactics = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
                     #print(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
-                    margins = self.strategies[new_entry['strategy_index']].info_spread_ranges['mar']
+                    fixed_margins = self.strategies[new_entry['strategy_index']].info_spread_ranges['mar']
                     for t, tupl in enumerate(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'][::-1]):
-                        if new_entry['P_mc']>=tupl[0]+margins[-(t+1)][0] and new_entry['P_md']>=tupl[1]+margins[-(t+1)][1]:
+                        if new_entry['P_mc']>=tupl[0]+fixed_margins[-(t+1)][0] and new_entry['P_md']>=tupl[1]+fixed_margins[-(t+1)][1]+self.margins[ass_idx]:
 #                            print("tupl")
 #                            print(tupl)
 ##                            print("(new_entry['P_mc'],new_entry['P_md'])")
@@ -1685,14 +1735,24 @@ class Trader:
                     
                 if len(tactics)==0:
                     tactics = [0]
+                
                 # loop over tactics of one strategy
                 for tactic in tactics:
+                    
                     strategy_name = self.strategies[new_entry['strategy_index']].name
+                    position = Position(new_entry, self.strategies[new_entry['strategy_index']])
+                    
+                    self.add_new_candidate(position)
+                    str_idx = self.next_candidate.strategy_index
+                    
+                    
+                    
                     # check for opening/extension in order of expected returns
                     logMsg = (" New entry @ "+new_entry[entry_time_column]+" "+
-                           " P_mc {0:.3f} ".format(new_entry['P_mc'])+
+                           "P_mc {0:.3f} ".format(new_entry['P_mc'])+
                            "P_md {0:.3f} ".format(new_entry['P_md'])+
-                           "prof. {0:.2f} ".format(new_entry['profitability'])+
+                           margin_str+
+                           #"prof. {0:.2f} ".format(new_entry['profitability'])+
                            "Bet {0:d} ".format(new_entry['Bet'])+
                            "E_spread {0:.3f} ".format(new_entry['E_spread'])+
                            "Strategy "+strategy_name)
@@ -1703,12 +1763,7 @@ class Trader:
                     if send_info_api:
                         send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
 #                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
-                    position = Position(new_entry, self.strategies[new_entry['strategy_index']])
                     
-                    self.add_new_candidate(position)
-                    str_idx = self.next_candidate.strategy_index
-                    ass_idx = self.ass2index_mapping[thisAsset]
-                    ass_id = self.running_assets[ass_idx]
                     
 #                    tactic = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1
 #                    print(this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1])
@@ -1722,7 +1777,7 @@ class Trader:
                         # open market
                         if not self.is_opened_strategy(ass_id):
                             # check if condition for opening is met
-                            condition_open, reason = self.check_contition_for_opening(tactic)
+                            condition_open, reason = self.check_contition_for_opening(tactic, ass_idx)
                             if condition_open:
                                 # assign budget
                                 lots = self.assign_lots(new_entry[entry_time_column])
@@ -1815,7 +1870,7 @@ class Trader:
 #                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                 else:
                                     extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI[0], tactic)
-                                    if extention:    
+                                    if extention:
                                         # include third condition for thresholds
                                         # extend deadline
                                         if not run_back_test:
@@ -1854,9 +1909,12 @@ class Trader:
                                             self.write_log(out)
                                             
                                         # Check if Double Down
-                                        condition_dd, reason_dd = self.check_contition_for_opening(tactic)
+                                        condition_dd, reason_dd = self.check_contition_for_opening(tactic, ass_idx)
                                         #if condition_dd:
-                                        self.check_condition_double_down(curr_GROI[0], ass_id, str_idx, thisAsset, new_entry[entry_time_column], Bo, Ao, condition_dd, reason_dd, directory_MT5_ass)
+                                        self.check_condition_double_down(curr_GROI[0], ass_id, str_idx, 
+                                                                         thisAsset, new_entry[entry_time_column], 
+                                                                         Bo, Ao, new_entry['E_spread'], condition_dd, 
+                                                                         reason_dd, directory_MT5_ass)
                                         self.update_position(ass_id)
                                         # send position extended command to api
                                         if send_info_api:
@@ -3014,6 +3072,94 @@ def send_log_info(queue, thisAsset, dict_info, bias=199, only_queue=False):
         # delete last comma
         string = string[:-1]
         write_log(string, log_file)
+        
+def init_vi(assets):
+    """ Init Volatility Index structure """
+    vi_struct = {}
+    
+    w1 = 1-1/1
+#    w10 = 1-1/10
+#    w20 = 1-1/20
+#    w100 = 1-1/100
+#    w1000 = 1-1/1000
+#    w10000 = 1-1/10000
+    ws = [w1]
+    vi_struct['ws'] = ws
+    vi_struct['window_size'] = 100
+    vi_struct['emas_volat'] = [[-1 for _ in ws] for _ in assets]#[[-1 for _ in assets] for _ in ws]
+    vi_struct['means_volat'] = [0 for _ in ws]
+    vi_struct['events_per_ass_counter'] = [-1 for _ in assets]
+    vi_struct['VIs'] = [0 for _ in ws]
+    vi_struct['max_volat'] = [0.0 for _ in assets]
+    vi_struct['min_volat'] = [9999999999999999.99 for _ in assets] # infty
+    vi_struct['track_idx'] = [0 for i in assets]
+    vi_struct['track_last_asks'] = [np.zeros((vi_struct['window_size'])) for i in assets]
+    
+    return vi_struct
+
+def update_vi(vi_struct, ass_idx, asks):
+    """ Get Volatility Index """
+    track_idx = vi_struct['track_idx']
+    track_last_asks = vi_struct['track_last_asks']
+    window_size = vi_struct['window_size']
+    max_volat = vi_struct['max_volat']
+    min_volat = vi_struct['min_volat']
+    emas_volat = vi_struct['emas_volat']
+    
+    n_new_samps = len(asks)
+    
+    prev_asks = track_last_asks[ass_idx][track_idx[ass_idx]:track_idx[ass_idx]+n_new_samps]
+    
+    track_last_asks[ass_idx][track_idx[ass_idx]:track_idx[ass_idx]+n_new_samps] = asks
+    
+    if track_last_asks[ass_idx][-1]>0:
+        max_buff = max(asks)
+        min_buff = min(asks)
+        max_prev_asks = max(prev_asks)
+        min_prev_asks = min(prev_asks)
+        if max_buff>max_volat[ass_idx]:
+#            print("ask>max_volat")
+            max_volat[ass_idx] = max_buff
+        if max_prev_asks==max_volat[ass_idx]:
+#            print("prev_ask==max_volat")
+            max_volat[ass_idx] = np.max(track_last_asks[ass_idx])
+        if min_buff<min_volat[ass_idx]:
+#            print("ask<min_volat")
+            min_volat[ass_idx] = min_buff
+        if min_prev_asks==min_volat[ass_idx]:
+#            print("prev_ask==min_volat")
+            min_volat[ass_idx] = np.min(track_last_asks[ass_idx])
+#        max_volat = np.max(track_last_asks[ass_id])
+#        min_volat = np.min(track_last_asks[ass_id])
+        vi_struct['max_volat'] = max_volat
+        vi_struct['min_volat'] = min_volat
+        #window_asks = np.array(track_last_asks[ass_id])
+#        window_asks = track_last_asks[ass_id]
+        volat = max_volat[ass_idx]/min_volat[ass_idx]-1
+        # update max volume
+#                if volat>max_volats[ass_id]:
+        for i in range(len(emas_volat[ass_idx])):
+            if emas_volat[ass_idx][i] == -1:
+                emas_volat[ass_idx][i] = volat
+            # update volatility tracking
+            emas_volat[ass_idx][i] = volat#ws[i]*emas_volat[ass_idx][i]+(1-ws[i])*volat
+        
+        VIs = [100*ema for ema in emas_volat[ass_idx]]
+#        print("\r"+DateTime+" VI1 {0:.4f} VI10 {1:.4f} VI20 {2:.4f} VI100 {3:.4f} ".
+#              format(VIs[0],VIs[1],VIs[2],VIs[3]), sep=' ', end='', flush=True)
+        vi_struct['VIs'] = VIs
+    
+    track_idx[ass_idx] = (track_idx[ass_idx]+n_new_samps) % window_size
+#    print("track_idx[ass_idx]")
+#    print(track_idx[ass_idx])
+    #events_per_ass_counter[ass_idx] += 1
+    
+    vi_struct['emas_volat'] = emas_volat
+    
+    #struct['events_per_ass_counter'] = events_per_ass_counter
+    vi_struct['track_idx'] = track_idx
+    
+    return vi_struct
 
 def fetch(lists, list_models, trader, directory_MT5, AllAssets, 
           running_assets, log_file, results, queue, queue_prior):
@@ -3034,6 +3180,11 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     tic = time.time()
     delayed_stop_run = False
     count10s = [0 for _ in running_assets]
+    # init VI structure
+    if margin_adapt:
+        vi_struct = init_vi(running_assets)
+    else:
+        vi_struct = {}
     while run:
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
@@ -3206,10 +3357,13 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 outputs, new_outputs = dispatch(lists, list_models, buffer, AllAssets, 
                                                 ass_id, ass_idx, first_info_nets_fetched,
                                                 log_file, queue)
+                # update VIs
+                if margin_adapt:
+                    vi_struct = update_vi(vi_struct, ass_idx, list(buffer['SymbolAsk']))
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
-                    #print(outputs)
-                    trader.check_new_inputs(outputs, thisAsset, results,
+                    
+                    trader.check_new_inputs(outputs, thisAsset, results, vi_struct, 
                                             directory_MT5_ass=directory_MT5_ass)
             
             # check for closing
@@ -4522,6 +4676,14 @@ if hasattr(LC,'DOUBLE_DOWN'):
         print("\nDOUBLE DOWN ON!")
 else:
     double_down = {'on':False}
+
+if hasattr(LC,'MARGIN_ADAPT'):    
+    margin_adapt = LC.MARGIN_ADAPT
+    if margin_adapt:
+        print("\nMARGIN ADAPT TRUE!")
+else:
+    margin_adapt = False
+
 resume = LC.RESUME
 if resume:
     print("\n\nRESUME ON\n\n")

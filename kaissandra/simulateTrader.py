@@ -625,7 +625,7 @@ class Trader:
                                 ask==self.next_candidate.entry_ask)
         return first_condition_open
     
-    def check_secondary_contition_for_opening(self, idx):
+    def check_secondary_condition_for_opening(self, idx):
         """  """
         str_idx = name2str_map[self.next_candidate.strategy]
         this_strategy = strategys[str_idx]
@@ -735,7 +735,7 @@ class Trader:
                 this_strategy.info_spread_ranges[ass_loc]['th'][t][0]+\
                 this_strategy.info_spread_ranges[ass_loc]['mar'][t][0] and\
                 self.next_candidate.p_md>=this_strategy.info_spread_ranges[ass_loc]['th'][t][1]+\
-                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]#+margin
+                this_strategy.info_spread_ranges[ass_loc]['mar'][t][1]+margins[idx]#+margin
             condition = dir_condition and prods_condition and \
                 100*curr_GROI>=self.list_lim_groi[str_idx][self.map_ass2pos_str[str_idx][idx]]
         return condition, dir_condition, prods_condition
@@ -1199,6 +1199,8 @@ class Trader:
                str(self.next_candidate.bet)+
                " p_mc={0:.2f}".format(self.next_candidate.p_mc)+
                " p_md={0:.2f}".format(self.next_candidate.p_md)+
+               " margin {0:.3f}".format(margins[idx])+
+               vi_str+
                " spread={0:.3f}".format(e_spread/self.pip)+ " cGROI {0:.2f}".format(100*curr_GROI))
         if self.list_quarantined_pos[str_idx][self.map_ass2pos_str[str_idx][idx]]['on']:
             out += " QARAN"
@@ -2002,10 +2004,14 @@ if __name__ == '__main__':
             
             ass_idx = ass2index_mapping[thisAsset]
             
+            
             if margin_adapt:
                 idx_struct = calculate_indexes_v2(idx_struct, ass_idx)
                 # linear relationship
-                margins[ass_idx] = 0.16*idx_struct['VIs'][0]-0.04
+                margins[ass_idx] = 0.16*idx_struct['VIs'][0]-0.05
+                vi_str = " VI {0:.3f}".format(idx_struct['VIs'][0])
+            else:
+                vi_str = ""
                 # step-like relationship
 #                if idx_struct['VIs'][0]>=0.5 and margins[ass_idx]!=0.04:# and margin<0.12:
 #                    margins[ass_idx] = 0.04
@@ -2067,7 +2073,7 @@ if __name__ == '__main__':
                 # Taking last entry (all the same)
                 ban_condition = trader.list_is_asset_banned[s][ass_idx]#trader.check_asset_not_banned()
             if not EXIT:
-                sec_cond, sp = trader.check_secondary_contition_for_opening(ass_idx)
+                sec_cond, sp = trader.check_secondary_condition_for_opening(ass_idx)
             else:
                 sec_cond = False
             
@@ -2085,6 +2091,7 @@ if __name__ == '__main__':
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                        " margin {0:.2f}".format(margins[ass_idx])+
+                       vi_str+
                       #" pofitability {0:.3f}".format(profitability)+
                       " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(int(trader.next_candidate.bet))+
@@ -2134,11 +2141,13 @@ if __name__ == '__main__':
 #                          format(VIs[0])
 #                    print(out)
 #                    trader.write_log(out)
+                
                 out = (DateTime+" "+
                        thisAsset+
                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
-                       " margin {0:.2f}".format(margins[ass_idx])+
+                       " margin {0:.3f}".format(margins[ass_idx])+
+                       vi_str+
                       #" pofitability {0:.3f}".format(profitability)+
                       " Spread {0:.3f}".format(e_spread/trader.pip)+" Bet "+
                       str(trader.next_candidate.bet)+
@@ -2187,7 +2196,7 @@ if __name__ == '__main__':
                                 EXIT, rewind = trader.extend_position(ass_idx, curr_GROI[0])
                                 #str_idx = name2str_map[trader.next_candidate.strategy]
                                 # double down
-                                if double_down['on']:
+                                if double_down['on'] and trader.next_candidate!= None:
                                     if curr_GROI[0]/trader.pip<=-(trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint']+\
                                             trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['every']):
                                         if sec_cond:
@@ -2254,6 +2263,7 @@ if __name__ == '__main__':
                                        " p_mc {0:.3f}".format(trader.next_candidate.p_mc)+
                                        " p_md {0:.3f}".format(trader.next_candidate.p_md)+
                                        " margin {0:.2f}".format(margins[ass_idx])+
+                                       vi_str+
                                       #" pofitability {0:.3f}".format(profitability)+
                                       " Spread {0:.3f}".format(e_spread/trader.pip)+
                                       " Bet "+str(trader.next_candidate.bet)+
@@ -2326,7 +2336,7 @@ if __name__ == '__main__':
 #                                if len(trader.list_opened_pos_per_str)==0:
 #                                    approached = 0
 #                                
-#                                if trader.chech_ground_condition_for_opening() and trader.check_primary_condition_for_opening() and trader.check_secondary_contition_for_opening():
+#                                if trader.chech_ground_condition_for_opening() and trader.check_primary_condition_for_opening() and trader.check_secondary_condition_for_opening():
 #                                    approached, n_entries, n_pos_opened, EXIT, rewind = trader.open_position(ass_idx, approached, n_entries, n_pos_opened, lots=lots)
                         
                         # end of if (next_pos.ADm>this_pos.ADm or (next_pos.ADm==this_pos.ADm and np.abs(next_pos.bet)>np.abs(this_pos.bet))) and Assets[event_idx]!=next_pos.asset:
@@ -2397,19 +2407,19 @@ if __name__ == '__main__':
 #            if (trader.chech_ground_condition_for_opening() and 
 #                trader.check_primary_condition_for_opening()):
 #                print("Primary and sec ok")
-#                print(trader.check_secondary_contition_for_opening()[0])
+#                print(trader.check_secondary_condition_for_opening()[0])
 #                print(ban_condition)
 #            elif trader.chech_ground_condition_for_opening() and not trader.check_primary_condition_for_opening():
 #                print("Primary ok and sec no")
-#                print(trader.check_secondary_contition_for_opening()[0])
+#                print(trader.check_secondary_condition_for_opening()[0])
 #                print(ban_condition)
 #            elif not trader.chech_ground_condition_for_opening() and trader.check_primary_condition_for_opening():
 #                print("Primary no and sec ok")
-#                print(trader.check_secondary_contition_for_opening()[0])
+#                print(trader.check_secondary_condition_for_opening()[0])
 #                print(ban_condition)
             if (trader.chech_ground_condition_for_opening() and 
                 trader.check_primary_condition_for_opening() and (not 
-                trader.check_secondary_contition_for_opening(ass_idx)[0] or not ban_condition)):
+                trader.check_secondary_condition_for_opening(ass_idx)[0] or not ban_condition)):
                 not_entered_secondary += 1
                 #print(time_stamp.strftime('%Y.%m.%d %H:%M:%S')+" Secondary condition failed "+Assets[event_idx].decode("utf-8"))
                 EXIT, rewind = trader.update_candidates()
