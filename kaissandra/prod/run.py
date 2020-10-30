@@ -3085,7 +3085,7 @@ def init_vi(assets):
 #    w10000 = 1-1/10000
     ws = [w1]
     vi_struct['ws'] = ws
-    vi_struct['window_size'] = 100
+    vi_struct['window_size'] = 5000
     vi_struct['emas_volat'] = [[-1 for _ in ws] for _ in assets]#[[-1 for _ in assets] for _ in ws]
     vi_struct['means_volat'] = [0 for _ in ws]
     vi_struct['events_per_ass_counter'] = [-1 for _ in assets]
