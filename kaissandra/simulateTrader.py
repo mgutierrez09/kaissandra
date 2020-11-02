@@ -1541,10 +1541,11 @@ if __name__ == '__main__':
 
     start_time = dt.datetime.strftime(dt.datetime.now(),'%y%m%d%H%M%S')
     filter_KW = False
-    margin_adapt = True
+    margin_adapt = False
     double_down = {'on':True,  # activate double down strategy
                   'every':10,  # how many pips down before double down
-                  'amount':1} # how much double down compared to basic entry
+                  'amount':1, # how much double down compared to basic entry
+                  'increase':'double'}
                   #'checkpoint':0}  # last double downed checkpoint 
     max_opened_positions = 30
     max_pos_per_curr = 100
@@ -1566,13 +1567,13 @@ if __name__ == '__main__':
                                   (0.54, 0.6), (0.55, 0.6), (0.58, 0.6), (0.55, 0.61), (0.58, 0.61), (0.58, 0.61), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), (0.65, 0.6), 
                                   (0.65, 0.6), (0.64, 0.61), (0.65, 0.61), (0.65, 0.61), (0.67, 0.61), (0.67, 0.61), (0.69, 0.61), (0.69, 0.61), (0.69, 0.61), (0.71, 0.61), (0.71, 0.61), (0.71, 0.61), 
                                   (0.65, 0.63), (0.73, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61), (0.75, 0.61)],
-                           'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)]} for _ in assets],
+                           'mar':[(0,0.0)]+[(0,0.01) for _ in range(46)]} for _ in assets],
                           [{'sp':[0]+[round_num(i,10) for i in np.linspace(.5,5,num=46)],
                            'th': [(0.5, 0.55)]+[(0.54, 0.57), (0.51, 0.58), (0.56, 0.57), (0.54, 0.58), (0.56, 0.58), (0.58, 0.58), (0.59, 0.58), (0.61, 0.58), (0.62, 0.58), (0.66, 0.57), (0.65, 0.58), (0.66, 0.58), 
                                   (0.66, 0.58), (0.67, 0.58), (0.67, 0.58), (0.67, 0.58), (0.68, 0.58), (0.68, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), 
                                   (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.71, 0.58), (0.72, 0.58), (0.72, 0.58), (0.72, 0.58), 
                                   (0.73, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.74, 0.58), (0.75, 0.58), (0.75, 0.58)],
-                           'mar':[(0,0.0)]+[(0,0.02) for _ in range(46)]} for _ in assets]]
+                           'mar':[(0,0.0)]+[(0,0.01) for _ in range(46)]} for _ in assets]]
     margins = [0.0 for _ in assets]
     init_margin = 0.0
     
@@ -2207,8 +2208,6 @@ if __name__ == '__main__':
                                             lots = trader.assign_lots(DateTime)
                                             amount_dd = times_dd*double_down['amount']*lots
                                             
-                                            
-                                            
                                             if trader.available_bugdet_in_lots>=amount_dd and trader.n_pos_currently_open<max_opened_positions:
                                                 
                                                 n_pos_opened = trader.double_down_position(ass_idx, 
@@ -2225,8 +2224,13 @@ if __name__ == '__main__':
                                                 trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint'] = \
                                                     trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['checkpoint']+\
                                                     times_dd*trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['every']
-                                                trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['every'] = \
-                                                    2*trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['every']
+                                                if double_down['increase']=='constant':
+                                                    pass
+                                                elif double_down['increase']=='double':
+                                                    trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['every'] = \
+                                                        2*trader.list_dd_info[str_idx][trader.map_ass2pos_str[str_idx][ass_idx]][0]['every']
+                                                else:
+                                                    raise ValueError("Error. increase in double_down unknown")    
                                                 out = (DateTime+" Double Down "+#asset+
                                                       " Lots {0:.2f}".format(amount_dd)+" "+
                                                       " spread={0:.3f}".format(e_spread/trader.pip)+

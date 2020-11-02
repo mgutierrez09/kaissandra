@@ -3109,14 +3109,24 @@ def update_vi(vi_struct, ass_idx, asks):
     n_new_samps = len(asks)
     
     prev_asks = track_last_asks[ass_idx][track_idx[ass_idx]:track_idx[ass_idx]+n_new_samps]
+    max_prev_asks = max(prev_asks)
+#    print("max_prev_asks")
+#    print(max_prev_asks)
+    min_prev_asks = min(prev_asks)
+#    print("min_prev_asks")
+#    print(min_prev_asks)
     
     track_last_asks[ass_idx][track_idx[ass_idx]:track_idx[ass_idx]+n_new_samps] = asks
     
     if track_last_asks[ass_idx][-1]>0:
         max_buff = max(asks)
+#        print("max_buff")
+#        print(max_buff)
         min_buff = min(asks)
-        max_prev_asks = max(prev_asks)
-        min_prev_asks = min(prev_asks)
+#        print("min_buff")
+#        print(min_buff)
+        
+        
         if max_buff>max_volat[ass_idx]:
 #            print("ask>max_volat")
             max_volat[ass_idx] = max_buff
@@ -3145,8 +3155,8 @@ def update_vi(vi_struct, ass_idx, asks):
             emas_volat[ass_idx][i] = volat#ws[i]*emas_volat[ass_idx][i]+(1-ws[i])*volat
         
         VIs = [100*ema for ema in emas_volat[ass_idx]]
-#        print("\r"+DateTime+" VI1 {0:.4f} VI10 {1:.4f} VI20 {2:.4f} VI100 {3:.4f} ".
-#              format(VIs[0],VIs[1],VIs[2],VIs[3]), sep=' ', end='', flush=True)
+        print("\r"+" VI1 {0:.4f}".
+              format(VIs[0]))#, sep=' ', end='', flush=True
         vi_struct['VIs'] = VIs
     
     track_idx[ass_idx] = (track_idx[ass_idx]+n_new_samps) % window_size
