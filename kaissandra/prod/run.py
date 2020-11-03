@@ -2917,6 +2917,7 @@ def renew_mt5_dir(AllAssets, running_assets):
     log_ids = ['' for _ in range(len(running_assets))]
     nonsynched_assets = [i for i in running_assets]
     waitings = [True for _ in running_assets]
+    buffers = [[] for _ in running_assets]
     its = 0
     run = True
     # loop over assets
@@ -2935,8 +2936,17 @@ def renew_mt5_dir(AllAssets, running_assets):
                 if os.path.exists(directory_MT5_IO_ass):
                     # list of all files in MT5 directory
                     listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
-                    for file in listAllDir:
+                    dates_mod_files = [os.path.getmtime(directory_MT5_IO_ass+file) for file in listAllDir]
+                    indexes_ordered = sorted(range(len(dates_mod_files)), key=lambda k: dates_mod_files[k])
+                    #for file in listAllDir:
+                    for idx in indexes_ordered:
+                        file = listAllDir[idx]
+#                        print("Reading file "+file)
                         try:
+                            # read and delete
+                            buffer = pd.read_csv(directory_MT5_IO_ass+file)
+#                            print(file+" read")
+                            buffers[ass_idx].append(buffer)
                             # try to delete file
                             os.remove(directory_MT5_IO_ass+file)
                         except:
@@ -2999,25 +3009,38 @@ def renew_mt5_dir(AllAssets, running_assets):
                         nonsynched_assets = []
             time.sleep(2)
             
-    return file_ids, log_ids, run
+    return file_ids, log_ids, run, buffers
 
-def renew_directories(AllAssets, running_assets):
+def renew_directories(AllAssets, running_assets, clean_mt5):
     """ Renew MT5 directories """
     for ass_id in running_assets:
         thisAsset = AllAssets[str(ass_id)]
         
-        #directory_MT5_ass = directory_MT5+thisAsset+"/"
-
-#        if os.path.exists(directory_MT5_ass):
-#            try:
-#                shutil.rmtree(directory_MT5_ass)
-#                
-#                time.sleep(1)
-#            except:
-#                print(thisAsset+" Warning. Error when renewing MT5 directory")
-#                # TODO: Synch fetcher with current file if MT5 is recording
+        if clean_mt5:
+            directory_MT5_IO_ass = LC.directory_MT5_IO+thisAsset+"/"
             
-        #try:
+            if os.path.exists(directory_MT5_IO_ass):
+                # list of all files in MT5 directory
+                listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
+                #for file in listAllDir:
+                for file in listAllDir:
+#                        print("Reading file "+file)
+                    try:
+                        # delte file
+                        os.remove(directory_MT5_IO_ass+file)
+                    except:
+                        pass
+    
+#            if os.path.exists(directory_MT5_ass):
+#                try:
+#                    shutil.rmtree(directory_MT5_ass)
+#                    
+#                    time.sleep(1)
+#                except:
+#                    print(thisAsset+" Warning. Error when renewing MT5 directory")
+#                    # TODO: Synch fetcher with current file if MT5 is recording
+#                
+            #try:
         io_ass_dir = LC.io_live_dir+thisAsset+"/"
         if os.path.exists(io_ass_dir):
             try:
@@ -3026,7 +3049,7 @@ def renew_directories(AllAssets, running_assets):
                 time.sleep(1)
             except:
                 print(thisAsset+" Warning. Error when renewing IO directory") 
-            
+        
         
             #except:
                 #print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
@@ -3155,8 +3178,8 @@ def update_vi(vi_struct, ass_idx, asks):
             emas_volat[ass_idx][i] = volat#ws[i]*emas_volat[ass_idx][i]+(1-ws[i])*volat
         
         VIs = [100*ema for ema in emas_volat[ass_idx]]
-        print("\r"+" VI1 {0:.4f}".
-              format(VIs[0]))#, sep=' ', end='', flush=True
+#        print("\r"+" VI1 {0:.4f}".
+#              format(VIs[0]))#, sep=' ', end='', flush=True
         vi_struct['VIs'] = VIs
     
     track_idx[ass_idx] = (track_idx[ass_idx]+n_new_samps) % window_size
@@ -3178,7 +3201,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     
     #nAssets = len(running_assets)
     # renew MT5 directories
-    fileExt, list_log_ids, run = renew_mt5_dir(AllAssets, running_assets)
+    fileExt, list_log_ids, run, buffers = renew_mt5_dir(AllAssets, running_assets)
+    
     
     #fileExt = [0 for ass in range(nAssets)]
     
@@ -3212,13 +3236,73 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             fileID = thisAsset+deli+str(fileExt[ass_idx]).zfill(2)+extension
             success = 0
             io_ass_dir = LC.io_live_dir+thisAsset+"/"
-            try:
-                buffer = pd.read_csv(directory_MT5_ass+fileID)#
-                #print(thisAsset+" new buffer received")
-                os.remove(directory_MT5_ass+fileID)
+            if len(buffers[ass_idx])==0:
+                try: # no info in laying behind
+                    buffer = pd.read_csv(directory_MT5_ass+fileID)#
+                    #print(thisAsset+" new buffer received")
+                    os.remove(directory_MT5_ass+fileID)
+                    from_file = True
+                    #nFilesDir = len(os.listdir(directory_MT5_ass))
+                    #start_timer(ass_idx)
+                    if not first_info_fetched:
+                        logMsg = " First info fetched"
+                        out = thisAsset+logMsg
+                        print(out)
+                        send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    if log_thu_control:
+    #                        queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    else:
+    #                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+    #                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
+                        #print(buffer)
+                        first_info_fetched = True
+                    if not first_info_nets_fetched[ass_idx][nn_counter[ass_idx]]:
+                        first_info_nets_fetched[ass_idx][nn_counter[ass_idx]] = True
+                        print(thisAsset+" nn "+str(nn_counter[ass_idx])+" set true")
+                        nn_counter[ass_idx] = np.mod(nn_counter[ass_idx]+1, nNets)
+    #                print(fileID+" size: "+str(buffer.shape[0]))
+    #                print(buffer)
+                    if buffer.shape[0]==10:
+                        success = 1
+                    else:
+                        logMsg = " WARNING! Buffer size not 10. Discarded"
+                        print(thisAsset+logMsg)
+                        send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    if log_thu_control:
+    #                        queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    else:
+    #                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+    #                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
+                        
+                        fileExt, _, _, _ = renew_mt5_dir(AllAssets, running_assets)
+                        
+                except (FileNotFoundError,PermissionError,OSError):
+                    # reset coming from Broker
+                    if os.path.exists(directory_MT5_ass+'0RESET'):
+                        print("RESET from broker found.")
+                        os.remove(directory_MT5_ass+'0RESET')
+                        fileExt, _, _, _ = renew_mt5_dir(AllAssets, running_assets)
+                    if os.path.exists(io_ass_dir+'PA'):
+                        print(thisAsset+" PAUSED. Waiting for RE command...")
+                        os.remove(io_ass_dir+'PA')
+                        while not os.path.exists(io_ass_dir+'RE'):
+                            time.sleep(np.random.randint(6)+5)
+                        os.remove(io_ass_dir+'RE')
+                    elif os.path.exists(io_ass_dir+'RE'):
+                        print("WARNING! RESUME command found. Send first PAUSE command")
+                        os.remove(io_ass_dir+'RE')
+                    elif os.path.exists(io_ass_dir+'RESET'):
+                        print("RESET command found.")
+                        os.remove(io_ass_dir+'RESET')
+                        lists = flush_asset(lists, ass_idx, 0.0)
+                    time.sleep(.02)
+            else:
                 
-                #nFilesDir = len(os.listdir(directory_MT5_ass))
-                #start_timer(ass_idx)
+                buffer = buffers[ass_idx][0]
+                buffers[ass_idx].pop(0)
+#                print("len(buffers[ass_idx])")
+#                print(len(buffers[ass_idx]))
+                from_file = False
                 if not first_info_fetched:
                     logMsg = " First info fetched"
                     out = thisAsset+logMsg
@@ -3249,30 +3333,11 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
 #                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                     
-                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
-                    
-            except (FileNotFoundError,PermissionError,OSError):
-                # reset coming from Broker
-                if os.path.exists(directory_MT5_ass+'0RESET'):
-                    print("RESET from broker found.")
-                    os.remove(directory_MT5_ass+'0RESET')
-                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
-                if os.path.exists(io_ass_dir+'PA'):
-                    print(thisAsset+" PAUSED. Waiting for RE command...")
-                    os.remove(io_ass_dir+'PA')
-                    while not os.path.exists(io_ass_dir+'RE'):
-                        time.sleep(np.random.randint(6)+5)
-                    os.remove(io_ass_dir+'RE')
-                elif os.path.exists(io_ass_dir+'RE'):
-                    print("WARNING! RESUME command found. Send first PAUSE command")
-                    os.remove(io_ass_dir+'RE')
-                elif os.path.exists(io_ass_dir+'RESET'):
-                    print("RESET command found.")
-                    os.remove(io_ass_dir+'RESET')
-                    lists = flush_asset(lists, ass_idx, 0.0)
-                time.sleep(.02)
+                    fileExt, _, _, buffers = renew_mt5_dir(AllAssets, running_assets)
             
             # check shut down command
+#            if count10s[ass_idx]==56:
+#                print("CHECKING SD")
             if count10s[ass_idx]==56 and os.path.exists(io_ass_dir+'SD'):
                 logMsg = " Shutting down"
                 out = thisAsset+logMsg
@@ -3354,7 +3419,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 
             # update file extension
             if success:
-                fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
+                if from_file:
+                    fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
                 # update list
                 
                 
@@ -4767,8 +4833,13 @@ if __name__=='__main__':
     else:
         session_json = None
         token_header = None
-        
-    renew_directories(C.AllAssets, running_assets)
+    
+    clean_mt5 = False
+    for arg in sys.argv:
+        if arg=='clean':
+            # clean directory before running
+            clean_mt5 = True
+    renew_directories(C.AllAssets, running_assets, clean_mt5)
 #    if synchroned_run and send_info_api:
 #        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
     processes, queues, queues_prior = launch(synchroned_run=synchroned_run, 

@@ -8,6 +8,7 @@ This sub-package deals with all controlling methods and functions to control
 the proper behavior of Kaissandra's production package
 """
 import os
+import re
 import time
 import datetime as dt
 import sys
@@ -54,7 +55,7 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
                       if len(sorted(os.listdir(directory_MT5+AllAssets[str(ass_id)]+"/")))>0 \
                       else '' for ass_id in running_assets]
     
-    list_num_files = [{'max':-1,'curr':0, 'time':dt.datetime.now()} for i in running_assets]
+    list_num_files = [{'max':-1,'curr':0, 'time':dt.datetime.now(), 'fileid':-1, 'since':dt.datetime.now(), 'duration':0} for i in running_assets]
     # crate log queue and lauch it in a separate process
     if len(queues)>0:
         log_queue = Queue(-1)
@@ -92,9 +93,10 @@ def control(running_assets, timeout=15, queues=[], queues_prior=[], send_info_ap
                                                       reset, from_main, token_header, logger, send_info_api)
         
         asset = AllAssets[str(running_assets[ass_idx])]
-        if not test:
-            MSG = " Current files in dir: "+str(list_num_files[ass_idx]['curr'])+\
-                ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")
+        if 1:#not test:
+            MSG = " Files: "+str(list_num_files[ass_idx]['curr'])+\
+                ". Max: "+str(list_num_files[ass_idx]['max'])+". Time: "+list_num_files[ass_idx]['time'].strftime("%d.%m.%Y %H:%M:%S")+\
+                " File ID: "+str(list_num_files[ass_idx]['fileid'])+". Duration: "+str(list_num_files[ass_idx]['duration'])+" sec"
             print(asset+MSG)
             if send_info_api:
                 ct.send_trader_log(MSG, asset, token_header)
@@ -239,7 +241,29 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
             else:
                 max_num = list_num_files[ass_idx]['max']
                 occured = list_num_files[ass_idx]['time']
-            list_num_files[ass_idx] = {'max':max_num,'curr':len(listAllFiles),'time':occured}
+            if len(listAllFiles)>0:
+                m = re.search('^'+thisAsset+'_\d+'+'.txt$',listAllFiles[-1])
+                prev_fileid = list_num_files[ass_idx]['fileid']
+                if m!=None:
+                    fileid = int(re.search('\d+',m.group()).group())
+                    curr_time = dt.datetime.now()
+                    if fileid==prev_fileid:
+                        
+                        list_num_files[ass_idx]['duration'] = (curr_time-list_num_files[ass_idx]['since']).seconds
+                        
+                    else:
+                        list_num_files[ass_idx]['duration'] = 0
+                        list_num_files[ass_idx]['since'] = curr_time
+                        list_num_files[ass_idx]['fileid'] = fileid
+                else:
+                    continue
+                
+            else: # no files in directory
+                list_num_files[ass_idx]['since'] = dt.datetime.now()
+                list_num_files[ass_idx]['duration'] = 0
+            list_num_files[ass_idx]['max'] = max_num
+            list_num_files[ass_idx]['time'] = occured
+            list_num_files[ass_idx]['curr'] = len(listAllFiles)
             # avoid error in case listAllFiles is empty and replace with empty
             # string if so
             if len(listAllFiles)>0:
@@ -253,7 +277,11 @@ def control_broker_connection(AllAssets, running_assets, timeout, directory_io,
                 list_last_file[ass_idx] = newLastFile
                 # reset reset flag
         except:
-            print("WARNING! Error in control_broker_connection. Skipped")
+            import traceback
+            print('Whoops! Problem:', file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            message = "Error in control_broker_connection of kaissandra.prod.control"
+            logger.exception(message)
         # check for logs in disk if from main
         if send_info_api:
             try:

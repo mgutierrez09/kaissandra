@@ -156,7 +156,7 @@ void openPosition(string origin, int thisPos, int str_idx){
             deadlines[str_idx] = 1; // reset deadline
             Bi_solls[str_idx] = buffer[bufferSize-1][0];
             Ai_solls[str_idx] = buffer[bufferSize-1][1];
-            difs_ticks[str_idx] = ticks_counter-ticks_counter_open;
+            difs_ticks[str_idx] = 0;//ticks_counter-ticks_counter_open;
             message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStats[str_idx],difs_ticks[str_idx],Bi_solls[str_idx], 
                   Bis[str_idx],Ai_solls[str_idx],Ais[str_idx],stoplosses[str_idx],(Ais[str_idx]-Bis[str_idx])/Ais[str_idx]);
             Print(message);
@@ -201,7 +201,7 @@ void openPosition(string origin, int thisPos, int str_idx){
             deadlines[str_idx] = 1; // reset deadline
             Bi_solls[str_idx] = buffer[bufferSize-1][0];
             Ai_solls[str_idx] = buffer[bufferSize-1][1];
-            difs_ticks[str_idx] = ticks_counter-ticks_counter_open;
+            difs_ticks[str_idx] = 0;//ticks_counter-ticks_counter_open;
             message = StringFormat("%d. #Events %d Ticks %d BiS %.4f BiI %.4f AiS %.4f AiI %.4f SL %.4f SP %.4f",thisPos,nEventsPerStats[str_idx],difs_ticks[str_idx],Bi_solls[str_idx], 
                   Bis[str_idx],Ai_solls[str_idx],Ais[str_idx],stoplosses[str_idx],(Ais[str_idx]-Bis[str_idx])/Ais[str_idx]);
             Print(message);
