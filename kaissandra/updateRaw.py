@@ -397,8 +397,9 @@ if __name__=='__main__':
     # limit the build of the HDF5 to data comprised in these dates
     build_partial_raw = False
     build_test_db = True
-    init_date = '20200420'#'20200323'#'20200309'#'20191202'#'180928'
-    end_date = '20200425'#'181109'
+    init_date = '20181112'#Dont change this!
+    #'20200427'#'20200323'#'20200309'#'20191202'#'180928' 
+    end_date = '20201024'#'181109'
     init_date_dt = dt.datetime.strptime(init_date,'%Y%m%d')
     end_date_dt = dt.datetime.strptime(end_date,'%Y%m%d')
     
@@ -549,7 +550,11 @@ if __name__=='__main__':
         SymbolBid = group["SymbolBid"]
         SymbolAsk = group["SymbolAsk"]
         
-        init_idx, end_idx = get_fileidxs(new_files_newer, init_date, end_date, isgold=False)
+        if len(new_files_newer)>0:
+            init_idx, end_idx = get_fileidxs(new_files_newer, init_date, end_date, isgold=False)
+        else:
+            init_idx = 0
+            end_idx = 0
         
         # init separators
         separators_filename = separators_directory_name+thisAsset+'_separators.txt'
@@ -712,49 +717,52 @@ if __name__=='__main__':
         init_pointer_sep = pointer_sep
         # init file index
         file_newer_index = 0
+        # init pandas data frame where files are added to
+        tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
         # add new files that are newer
         for file in new_files_newer[init_idx:end_idx+1]:
             print("Copying "+file+" in HDF5 file")
             # read file and save it in a pandas data frame
             tradeInfo = tradeInfo.append(pd.read_csv(directory_origin+file), ignore_index=True)
-            if tradeInfo.shape[0]>0:
-                
-                # get separators if the source is not trusted
-                if not trusted_source:
-                    # update index
-                    file_newer_index += 1
-                    # get eparators from latest info
-                    this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
-                                                           bidThresDay,bidThresNight,[])
+        if tradeInfo.shape[0]>0:
+            print("Getting separators")
+            # get separators if the source is not trusted
+            if not trusted_source:
+                # update index
+                file_newer_index += 1
+                # get eparators from latest info
+                this_separators = extractSeparators(tradeInfo,minThresNight,minThresNight,
+                                                       bidThresDay,bidThresNight,[])
 #                    print(this_separators)
-                    # reference index according to general pointer
-                    this_separators.index = this_separators.index+pointer_sep
-                    # update list
-                    list_separators_newer.append(this_separators)
-                # resize data sets
-                size_dataset = DateTime.shape[0]
-                # resize DateTime
-                DateTime.resize((size_dataset+tradeInfo.shape[0],))
-                # build numpy helper vector
-                charar = np.chararray((tradeInfo.shape[0],),itemsize=19)
-                charar[:] = tradeInfo.DateTime.iloc[:]
-                # add new newer info at the end of the data set
-                DateTime[size_dataset:] = charar
-                # resize Symbolbid dataset
-                SymbolBid.resize((size_dataset+tradeInfo.shape[0],))
-                # add new newer info at the end of the data set
-                SymbolBid[size_dataset:] = tradeInfo.SymbolBid.iloc[:]
-                # resize SymbolAsk dataset
-                SymbolAsk.resize((size_dataset+tradeInfo.shape[0],))
-                # add new newer info at the end of the data set
-                SymbolAsk[size_dataset:] = tradeInfo.SymbolAsk.iloc[:]
-                # update pointer to file
-                pointer_sep += tradeInfo.shape[0]
-                
-            else:
-                print("WARNING: Empty file. Skipped.")
-            # reset tradeInfo
-            tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
+                # reference index according to general pointer
+                this_separators.index = this_separators.index+pointer_sep
+                # update list
+                list_separators_newer.append(this_separators)
+            # resize data sets
+            size_dataset = DateTime.shape[0]
+            # resize DateTime
+            DateTime.resize((size_dataset+tradeInfo.shape[0],))
+            # build numpy helper vector
+            charar = np.chararray((tradeInfo.shape[0],),itemsize=19)
+            charar[:] = tradeInfo.DateTime.iloc[:]
+            # add new newer info at the end of the data set
+            DateTime[size_dataset:] = charar
+            # resize Symbolbid dataset
+            SymbolBid.resize((size_dataset+tradeInfo.shape[0],))
+            # add new newer info at the end of the data set
+            SymbolBid[size_dataset:] = tradeInfo.SymbolBid.iloc[:]
+            # resize SymbolAsk dataset
+            SymbolAsk.resize((size_dataset+tradeInfo.shape[0],))
+            # add new newer info at the end of the data set
+            SymbolAsk[size_dataset:] = tradeInfo.SymbolAsk.iloc[:]
+            # update pointer to file
+            pointer_sep += tradeInfo.shape[0]
+            print("DONE")
+            
+        else:
+            print("WARNING: Empty file. Skipped.")
+        # reset tradeInfo
+        tradeInfo = pd.DataFrame(columns=["DateTime","SymbolBid","SymbolAsk"])
         
         # end of file in new_files_newer:
         if len(new_files_newer[init_idx:end_idx+1])>0:

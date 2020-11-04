@@ -877,7 +877,7 @@ class Trader:
             info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
                     str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
                     "0"+"\t"+str(Dir)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
-                    str(Ao)+"\t"+strategy_name
+                    str(Ao)+"\t"+strategy_name+"\t"+lots+"\t"+lots*self.LOT*ROI_live
                     
             # update lists
             GROIs.append(GROI_live)
@@ -978,7 +978,7 @@ class Trader:
                 pos_info = ass+"\t"+Ti[:10]+"\t"+Ti[11:]+"\t"+date_time[:10]+"\t"+date_time[11:]+"\t"+\
                     str(100*GROI_live)+"\t"+str(100*ROI_live)+"\t"+str(100*spread)+"\t"+str(100*espread)+"\t"+\
                     "0"+"\t"+str(direction)+"\t"+str(Bi)+"\t"+str(Bo)+"\t"+str(Ai)+"\t"+\
-                    str(Ao)+"\t"+strategy_name
+                    str(Ao)+"\t"+strategy_name+"\t"+lotss[i]+"\t"+lotss[i]*self.LOT*ROI_live
                 self.update_position_result(idx, s, pos_info, lot_ratio, lotss[i], GROI_live, ROI_live, direction, date_time)
                 self.n_pos_currently_open -= 1
                 self.substract_currencies(ass, direction)
@@ -1891,7 +1891,7 @@ if __name__ == '__main__':
         os.makedirs(positions_dir)
     
     
-    columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo\tstrategy'
+    columns_positions = 'Asset\tDi\tTi\tDo\tTo\tGROI\tROI\tspread\tespread\text\tDir\tBi\tBo\tAi\tAo\tstrategy\tlots\tprofits'
     file = open(positions_dir+positions_file,"a")
     file.write(columns_positions+"\n")
     file.close()
@@ -2568,7 +2568,7 @@ if __name__ == '__main__':
         trader.write_log(out)
         results.update_results()
         
-        init_budget = trader.budget
+        #init_budget = trader.budget
         
         
         total_entries = int(np.sum(results.number_entries))
