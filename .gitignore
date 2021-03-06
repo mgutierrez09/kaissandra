@@ -1,6 +1,7 @@
 /kaissandra/__pycache__
 /quick_and_dirty_2.ipynb
 kaissandra/local_config.py
+/kaissandra/backup_config/
 notebooks/.ipynb_checkpoints
 /__pycache__/
 /notebooks/

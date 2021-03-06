@@ -14,6 +14,7 @@ import datetime as dt
 import pickle
 import re
 import tensorflow as tf
+from itertools import count, filterfalse
 
 entry_time_column = 'Entry Time'#'Entry Time
 exit_time_column = 'Exit Time'#'Exit Time
@@ -119,11 +120,12 @@ class Results:
         
     def save_results(self):
         """ Save results in disk """
-        results_dict = {'dts_close':self.dts_close,
-                    'GROIs':self.GROIs,
-                    'ROIs':self.ROIs,
-                    'earnings':self.earnings}
-        pickle.dump( results_dict, open( self.results_dir_and_file, "wb" ))
+        pass
+#        results_dict = {'dts_close':self.dts_close,
+#                    'GROIs':self.GROIs,
+#                    'ROIs':self.ROIs,
+#                    'earnings':self.earnings}
+        #pickle.dump( results_dict, open( self.results_dir_and_file, "wb" ))
     
     def update_meta_pos(self):
         """ Update metadata of position. Metadata consists of:
@@ -355,11 +357,14 @@ class Trader:
     def __init__(self, running_assets, ass2index_mapping, strategies,
                  log_file, results_dir="", max_opened_positions=None, 
                  start_time='', config_name='',net2strategy=[], 
-                 queue=None, queue_prior=None, session_json=None):
+                 queue=None, queue_prior=None, session_json=None, token_header=None):
         
         self.list_opened_positions = [[] for _ in range(len(strategies))]
         self.map_ass_idx2pos_idx = [np.array([-1 for i in range(len(C.AllAssets))]) for _ in range(len(strategies))]
+        self.pos_idx2map_ass_str = [(-1, -1, -1) for _ in range(max_opened_positions)]
+        self.list_pos_idx = []
         self.list_count_events = [[] for _ in range(len(strategies))]
+        self.list_dd_info = [[] for _ in range(len(strategies))] # track double down positions
         self.list_count_all_events = [[] for _ in range(len(strategies))]
         self.list_stop_losses = [[] for _ in range(len(strategies))]
         self.list_take_profits = [[] for _ in range(len(strategies))]
@@ -380,14 +385,15 @@ class Trader:
 #        self.journal_idx = 0
 #        self.sl_thr_vector = np.array([5, 10, 15, 20, 25, 30])
         
-        init_budget, leverage, _, _ = self.get_account_status()
+#        init_budget, leverage, _, _ = self.get_account_status()
+        status = self.get_account_status()#
         #print("Init budget: "+str(init_budget)+" Leverage: "+str(leverage))
-        self.budget = init_budget
-        self.init_budget = init_budget
+        self.budget = status['balance']#init_budget
+        self.init_budget = status['balance']
         self.LOT = 100000.0
         
         self.pip = 0.0001
-        self.leverage = leverage
+        self.leverage = status['leverage']#
         #self.budget_in_lots = self.leverage*self.budget/self.LOT
         self.available_budget = self.budget*self.leverage
         self.available_bugdet_in_lots = self.available_budget/self.LOT
@@ -411,6 +417,8 @@ class Trader:
         self.takeprofits = 0
         self.n_pos_extended = 0
         self.n_pos_currently_open = 0
+        
+        self.margins = [0.0 for _ in running_assets]
         
         # log
         self.save_log = 1
@@ -436,8 +444,8 @@ class Trader:
                 tag = '_LI_'
             self.log_file_trader = self.results_dir_trader+start_time+tag+config_name+"trader.log"
             self.log_file = log_file
-            self.log_positions_soll = self.results_dir_trader+start_time+tag+config_name+"positions_soll.log"
-            self.log_positions_ist = self.results_dir_trader+start_time+tag+config_name+"positions_ist.log"
+            self.log_positions_soll = self.results_dir_trader+start_time+tag+config_name+"positions_soll.csv"
+            self.log_positions_ist = self.results_dir_trader+start_time+tag+config_name+"positions_ist.csv"
             self.log_summary = self.results_dir_trader+start_time+tag+config_name+"summary.log"
             self.dir_positions = results_dir+'/positions/'+start_time+config_name+'/'
             self.budget_file = self.results_dir_trader+start_time+tag+config_name+"budget.log"
@@ -458,11 +466,13 @@ class Trader:
             time.sleep(np.random.rand())
             # results tracking
             if not os.path.exists(self.log_positions_soll):
-                resultsInfoHeader = "Asset,Entry Time,Exit Time,Position,"+\
+                resultsInfoHeaderSoll = "Asset,Entry Time,Exit Time,Position,"+\
                     "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,strategy,Profit,E_spread,stoploss,stGROI,stROI"
-                write_log(resultsInfoHeader, self.log_positions_soll)
+                write_log(resultsInfoHeaderSoll, self.log_positions_soll)
                 if not run_back_test:
-                    write_log(resultsInfoHeader, self.log_positions_ist)
+                    resultsInfoHeaderIst = "Asset,Entry Time,Exit Time,Position,"+\
+                    "Bi,Ai,Bo,Ao,ticks_d,GROI,Spread,ROI,Profit,Equity,Swap,strategy"
+                    write_log(resultsInfoHeaderIst, self.log_positions_ist)
                 write_log(str(self.available_bugdet_in_lots), self.budget_file)
         # flow control
         self.EXIT = 0
@@ -473,45 +483,49 @@ class Trader:
         self.queue = queue
         self.queue_prior = queue_prior
         self.session_json = session_json
+        self.token_header = token_header
     
     def get_account_status(self):
         """ Get account status from broker """
-        success = 0
-        ##### WARNING! #####
-        dirfilename = LC.directory_MT5_account+'Status.txt'
-        if os.path.exists(dirfilename):
-            # load network output
-            while not success:
-                try:
-                    fh = open(dirfilename,"r")
-                    info_close = fh.read()[:-1]
-                    # close file
-                    fh.close()
-                    success = 1
-                    #stop_timer(ass_idx)
-                except PermissionError:
-                    print("Error writing TT")
-            info_str = info_close.split(',')
-            #print(info_close)
-            balance = float(info_str[0])
-            leverage = float(info_str[1])
-            equity = float(info_str[2])
-            profits = float(info_str[3])
-        else:
-            print("WARNING! Account Status file not found. Turning to default")
-            if not hasattr(self, 'budget'):
-                balance = 500.0
-                leverage = 30
-                equity = balance
-                profits = 0.0
-            else:
-                balance = self.budget
-                leverage = 30
-                equity = balance
-                profits = 0.0
-        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
-              .format(balance,leverage,equity,profits))
-        return balance, leverage, equity, profits
+#        success = 0
+#        ##### WARNING! #####
+#        dirfilename = LC.directory_MT5_account+'Status.txt'
+#        if os.path.exists(dirfilename):
+#            # load network output
+#            while not success:
+#                try:
+#                    fh = open(dirfilename,"r")
+#                    info_close = fh.read()[:-1]
+#                    # close file
+#                    fh.close()
+#                    success = 1
+#                    #stop_timer(ass_idx)
+#                except PermissionError:
+#                    print("Error writing TT")
+#            info_str = info_close.split(',')
+#            #print(info_close)
+#            balance = float(info_str[0])
+#            leverage = float(info_str[1])
+#            equity = float(info_str[2])
+#            profits = float(info_str[3])
+#        else:
+#            print("WARNING! Account Status file not found. Turning to default")
+#            if not hasattr(self, 'budget'):
+#                balance = 500.0
+#                leverage = 30
+#                equity = balance
+#                profits = 0.0
+#            else:
+#                balance = self.budget
+#                leverage = 30
+#                equity = balance
+#                profits = 0.0
+#        print("Balance {0:.2f} Leverage {1:.2f} Equity {2:.2f} Profits {3:.2f}"\
+#              .format(balance,leverage,equity,profits))
+        status = {'error':True}
+        while status['error']:
+            status = ct.get_account_status()
+        return status
 #        
 #    def _get_thr_sl_vector(self):
 #        '''
@@ -545,7 +559,13 @@ class Trader:
                                 (1+self.next_candidate.direction*\
                                 self.next_candidate.strategy.thr_tp*self.pip))
         self.list_deadlines[str_idx].append(deadline)
-        
+        self.list_dd_info[str_idx].append([{'entry_bid':self.next_candidate.entry_bid,
+                                            'entry_ask':self.next_candidate.entry_ask,
+                                            'entry_time':self.next_candidate.entry_time,
+                                            'checkpoint':0,
+                                            'every':double_down['every'],
+                                            'lots':lots}])
+        return None
         
     def remove_position(self, idx, s):
         """ Remove a position from lists after closing """
@@ -591,10 +611,36 @@ class Trader:
         self.list_symbols_tracking[s] = self.list_symbols_tracking[s]\
             [:self.map_ass_idx2pos_idx[s][idx]]+self.list_symbols_tracking[s]\
             [self.map_ass_idx2pos_idx[s][idx]+1:]
+        self.list_dd_info[s] = self.list_dd_info[s]\
+            [:self.map_ass_idx2pos_idx[s][idx]]+self.list_dd_info[s]\
+            [self.map_ass_idx2pos_idx[s][idx]+1:]
         
         mask = self.map_ass_idx2pos_idx[s]>self.map_ass_idx2pos_idx[s][idx]
         self.map_ass_idx2pos_idx[s][idx] = -1
         self.map_ass_idx2pos_idx[s] = self.map_ass_idx2pos_idx[s]-mask*1#np.maximum(,-1)
+        # remove position
+        list_remove = []
+        print("pre remove_position():")
+        print("self.pos_idx2map_ass_str")
+        print(self.pos_idx2map_ass_str)
+        print("self.list_pos_idx")
+        print(self.list_pos_idx)
+        print("(idx, s)")
+        print((idx, s))
+        for i, pos_idx in enumerate(self.list_pos_idx):
+            if self.pos_idx2map_ass_str[pos_idx][:2] == (idx, s):
+                self.pos_idx2map_ass_str[pos_idx] = (-1, -1, -1)
+                list_remove.append(i)
+        
+        print("list_remove")
+        print(list_remove)
+        for i in range(len(list_remove)):
+            self.list_pos_idx.pop(list_remove[-(i+1)])
+        print("post remove_position():")
+        print("self.pos_idx2map_ass_str")
+        print(self.pos_idx2map_ass_str)
+        print("self.list_pos_idx")
+        print(self.list_pos_idx)
         
     def update_position(self, idx):
         """ Update position info due to extension """
@@ -664,9 +710,11 @@ class Trader:
             condition = True
         else:
             condition = False
+#        if test:
+#            condition = not condition
         return condition
     
-    def check_contition_for_opening(self, tactic):
+    def check_contition_for_opening(self, tactic, ass_idx):
         """  """
         reason = ''
         this_strategy = self.next_candidate.strategy
@@ -695,7 +743,7 @@ class Trader:
                 reason += 'bet'
         elif this_strategy.entry_strategy=='spread_ranges':
             cond_pmc = self.next_candidate.p_mc>=this_strategy.info_spread_ranges['th'][tactic][0]+this_strategy.info_spread_ranges['mar'][tactic][0]
-            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1]
+            cond_pmd = self.next_candidate.p_md>=this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1]+self.margins[ass_idx]
             cond_spread = e_spread<=this_strategy.info_spread_ranges['sp'][tactic]
             cond_bet = self.direction_map(self.next_candidate.direction, 
                                    self.next_candidate.strategy.info_spread_ranges['dir'])
@@ -844,7 +892,9 @@ class Trader:
                 out = asset+logMsg
                 print("\r"+out)
                 self.write_log(out)
-                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":asset,"MSG":logMsg})
+                send_log_info(self.queue, asset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":asset,"MSG":logMsg})
+#                if log_thu_control:
+#                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":asset,"MSG":logMsg})
             stoploss_flag = True
             self.ban_currencies(lists, asset, datetime, results, direction)
         else:
@@ -876,10 +926,8 @@ class Trader:
             str_idx = s
         strategy_name = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].strategy.name
         direction = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].direction
-        Ti = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_time
+#        Ti = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_time
         bet = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].bet
-        Bi = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_bid
-        Ai = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_ask
         if run_back_test:
             Ao = self.list_last_ask[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
             Bo = self.list_last_bid[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
@@ -892,33 +940,52 @@ class Trader:
                       "Reading info from list_last_bid instead.")
                 Ao = self.list_last_ask[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
                 Bo = self.list_last_bid[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]][-1]
+        GROIs = []
+        ROIs = []
+        spreads = []
+        infos = []
+        lotss = []
+        for sub_position in self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]]:
+            Ti = sub_position['entry_time']#dt.datetime.strftime(sub_position['entry_time'], '%Y.%m.%d %H:%M:%S')
+            Bi = sub_position['entry_bid']
+            Ai = sub_position['entry_ask']
+            lots = sub_position['lots']
+#        Bi = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_bid
+#        Ai = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][idx]].entry_ask
         
-        if direction>0:
-            GROI_live = roi_ratio*(Ao-Ai)/Ai
-            spread = (Ao-Bo)/Ai
+        
+            if direction>0:
+                GROI_live = roi_ratio*(Ao-Ai)/Ai
+                spread = (Ao-Bo)/Ai
+                
+            else:
+                GROI_live = roi_ratio*(Bi-Bo)/Ao
+                spread = (Ao-Bo)/Ao
             
-        else:
-            GROI_live = roi_ratio*(Bi-Bo)/Ao
-            spread = (Ao-Bo)/Ao
-        
-        if type(self.next_candidate)!=type(None):
-            this_strategy = self.next_candidate.strategy
-            if this_strategy.fix_spread:
-                ROI_live = GROI_live-roi_ratio*this_strategy.fixed_spread_ratio
+            if type(self.next_candidate)!=type(None):
+                this_strategy = self.next_candidate.strategy
+                if this_strategy.fix_spread:
+                    ROI_live = GROI_live-roi_ratio*this_strategy.fixed_spread_ratio
+                else:
+                    ROI_live = GROI_live-roi_ratio*spread
             else:
-                ROI_live = GROI_live-roi_ratio*spread
-        else:
-            if self.last_fix_spread:
-                ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
-            else:
-                ROI_live = GROI_live-roi_ratio*spread
+                if self.last_fix_spread:
+                    ROI_live = GROI_live-roi_ratio*self.last_fixed_spread_ratio
+                else:
+                    ROI_live = GROI_live-roi_ratio*spread
+            
+            info = (ass+","+Ti+","+date_time+","+str(bet)+","+
+                      str(Bi)+","+str(Ai)+","+str(Bo)+","+
+                      str(Ao)+","+"0"+","+str(100*GROI_live)+","+
+                      str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
+            # update lists
+            GROIs.append(GROI_live)
+            ROIs.append(ROI_live)
+            spreads.append(spread)
+            infos.append(info)
+            lotss.append(lots)
         
-        info = (ass+","+Ti+","+date_time+","+str(bet)+","+
-                  str(Bi)+","+str(Ai)+","+str(Bo)+","+
-                  str(Ao)+","+"0"+","+str(100*GROI_live)+","+
-                  str(100*spread)+","+str(100*ROI_live)+","+strategy_name)
-        
-        return GROI_live, ROI_live, spread, Bo, Ao, info
+        return GROIs, ROIs, spreads, lotss, Bo, Ao, infos
         
     
     def close_position(self, date_time, ass, idx, results, s,
@@ -939,78 +1006,126 @@ class Trader:
         if np.isnan(roi_ratio):
             raise AssertionError("np.isnan(roi_ratio)")
         # get returns
-        GROI_live, ROI_live, spread, Bo, Ao, info = self.get_rois(idx, 
+        GROIs, ROIs, spreads, lotss, Bo, Ao, infos = self.get_rois(idx, 
                                                           date_time=date_time,
                                                           roi_ratio=roi_ratio,
                                                           ass=ass, s=s)
-        if not groiist:
-            groiist = 100*GROI_live
-            roiist = 100*ROI_live
-            returnist = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
-        if DTi_real=='':
-            DTi_real = date_time
-        
-        lots2add = self.list_lots_per_pos[s][list_idx]*(lot_ratio+roiist/100)
-        self.available_bugdet_in_lots = self.get_current_available_budget()+lots2add
+        direction = self.list_opened_positions[s][self.map_ass_idx2pos_idx[s][idx]].direction
+        status = self.get_account_status()
+        self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
         self.available_budget = self.available_bugdet_in_lots*self.LOT 
-        # update available budget file
-        self.update_current_available_budget()
-        
-        self.budget_in_lots += self.list_lots_per_pos[s][list_idx]*ROI_live
-        
-        
-        nett_win = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
-        gross_win = self.list_lots_entry[s][list_idx]*GROI_live*self.LOT
-        
-        self.gross_earnings += gross_win
-        self.nett_earnigs += returnist
-        
-        if ROI_live>0:
-            self.net_successes += 1
-            self.average_win += ROI_live
-        else:
-            self.average_loss += ROI_live
+        for i in range(len(GROIs)):
+            GROI_live = GROIs[i]
+            ROI_live = ROIs[i]
+            if not groiist:
+                groiist = 100*GROI_live
+                roiist = 100*ROI_live
+                returnist = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
+            if DTi_real=='':
+                DTi_real = date_time
             
-        if GROI_live>0:
-            self.gross_successes += 1
+#            lots2add = self.list_lots_per_pos[s][list_idx]*(lot_ratio+roiist/100)
             
-        #ROI_live = ROI_live-spread/entry_bid
-        self.tROI_live += ROI_live
-        self.tGROI_live += GROI_live
-        
-        e_spread = self.list_opened_positions[s][list_idx].e_spread
-        # check if stoploss for server info
-        if from_sl == 0:
-            slfalg = False
-        else:
-            slfalg = True
-        # check if close comes from external ban
-        if not from_sl and self.list_count_events[s][list_idx]!=\
-            self.list_deadlines[s][list_idx]:
-                from_sl = 2
-        # write output to trader summary
-        info_close = info+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
-            str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
-        write_log(info_close, self.log_positions_soll)
-        
-        # save position evolution
-        pos_filename = get_positions_filename(ass, self.list_opened_positions[s]\
-                                              [list_idx].entry_time, 
-                                              date_time)
-        if run_back_test:
-#            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
-#                                              self.list_last_dt[list_idx][-1])
-            dirfilename = results.save_pos_evolution(pos_filename, self.list_last_dt[s][list_idx],
-                                       self.list_last_bid[s][list_idx], 
-                                       self.list_last_ask[s][list_idx])
-        else:
-            ##last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
-            #pos_filename = get_positions_filename(ass, DTi_real, date_time)
-            dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[s][list_idx])
-        
-        self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename, s=s)
-        # update output lists
-        results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
+            # update available budget file
+#            self.update_current_available_budget()
+            
+            self.budget_in_lots += self.list_lots_per_pos[s][list_idx]*ROI_live
+            
+            
+            nett_win = self.list_lots_entry[s][list_idx]*ROI_live*self.LOT
+            gross_win = self.list_lots_entry[s][list_idx]*GROI_live*self.LOT
+            
+            self.gross_earnings += gross_win
+            self.nett_earnigs += returnist
+            
+            if ROI_live>0:
+                self.net_successes += 1
+                self.average_win += ROI_live
+            else:
+                self.average_loss += ROI_live
+                
+            if GROI_live>0:
+                self.gross_successes += 1
+                
+            #ROI_live = ROI_live-spread/entry_bid
+            self.tROI_live += ROI_live
+            self.tGROI_live += GROI_live
+            
+            e_spread = self.list_opened_positions[s][list_idx].e_spread
+            # check if stoploss for server info
+            if from_sl == 0:
+                slfalg = False
+            else:
+                slfalg = True
+            # check if close comes from external ban
+            if not from_sl and self.list_count_events[s][list_idx]!=\
+                self.list_deadlines[s][list_idx]:
+                    from_sl = 2
+            # write output to trader summary
+            info_close = infos[i]+","+str(nett_win)+","+str(e_spread*100*self.pip)+","+\
+                str(from_sl)+","+str(100*self.tGROI_live)+","+str(100*self.tROI_live)
+            write_log(info_close, self.log_positions_soll)
+            
+            # save position evolution
+            pos_filename = get_positions_filename(ass, self.list_opened_positions[s]\
+                                                  [list_idx].entry_time, 
+                                                  date_time)
+            if run_back_test:
+    #            pos_filename = get_positions_filename(ass, self.list_last_dt[list_idx][0], 
+    #                                              self.list_last_dt[list_idx][-1])
+                dirfilename = results.save_pos_evolution(pos_filename, self.list_last_dt[s][list_idx],
+                                           self.list_last_bid[s][list_idx], 
+                                           self.list_last_ask[s][list_idx])
+            else:
+                ##last_dt = self.list_symbols_tracking[self.map_ass_idx2pos_idx[idx]].DateTime.iloc[-1]
+                #pos_filename = get_positions_filename(ass, DTi_real, date_time)
+                dirfilename = results.save_pos_evolution_live(pos_filename, self.list_symbols_tracking[s][list_idx])
+            
+            self.track_position('close', date_time, idx=idx, groi=GROI_live, filename=pos_filename, s=s)
+            # update output lists
+            results.update_outputs(date_time, 100*GROI_live, 100*ROI_live, nett_win)
+                        
+            if partial_close:
+                partial_string = ' Partial'
+            else:
+                partial_string = ' Full'
+                self.n_pos_currently_open -= 1
+            logMsg = " "+( date_time+partial_string+" close"+" dir {0:d}"\
+                  .format(direction)+
+                  " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
+                          100*ROI_live,100*spreads[i],100*GROI_live)+
+                          " TGROI {1:.3f}% TROI = {0:.3f}%".format(
+                          100*self.tROI_live,100*self.tGROI_live)+
+                          " Earnings {0:.2f}".format(self.nett_earnigs)+
+                          ". Remaining open "+str(self.n_pos_currently_open))
+            out =ass+logMsg
+            if verbose_trader:
+                self.write_log(out)
+                print("\r"+out)
+            if send_info_api:
+                send_log_info(self.queue, ass, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+    #            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+            # compare budget with real one
+            if not run_back_test:
+#                status = ct.get_account_status()
+#                balance, leverage, equity, profits = #self.get_account_status()
+                logMsg = " "+date_time+" equity "+str(status['equity'])+" Balance "+str(status['balance'])
+                
+                out = ass+logMsg
+                self.write_log(out)
+                print("\r"+out)
+                if send_info_api:
+                    send_log_info(self.queue, ass, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+    #                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
+                self.budget = status['balance']
+            else:
+                self.budget += returnist
+            if send_info_api:
+                self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spreads[i], 
+                                        100*GROI_live, 100*ROI_live, returnist, 
+                                        pos_filename, dirfilename, DTi_real, groiist, 
+                                        roiist, slfalg, swap, s)
+            assert(lot_ratio<=1.00 and lot_ratio>0)
         
         if not partial_close:
             self.remove_position(idx, s)
@@ -1018,45 +1133,8 @@ class Trader:
             # decrease the lot ratio in case the position is not fully closed
             self.list_lots_per_pos[s][list_idx] = \
                 self.list_lots_per_pos[s][list_idx]*(1-lot_ratio)
-
-        if partial_close:
-            partial_string = ' Partial'
-        else:
-            partial_string = ' Full'
-            self.n_pos_currently_open -= 1
-        logMsg = " "+( date_time+partial_string+" close"+" Ratio {0:.2f}"\
-              .format(lot_ratio)+
-              " GROI {2:.3f}% Spread {1:.3f}% ROI = {0:.3f}%".format(
-                      100*ROI_live,100*spread,100*GROI_live)+
-                      " TGROI {1:.3f}% TROI = {0:.3f}%".format(
-                      100*self.tROI_live,100*self.tGROI_live)+
-                      " Earnings {0:.2f}".format(self.nett_earnigs)+
-                      ". Remeining open "+str(self.n_pos_currently_open))
-        out =ass+logMsg
-        if verbose_trader:
-            self.write_log(out)
-            print("\r"+out)
-        if send_info_api:
-            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-        # compare budget with real one
-        if not run_back_test:
-            balance, leverage, equity, profits = self.get_account_status()
-            logMsg = " "+date_time+" equity "+str(equity)+" Balance "+str(balance)
-            
-            out = ass+logMsg
-            self.write_log(out)
-            print("\r"+out)
-            if send_info_api:
-                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":ass,"MSG":logMsg})
-            self.budget = balance
-        else:
-            self.budget += returnist
-        if send_info_api:
-            self.send_close_pos_api(date_time, ass, Bo, Ao, 100*spread, 
-                                    100*GROI_live, 100*ROI_live, returnist, 
-                                    pos_filename, dirfilename, DTi_real, groiist, 
-                                    roiist, slfalg, swap, s)
-        assert(lot_ratio<=1.00 and lot_ratio>0)
+        
+        return None
     
     def get_current_available_budget(self):
         """ get available budget from shared file among traders """
@@ -1067,22 +1145,23 @@ class Trader:
         print("get_current_available_budget: "+str(av_bugdet_in_lots))
         return av_bugdet_in_lots
     
-    def update_current_available_budget(self):
-        """ update available budget from shared file among traders """
-        fh = open(self.budget_file,"w")
-        fh.write(str(self.available_bugdet_in_lots))
-        fh.close()
-        print("update_current_available_budget: "+str(self.available_bugdet_in_lots))
-        return None
+#    def update_current_available_budget(self):
+#        """ update available budget from shared file among traders """
+#        fh = open(self.budget_file,"w")
+#        fh.write(str(self.available_bugdet_in_lots))
+#        fh.close()
+#        print("update_current_available_budget: "+str(self.available_bugdet_in_lots))
+#        return None
     
     def open_position(self, idx, lots, DateTime, e_spread, bid, ask, deadline):
         """ Open position """
         # update available budget
         str_idx = self.next_candidate.strategy_index
-        self.available_bugdet_in_lots -= lots
+        status = self.get_account_status()
+        self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
         self.available_budget = self.available_bugdet_in_lots*self.LOT
         # update available budget file
-        self.update_current_available_budget()
+#        self.update_current_available_budget()
         #self.available_bugdet_in_lots -= lots
         self.n_entries += 1
         self.n_pos_opened += 1
@@ -1098,8 +1177,8 @@ class Trader:
               " Lots {0:.2f}".format(lots)+" "+str(self.list_opened_positions[str_idx][-1].bet)+
               " p_mc={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_mc)+
               " p_md={0:.2f}".format(self.list_opened_positions[str_idx][-1].p_md)+
-              " spread={0:.3f} ".format(e_spread)+" strategy "+
-              self.list_opened_positions[str_idx][-1].strategy.name)
+              " spread={0:.3f} ".format(e_spread)+" total opened {0:d}".format(self.n_pos_currently_open)+
+              " strategy "+self.list_opened_positions[str_idx][-1].strategy.name)
         
         if self.next_candidate.strategy.entry_strategy == 'gre_v2':
             logMsg += logMsg+' prof '+str(self.next_candidate.profitability)
@@ -1107,13 +1186,151 @@ class Trader:
             out = thisAsset+logMsg
             print("\r"+out)
             self.write_log(out)
-            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#            if log_thu_control:
+#                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
         
         # Send open position command to api
         if send_info_api:
             self.send_open_pos_api(DateTime, bid, ask, e_spread, lots)
         
         return None
+    
+    def find_position(self):
+        """  """
+#        out = "find_position"
+#        print("\r"+out)
+#        self.write_log(out)
+        if len(self.list_pos_idx)==0:
+            pos_idx = 0
+        elif not 0 in self.list_pos_idx:
+            pos_idx = 0
+        else:
+            pos_idx = next(filterfalse(set(self.list_pos_idx).__contains__, count(1)))
+#        out = "self.list_pos_idx"
+#        print("\r"+out)
+#        self.write_log(out)
+#        out = str(self.list_pos_idx)
+#        print("\r"+out)
+#        self.write_log(out)
+#        out = "pos_idx"
+#        print("\r"+out)
+#        self.write_log(out)
+#        out = str(pos_idx)
+#        print("\r"+out)
+#        self.write_log(out)
+        return pos_idx
+    
+    def double_down_position(self, ass_id, str_idx, amount_dd, dt, bid, ask, directory_MT5_ass):
+        """  """
+        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]].append({'entry_bid':bid,
+                                                                               'entry_ask':ask,
+                                                                               'entry_time':dt,
+                                                                               'lots':amount_dd})
+        dd_idx = len(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])-1
+#        self.available_budget -= lots*self.LOT
+#        self.available_bugdet_in_lots -= lots
+#        self.update_current_available_budget()
+        self.n_pos_opened += 1
+        self.n_pos_currently_open += 1
+        self.n_entries += 1
+        pos_idx = self.find_position()
+        self.list_pos_idx.append(pos_idx)
+        self.pos_idx2map_ass_str[pos_idx] = (ass_id, str_idx, dd_idx)
+        self.send_open_command(directory_MT5_ass, ass_id, self.list_pos_idx[-1], lots=amount_dd)
+#        out = (dt+" Double Down "+#asset+
+#              " Lots {0:.2f}".format(amount_dd))
+#        print(out)
+#        self.write_log(out)
+        status = self.get_account_status()
+        self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#+lots2add#self.get_current_available_budget()
+        self.available_budget = self.available_bugdet_in_lots*self.LOT 
+        return None
+    
+    def check_condition_double_down(self, currGROI, ass_id, str_idx, thisAsset, 
+                                    dt, bid, ask, spread, 
+                                    condition_dd, reason_dd, directory_MT5_ass):
+        """  """
+        if condition_dd:
+            if double_down['on']:
+                if currGROI/self.pip<=-(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+
+                                    self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']):
+                    
+                    times_dd_supposed = np.floor((-currGROI/self.pip-self.list_dd_info[str_idx]
+                        [self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])/
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every'])
+                    times_dd = min(double_down['max'], times_dd_supposed)
+                    lots_per_pos = self.assign_lots(dt)
+                    slots_requested = times_dd*double_down['amount']
+                    status = self.get_account_status()
+                    self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT#self.get_current_available_budget()
+                    slots_available = np.floor(double_down['amount']*self.available_bugdet_in_lots/lots_per_pos)
+                    slots_assign = min(slots_requested, slots_available)
+                    n_dds = len(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])
+    #                print("slots_requested")
+    #                print(slots_requested)
+    #                print("slots_available")
+    #                print(slots_available)
+    #                print("slots_assign")
+    #                print(slots_assign)
+                    amount_dd = slots_assign*lots_per_pos
+                    if slots_available>0 and self.n_pos_currently_open<self.max_opened_positions:
+                        
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'] = \
+                            self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']+\
+                            times_dd_supposed*self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']
+                        self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every'] = \
+                            2*self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']
+                        self.double_down_position(ass_id, 
+                                                  str_idx,
+                                                  amount_dd,
+                                                  dt,
+                                                  bid,
+                                                  ask, 
+                                                  directory_MT5_ass)
+                        logMsg = (dt+" Double Down "+#asset+
+                              " Lots {0:.2f}".format(amount_dd)+" "+
+                              " spread={0:.3f}".format(spread)+
+                              " "+str(n_dds)+"-th time. Multiply by "+str(times_dd)+
+                              ". Next Checkpoint "+
+                              str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])+
+                              " Every "+
+                              str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['every']))
+#                        print(out)
+#                        trader.write_log(out)
+#                        logMsg = "DOUBLING DOWN! "+str(amount_dd)+" lots. New checkpoint "+\
+#                            str(self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint'])
+                        print(thisAsset+" "+logMsg)
+                        self.write_log(thisAsset+" "+logMsg)
+                        if send_info_api:
+                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                        
+                        #a=p
+                    elif slots_available==0:
+                        logMsg = "NOT ENOUGH BUDGET TO DOUBLE DOWN!"
+                        print(logMsg)
+                        self.write_log(logMsg)
+                        if send_info_api:
+                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                    else:
+                        logMsg = "NOT DOUBLE DOWN BECAUSE MAX NUMBER OF POSITIONS REACHED!"
+                        print(logMsg)
+                        self.write_log(logMsg)
+                        if send_info_api:
+                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                else:
+                    logMsg = "NOT DD DOUBLE DOWN since next DD is at "+\
+                        str(-self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][0]['checkpoint']-double_down['every'])+" pips"
+                    print(logMsg)
+                    self.write_log(logMsg)
+                    if send_info_api:
+                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+        else:
+            logMsg = "NOT DD DOUBLE DOWN due to "+reason_dd
+            print(logMsg)
+            self.write_log(logMsg)
+            if send_info_api:
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
     
     def send_open_pos_api(self, DateTime, bid, ask, e_spread, lots):
         """ Send command to API for position opening """
@@ -1129,10 +1346,17 @@ class Trader:
                   'p_mc':self.list_opened_positions[str_idx][-1].p_mc,
                   'p_md':self.list_opened_positions[str_idx][-1].p_md,
                   'strategyidx':str_idx}
+        
         try:
-            self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
+            if log_thu_control:
+                self.queue_prior.put({"FUNC":"POS","EVENT":"OPEN","SESS_ID":self.session_json['id'],"PARAMS":params})
+            else:
+                position_json = ct.send_open_position(params, self.session_json['id'], 
+                                                      self.token_header)
+                print(position_json)
         except:
             print("WARNING! Error in send_open_pos_api in kaissandra.prod.run. Skipped.")
+        
         
     def send_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                             direction, strategy, roi, ticks):
@@ -1146,7 +1370,15 @@ class Trader:
                   'direction':direction,
                   'strategyname':strategy,
                   'roi':roi}
-        self.queue_prior.put({"FUNC":"POS","EVENT":"EXTEND","ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
+        
+        try:
+            if log_thu_control:
+                self.queue_prior.put({"FUNC":"POS","EVENT":"EXTEND","ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
+            else:
+                ct.send_extend_position(params, thisAsset, str_idx, self.token_header)
+        except:
+            print("WARNING! Error in send_extend_pos_api in kaissandra.prod.run. Skipped.")
+        
         
     def send_not_extend_pos_api(self, DateTime, thisAsset, groi, p_mc, p_md, 
                                 direction, strategy, roi, ticks):
@@ -1161,7 +1393,15 @@ class Trader:
                   'direction':direction,
                   'strategyname':strategy,
                   'roi':roi}
-        self.queue_prior.put({"FUNC":"POS","EVENT":"NOTEXTEND","ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
+        
+        try:
+            if log_thu_control:
+                self.queue_prior.put({"FUNC":"POS","EVENT":"NOTEXTEND","ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
+            else:
+                ct.send_not_extend_position(params, thisAsset, str_idx, self.token_header)
+        except:
+            print("WARNING! Error in send_not_extend_pos_api in kaissandra.prod.run. Skipped.")
+        
         
     def send_close_pos_api(self, DateTime, thisAsset, bid, ask, spread, groisoll, 
                            roisoll, returns, filename, dirfilename, dtiist, groiist, 
@@ -1181,8 +1421,15 @@ class Trader:
                   'slfalg':slfalg,
                   'swap':swap
                 }
-        print("Sent CLOSE through priority queue")
-        self.queue_prior.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
+        
+        try:
+            if log_thu_control:
+                self.queue_prior.put({"FUNC":"POS","EVENT":"CLOSE","DIRFILENAME":dirfilename,"ASSET":thisAsset,"PARAMS":params,"STRATEGY":str_idx})
+            else:
+                ct.send_close_position(params, thisAsset, str_idx, dirfilename, self.token_header)
+        except:
+            print("WARNING! Error in send_close_pos_api in kaissandra.prod.run. Skipped.")
+        
     
     def track_position(self, event, DateTime, idx=None, groi=0.0, 
                        filename='', s=-1):
@@ -1244,13 +1491,15 @@ class Trader:
         this_strategy = self.next_candidate.strategy
         if not this_strategy.flexible_lot_ratio:
             # update available budget
-            self.available_bugdet_in_lots = self.get_current_available_budget()
+#            status = self.get_account_status()
+#            self.available_bugdet_in_lots = status['balance']/self.LOT #self.get_current_available_budget()
+            open_lots = this_strategy.max_lots_per_pos
             # check if there's enough bugdet available
-            if self.available_bugdet_in_lots>0:
-                open_lots = min(this_strategy.max_lots_per_pos, 
-                                self.available_bugdet_in_lots)
-            else:
-                open_lots = this_strategy.max_lots_per_pos
+#            if self.available_bugdet_in_lots>0:
+#                open_lots = min(this_strategy.max_lots_per_pos, 
+#                                self.available_bugdet_in_lots)
+#            else:
+#                open_lots = this_strategy.max_lots_per_pos
         else:
             # lots ratio to asssign to new asset
             pass
@@ -1275,9 +1524,10 @@ class Trader:
 #                    idx = running_assets[ass2index_mapping[ass]]
 #                    self.close_position(date_time, ass, idx, lot_ratio = 
 #                                        close_lot_ratio, partial_close = True)
-#            
+            status = self.get_account_status()
+            self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT
             # make sure the available resources are smaller or equal than slots to open
-            open_lots = min(open_lots,self.available_bugdet_in_lots)
+            open_lots = min(this_strategy.max_lots_per_pos,self.available_bugdet_in_lots)
         #print("open_lots corrected "+str(open_lots))
             
         return open_lots
@@ -1392,6 +1642,12 @@ class Trader:
                             Y_tilde = np.argmax(soft_tilde[6:])+1
                         else:
                             Y_tilde = np.argmax(soft_tilde[3:5])-2
+                    
+                    # change direction if test
+#                    if test:
+#                        Y_tilde = -1*Y_tilde
+#                        print("Y_tilde")
+#                        print(Y_tilde)
                         
                     p_mc = soft_tilde[0]
                     p_md = np.max([soft_tilde[1],soft_tilde[2]])
@@ -1417,34 +1673,86 @@ class Trader:
                                't':t}
                     else:
                         yield []
-                            
     
-    def check_new_inputs(self, inputs, thisAsset, results, directory_MT5_ass=''):
+    def update_margin(self, ass_idx, vi_struct, DateTime, thisAsset):
+        """ Update margin """
+#        margins[ass_idx] = 0.16*idx_struct['VIs'][0]-0.04
+        # step-like relationship
+        if vi_struct['VIs'][0]>=0.5 and self.margins[ass_idx]!=0.04:# and margin<0.12:
+            self.margins[ass_idx] = 0.04
+            logMsg = DateTime+" "+thisAsset+" VI="+str(vi_struct['VIs'][0])+". Margin changed to 0.04"
+            print(logMsg)
+            self.write_log(logMsg)
+            if send_info_api:
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+        if vi_struct['VIs'][0]<0.5 and self.margins[ass_idx]!=0.0:# and margin<0.12:
+            self.margins[ass_idx] = 0.0
+            logMsg = DateTime+" "+thisAsset+" VI="+str(vi_struct['VIs'][0])+" Margin changed to 0.0"
+            print(logMsg)
+            self.write_log(logMsg)
+            if send_info_api:
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+    
+    def check_new_inputs(self, inputs, thisAsset, results, vi_struct, directory_MT5_ass=''):
         """
         <DocString>
         """
+        ass_idx = self.ass2index_mapping[thisAsset]
+        ass_id = self.running_assets[ass_idx]
+        
         #new_entry = self.select_new_entry(inputs, thisAsset)
         for new_entry in self.select_next_entry(inputs, thisAsset):
             if not type(new_entry)==list:
+                # update margin
+                if margin_adapt:
+                    self.update_margin(ass_idx, vi_struct, new_entry[entry_time_column], thisAsset)
+                    margin_str = "Margin {0:.3f}".format(self.margins[ass_idx])+" VI {0:.3f} ".format(vi_struct['VIs'][0])
+                else:
+                    margin_str = ""
                 # get number of tactics
                 tactics = []
                 if self.strategies[new_entry['strategy_index']].entry_strategy=='spread_ranges':
                     #n_tactics = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
                     #print(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])
+                    fixed_margins = self.strategies[new_entry['strategy_index']].info_spread_ranges['mar']
                     for t, tupl in enumerate(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'][::-1]):
-                        if new_entry['P_mc']>=tupl[0] and new_entry['P_md']>=tupl[1]:
+                        if new_entry['P_mc']>=tupl[0]+fixed_margins[-(t+1)][0] and new_entry['P_md']>=tupl[1]+fixed_margins[-(t+1)][1]+self.margins[ass_idx]:
+#                            print("tupl")
+#                            print(tupl)
+##                            print("(new_entry['P_mc'],new_entry['P_md'])")
+##                            print((new_entry['P_mc'],new_entry['P_md']))
+#                            print("-(t+1)")
+#                            print(-(t+1))
+#                            print("margins[-(t+1)]")
+#                            print(margins[-(t+1)])
+                            
+#                            print("len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])")
+#                            print(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th']))
+
                             tactics.append(len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1)
+                            
                             break
+                    
                 if len(tactics)==0:
                     tactics = [0]
+                
                 # loop over tactics of one strategy
                 for tactic in tactics:
+                    
                     strategy_name = self.strategies[new_entry['strategy_index']].name
+                    position = Position(new_entry, self.strategies[new_entry['strategy_index']])
+                    
+                    self.add_new_candidate(position)
+                    str_idx = self.next_candidate.strategy_index
+                    
+                    
+                    
                     # check for opening/extension in order of expected returns
                     logMsg = (" New entry @ "+new_entry[entry_time_column]+" "+
-                           " P_mc {0:.3f} ".format(new_entry['P_mc'])+
+                           "P_mc {0:.3f} ".format(new_entry['P_mc'])+
                            "P_md {0:.3f} ".format(new_entry['P_md'])+
-                           "prof. {0:.2f} ".format(new_entry['profitability'])+
+                           margin_str+
+                           #"prof. {0:.2f} ".format(new_entry['profitability'])+
                            "Bet {0:d} ".format(new_entry['Bet'])+
                            "E_spread {0:.3f} ".format(new_entry['E_spread'])+
                            "Strategy "+strategy_name)
@@ -1453,27 +1761,44 @@ class Trader:
                         print("\r"+out)
                         self.write_log(out)
                     if send_info_api:
-                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
-                    position = Position(new_entry, self.strategies[new_entry['strategy_index']])
+                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                     
-                    self.add_new_candidate(position)
-                    str_idx = self.next_candidate.strategy_index
-                    ass_idx = self.ass2index_mapping[thisAsset]
-                    ass_id = self.running_assets[ass_idx]
+                    
+#                    tactic = len(self.strategies[new_entry['strategy_index']].info_spread_ranges['th'])-t-1
+#                    print(this_strategy.info_spread_ranges['th'][tactic][1]+this_strategy.info_spread_ranges['mar'][tactic][1])
+#                    print("tactic")
+#                    print(tactic)
+#                    print("self.next_candidate.strategy.info_spread_ranges['th'][tactic]")
+#                    print(self.next_candidate.strategy.info_spread_ranges['th'][tactic])
                     
                     # check if asset is banned
                     if not self.list_is_asset_banned[ass_idx]:
                         # open market
                         if not self.is_opened_strategy(ass_id):
                             # check if condition for opening is met
-                            condition_open, reason = self.check_contition_for_opening(tactic)
+                            condition_open, reason = self.check_contition_for_opening(tactic, ass_idx)
                             if condition_open:
                                 # assign budget
                                 lots = self.assign_lots(new_entry[entry_time_column])
+                                status = self.get_account_status()
+                                self.available_bugdet_in_lots = status['free_margin']*status['leverage']/self.LOT 
                                 # check if there is enough budget
                                 if self.available_bugdet_in_lots>=lots:
+                                    # add postion to str,ass,dd mapping
+                                    pos_idx = self.find_position()
+                                    self.list_pos_idx.append(pos_idx)
+                                    self.pos_idx2map_ass_str[pos_idx] = (ass_id, str_idx, 0)
+#                                    print("pos_idx")
+#                                    print(pos_idx)
+#                                    
+#                                    print("self.list_pos_idx")
+#                                    print(self.list_pos_idx)
+#                                    
+#                                    print("self.pos_idx2map_ass_str[pos_idx]")
+#                                    print(self.pos_idx2map_ass_str[pos_idx])
                                     if not run_back_test:
-                                        self.send_open_command(directory_MT5_ass, ass_idx, str_idx)
+                                        self.send_open_command(directory_MT5_ass, ass_id, self.list_pos_idx[-1], lots=lots)
                                     self.open_position(ass_id, lots, 
                                                        new_entry[entry_time_column], 
                                                        self.next_candidate.e_spread, 
@@ -1487,7 +1812,8 @@ class Trader:
                                         print("\r"+out)
                                         self.write_log(out)
                                     if send_info_api:
-                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                     # check swap of resources
                                     if self.next_candidate.strategy.entry_strategy=='gre':
             #                             and self.check_resources_swap()
@@ -1511,18 +1837,19 @@ class Trader:
                         else: # position is opened
                             str_idx = self.next_candidate.strategy_index
                             direction = self.list_opened_positions[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]].bet
-                            curr_GROI, curr_ROI, _, _, _, _ = self.get_rois(ass_id, date_time='', roi_ratio=1)
+                            curr_GROI, curr_ROI, spreads, lotss, Bo, Ao, infos = self.get_rois(ass_id, date_time='', roi_ratio=1)
                             logMsg = " "+new_entry[entry_time_column]+" "+\
                                            " deadline in "+str(self.get_remain_samps(ass_id))+\
                                            " Dir {0:d} ".format(direction)+\
-                                            " current GROI = {0:.2f}%".format(100*curr_GROI)+\
-                                            " current ROI = {0:.2f}%".format(100*curr_ROI)
+                                            " current GROI = {0:.2f}%".format(100*curr_GROI[0])+\
+                                            " current ROI = {0:.2f}%".format(100*curr_ROI[0])
                             if verbose_trader:
                                 out = thisAsset+logMsg
                                 print("\r"+out)
                                 self.write_log(out)
                             if send_info_api:
-                                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                             # check for extension
                             if self.check_primary_condition_for_extention(ass_id):
                                 # TEMP! In crisi_mode and different directions -> close!
@@ -1539,19 +1866,34 @@ class Trader:
                                     else:
                                         self.send_close_command(thisAsset, str_idx)
                                     if send_info_api:
-                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                        send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                        self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                 else:
-                                    extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI, tactic)
-                                    if extention:    
+                                    extention, reason, cond_bet = self.check_secondary_condition_for_extention(ass_id, ass_idx, curr_GROI[0], tactic)
+                                    if extention:
                                         # include third condition for thresholds
                                         # extend deadline
                                         if not run_back_test:
-                                            self.send_open_command(directory_MT5_ass, ass_idx, str_idx)
-                                        self.update_position(ass_id)
+                                            # find all positions with this ass_idx and str_idx
+                                            # and send extention command
+#                                            print("Check pos_idx for extention")
+#                                            print("(ass_id, str_idx)")
+#                                            print((ass_id, str_idx))
+#                                            print("self.pos_idx2map_ass_str")
+#                                            print(self.pos_idx2map_ass_str)
+#                                            print("self.list_pos_idx")
+#                                            print(self.list_pos_idx)
+                                            for pos_idx in self.list_pos_idx:
+                                                if self.pos_idx2map_ass_str[pos_idx][:2] == (ass_id, str_idx):
+                                                    print("sending ex command. Pos ID "+str(pos_idx))
+                                                    dd_idx = self.pos_idx2map_ass_str[pos_idx][2]
+                                                    lots = self.list_dd_info[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]][dd_idx]['lots']
+                                                    self.send_open_command(directory_MT5_ass, ass_id, pos_idx, lots=lots)
+                                        
                                         self.n_pos_extended += 1
                                         # track position
-                                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI)
-                                        # print out
+                                        self.track_position('extend', new_entry[entry_time_column], idx=ass_id, groi=curr_GROI[0])
+                                        # build out
                                         logMsg = " "+new_entry[entry_time_column]+" "+\
                                                " Extended "+str(self.list_deadlines[str_idx][\
                                                    self.map_ass_idx2pos_idx[str_idx][ass_id]])+" samps"+\
@@ -1560,20 +1902,32 @@ class Trader:
                                                " p_md={0:.2f}".format(new_entry['P_md'])+\
                                                " spread={0:.3f}".format(new_entry['E_spread'])+\
                                                " strategy "+strategy_name
-                                        
-                                        # send position extended command to api
+                                        # print output
                                         if verbose_trader:
+                                            out = thisAsset+logMsg
                                             print("\r"+out)
                                             self.write_log(out)
-                                            out = thisAsset+logMsg
+                                            
+                                        # Check if Double Down
+                                        condition_dd, reason_dd = self.check_contition_for_opening(tactic, ass_idx)
+                                        #if condition_dd:
+                                        self.check_condition_double_down(curr_GROI[0], ass_id, str_idx, 
+                                                                         thisAsset, new_entry[entry_time_column], 
+                                                                         Bo, Ao, new_entry['E_spread'], condition_dd, 
+                                                                         reason_dd, directory_MT5_ass)
+                                        self.update_position(ass_id)
+                                        # send position extended command to api
                                         if send_info_api:
-                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                            if log_thu_control:
+#                                                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                             self.send_extend_pos_api(new_entry[entry_time_column], 
-                                                                         thisAsset, 100*curr_GROI, 
+                                                                         thisAsset, 100*curr_GROI[0], 
                                                                          new_entry['P_mc'], new_entry['P_md'], 
-                                                                         int(new_entry['Bet']), strategy_name,
-                                                                         100*curr_ROI, 
+                                                                         int(new_entry['Bet']), strategy_name, 
+                                                                         100*curr_ROI[0], 
                                                                          self.list_count_all_events[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])
+                                        
                                             
                                     elif not crisis_mode or not cond_bet: #  # if candidate for extension does not meet requirements
                                         logMsg = " "+new_entry[entry_time_column]+" not extended "+\
@@ -1584,10 +1938,10 @@ class Trader:
                                             self.write_log(out)
                                         if send_info_api:
                                             self.send_not_extend_pos_api(new_entry[entry_time_column], 
-                                                                         thisAsset, 100*curr_GROI, 
+                                                                         thisAsset, 100*curr_GROI[0], 
                                                                          new_entry['P_mc'], new_entry['P_md'], 
                                                                          int(new_entry['Bet']), strategy_name,
-                                                                         100*curr_ROI, 
+                                                                         100*curr_ROI[0], 
                                                                          self.list_count_all_events[str_idx][self.map_ass_idx2pos_idx[str_idx][ass_id]])
 #                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                     else:
@@ -1602,9 +1956,10 @@ class Trader:
                                             self.close_position(new_entry[entry_time_column], 
                                                                 thisAsset, ass_id, results, str_idx)
                                         else:
-                                            send_close_command(thisAsset, str_idx)
+                                            self.send_close_command(thisAsset, str_idx)
                                         if send_info_api:
-                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                                            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                                            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                                 
                             else: # if direction is different
                                 this_strategy = self.next_candidate.strategy
@@ -1637,7 +1992,7 @@ class Trader:
                                         self.close_position(new_entry[entry_time_column], 
                                                             thisAsset, ass_id, results, str_idx)
                                     else:
-                                        send_close_command(thisAsset, str_idx)
+                                        self.send_close_command(thisAsset, str_idx)
         #                                # TODO: study the option of not only closing 
                             # end of extention options
                     else: # asset banned
@@ -1660,15 +2015,17 @@ class Trader:
             file.close()
         return None
     
-    def send_open_command(self, directory_MT5_ass, ass_idx, str_idx):
+    def send_open_command(self, directory_MT5_ass, ass_id, str_idx, lots=-1):
         """ Send command for opening position to broker """
+        if lots==-1:
+            lots = self.next_candidate.strategy.max_lots_per_pos
         success = 0
         # load network output
         while not success:
             try:
-                fh = open(directory_MT5_ass+"TT"+str(ass_idx),"w")
+                fh = open(directory_MT5_ass+"TT"+str(str_idx),"w")
                 fh.write(str(self.next_candidate.direction)+","+
-                         str(self.next_candidate.strategy.max_lots_per_pos)+
+                         str(lots)+
                          ","+str(self.next_candidate.deadline)+","+
                          str(self.next_candidate.strategy.thr_sl)+","+
                          str(str_idx))
@@ -1677,6 +2034,24 @@ class Trader:
                 #stop_timer(ass_idx)
             except PermissionError:
                 print("Error writing TT")
+    
+#    def send_extend_command(self, directory_MT5_ass, ass_idx, str_idx):
+#        """ Send command for extending position to broker """
+#        success = 0
+#        # load network output
+#        while not success:
+#            try:
+#                fh = open(directory_MT5_ass+"EX"+str(ass_idx),"w")
+##                fh.write(str(self.next_candidate.direction)+","+
+##                         str(self.next_candidate.strategy.max_lots_per_pos)+
+##                         ","+str(self.next_candidate.deadline)+","+
+##                         str(self.next_candidate.strategy.thr_sl)+","+
+##                         str(str_idx))
+#                fh.close()
+#                success = 1
+#                #stop_timer(ass_idx)
+#            except PermissionError:
+#                print("Error writing EX")
     
     def send_close_command(self, asset, str_idx):
         """ Send command for closeing position to MT5 software """
@@ -1902,11 +2277,11 @@ class Trader:
             print("\r"+out)
             self.write_log(out)
         if send_info_api:
-            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+            send_log_info(self.queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#            self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
         
     def track_banned_asset(self, entry, ass_idx):
         """ """
-        
         if self.list_dict_banned_assets[ass_idx]['lastDateTime'] != entry[entry_time_column]:
             self.list_dict_banned_assets[ass_idx]['lastDateTime'] = entry[entry_time_column]
             self.list_dict_banned_assets[ass_idx]['counter'] -= 1
@@ -1918,7 +2293,8 @@ class Trader:
                 print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
+#                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
+                    send_log_info(self.queue, entry['Asset'], {"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
             if self.list_dict_banned_assets[ass_idx]['counter'] == 0:
                 self.lift_ban_asset(ass_idx)
                 out = "Ban lifted"
@@ -1926,7 +2302,8 @@ class Trader:
                     print("\r"+out)
                 self.write_log(out)
                 if send_info_api:
-                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":out})
+                    send_log_info(self.queue, entry['Asset'], {"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":out})
+#                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":out})
         else:
             logMsg = entry[entry_time_column]+" "+\
                 " ban counter already reduced for this DT"
@@ -1935,7 +2312,8 @@ class Trader:
                 print("\r"+out)
             self.write_log(out)
             if send_info_api:
-                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
+#                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
+                send_log_info(self.queue, entry['Asset'], {"FUNC":"LOG","ORIGIN":"TRADE","ASS":entry['Asset'],"MSG":logMsg})
     
     def lift_ban_asset(self, ass_idx):
         """  """
@@ -1960,11 +2338,22 @@ class Trader:
                 # update spread ranges
                 self.update_spread_ranges(config['list_spread_ranges'])
             if send_info_api:
-                self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":"PARAMETERS UPDATED:"})
-                self.queue_prior.put({"FUNC":"CONFIG", 
-                                      "CONFIG":config, 
-                                      "ASSET":thisAsset, 
-                                      "ORIGIN":"PARAM_UPDATE"})
+                send_log_info(self.queue, thisAsset, {"FUNC":"LOG",
+                                                      "ORIGIN":"TRADE",
+                                                      "ASS":thisAsset,
+                                                      "MSG":"PARAMETERS UPDATED:"})
+                send_log_info(self.queue_prior, thisAsset, {"FUNC":"CONFIG", 
+                                          "CONFIG":config, 
+                                          "ASSET":thisAsset, 
+                                          "ORIGIN":"PARAM_UPDATE"})
+#                if log_thu_control:
+#                    self.queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":"PARAMETERS UPDATED:"})
+#                    self.queue_prior.put({"FUNC":"CONFIG", 
+#                                          "CONFIG":config, 
+#                                          "ASSET":thisAsset, 
+#                                          "ORIGIN":"PARAM_UPDATE"})
+#                else:
+#                    ct.confirm_config_info(config, thisAsset, "PARAM_UPDATE", self.token_header)
         except:
             print("WARNING!! Error while reading conig file. Skipped")
         
@@ -2048,7 +2437,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             print("\r"+out)
             write_log(out, log_file)
         if send_info_api:
-            queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+            send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#            queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                 
     # launch features extraction
     if init[sc]==False:
@@ -2059,7 +2449,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
             print("\r"+out)
             write_log(out, log_file)
         if send_info_api:
-            queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+            send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#            queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
         listFeaturesLive[sc],listParSarStruct[sc],listEM[sc] = \
             init_features_live(config, tradeInfoLive)
         init[sc] = True
@@ -2105,7 +2496,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                 print("\r"+out)
                 write_log(out, log_file)
             if send_info_api:
-                queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+                send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#                queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                 
             if listCountPos[sc]>=seq_len-1:
                 logMsg = " "+tradeInfoLive.DateTime.iloc[-1]+" "+\
@@ -2116,7 +2508,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                     print("\r"+out)
                     write_log(out, log_file)
                 if send_info_api:
-                    queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+                    send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#                    queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                 listFillingX[sc] = False
         else:
 ########################################### Predict ###########################            
@@ -2191,8 +2584,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                         out = thisAsset+logMsg
                         print("\r"+out)
                         write_log(out, log_file)
-                    if send_info_api:
-                        queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
+#                    if send_info_api and log_thu_control:
+#                        queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":logMsg})
                     #print("Prediction in market change")
                     # Snd prediction to trading robot
                 if len(list_time_to_entry[sc][t_index])>0 and \
@@ -2355,7 +2748,8 @@ def runRNNliveFun(tradeInfoLive, listFillingX, init, listFeaturesLive, listParSa
                             print("\r"+out)
                             write_log(out, log_file)
                         if send_info_api:
-                            queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":out})
+                            send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":out})
+#                            queue.put({"FUNC":"LOG","ORIGIN":"NET","ASS":thisAsset,"MSG":out})
                     # end of if pred!=0:
                 # end of if listCountPos[sc]>nChannels+model.seq_len+t_index-1:
             # end of for t_index in t_indexes:
@@ -2523,6 +2917,7 @@ def renew_mt5_dir(AllAssets, running_assets):
     log_ids = ['' for _ in range(len(running_assets))]
     nonsynched_assets = [i for i in running_assets]
     waitings = [True for _ in running_assets]
+    buffers = [[] for _ in running_assets]
     its = 0
     run = True
     # loop over assets
@@ -2541,8 +2936,17 @@ def renew_mt5_dir(AllAssets, running_assets):
                 if os.path.exists(directory_MT5_IO_ass):
                     # list of all files in MT5 directory
                     listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
-                    for file in listAllDir:
+                    dates_mod_files = [os.path.getmtime(directory_MT5_IO_ass+file) for file in listAllDir]
+                    indexes_ordered = sorted(range(len(dates_mod_files)), key=lambda k: dates_mod_files[k])
+                    #for file in listAllDir:
+                    for idx in indexes_ordered:
+                        file = listAllDir[idx]
+#                        print("Reading file "+file)
                         try:
+                            # read and delete
+                            buffer = pd.read_csv(directory_MT5_IO_ass+file)
+#                            print(file+" read")
+                            buffers[ass_idx].append(buffer)
                             # try to delete file
                             os.remove(directory_MT5_IO_ass+file)
                         except:
@@ -2605,25 +3009,38 @@ def renew_mt5_dir(AllAssets, running_assets):
                         nonsynched_assets = []
             time.sleep(2)
             
-    return file_ids, log_ids, run
+    return file_ids, log_ids, run, buffers
 
-def renew_directories(AllAssets, running_assets):
+def renew_directories(AllAssets, running_assets, clean_mt5):
     """ Renew MT5 directories """
     for ass_id in running_assets:
         thisAsset = AllAssets[str(ass_id)]
         
-        #directory_MT5_ass = directory_MT5+thisAsset+"/"
-
-#        if os.path.exists(directory_MT5_ass):
-#            try:
-#                shutil.rmtree(directory_MT5_ass)
-#                
-#                time.sleep(1)
-#            except:
-#                print(thisAsset+" Warning. Error when renewing MT5 directory")
-#                # TODO: Synch fetcher with current file if MT5 is recording
+        if clean_mt5:
+            directory_MT5_IO_ass = LC.directory_MT5_IO+thisAsset+"/"
             
-        #try:
+            if os.path.exists(directory_MT5_IO_ass):
+                # list of all files in MT5 directory
+                listAllDir = sorted(os.listdir(directory_MT5_IO_ass))
+                #for file in listAllDir:
+                for file in listAllDir:
+#                        print("Reading file "+file)
+                    try:
+                        # delte file
+                        os.remove(directory_MT5_IO_ass+file)
+                    except:
+                        pass
+    
+#            if os.path.exists(directory_MT5_ass):
+#                try:
+#                    shutil.rmtree(directory_MT5_ass)
+#                    
+#                    time.sleep(1)
+#                except:
+#                    print(thisAsset+" Warning. Error when renewing MT5 directory")
+#                    # TODO: Synch fetcher with current file if MT5 is recording
+#                
+            #try:
         io_ass_dir = LC.io_live_dir+thisAsset+"/"
         if os.path.exists(io_ass_dir):
             try:
@@ -2632,7 +3049,7 @@ def renew_directories(AllAssets, running_assets):
                 time.sleep(1)
             except:
                 print(thisAsset+" Warning. Error when renewing IO directory") 
-            
+        
         
             #except:
                 #print(directory_MT5_ass+" Warning. Error when creating MT5 directory")
@@ -2666,6 +3083,117 @@ def load_snapshot():
     """  """
     pass
 
+def send_log_info(queue, thisAsset, dict_info, bias=199, only_queue=False):
+    """  """
+    if log_thu_control:
+        queue.put(dict_info)
+    elif not only_queue:
+        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+bias).zfill(5)
+        string = ""
+        for key in dict_info:
+            string += key+","+str(dict_info[key])+","
+        # delete last comma
+        string = string[:-1]
+        write_log(string, log_file)
+        
+def init_vi(assets):
+    """ Init Volatility Index structure """
+    vi_struct = {}
+    
+    w1 = 1-1/1
+#    w10 = 1-1/10
+#    w20 = 1-1/20
+#    w100 = 1-1/100
+#    w1000 = 1-1/1000
+#    w10000 = 1-1/10000
+    ws = [w1]
+    vi_struct['ws'] = ws
+    vi_struct['window_size'] = 5000
+    vi_struct['emas_volat'] = [[-1 for _ in ws] for _ in assets]#[[-1 for _ in assets] for _ in ws]
+    vi_struct['means_volat'] = [0 for _ in ws]
+    vi_struct['events_per_ass_counter'] = [-1 for _ in assets]
+    vi_struct['VIs'] = [0 for _ in ws]
+    vi_struct['max_volat'] = [0.0 for _ in assets]
+    vi_struct['min_volat'] = [9999999999999999.99 for _ in assets] # infty
+    vi_struct['track_idx'] = [0 for i in assets]
+    vi_struct['track_last_asks'] = [np.zeros((vi_struct['window_size'])) for i in assets]
+    
+    return vi_struct
+
+def update_vi(vi_struct, ass_idx, asks):
+    """ Get Volatility Index """
+    track_idx = vi_struct['track_idx']
+    track_last_asks = vi_struct['track_last_asks']
+    window_size = vi_struct['window_size']
+    max_volat = vi_struct['max_volat']
+    min_volat = vi_struct['min_volat']
+    emas_volat = vi_struct['emas_volat']
+    
+    n_new_samps = len(asks)
+    
+    prev_asks = track_last_asks[ass_idx][track_idx[ass_idx]:track_idx[ass_idx]+n_new_samps]
+    max_prev_asks = max(prev_asks)
+#    print("max_prev_asks")
+#    print(max_prev_asks)
+    min_prev_asks = min(prev_asks)
+#    print("min_prev_asks")
+#    print(min_prev_asks)
+    
+    track_last_asks[ass_idx][track_idx[ass_idx]:track_idx[ass_idx]+n_new_samps] = asks
+    
+    if track_last_asks[ass_idx][-1]>0:
+        max_buff = max(asks)
+#        print("max_buff")
+#        print(max_buff)
+        min_buff = min(asks)
+#        print("min_buff")
+#        print(min_buff)
+        
+        
+        if max_buff>max_volat[ass_idx]:
+#            print("ask>max_volat")
+            max_volat[ass_idx] = max_buff
+        if max_prev_asks==max_volat[ass_idx]:
+#            print("prev_ask==max_volat")
+            max_volat[ass_idx] = np.max(track_last_asks[ass_idx])
+        if min_buff<min_volat[ass_idx]:
+#            print("ask<min_volat")
+            min_volat[ass_idx] = min_buff
+        if min_prev_asks==min_volat[ass_idx]:
+#            print("prev_ask==min_volat")
+            min_volat[ass_idx] = np.min(track_last_asks[ass_idx])
+#        max_volat = np.max(track_last_asks[ass_id])
+#        min_volat = np.min(track_last_asks[ass_id])
+        vi_struct['max_volat'] = max_volat
+        vi_struct['min_volat'] = min_volat
+        #window_asks = np.array(track_last_asks[ass_id])
+#        window_asks = track_last_asks[ass_id]
+        volat = max_volat[ass_idx]/min_volat[ass_idx]-1
+        # update max volume
+#                if volat>max_volats[ass_id]:
+        for i in range(len(emas_volat[ass_idx])):
+            if emas_volat[ass_idx][i] == -1:
+                emas_volat[ass_idx][i] = volat
+            # update volatility tracking
+            emas_volat[ass_idx][i] = volat#ws[i]*emas_volat[ass_idx][i]+(1-ws[i])*volat
+        
+        VIs = [100*ema for ema in emas_volat[ass_idx]]
+#        print("\r"+" VI1 {0:.4f}".
+#              format(VIs[0]))#, sep=' ', end='', flush=True
+        vi_struct['VIs'] = VIs
+    
+    track_idx[ass_idx] = (track_idx[ass_idx]+n_new_samps) % window_size
+#    print("track_idx[ass_idx]")
+#    print(track_idx[ass_idx])
+    #events_per_ass_counter[ass_idx] += 1
+    
+    vi_struct['emas_volat'] = emas_volat
+    
+    #struct['events_per_ass_counter'] = events_per_ass_counter
+    vi_struct['track_idx'] = track_idx
+    
+    return vi_struct
+
 def fetch(lists, list_models, trader, directory_MT5, AllAssets, 
           running_assets, log_file, results, queue, queue_prior):
     """ Fetch info coming from MT5 """
@@ -2673,7 +3201,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     
     #nAssets = len(running_assets)
     # renew MT5 directories
-    fileExt, list_log_ids, run = renew_mt5_dir(AllAssets, running_assets)
+    fileExt, list_log_ids, run, buffers = renew_mt5_dir(AllAssets, running_assets)
+    
     
     #fileExt = [0 for ass in range(nAssets)]
     
@@ -2685,6 +3214,11 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
     tic = time.time()
     delayed_stop_run = False
     count10s = [0 for _ in running_assets]
+    # init VI structure
+    if margin_adapt:
+        vi_struct = init_vi(running_assets)
+    else:
+        vi_struct = {}
     while run:
 #        tic = time.time()
         for ass_idx, ass_id in enumerate(running_assets):
@@ -2702,18 +3236,83 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
             fileID = thisAsset+deli+str(fileExt[ass_idx]).zfill(2)+extension
             success = 0
             io_ass_dir = LC.io_live_dir+thisAsset+"/"
-            try:
-                buffer = pd.read_csv(directory_MT5_ass+fileID)#
-                #print(thisAsset+" new buffer received")
-                os.remove(directory_MT5_ass+fileID)
+            if len(buffers[ass_idx])==0:
+                try: # no info in laying behind
+                    buffer = pd.read_csv(directory_MT5_ass+fileID)#
+                    #print(thisAsset+" new buffer received")
+                    os.remove(directory_MT5_ass+fileID)
+                    from_file = True
+                    #nFilesDir = len(os.listdir(directory_MT5_ass))
+                    #start_timer(ass_idx)
+                    if not first_info_fetched:
+                        logMsg = " First info fetched"
+                        out = thisAsset+logMsg
+                        print(out)
+                        send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    if log_thu_control:
+    #                        queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    else:
+    #                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+    #                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
+                        #print(buffer)
+                        first_info_fetched = True
+                    if not first_info_nets_fetched[ass_idx][nn_counter[ass_idx]]:
+                        first_info_nets_fetched[ass_idx][nn_counter[ass_idx]] = True
+                        print(thisAsset+" nn "+str(nn_counter[ass_idx])+" set true")
+                        nn_counter[ass_idx] = np.mod(nn_counter[ass_idx]+1, nNets)
+    #                print(fileID+" size: "+str(buffer.shape[0]))
+    #                print(buffer)
+                    if buffer.shape[0]==10:
+                        success = 1
+                    else:
+                        logMsg = " WARNING! Buffer size not 10. Discarded"
+                        print(thisAsset+logMsg)
+                        send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    if log_thu_control:
+    #                        queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+    #                    else:
+    #                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+    #                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
+                        
+                        fileExt, _, _, _ = renew_mt5_dir(AllAssets, running_assets)
+                        
+                except (FileNotFoundError,PermissionError,OSError):
+                    # reset coming from Broker
+                    if os.path.exists(directory_MT5_ass+'0RESET'):
+                        print("RESET from broker found.")
+                        os.remove(directory_MT5_ass+'0RESET')
+                        fileExt, _, _, _ = renew_mt5_dir(AllAssets, running_assets)
+                    if os.path.exists(io_ass_dir+'PA'):
+                        print(thisAsset+" PAUSED. Waiting for RE command...")
+                        os.remove(io_ass_dir+'PA')
+                        while not os.path.exists(io_ass_dir+'RE'):
+                            time.sleep(np.random.randint(6)+5)
+                        os.remove(io_ass_dir+'RE')
+                    elif os.path.exists(io_ass_dir+'RE'):
+                        print("WARNING! RESUME command found. Send first PAUSE command")
+                        os.remove(io_ass_dir+'RE')
+                    elif os.path.exists(io_ass_dir+'RESET'):
+                        print("RESET command found.")
+                        os.remove(io_ass_dir+'RESET')
+                        lists = flush_asset(lists, ass_idx, 0.0)
+                    time.sleep(.02)
+            else:
                 
-                #nFilesDir = len(os.listdir(directory_MT5_ass))
-                #start_timer(ass_idx)
+                buffer = buffers[ass_idx][0]
+                buffers[ass_idx].pop(0)
+#                print("len(buffers[ass_idx])")
+#                print(len(buffers[ass_idx]))
+                from_file = False
                 if not first_info_fetched:
                     logMsg = " First info fetched"
                     out = thisAsset+logMsg
                     print(out)
-                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+                    send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                    if log_thu_control:
+#                        queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                    else:
+#                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                     #print(buffer)
                     first_info_fetched = True
                 if not first_info_nets_fetched[ass_idx][nn_counter[ass_idx]]:
@@ -2727,47 +3326,41 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 else:
                     logMsg = " WARNING! Buffer size not 10. Discarded"
                     print(thisAsset+logMsg)
-                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
-                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
+                    send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                    if log_thu_control:
+#                        queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                    else:
+#                        log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                        write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                     
-            except (FileNotFoundError,PermissionError,OSError):
-                # reset coming from Broker
-                if os.path.exists(directory_MT5_ass+'0RESET'):
-                    print("RESET from broker found.")
-                    os.remove(directory_MT5_ass+'0RESET')
-                    fileExt, _, _ = renew_mt5_dir(AllAssets, running_assets)
-                if os.path.exists(io_ass_dir+'PA'):
-                    print(thisAsset+" PAUSED. Waiting for RE command...")
-                    os.remove(io_ass_dir+'PA')
-                    while not os.path.exists(io_ass_dir+'RE'):
-                        time.sleep(np.random.randint(6)+5)
-                    os.remove(io_ass_dir+'RE')
-                elif os.path.exists(io_ass_dir+'RE'):
-                    print("WARNING! RESUME command found. Send first PAUSE command")
-                    os.remove(io_ass_dir+'RE')
-                elif os.path.exists(io_ass_dir+'RESET'):
-                    print("RESET command found.")
-                    os.remove(io_ass_dir+'RESET')
-                    lists = flush_asset(lists, ass_idx, 0.0)
-                time.sleep(.01)
+                    fileExt, _, _, buffers = renew_mt5_dir(AllAssets, running_assets)
             
             # check shut down command
+#            if count10s[ass_idx]==56:
+#                print("CHECKING SD")
             if count10s[ass_idx]==56 and os.path.exists(io_ass_dir+'SD'):
                 logMsg = " Shutting down"
                 out = thisAsset+logMsg
                 print(out)
-                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+                send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                if log_thu_control:
+#                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                else:
+#                    log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                    write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                 os.remove(io_ass_dir+'SD')
-                for s in range(len(trader.strategies)):
-                    list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
-                    if list_idx>-1:
-                        trader.send_close_command(thisAsset, s)
+                for p in range(len(trader.pos_idx2map_ass_str)):
+                    if trader.pos_idx2map_ass_str[p][-1]>=0:
+                        trader.send_close_command(thisAsset, p)
                 
                 if trader.n_pos_currently_open>0:
                     delayed_stop_run = True
                 else:
-                    queue.put({"FUNC":"SD"})
-                    queue_prior.put({"FUNC":"SD"})
+                    send_log_info(queue, thisAsset, {"FUNC":"SD"})
+                    send_log_info(queue_prior, thisAsset, {"FUNC":"SD"}, only_queue=True)
+#                    if log_thu_control:
+#                        queue.put({"FUNC":"SD"})
+#                        queue_prior.put({"FUNC":"SD"})
                     
                     run = False
                     # close session
@@ -2804,10 +3397,21 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 logMsg = " HIBERNATING"
                 out = thisAsset+logMsg
                 print(out)
-                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+                send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                if log_thu_control:
+#                    queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":thisAsset,"MSG":logMsg})
+#                else:
+#                    log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                    write_log("FUNC,"+"LOG,"+"ORIGIN,"+"MONITORING,""ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                 os.remove(io_ass_dir+'HIBER')
-                queue.put({"FUNC":"SD"})
-                queue_prior.put({"FUNC":"SD"})
+                send_log_info(queue, thisAsset, {"FUNC":"SD"})
+                send_log_info(queue_prior, thisAsset, {"FUNC":"SD"}, only_queue=True)
+#                if log_thu_control:
+#                    queue.put({"FUNC":"SD"})
+#                    queue_prior.put({"FUNC":"SD"})
+#                else:
+#                    log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                    write_log("FUNC,"+"SD", log_file)
                 # save network lists dictionary
                 save_snapshot(thisAsset, lists, trader, command='HI')
                 run = False
@@ -2815,7 +3419,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 
             # update file extension
             if success:
-                fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
+                if from_file:
+                    fileExt[ass_idx] = (fileExt[ass_idx]+1)%nFiles
                 # update list
                 
                 
@@ -2828,10 +3433,13 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 outputs, new_outputs = dispatch(lists, list_models, buffer, AllAssets, 
                                                 ass_id, ass_idx, first_info_nets_fetched,
                                                 log_file, queue)
+                # update VIs
+                if margin_adapt:
+                    vi_struct = update_vi(vi_struct, ass_idx, list(buffer['SymbolAsk']))
                 ################# Trader ##################
                 if new_outputs and not trader.swap_pending:
-                    #print(outputs)
-                    trader.check_new_inputs(outputs, thisAsset, results,
+                    
+                    trader.check_new_inputs(outputs, thisAsset, results, vi_struct, 
                                             directory_MT5_ass=directory_MT5_ass)
             
             # check for closing
@@ -2940,7 +3548,12 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 out = thisAsset+logMsg
                 print(out)
                 trader.write_log(out)
-                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                if log_thu_control:
+#                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                else:
+#                    log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                    write_log("FUNC,"+"LOG,"+"ORIGIN,"+"TRADE,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                 # for now, ban only if asset is opened AND they go in same direction
                 if trader.is_opened_asset(ass_id):
                     thisDirection = trader.list_opened_positions\
@@ -2952,23 +3565,34 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                         out = thisAsset+logMsg
                         print(out)
                         trader.write_log(out)
-                        for s in range(len(trader.strategies)):
-                            list_idx = trader.map_ass_idx2pos_idx[s][ass_id]
-                            if list_idx>-1:
-                                trader.send_close_command(thisAsset, s)
-                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                        for p in range(len(trader.pos_idx2map_ass_str)):
+                            if trader.pos_idx2map_ass_str[p][-1]==0:
+                                trader.send_close_command(thisAsset, p)
+                        send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                        if log_thu_control:
+#                            queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                        else:
+#                            log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                            write_log("FUNC,"+"LOG,"+"ORIGIN,"+"TRADE,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                     else:
                         logMsg = " NOT flushed due to different directions"
                         out = thisAsset+logMsg
                         print(out)
                         trader.write_log(out)
-                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                        send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                        if log_thu_control:
+#                            queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                        else:
+#                            log_file = LC.local_log_comm+thisAsset+'/'+str(np.random.randint(99)+99).zfill(5)
+#                            write_log("FUNC,"+"LOG,"+"ORIGIN,"+"TRADE,"+"ASS,"+thisAsset+",MSG,"+logMsg, log_file)
                 else:
                     logMsg = " NOT flushed due to not opened"
                     out = thisAsset+logMsg
                     print(out)
                     trader.write_log(out)
-                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                    send_log_info(queue, thisAsset, {"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+#                    if log_thu_control:
+#                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
                 
                 
@@ -2987,20 +3611,41 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
 #                list_idx = trader.map_ass_idx2pos_idx[str_idx][ass_id]
                 swap = float(info_split[14])
                 returnist = float(info_split[12])
-                str_idx = int(info_split[15])
-                
-                trader.close_position(info_split[2], thisAsset, ass_id, results, str_idx,
-                                      DTi_real=info_split[1], groiist=float(info_split[9]), 
-                                      roiist=float(info_split[11]), swap=swap, 
-                                      returnist=returnist)
+                pos_idx = int(info_split[15])
+#                print("\nCL found. info=")
+#                print(info_split)
+#                print("pos_idx")
+#                print(pos_idx)
+#                print("trader.pos_idx2map_ass_str[pos_idx]")
+#                print(trader.pos_idx2map_ass_str[pos_idx])
+                # this is the lead position and no double down
+                if trader.pos_idx2map_ass_str[pos_idx][-1]==0:
+                    str_idx = trader.pos_idx2map_ass_str[pos_idx][1]
+                    trader.close_position(info_split[2], thisAsset, ass_id, results, str_idx,
+                                          DTi_real=info_split[1], groiist=float(info_split[9]), 
+                                          roiist=float(info_split[11]), swap=swap, 
+                                          returnist=returnist)
+                elif trader.pos_idx2map_ass_str[pos_idx][-1]>0:
+                    logMsg = " WARNING! Double downed position. Not closing thru here."
+                    out = thisAsset+logMsg
+                    print(out)
+                    trader.write_log(out)
+                else:
+                    logMsg = " WARNING! Position already closed. Skipped."
+                    out = thisAsset+logMsg
+                    print(out)
+                    trader.write_log(out)
                 
                 write_log(info_close, trader.log_positions_ist)
                 # open position if swap process is on
                 if trader.swap_pending:
                     trader.finalize_resources_swap()
                 if delayed_stop_run:
-                    queue.put({"FUNC":"SD"})
-                    queue_prior.put({"FUNC":"SD"})
+                    send_log_info(queue, thisAsset, {"FUNC":"SD"})
+                    send_log_info(queue_prior, thisAsset, {"FUNC":"SD"}, only_queue=True)
+#                    if log_thu_control:
+#                        queue.put({"FUNC":"SD"})
+#                        queue_prior.put({"FUNC":"SD"})
 #                    if send_info_api:
 #                        close_session(trader.session_json)
                     save_snapshot(thisAsset, lists, trader, command='SD')
@@ -3021,7 +3666,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 out = (thisAsset+logMsg)
                 print("\r"+out)
                 write_log(out, trader.log_file)
-                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                if log_thu_control:
+                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                 
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
@@ -3046,7 +3692,8 @@ def fetch(lists, list_models, trader, directory_MT5, AllAssets,
                 out = (thisAsset+logMsg)
                 print("\r"+out)
                 write_log(out, trader.log_file)
-                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                if log_thu_control:
+                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                 
                 #if not simulate:
                 write_log(info_close, trader.log_positions_ist)
@@ -3100,7 +3747,7 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
         # add new entry to buffer
         (buffers[ass_idx]).iloc[sampsBuffersCounter[ass_idx]] = [DateTime, bid, ask]
         sampsBuffersCounter[ass_idx] = (sampsBuffersCounter[ass_idx]+1)%n_samps_buffer
-        
+        str_idx=0
         for idx, trader in enumerate(traders):
             list_idx = trader.map_ass_idx2pos_idx[str_idx][ass_id]
             trader.update_list_last(list_idx, DateTime, bid, ask)
@@ -3117,7 +3764,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                 out = thisAsset+logMsg
                 print(out)
                 trader.write_log(out)
-                queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                if log_thu_control:
+                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                 # for now, ban only if asset is opened AND they go in same direction
                 if trader.is_opened_strategy(ass_id):
                     thisDirection = trader.list_opened_positions\
@@ -3130,7 +3778,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                         print(out)
                         trader.write_log(out)
                         trader.close_position(DateTime, thisAsset, ass_id, list_results[idx], DTi_real=DateTime)
-                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
+                        if log_thu_control:
+                            queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":logMsg})
                     else:
                         out = thisAsset+" NOT flushed due to different directions"
                         print(out)
@@ -3140,7 +3789,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
                     out = thisAsset+log_mess
                     print(out)
                     trader.write_log(out)
-                    queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":out})
+                    if log_thu_control:
+                        queue.put({"FUNC":"LOG","ORIGIN":"TRADE","ASS":thisAsset,"MSG":out})
                 os.remove(trader.ban_currencies_dir+trader.start_time+thisAsset)
 
         if sampsBuffersCounter[ass_idx]==0:
@@ -3187,7 +3837,8 @@ def back_test(DateTimes, SymbolBids, SymbolAsks, Assets, nEvents,
             for idx, trader in enumerate(traders):
                 if trader.is_opened(ass_id):
                     trader.close_position(DateTime, thisAsset, ass_id, list_results[idx])
-            queue.put({"FUNC":"SD"})
+            if log_thu_control:
+                queue.put({"FUNC":"SD"})
             break
         elif os.path.exists(io_ass_dir+'PA'):
             
@@ -3376,14 +4027,14 @@ def init_network_structures(lists, nNets, nAssets):
 
 #if __name__ == '__main__':
     
-def run_carefully(config_trader, running_assets, start_time, test, queue, queue_prior, session_json):
+def run_carefully(config_trader, running_assets, start_time, test, queue, queue_prior, session_json, token_header):
     """  """
     try:
-        run(config_trader, running_assets, start_time, test, queue, queue_prior, session_json)
+        run(config_trader, running_assets, start_time, test, queue, queue_prior, session_json, token_header)
     except KeyboardInterrupt:
         print("KeyboardInterrupt: Exit program organizedly")
     
-def run(config_traders_list, running_assets, start_time, test, queue, queue_prior, session_json):
+def run(config_traders_list, running_assets, start_time, test, queue, queue_prior, session_json, token_header):
     """  """    
     
     if len(config_traders_list)>1 and not run_back_test:
@@ -3841,7 +4492,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
                                 net2strategy=list_net2strategy[idx_tr], 
                                 queue=queue, queue_prior=queue_prior, 
                                 max_opened_positions=max_opened_positions, 
-                                session_json=session_json)#, api=api
+                                session_json=session_json, token_header=token_header)#, api=api
                 # pass trader to api
 #                if send_info_api:
 #                    api.init_trader(trader)
@@ -3856,7 +4507,9 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
             print(out)
             #if not os.path.exists(trader.log_file):
             trader.write_log(out)
-            queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":"ALL","MSG":out})
+            send_log_info(queue, "ALL", {"FUNC":"LOG","ORIGIN":"TRADE","ASS":"ALL","MSG":out})
+#            if log_thu_control:
+#                queue.put({"FUNC":"LOG","ORIGIN":"MONITORING","ASS":"ALL","MSG":out})
             write_log(out, trader.log_summary)
             DateTimes, SymbolBids, SymbolAsks, Assets, nEvents = \
                 load_in_memory(running_assets, AllAssets, dateTest, init_list_index, 
@@ -3937,15 +4590,19 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         trader = Trader(running_assets,
                         ass2index_mapping, list_strategies[idx_tr], 
                         log_file, results_dir=dir_results, session_json=session_json,
+                        token_header=token_header, 
                         start_time=start_time, config_name=config_name,
                         net2strategy=list_net2strategy[idx_tr], queue=queue, 
                         queue_prior=queue_prior, max_opened_positions=max_opened_positions)
         if send_info_api:
             # send config confirmation
-            trader.queue_prior.put({"FUNC":"CONFIG", 
-                                  "CONFIG":config_trader, 
-                                  "ASSET":thisAsset, 
-                                  "ORIGIN":"PARAM_UPDATE"})
+            if log_thu_control:
+                trader.queue_prior.put({"FUNC":"CONFIG", 
+                                      "CONFIG":config_trader, 
+                                      "ASSET":thisAsset, 
+                                      "ORIGIN":"PARAM_UPDATE"})
+            else:
+                ct.confirm_config_info(config_trader, thisAsset, "PARAM_UPDATE", trader.token_header)
         # Resume after hibernation
         snapshot_filename = LC.snapshot_live_dir+AllAssets[str(running_assets[0])]+"/snapshot.p"
         if resume:
@@ -4001,7 +4658,7 @@ def run(config_traders_list, running_assets, start_time, test, queue, queue_prio
         list_results[idx].save_results()
 #[1,2,3,4,7,8,10,11,12,13,14,16,17,19,27,28,29,30,31,32]
 
-def launch(synchroned_run=False, test=False, session_json=None):
+def launch(synchroned_run=False, test=False, session_json=None, token_header=None):
     
     #print("\n\n\nLaunching\n\n\n")
     if synchroned_run:
@@ -4018,13 +4675,13 @@ def launch(synchroned_run=False, test=False, session_json=None):
             queue_prior = Queue()
             disp = Process(target=run_carefully, args=[list_config_traders, 
                            running_assets[ass_idx:ass_idx+1], start_time, test, 
-                           queue, queue_prior, session_json])
+                           queue, queue_prior, session_json, token_header])
             disp.start()
             processes.append(disp)
             queues.append(queue)
             queues_prior.append(queue_prior)
-            time.sleep(2)
-        #time.sleep(30)
+            time.sleep(10)
+        time.sleep(30)
         print("All RNNs launched")
         return processes, queues, queues_prior
 
@@ -4067,13 +4724,14 @@ import shutil
 from kaissandra.local_config import local_vars as LC
 #if send_info_api:
 #from kaissandra.prod.api import API
-from kaissandra.prod.communication import open_session, \
-                                          close_session, \
-                                          shutdown_control
+#from kaissandra.prod.communication import open_session, \
+#                                          close_session, \
+#                                          shutdown_control
 from kaissandra.config import Config as C
 # runLive in multiple processes
 from multiprocessing import Process, Queue
 from kaissandra.config import retrieve_config
+import kaissandra.prod.communication as ct
 
 verbose_RNN = LC.VERBOSE
 verbose_trader = LC.VERBOSE
@@ -4088,6 +4746,20 @@ if hasattr(LC,'CRISIS_MODE'):
 else:
     print("\n\nWARNING! Crisis mode not in LC\n\n")
     crisis_mode = False
+if hasattr(LC,'DOUBLE_DOWN'):
+    double_down = LC.DOUBLE_DOWN
+    if double_down['on']:
+        print("\nDOUBLE DOWN ON!")
+else:
+    double_down = {'on':False}
+
+if hasattr(LC,'MARGIN_ADAPT'):    
+    margin_adapt = LC.MARGIN_ADAPT
+    if margin_adapt:
+        print("\nMARGIN ADAPT TRUE!")
+else:
+    margin_adapt = False
+
 resume = LC.RESUME
 if resume:
     print("\n\nRESUME ON\n\n")
@@ -4098,6 +4770,11 @@ ban_only_if_open = False # not in use
 force_no_extesion = False
 
 modular = True
+if hasattr(LC,'LOG_CONTROL'):
+    log_thu_control = LC.LOG_CONTROL
+else:
+    print("\n\nWARNING! Crisis mode not in LC\n\n")
+    log_thu_control = False
 
 if not test:
     if not crisis_mode:
@@ -4107,21 +4784,28 @@ if not test:
 else:
     n_samps_buffer = 10
 
-if not test:
-    if len(config_names)>0: 
-        list_config_traders = [retrieve_config(config_name) for config_name in config_names]
-        print("config_names")
-        print(config_names)
-    #        for config_name in ins:
-    #            #config_trader = retrieve_config(ins[0])
-    #            list_config_traders.append(retrieve_config(config_name))
-    else:
-        list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
-# override list configs if test is True
-else:
-    list_config_traders = [retrieve_config('TTESTv3')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
+if len(config_names)>1:
+    raise ValueError("ERROR! config_names len must be 1")
+print("config_names")
+print(config_names)
+list_config_traders = [retrieve_config(LC.CONFIG_FILE)]
+if test:
     print("WARNING! TEST ON")
-print("synchroned_run: "+str(synchroned_run))
+#if not test:
+#    if len(config_names)>0: 
+#        list_config_traders = [retrieve_config(config_name) for config_name in config_names]
+#        print("config_names")
+#        print(config_names)
+#    #        for config_name in ins:
+#    #            #config_trader = retrieve_config(ins[0])
+#    #            list_config_traders.append(retrieve_config(config_name))
+#    else:
+#        list_config_traders = [retrieve_config(LC.CONFIG_FILE)]#'TPRODN01010GREV2', 'TPRODN01010N01011'
+## override list configs if test is True
+#else:
+#    list_config_traders = [retrieve_config('T6N504060TESTv1')]#TTESTv3#'TTEST10'#'TPRODN01010N01011'
+#    print("WARNING! TEST ON")
+#print("synchroned_run: "+str(synchroned_run))
 #print("Test "+str(test))
 #running_assets = [10]#assets#[7,10,12,14]#assets#[12,7,14]#
 if run_back_test:
@@ -4144,29 +4828,39 @@ start_time = dt.datetime.strftime(dt.datetime.now(),'%y_%m_%d_%H_%M_%S')
 if __name__=='__main__':
     # lauch
     if send_info_api:
-        session_json = open_session(list_config_traders[0]['config_name'], sessiontype, test)
-        
-    renew_directories(C.AllAssets, running_assets)
+        session_json = ct.open_session(list_config_traders[0]['config_name'], sessiontype, test)
+        token_header = ct.build_token_header(ct.post_token())
+    else:
+        session_json = None
+        token_header = None
+    
+    clean_mt5 = False
+    for arg in sys.argv:
+        if arg=='clean':
+            # clean directory before running
+            clean_mt5 = True
+    renew_directories(C.AllAssets, running_assets, clean_mt5)
 #    if synchroned_run and send_info_api:
 #        api.intit_all(list_config_traders[0], running_assets, sessiontype, sessiontest=test)
     processes, queues, queues_prior = launch(synchroned_run=synchroned_run, 
-                                             test=test, session_json=session_json)#
+                                             test=test, session_json=session_json, token_header=token_header)#
     if not synchroned_run:
         # Controlling and message passing to releave traders of these tasks
-        
-        from kaissandra.prod.control import control
-        kwargs = {'queues':queues, 'queues_prior':queues_prior, 'send_info_api':send_info_api}
-        #Process(target=control, args=[running_assets], kwargs=kwargs).start()
-        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
+        if log_thu_control:
+            from kaissandra.prod.control import control
+            kwargs = {'queues':queues, 'queues_prior':queues_prior, 'send_info_api':send_info_api}
+            #Process(target=control, args=[running_assets], kwargs=kwargs).start()
+            
+            control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api, test=test)
         # wait for last trader to finish
         print("WAITING FOR PROCESSES TO FINISH")
         for p in processes:
             p.join()
         # close session
         if send_info_api:
-            close_session(session_json)
+            ct.close_session(session_json)
         # shutdown control
         print("TRADER PROCESSES FINISHED")
-        shutdown_control()
+        ct.shutdown_control()
 #        control(running_assets, queues=queues, queues_prior=queues_prior, send_info_api=send_info_api)
         
