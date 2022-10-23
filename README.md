@@ -10,7 +10,7 @@ of orders. Back testing of strategies is also implemented in the online package.
 ## How to Use
 1. Run setup.py
 2. Launch MT5 with the MT5/FTR.mq5 file attached to target assets (e.g. EURUSD, GPBUSD, ...)
-3. Lauch Kaissandra webapp as backend (recommended in Heroku)
+3. Lauch Kaissandra webapp as backend (see [kaissandra_webapp](https://github.com/mgutierrez09/kaissandra_webapp)). I recommend Heroku for hosting the backend
 4. Run kaissandra/prod/run.py
 
 Start a session:
