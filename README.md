@@ -34,7 +34,7 @@ ct.shutdown()
 ```
 ## Performance
 Over a two-year period (from May 2019 until May 2021) Kaissandra obtained a return of investment (ROI) of close to 40%, outperforming all standard indicatiors like SPE500. 
-![alt text](https://github.com/mgutierrez09/kaissandra/blob/Master/ROI.png?raw=true)
+![alt text](https://github.com/mgutierrez09/kaissandra/blob/master/ROI.png?raw=true)
 ## Author
 
 [Miguel A. Gutierrez-Estevez] (https://www.linkedin.com/in/magutierrezestevez/)
